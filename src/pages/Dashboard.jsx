@@ -99,19 +99,22 @@ export default function Dashboard() {
   }
 
   async function fetchMonthlyStats() {
-    const now = new Date()
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`
-    const { data } = await supabase.from('transactions').select('type,points,amount,cost')
-      .eq('user_id',user.id).gte('date',monthStart)
-    if (!data) return
-    let bv=0,ibv=0,p=0
-    data.forEach(t => {
-      if(t.type==='BV') bv+=t.points
-      if(t.type==='IBV') ibv+=t.points
-      p += (t.amount||0)-(t.cost||0)
-    })
-    setBvTotal(bv); setIbvTotal(ibv); setProfit(p)
-  }
+  const now = new Date()
+  const month = now.getMonth() // 0-11
+  const quarterStartMonth = Math.floor(month / 3) * 3
+  const quarterStart = `${now.getFullYear()}-${String(quarterStartMonth + 1).padStart(2,'0')}-01`
+
+  const { data } = await supabase.from('transactions').select('type,points,amount,cost')
+    .eq('user_id',user.id).gte('date',quarterStart)
+  if (!data) return
+  let bv=0,ibv=0,p=0
+  data.forEach(t => {
+    if(t.type==='BV') bv+=t.points
+    if(t.type==='IBV') ibv+=t.points
+    p += (t.amount||0)-(t.cost||0)
+  })
+  setBvTotal(bv); setIbvTotal(ibv); setProfit(p)
+}
 
   async function fetchFollowUps() {
     const { data } = await supabase.from('contacts')
@@ -208,7 +211,7 @@ export default function Dashboard() {
       {/* 業績 */}
       <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>本月業績進度</span>
+          <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>本季業績進度</span>
           <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
             onClick={()=>navigate('/transactions')}>查看詳情 →</button>
         </div>
