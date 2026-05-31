@@ -62,9 +62,13 @@ export default function Customers() {
     <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
       {/* Header */}
       <div style={{ background:'#fff',padding:'52px 16px 0',borderBottom:'1px solid #F3F4F6' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>顧客檔案</h1>
-        </div>
+       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
+  <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>顧客檔案</h1>
+  <button onClick={() => navigate('/customers/new')}
+    style={{ width:36,height:36,borderRadius:'50%',background:'#2563EB',
+      border:'none',color:'#fff',fontSize:22,cursor:'pointer',
+      display:'flex',alignItems:'center',justifyContent:'center' }}>+</button>
+</div>
 
         <div style={{ position:'relative',marginBottom:12 }}>
           <span style={{ position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',

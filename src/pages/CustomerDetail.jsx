@@ -60,8 +60,13 @@ export default function CustomerDetail() {
       {/* Header */}
       <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-          <button onClick={() => navigate(-1)}
-            style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%' }}>
+  <button onClick={() => navigate(-1)}
+    style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
+  <button onClick={() => navigate(`/customers/${id}/edit`)}
+    style={{ background:'none',border:'1px solid #E5E7EB',borderRadius:8,
+      padding:'6px 12px',fontSize:13,cursor:'pointer',color:'#374151' }}>✎ 編輯</button>
+</div>
         </div>
         <div style={{ display:'flex',alignItems:'center',gap:14,marginTop:16 }}>
           <div style={{ width:56,height:56,borderRadius:'50%',background:avatarBg(customer.name),

@@ -12,7 +12,9 @@ import Daily from './pages/Daily'
 import Transactions from './pages/Transactions'
 import TransactionNew from './pages/TransactionNew'
 import Customers from './pages/Customers'
+import CustomerNew from './pages/CustomerNew'
 import CustomerDetail from './pages/CustomerDetail'
+import CustomerEdit from './pages/CustomerEdit'
 import Settings from './pages/Settings'
 import Samples from './pages/Samples'
 import Partners from './pages/Partners'
@@ -57,7 +59,9 @@ function App() {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/transactions/new" element={<TransactionNew />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/new" element={<CustomerNew />} />
           <Route path="/customers/:id" element={<CustomerDetail />} />
+          <Route path="/customers/:id/edit" element={<CustomerEdit />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/samples" element={<Samples />} />
           <Route path="/partners" element={<Partners />} />
