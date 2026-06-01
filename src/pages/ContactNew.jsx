@@ -2,8 +2,17 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 
-const EGG_TYPES = ['茶葉蛋', '荷包蛋', '生雞蛋']
-const NEED_LEVELS = ['大一', '大二', '大三', '大四']
+const EGG_TYPES = [
+  { value:'生雞蛋', desc:'不熟' },
+  { value:'荷包蛋', desc:'半熟' },
+  { value:'茶葉蛋', desc:'很熟' },
+]
+const NEED_LEVELS = [
+  { value:'大一', desc:'沒需求' },
+  { value:'大二', desc:'小抱怨' },
+  { value:'大三', desc:'想改變' },
+  { value:'大四', desc:'有行動' },
+]
 const PLATFORMS = ['IG', 'FB', 'LINE', '其他']
 
 const ACTION_MAP = {
@@ -12,6 +21,9 @@ const ACTION_MAP = {
   '生雞蛋': { '大一':'輕鬆互動','大二':'輕鬆互動','大三':'軟性活動','大四':'商機講座' },
 }
 const DAYS_MAP = { '輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5 }
+
+const EGG_COLOR = { '茶葉蛋':'#F97316', '荷包蛋':'#3B82F6', '生雞蛋':'#22C55E' }
+const EGG_BG = { '茶葉蛋':'#FFF7ED', '荷包蛋':'#EFF6FF', '生雞蛋':'#F0FDF4' }
 
 function getAction(egg, need) {
   return ACTION_MAP[egg]?.[need] || ''
@@ -32,7 +44,6 @@ export default function ContactNew() {
   function set(key, val) {
     setForm(prev => {
       const next = { ...prev, [key]: val }
-      // 自動帶入建議行動
       if (key === 'egg_type' || key === 'need_level') {
         const egg = key === 'egg_type' ? val : prev.egg_type
         const need = key === 'need_level' ? val : prev.need_level
@@ -121,12 +132,20 @@ export default function ContactNew() {
         <div style={styles.fieldWrap}>
           <label style={styles.label}>關係（蛋型）<span style={styles.suggest}>建議填</span></label>
           <div style={{ display:'flex',gap:8 }}>
-            {EGG_TYPES.map(e => (
-              <button key={e} onClick={() => set('egg_type', form.egg_type===e?'':e)}
-                style={{ ...styles.chipBtn, flex:1,
-                  background:form.egg_type===e?'#2563EB':'#F3F4F6',
-                  color:form.egg_type===e?'#fff':'#374151' }}>{e}</button>
-            ))}
+            {EGG_TYPES.map(e => {
+              const selected = form.egg_type === e.value
+              const color = EGG_COLOR[e.value]
+              const bg = EGG_BG[e.value]
+              return (
+                <button key={e.value} onClick={() => set('egg_type', selected ? '' : e.value)}
+                  style={{ flex:1,padding:'10px 8px',borderRadius:10,border:`2px solid ${selected?color:'#E5E7EB'}`,
+                    background: selected ? bg : '#F9FAFB',
+                    cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
+                  <div style={{ fontSize:13,fontWeight:700,color: selected?color:'#374151' }}>{e.value}</div>
+                  <div style={{ fontSize:11,color: selected?color:'#9CA3AF',marginTop:2 }}>{e.desc}</div>
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -134,12 +153,19 @@ export default function ContactNew() {
         <div style={styles.fieldWrap}>
           <label style={styles.label}>需求度 <span style={styles.suggest}>建議填</span></label>
           <div style={{ display:'flex',gap:8 }}>
-            {NEED_LEVELS.map(n => (
-              <button key={n} onClick={() => set('need_level', form.need_level===n?'':n)}
-                style={{ ...styles.chipBtn, flex:1,
-                  background:form.need_level===n?'#2563EB':'#F3F4F6',
-                  color:form.need_level===n?'#fff':'#374151' }}>{n}</button>
-            ))}
+            {NEED_LEVELS.map(n => {
+              const selected = form.need_level === n.value
+              return (
+                <button key={n.value} onClick={() => set('need_level', selected ? '' : n.value)}
+                  style={{ flex:1,padding:'10px 8px',borderRadius:10,
+                    border:`2px solid ${selected?'#2563EB':'#E5E7EB'}`,
+                    background: selected?'#EFF6FF':'#F9FAFB',
+                    cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
+                  <div style={{ fontSize:13,fontWeight:700,color: selected?'#2563EB':'#374151' }}>{n.value}</div>
+                  <div style={{ fontSize:11,color: selected?'#2563EB':'#9CA3AF',marginTop:2 }}>{n.desc}</div>
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -205,7 +231,7 @@ const styles = {
   fieldWrap: { marginBottom: 16 },
   label: { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 },
   suggest: { fontSize:11,color:'#3B82F6',fontWeight:500,marginLeft:4 },
-input: { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
+  input: { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
     fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' },
   chipBtn: { padding:'7px 14px',borderRadius:8,border:'none',fontSize:13,
     fontWeight:600,cursor:'pointer' },
