@@ -7,11 +7,12 @@ const IBV_GOAL = 300
 const DAYS_ZH = ['日', '一', '二', '三', '四', '五', '六']
 const DAILY_TASKS = [
   { key: 'goal_declaration', label: '目標宣言' },
-  { key: 'ig_story', label: 'IG 限動' },
-  { key: 'daily_3_contacts', label: '每日3互動', special: true },
+  { key: 'backend_announcement', label: '後台公告/管理報告' },
+  { key: 'respond_social', label: '回應臉書IDEA/LINE' },
   { key: 'daily_practice', label: '每日練習' },
   { key: 'listen_recording', label: '聽錄音' },
-  { key: 'backend_announcement', label: '後台公告' },
+  { key: 'ig_story', label: 'IG 限動' },
+  { key: 'daily_3_contacts', label: '每日3互動', special: true },
 ]
 
 function today() { return new Date().toISOString().split('T')[0] }
