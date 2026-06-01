@@ -6,11 +6,12 @@ function today() { return new Date().toISOString().split('T')[0] }
 
 const DAILY_TASKS = [
   { key: 'goal_declaration', label: '目標宣言' },
-  { key: 'ig_story', label: 'IG 限動' },
-  { key: 'daily_3_contacts', label: '每日3互動', special: true },
+  { key: 'backend_announcement', label: '後台公告/管理報告' },
+  { key: 'respond_social', label: '回應臉書IDEA/LINE' },
   { key: 'daily_practice', label: '每日練習' },
   { key: 'listen_recording', label: '聽錄音' },
-  { key: 'backend_announcement', label: '後台公告' },
+  { key: 'ig_story', label: 'IG 限動' },
+  { key: 'daily_3_contacts', label: '每日3互動', special: true },
 ]
 
 const WEEKLY_COUNTERS = [
@@ -34,6 +35,11 @@ function getWeekStart() {
   return d.toISOString().split('T')[0]
 }
 
+function getMonthStart() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
+}
+
 export default function Daily() {
   const [user, setUser] = useState(null)
   const [checkins, setCheckins] = useState({})
@@ -42,6 +48,10 @@ export default function Daily() {
   const [goals, setGoals] = useState({})
   const [weekStatus, setWeekStatus] = useState([])
   const [todayContacted, setTodayContacted] = useState([])
+  const [monthGoals, setMonthGoals] = useState({ new_product: 0, gmtss: 0 })
+  const [monthProgress, setMonthProgress] = useState({ new_product: 0, gmtss: 0 })
+  const [editingMonth, setEditingMonth] = useState(false)
+  const [monthGoalInput, setMonthGoalInput] = useState({ new_product: '', gmtss: '' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -52,7 +62,7 @@ export default function Daily() {
 
   async function fetchAll() {
     setLoading(true)
-    await Promise.all([fetchCheckins(), fetchWeekStatus(), fetchCounters(), fetchTodayContacted()])
+    await Promise.all([fetchCheckins(), fetchWeekStatus(), fetchCounters(), fetchTodayContacted(), fetchMonthGoals()])
     setLoading(false)
   }
 
@@ -105,12 +115,26 @@ export default function Daily() {
     if (data) setTodayContacted(data.map(c => c.name))
   }
 
+  async function fetchMonthGoals() {
+    const ms = getMonthStart()
+    const { data } = await supabase.from('weekly_counters')
+      .select('counter_key,count,goal').eq('user_id', user.id)
+      .eq('week_start', ms)
+      .in('counter_key', ['new_product', 'gmtss'])
+    if (data) {
+      const g = { new_product: 0, gmtss: 0 }
+      const p = { new_product: 0, gmtss: 0 }
+      data.forEach(d => { g[d.counter_key] = d.goal; p[d.counter_key] = d.count })
+      setMonthGoals(g)
+      setMonthProgress(p)
+    }
+  }
+
   async function toggleCheckin(key, isWeekly = false) {
     const cur = isWeekly ? weekCheckins[key] : checkins[key]
     const nv = !cur
     if (isWeekly) setWeekCheckins(p => ({ ...p, [key]: nv }))
     else setCheckins(p => ({ ...p, [key]: nv }))
-
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date: today(), task_key: key, is_done: nv,
       updated_at: new Date().toISOString(),
@@ -126,6 +150,33 @@ export default function Daily() {
       user_id: user.id, week_start: ws, counter_key: key,
       count: nv, goal: goals[key] || 0,
     }, { onConflict: 'user_id,week_start,counter_key' })
+  }
+
+  async function adjustMonthProgress(key, delta) {
+    const cur = monthProgress[key] || 0
+    const nv = Math.max(0, cur + delta)
+    setMonthProgress(p => ({ ...p, [key]: nv }))
+    const ms = getMonthStart()
+    await supabase.from('weekly_counters').upsert({
+      user_id: user.id, week_start: ms, counter_key: key,
+      count: nv, goal: monthGoals[key] || 0,
+    }, { onConflict: 'user_id,week_start,counter_key' })
+  }
+
+  async function saveMonthGoals() {
+    const ms = getMonthStart()
+    const ng = {
+      new_product: parseInt(monthGoalInput.new_product) || monthGoals.new_product,
+      gmtss: parseInt(monthGoalInput.gmtss) || monthGoals.gmtss,
+    }
+    setMonthGoals(ng)
+    setEditingMonth(false)
+    for (const key of ['new_product', 'gmtss']) {
+      await supabase.from('weekly_counters').upsert({
+        user_id: user.id, week_start: ms, counter_key: key,
+        count: monthProgress[key] || 0, goal: ng[key],
+      }, { onConflict: 'user_id,week_start,counter_key' })
+    }
   }
 
   const doneCount = DAILY_TASKS.filter(t => checkins[t.key]).length
@@ -215,8 +266,7 @@ export default function Daily() {
                   <span style={{ fontSize:13,color:'#9CA3AF',minWidth:40,textAlign:'right' }}>
                     {count}/{goal||'—'}
                   </span>
-                  <button onClick={() => adjustCounter(c.key, -1)}
-                    style={counterBtn}>−</button>
+                  <button onClick={() => adjustCounter(c.key, -1)} style={counterBtn}>−</button>
                   <button onClick={() => adjustCounter(c.key, 1)}
                     style={{ ...counterBtn,background:'#2563EB',color:'#fff' }}>+</button>
                 </div>
@@ -247,7 +297,72 @@ export default function Daily() {
           })}
         </div>
 
+        {/* 每月目標 */}
+        <div style={card}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
+            <span style={sectionTitle}>每月目標</span>
+            <button onClick={() => {
+              setMonthGoalInput({ new_product: String(monthGoals.new_product), gmtss: String(monthGoals.gmtss) })
+              setEditingMonth(true)
+            }} style={{ fontSize:13,color:'#2563EB',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}>
+              編輯
+            </button>
+          </div>
+
+          {[
+            { key:'new_product', label:'認識新產品', unit:'樣' },
+            { key:'gmtss', label:'GMTSS 課程', unit:'次' },
+          ].map(item => (
+            <div key={item.key} style={{ display:'flex',alignItems:'center',
+              padding:'10px 0',borderBottom:'1px solid #F9FAFB' }}>
+              <span style={{ flex:1,fontSize:14,color:'#374151' }}>{item.label}</span>
+              <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                <span style={{ fontSize:13,color:'#9CA3AF',minWidth:50,textAlign:'right' }}>
+                  {monthProgress[item.key]}/{monthGoals[item.key]||'—'} {item.unit}
+                </span>
+                <button onClick={() => adjustMonthProgress(item.key, -1)} style={counterBtn}>−</button>
+                <button onClick={() => adjustMonthProgress(item.key, 1)}
+                  style={{ ...counterBtn,background:'#2563EB',color:'#fff' }}>+</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
+
+      {/* 每月目標編輯 Modal */}
+      {editingMonth && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            width:'100%',maxWidth:430 }}>
+            <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 16px' }}>設定每月目標</h3>
+            {[
+              { key:'new_product', label:'認識新產品（樣）' },
+              { key:'gmtss', label:'GMTSS 課程（次）' },
+            ].map(item => (
+              <div key={item.key} style={{ marginBottom:16 }}>
+                <label style={{ fontSize:13,color:'#6B7280',display:'block',marginBottom:4 }}>{item.label}</label>
+                <input
+                  type="number" min="0"
+                  value={monthGoalInput[item.key]}
+                  onChange={e => setMonthGoalInput(p => ({ ...p, [item.key]: e.target.value }))}
+                  style={{ width:'100%',padding:'10px 12px',borderRadius:10,
+                    border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box' }}
+                />
+              </div>
+            ))}
+            <div style={{ display:'flex',gap:10,marginTop:8 }}>
+              <button onClick={() => setEditingMonth(false)}
+                style={{ flex:1,padding:'12px',borderRadius:10,border:'1px solid #E5E7EB',
+                  background:'#fff',fontSize:15,cursor:'pointer',color:'#6B7280' }}>取消</button>
+              <button onClick={saveMonthGoals}
+                style={{ flex:1,padding:'12px',borderRadius:10,border:'none',
+                  background:'#2563EB',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>儲存</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
