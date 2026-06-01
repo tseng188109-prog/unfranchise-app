@@ -33,10 +33,11 @@ export default function Partners() {
     setLoading(true)
 
     // 撈直屬夥伴
-    const { data: partnerUsers } = await supabase
-      .from('users')
-      .select('id,name,created_at')
-      .eq('referrer_id', user.id)
+    const { data: partnerUsers, error: partnerError } = await supabase
+  .from('users')
+  .select('id,name,created_at')
+  .eq('referrer_id', user.id)
+console.log('夥伴查詢結果:', partnerUsers, '錯誤:', partnerError)
 
     if (partnerUsers && partnerUsers.length > 0) {
       const now = new Date()
