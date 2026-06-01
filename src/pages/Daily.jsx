@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
-function today() { return new Date().toISOString().split('T')[0] }
+function toDateStr(d) { return d.toISOString().split('T')[0] }
+function today() { return toDateStr(new Date()) }
 
 const DAILY_TASKS = [
   { key: 'goal_declaration', label: '目標宣言' },
@@ -29,19 +30,38 @@ const WEEKLY_TASKS = [
   { key: 'coring', label: 'Coring 培訓' },
 ]
 
-function getWeekStart() {
-  const d = new Date()
+function getWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
   d.setDate(d.getDate() - d.getDay())
-  return d.toISOString().split('T')[0]
+  return toDateStr(d)
 }
 
-function getMonthStart() {
-  const d = new Date()
+function getWeekDays(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const start = new Date(d)
+  start.setDate(d.getDate() - d.getDay())
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(start)
+    day.setDate(start.getDate() + i)
+    days.push(toDateStr(day))
+  }
+  return days
+}
+
+function getMonthStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
+}
+
+function formatDateLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' })
 }
 
 export default function Daily() {
   const [user, setUser] = useState(null)
+  const [viewDate, setViewDate] = useState(today())
   const [checkins, setCheckins] = useState({})
   const [weekCheckins, setWeekCheckins] = useState({})
   const [counters, setCounters] = useState({})
@@ -54,11 +74,13 @@ export default function Daily() {
   const [monthGoalInput, setMonthGoalInput] = useState({ new_product: '', gmtss: '' })
   const [loading, setLoading] = useState(true)
 
+  const isToday = viewDate === today()
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
-  useEffect(() => { if (user) fetchAll() }, [user])
+  useEffect(() => { if (user) fetchAll() }, [user, viewDate])
 
   async function fetchAll() {
     setLoading(true)
@@ -67,13 +89,14 @@ export default function Daily() {
   }
 
   async function fetchCheckins() {
+    const ws = getWeekStart(viewDate)
     const { data } = await supabase.from('daily_checkins')
       .select('task_key,is_done,date').eq('user_id', user.id)
-      .gte('date', getWeekStart())
+      .gte('date', ws)
     if (!data) return
     const daily = {}, weekly = {}
     data.forEach(d => {
-      if (d.date === today()) daily[d.task_key] = d.is_done
+      if (d.date === viewDate) daily[d.task_key] = d.is_done
       if (WEEKLY_TASKS.find(t => t.key === d.task_key)) weekly[d.task_key] = d.is_done
     })
     setCheckins(daily)
@@ -81,12 +104,7 @@ export default function Daily() {
   }
 
   async function fetchWeekStatus() {
-    const now = new Date()
-    const days = []
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now); d.setDate(now.getDate() - now.getDay() + i)
-      days.push(d.toISOString().split('T')[0])
-    }
+    const days = getWeekDays(viewDate)
     const { data } = await supabase.from('daily_checkins')
       .select('date,is_done').eq('user_id', user.id).in('date', days)
     const sm = {}
@@ -100,7 +118,7 @@ export default function Daily() {
   }
 
   async function fetchCounters() {
-    const ws = getWeekStart()
+    const ws = getWeekStart(viewDate)
     const { data } = await supabase.from('weekly_counters')
       .select('counter_key,count,goal').eq('user_id', user.id).eq('week_start', ws)
     const c = {}, g = {}
@@ -111,16 +129,15 @@ export default function Daily() {
 
   async function fetchTodayContacted() {
     const { data } = await supabase.from('contacts').select('name')
-      .eq('user_id', user.id).eq('last_contact_date', today()).limit(5)
+      .eq('user_id', user.id).eq('last_contact_date', viewDate).limit(5)
     if (data) setTodayContacted(data.map(c => c.name))
   }
 
   async function fetchMonthGoals() {
-    const ms = getMonthStart()
+    const ms = getMonthStart(viewDate)
     const { data } = await supabase.from('weekly_counters')
       .select('counter_key,count,goal').eq('user_id', user.id)
-      .eq('week_start', ms)
-      .in('counter_key', ['new_product', 'gmtss'])
+      .eq('week_start', ms).in('counter_key', ['new_product', 'gmtss'])
     if (data) {
       const g = { new_product: 0, gmtss: 0 }
       const p = { new_product: 0, gmtss: 0 }
@@ -130,13 +147,20 @@ export default function Daily() {
     }
   }
 
+  function changeDate(delta) {
+    const d = new Date(viewDate + 'T00:00:00')
+    d.setDate(d.getDate() + delta)
+    const newDate = toDateStr(d)
+    if (newDate <= today()) setViewDate(newDate)
+  }
+
   async function toggleCheckin(key, isWeekly = false) {
     const cur = isWeekly ? weekCheckins[key] : checkins[key]
     const nv = !cur
     if (isWeekly) setWeekCheckins(p => ({ ...p, [key]: nv }))
     else setCheckins(p => ({ ...p, [key]: nv }))
     await supabase.from('daily_checkins').upsert({
-      user_id: user.id, date: today(), task_key: key, is_done: nv,
+      user_id: user.id, date: viewDate, task_key: key, is_done: nv,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,date,task_key' })
   }
@@ -145,7 +169,7 @@ export default function Daily() {
     const cur = counters[key] || 0
     const nv = Math.max(0, cur + delta)
     setCounters(p => ({ ...p, [key]: nv }))
-    const ws = getWeekStart()
+    const ws = getWeekStart(viewDate)
     await supabase.from('weekly_counters').upsert({
       user_id: user.id, week_start: ws, counter_key: key,
       count: nv, goal: goals[key] || 0,
@@ -156,7 +180,7 @@ export default function Daily() {
     const cur = monthProgress[key] || 0
     const nv = Math.max(0, cur + delta)
     setMonthProgress(p => ({ ...p, [key]: nv }))
-    const ms = getMonthStart()
+    const ms = getMonthStart(viewDate)
     await supabase.from('weekly_counters').upsert({
       user_id: user.id, week_start: ms, counter_key: key,
       count: nv, goal: monthGoals[key] || 0,
@@ -164,7 +188,7 @@ export default function Daily() {
   }
 
   async function saveMonthGoals() {
-    const ms = getMonthStart()
+    const ms = getMonthStart(viewDate)
     const ng = {
       new_product: parseInt(monthGoalInput.new_product) || monthGoals.new_product,
       gmtss: parseInt(monthGoalInput.gmtss) || monthGoals.gmtss,
@@ -193,9 +217,39 @@ export default function Daily() {
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)' }}>
         <div style={{ maxWidth:430,margin:'0 auto',padding:'52px 20px 20px' }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>每日行動</h1>
-          <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>
-            {new Date().toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'})}
-          </p>
+
+          {/* 日期切換列 */}
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:8 }}>
+            <button onClick={() => changeDate(-1)}
+              style={{ background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',
+                width:32,height:32,borderRadius:8,fontSize:18,cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center' }}>‹</button>
+
+            <div style={{ textAlign:'center' }}>
+              <p style={{ fontSize:14,color:'#E0F2FE',margin:0,fontWeight:600 }}>
+                {formatDateLabel(viewDate)}
+              </p>
+              {!isToday && (
+                <span style={{ fontSize:11,color:'#FCD34D',fontWeight:600 }}>補打模式</span>
+              )}
+            </div>
+
+            <button onClick={() => changeDate(1)}
+              style={{ background: isToday ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.15)',
+                border:'none',color: isToday ? 'rgba(255,255,255,0.3)' : '#fff',
+                width:32,height:32,borderRadius:8,fontSize:18,cursor: isToday ? 'default' : 'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center' }}>›</button>
+          </div>
+
+          {!isToday && (
+            <div style={{ textAlign:'center',marginTop:8 }}>
+              <button onClick={() => setViewDate(today())}
+                style={{ background:'rgba(255,255,255,0.2)',border:'none',color:'#fff',
+                  padding:'4px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:600 }}>
+                回到今天
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -212,15 +266,21 @@ export default function Daily() {
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
             background:'#F8FAFC',borderRadius:10,marginBottom:10 }}>
             {weekStatus.map((w,i) => {
+              const isSelected = w.date === viewDate
               const isT = w.date === today()
               const dc = w.status==='full'?'#22C55E':w.status==='partial'?'#F97316':'#E5E7EB'
               return (
-                <div key={i} style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4 }}>
-                  <span style={{ fontSize:11,color:isT?'#3B82F6':'#9CA3AF',fontWeight:isT?700:400 }}>
+                <div key={i} onClick={() => { if (w.date <= today()) setViewDate(w.date) }}
+                  style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                    cursor: w.date <= today() ? 'pointer' : 'default' }}>
+                  <span style={{ fontSize:11,
+                    color: isSelected ? '#2563EB' : isT ? '#3B82F6' : '#9CA3AF',
+                    fontWeight: isSelected || isT ? 700 : 400 }}>
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
                   <div style={{ width:10,height:10,borderRadius:'50%',background:dc,
-                    outline:isT?'2px solid #3B82F6':'none',outlineOffset:2 }} />
+                    outline: isSelected ? '2px solid #2563EB' : isT ? '2px solid #3B82F6' : 'none',
+                    outlineOffset:2 }} />
                 </div>
               )
             })}
@@ -343,8 +403,7 @@ export default function Daily() {
             ].map(item => (
               <div key={item.key} style={{ marginBottom:16 }}>
                 <label style={{ fontSize:13,color:'#6B7280',display:'block',marginBottom:4 }}>{item.label}</label>
-                <input
-                  type="number" min="0"
+                <input type="number" min="0"
                   value={monthGoalInput[item.key]}
                   onChange={e => setMonthGoalInput(p => ({ ...p, [item.key]: e.target.value }))}
                   style={{ width:'100%',padding:'10px 12px',borderRadius:10,
