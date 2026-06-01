@@ -13,7 +13,7 @@ export default function Layout({ children }) {
   const { pathname } = useLocation()
 
   return (
-    <div style={{ maxWidth: 430, margin: '0 auto', position: 'relative', minHeight: '100vh' }}>
+    <div style={{ position: 'relative', minHeight: '100vh' }}>
       <div style={{ paddingBottom: 64 }}>
         {children}
       </div>

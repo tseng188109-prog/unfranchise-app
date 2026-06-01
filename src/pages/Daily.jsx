@@ -139,14 +139,16 @@ export default function Daily() {
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
       {/* Header */}
-      <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',padding:'52px 20px 20px' }}>
-        <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>每日行動</h1>
-        <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>
-          {new Date().toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'})}
-        </p>
+      <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)' }}>
+        <div style={{ maxWidth:430,margin:'0 auto',padding:'52px 20px 20px' }}>
+          <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>每日行動</h1>
+          <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>
+            {new Date().toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'})}
+          </p>
+        </div>
       </div>
 
-      <div style={{ padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
+      <div style={{ maxWidth:430,margin:'0 auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
         {/* 每日任務 */}
         <div style={card}>

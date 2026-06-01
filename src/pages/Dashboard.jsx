@@ -188,9 +188,10 @@ export default function Dashboard() {
   )
 
   return (
-    <div style={{ maxWidth:430,margin:'0 auto',background:'#F8FAFC',minHeight:'100vh' }}>
+    <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
+      <div style={{ background:'linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)' }}>
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',
-        padding:'52px 20px 20px',background:'linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)' }}>
+        padding:'52px 20px 20px',maxWidth:430,margin:'0 auto' }}>
         <div>
           <p style={{ fontSize:22,fontWeight:800,color:'#fff',margin:0 }}>嗨，{displayName} 👋</p>
           <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
@@ -207,7 +208,9 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+      </div>
 
+      <div style={{ maxWidth:430,margin:'0 auto' }}>
       {/* 業績 */}
       <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
@@ -339,6 +342,7 @@ export default function Dashboard() {
       </section>
 
       <div style={{ height:80 }} />
+      </div>
     </div>
   )
 }
