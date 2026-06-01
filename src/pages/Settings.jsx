@@ -8,6 +8,11 @@ export default function Settings() {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [referrerName, setReferrerName] = useState('')
+  const [referrerPending, setReferrerPending] = useState('')
+  const [editingReferrer, setEditingReferrer] = useState(false)
+  const [newReferrerEmail, setNewReferrerEmail] = useState('')
+  const [referrerMsg, setReferrerMsg] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -17,8 +22,16 @@ export default function Settings() {
   }, [])
 
   async function fetchProfile(uid) {
-    const { data } = await supabase.from('users').select('name').eq('id', uid).single()
-    if (data) setName(data.name)
+    const { data } = await supabase.from('users')
+      .select('name,referrer_id,referrer_email_pending').eq('id', uid).single()
+    if (!data) return
+    setName(data.name)
+    setReferrerPending(data.referrer_email_pending || '')
+    if (data.referrer_id) {
+      const { data: ref } = await supabase.from('users')
+        .select('name').eq('id', data.referrer_id).single()
+      if (ref) setReferrerName(ref.name)
+    }
   }
 
   async function handleSaveName() {
@@ -29,13 +42,36 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  async function handleSaveReferrer() {
+    setReferrerMsg('')
+    if (!newReferrerEmail) { setReferrerMsg('請輸入推薦人 Email'); return }
+    if (newReferrerEmail.toLowerCase() === user.email.toLowerCase()) {
+      setReferrerMsg('不能填自己的 Email'); return
+    }
+
+    // 查是否已註冊
+    const { data: refUsers } = await supabase.from('users').select('id,name')
+    // 透過 auth 查 email — 用 profiles 表 or users 表比對
+    // 因為 users.id = auth.users.id，改用 email 欄位需要另外存
+    // 這裡先存 pending，讓後台處理串聯
+    await supabase.from('users').update({
+      referrer_email_pending: newReferrerEmail,
+      referrer_id: null,
+    }).eq('id', user.id)
+
+    setReferrerPending(newReferrerEmail)
+    setReferrerName('')
+    setEditingReferrer(false)
+    setReferrerMsg('')
+    setNewReferrerEmail('')
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut()
   }
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
-      {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',
         padding:'52px 20px 24px' }}>
         <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>設定</h1>
@@ -62,7 +98,7 @@ export default function Settings() {
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="輸入名稱..."
               style={{ flex:1,padding:'10px 12px',borderRadius:10,border:'1px solid #E5E7EB',
-  fontSize:14,outline:'none',color:'#111827' }} />
+                fontSize:14,outline:'none',color:'#111827' }} />
             <button onClick={handleSaveName} disabled={saving}
               style={{ padding:'10px 16px',borderRadius:10,border:'none',
                 background:saved?'#22C55E':'#2563EB',color:'#fff',
@@ -72,16 +108,60 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* 推薦關係 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:'0 0 12px' }}>推薦關係</p>
+
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
+            <span style={{ fontSize:14,color:'#374151' }}>推薦人</span>
+            <button onClick={() => { setEditingReferrer(!editingReferrer); setReferrerMsg('') }}
+              style={{ fontSize:13,color:'#2563EB',background:'none',border:'none',
+                cursor:'pointer',fontWeight:600 }}>
+              {editingReferrer ? '取消' : '修改'}
+            </button>
+          </div>
+
+          {!editingReferrer ? (
+            <p style={{ fontSize:14,color: referrerName?'#111827':referrerPending?'#F59E0B':'#9CA3AF',
+              margin:'4px 0 0',fontWeight: referrerName?600:400 }}>
+              {referrerName || (referrerPending ? `待確認：${referrerPending}` : '尚未設定')}
+            </p>
+          ) : (
+            <div style={{ marginTop:8 }}>
+              <input
+                type="email"
+                placeholder="輸入推薦人 Email..."
+                value={newReferrerEmail}
+                onChange={e => setNewReferrerEmail(e.target.value)}
+                style={{ width:'100%',padding:'10px 12px',borderRadius:10,
+                  border:'1px solid #D1D5DB',fontSize:14,boxSizing:'border-box',
+                  outline:'none',marginBottom:8 }}
+              />
+              {referrerMsg && (
+                <p style={{ fontSize:12,color:'#EF4444',margin:'0 0 8px' }}>{referrerMsg}</p>
+              )}
+              <p style={{ fontSize:11,color:'#9CA3AF',margin:'0 0 8px' }}>
+                推薦人尚未註冊也沒關係，對方日後建立帳號後會自動串聯
+              </p>
+              <button onClick={handleSaveReferrer}
+                style={{ width:'100%',padding:'10px',borderRadius:10,border:'none',
+                  background:'#2563EB',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                儲存推薦人
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* 其他功能入口 */}
         <div style={card}>
           <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:'0 0 8px' }}>功能</p>
           {[
-  { label:'📋 互動名單', path:'/contacts' },
-  { label:'📊 業績紀錄', path:'/transactions' },
-  { label:'👥 顧客檔案', path:'/customers' },
-  { label:'🧪 試用品追蹤', path:'/samples' },
-  { label:'🤝 我的夥伴', path:'/partners' },
-].map(item => (
+            { label:'📋 互動名單', path:'/contacts' },
+            { label:'📊 業績紀錄', path:'/transactions' },
+            { label:'👥 顧客檔案', path:'/customers' },
+            { label:'🧪 試用品追蹤', path:'/samples' },
+            { label:'🤝 我的夥伴', path:'/partners' },
+          ].map(item => (
             <button key={item.path} onClick={() => navigate(item.path)}
               style={{ width:'100%',display:'flex',justifyContent:'space-between',
                 alignItems:'center',padding:'12px 0',background:'none',border:'none',

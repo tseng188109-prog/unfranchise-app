@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 
 export default function Auth() {
-  const [mode, setMode] = useState('login') // login | register | forgot
+  const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,12 +19,35 @@ export default function Auth() {
 
   async function handleRegister() {
     setLoading(true); setMessage('')
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { name, referrer_email: referrerEmail } }
+      options: { data: { name } }
     })
-    if (error) setMessage(error.message)
-    else setMessage('註冊成功！請確認您的信箱後登入。')
+    if (error) { setMessage(error.message); setLoading(false); return }
+
+    const uid = data?.user?.id
+    if (uid) {
+      // 查推薦人
+      let referrerId = null
+      if (referrerEmail) {
+        const { data: refUser } = await supabase.from('users')
+          .select('id').eq('id',
+            (await supabase.from('users').select('id').ilike('id', '%')).data?.[0]?.id
+          ).single()
+        // 用 auth email 查
+        const { data: refProfile } = await supabase.rpc('get_user_id_by_email', { p_email: referrerEmail })
+        if (refProfile) referrerId = refProfile
+      }
+
+      await supabase.from('users').upsert({
+        id: uid,
+        name,
+        referrer_id: referrerId || null,
+        referrer_email_pending: (!referrerId && referrerEmail) ? referrerEmail : null,
+      }, { onConflict: 'id' })
+    }
+
+    setMessage('註冊成功！請確認您的信箱後登入。')
     setLoading(false)
   }
 
@@ -60,7 +83,6 @@ export default function Auth() {
         <p style={{ color: '#94a3b8', fontSize: '14px', textAlign: 'center',
           marginBottom: '32px' }}>Unfranchise Daily Work App</p>
 
-        {/* 登入 / 註冊 切換（忘記密碼時隱藏） */}
         {mode !== 'forgot' && (
           <div style={{ display:'flex', background:'#0f172a', borderRadius:'8px',
             padding:'4px', marginBottom:'24px' }}>
@@ -76,7 +98,6 @@ export default function Auth() {
           </div>
         )}
 
-        {/* 忘記密碼標題 */}
         {mode === 'forgot' && (
           <div style={{ marginBottom: 24 }}>
             <p style={{ color:'#fff', fontWeight:700, fontSize:16, margin:'0 0 4px' }}>重設密碼</p>
@@ -84,7 +105,6 @@ export default function Auth() {
           </div>
         )}
 
-        {/* 姓名（只有註冊） */}
         {mode === 'register' && (
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>姓名 <span style={{ color:'#ef4444' }}>必填</span></label>
@@ -93,14 +113,12 @@ export default function Auth() {
           </div>
         )}
 
-        {/* Email */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>Email <span style={{ color:'#ef4444' }}>必填</span></label>
           <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
             placeholder="輸入 Email" style={inputStyle} />
         </div>
 
-        {/* 密碼（忘記密碼時隱藏） */}
         {mode !== 'forgot' && (
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>密碼 <span style={{ color:'#ef4444' }}>必填</span></label>
@@ -109,16 +127,19 @@ export default function Auth() {
           </div>
         )}
 
-        {/* 推薦人（只有註冊） */}
         {mode === 'register' && (
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>推薦人 Email <span style={{ color:'#64748b' }}>選填</span></label>
+            <label style={labelStyle}>
+              推薦人 Email <span style={{ color:'#64748b' }}>選填</span>
+            </label>
             <input type="email" value={referrerEmail} onChange={e=>setReferrerEmail(e.target.value)}
               placeholder="輸入推薦人 Email" style={inputStyle} />
+            <p style={{ color:'#64748b', fontSize:11, margin:'4px 0 0' }}>
+              推薦人尚未註冊也沒關係，對方日後建立帳號後會自動串聯
+            </p>
           </div>
         )}
 
-        {/* 忘記密碼連結（只有登入） */}
         {mode === 'login' && (
           <div style={{ textAlign:'right', marginBottom: 16, marginTop: -8 }}>
             <button onClick={() => { setMode('forgot'); setMessage('') }}
@@ -129,7 +150,6 @@ export default function Auth() {
           </div>
         )}
 
-        {/* 訊息 */}
         {message && (
           <div style={{
             padding:'10px 12px', borderRadius:'8px', marginBottom:16,
@@ -139,7 +159,6 @@ export default function Auth() {
           }}>{message}</div>
         )}
 
-        {/* 主按鈕 */}
         <button
           onClick={mode==='login'?handleLogin:mode==='register'?handleRegister:handleForgot}
           disabled={loading}
@@ -149,7 +168,6 @@ export default function Auth() {
           {loading ? '處理中...' : mode==='login' ? '登入' : mode==='register' ? '註冊' : '寄出重設連結'}
         </button>
 
-        {/* 返回登入（忘記密碼時） */}
         {mode === 'forgot' && (
           <button onClick={() => { setMode('login'); setMessage('') }}
             style={{ width:'100%', marginTop:12, padding:'10px', borderRadius:'8px',
