@@ -15,8 +15,23 @@ const DAILY_TASKS = [
   { key: 'daily_3_contacts', label: '每日3互動', special: true },
 ]
 
-function today() { return new Date().toISOString().split('T')[0] }
-function formatDate(dateStr) {
+function toDateStr(d) { return d.toISOString().split('T')[0] }
+function today() { return toDateStr(new Date()) }
+
+function getWeekDays(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const start = new Date(d)
+  start.setDate(d.getDate() - d.getDay())
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(start)
+    day.setDate(start.getDate() + i)
+    days.push(toDateStr(day))
+  }
+  return days
+}
+
+function formatFollowDate(dateStr) {
   if (!dateStr) return ''
   const diff = Math.floor((new Date(today()) - new Date(dateStr)) / 86400000)
   if (diff === 0) return '今天到期'
@@ -29,8 +44,12 @@ function getEggColor(t) { return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B8
 function getEggBg(t) { return t==='茶葉蛋'?'#FFF7ED':t==='荷包蛋'?'#EFF6FF':t==='生雞蛋'?'#F0FDF4':'#F9FAFB' }
 function avatarBg(name) {
   const colors=['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n=0; for(let i=0;i<name.length;i++) n+=name.charCodeAt(i)
+  let n=0; for(let i=0;i<(name||'').length;i++) n+=name.charCodeAt(i)
   return colors[n%colors.length]
+}
+function formatDateLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' })
 }
 
 function Avatar({ name, size=36 }) {
@@ -76,10 +95,13 @@ export default function Dashboard() {
   const [overdueContacts, setOverdueContacts] = useState([])
   const [todayDueContacts, setTodayDueContacts] = useState([])
   const [checkins, setCheckins] = useState({})
-  const [todayContacted, setTodayContacted] = useState([])
+  const [viewContacted, setViewContacted] = useState([])
   const [checkTotal, setCheckTotal] = useState(0)
   const [weekStatus, setWeekStatus] = useState([])
+  const [viewDate, setViewDate] = useState(today())
   const [loading, setLoading] = useState(true)
+
+  const isToday = viewDate === today()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -87,10 +109,20 @@ export default function Dashboard() {
 
   useEffect(() => { if (user) fetchAll() }, [user])
 
+  useEffect(() => {
+    if (user) {
+      fetchCheckin()
+      fetchWeekStatus()
+      fetchViewContacted()
+    }
+  }, [user, viewDate])
+
   async function fetchAll() {
     setLoading(true)
-    await Promise.all([fetchProfile(),fetchMonthlyStats(),fetchFollowUps(),
-      fetchTodayCheckin(),fetchWeekStatus(),fetchTodayContacted()])
+    await Promise.all([
+      fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
+      fetchCheckin(), fetchWeekStatus(), fetchViewContacted()
+    ])
     setLoading(false)
   }
 
@@ -100,22 +132,20 @@ export default function Dashboard() {
   }
 
   async function fetchMonthlyStats() {
-  const now = new Date()
-  const month = now.getMonth() // 0-11
-  const quarterStartMonth = Math.floor(month / 3) * 3
-  const quarterStart = `${now.getFullYear()}-${String(quarterStartMonth + 1).padStart(2,'0')}-01`
-
-  const { data } = await supabase.from('transactions').select('type,points,amount,cost')
-    .eq('user_id',user.id).gte('date',quarterStart)
-  if (!data) return
-  let bv=0,ibv=0,p=0
-  data.forEach(t => {
-    if(t.type==='BV') bv+=t.points
-    if(t.type==='IBV') ibv+=t.points
-    p += (t.amount||0)-(t.cost||0)
-  })
-  setBvTotal(bv); setIbvTotal(ibv); setProfit(p)
-}
+    const now = new Date()
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+    const quarterStart = `${now.getFullYear()}-${String(quarterStartMonth+1).padStart(2,'0')}-01`
+    const { data } = await supabase.from('transactions').select('type,points,amount,cost')
+      .eq('user_id',user.id).gte('date',quarterStart)
+    if (!data) return
+    let bv=0,ibv=0,p=0
+    data.forEach(t => {
+      if(t.type==='BV') bv+=t.points
+      if(t.type==='IBV') ibv+=t.points
+      p += (t.amount||0)-(t.cost||0)
+    })
+    setBvTotal(bv); setIbvTotal(ibv); setProfit(p)
+  }
 
   async function fetchFollowUps() {
     const { data } = await supabase.from('contacts')
@@ -127,29 +157,23 @@ export default function Dashboard() {
     setOverdueContacts(data.filter(c=>isOverdue(c.next_contact_date)))
   }
 
-  async function fetchTodayCheckin() {
+  async function fetchCheckin() {
     const { data } = await supabase.from('daily_checkins')
-      .select('task_key,is_done').eq('user_id',user.id).eq('date',today())
+      .select('task_key,is_done').eq('user_id',user.id).eq('date',viewDate)
     const map={}
     if(data) data.forEach(d=>{ map[d.task_key]=d.is_done })
     setCheckins(map)
     setCheckTotal(data ? data.filter(d=>d.is_done).length : 0)
   }
 
-  async function fetchTodayContacted() {
+  async function fetchViewContacted() {
     const { data } = await supabase.from('contacts').select('name')
-      .eq('user_id',user.id).eq('last_contact_date',today()).limit(5)
-    if(data) setTodayContacted(data.map(c=>c.name))
+      .eq('user_id',user.id).eq('last_contact_date',viewDate).limit(5)
+    if(data) setViewContacted(data.map(c=>c.name))
   }
 
   async function fetchWeekStatus() {
-    const now = new Date()
-    const dow = now.getDay()
-    const days = []
-    for(let i=0;i<7;i++){
-      const d=new Date(now); d.setDate(now.getDate()-dow+i)
-      days.push(d.toISOString().split('T')[0])
-    }
+    const days = getWeekDays(viewDate)
     const { data } = await supabase.from('daily_checkins')
       .select('date,is_done').eq('user_id',user.id).in('date',days)
     const sm={}
@@ -162,12 +186,19 @@ export default function Dashboard() {
     setWeekStatus(days.map(d=>({date:d,status:sm[d]||'none'})))
   }
 
+  function changeDate(delta) {
+    const d = new Date(viewDate + 'T00:00:00')
+    d.setDate(d.getDate() + delta)
+    const nd = toDateStr(d)
+    if (nd <= today()) setViewDate(nd)
+  }
+
   async function toggleCheckin(key) {
     const cur=checkins[key], nv=!cur
     setCheckins(p=>({...p,[key]:nv}))
     setCheckTotal(p=>nv?p+1:p-1)
     const { error } = await supabase.from('daily_checkins').upsert(
-      { user_id:user.id,date:today(),task_key:key,is_done:nv,updated_at:new Date().toISOString() },
+      { user_id:user.id, date:viewDate, task_key:key, is_done:nv, updated_at:new Date().toISOString() },
       { onConflict:'user_id,date,task_key' }
     )
     if(error){ setCheckins(p=>({...p,[key]:cur})); setCheckTotal(p=>nv?p-1:p+1) }
@@ -191,158 +222,197 @@ export default function Dashboard() {
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
       <div style={{ background:'linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)' }}>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',
-        padding:'52px 20px 20px',maxWidth:430,margin:'0 auto' }}>
-        <div>
-          <p style={{ fontSize:22,fontWeight:800,color:'#fff',margin:0 }}>嗨，{displayName} 👋</p>
-          <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',
+          padding:'52px 20px 20px',maxWidth:430,margin:'0 auto' }}>
+          <div>
+            <p style={{ fontSize:22,fontWeight:800,color:'#fff',margin:0 }}>嗨，{displayName} 👋</p>
+            <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
+          </div>
+          <div style={{ display:'flex',gap:8 }}>
+            <button style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
+              width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
+              <span style={{ fontSize:20 }}>🔔</span>
+            </button>
+            <button onClick={()=>navigate('/settings')}
+              style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
+              width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
+              <span style={{ fontSize:20 }}>⚙️</span>
+            </button>
+          </div>
         </div>
-        <div style={{ display:'flex',gap:8 }}>
-          <button style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
-            width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
-            <span style={{ fontSize:20 }}>🔔</span>
-          </button>
-          <button onClick={()=>navigate('/settings')}
-            style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
-            width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
-            <span style={{ fontSize:20 }}>⚙️</span>
-          </button>
-        </div>
-      </div>
       </div>
 
       <div style={{ maxWidth:430,margin:'0 auto' }}>
-      {/* 業績 */}
-      <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>本季業績進度</span>
-          <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
-            onClick={()=>navigate('/transactions')}>查看詳情 →</button>
-        </div>
-        <div style={{ display:'flex',gap:16,marginBottom:16 }}>
-          <div style={{ flex:1 }}>
-            <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-              <span style={{ fontSize:13,fontWeight:800,color:'#F97316' }}>BV</span>
-              <span style={{ fontSize:16,fontWeight:700 }}>{bvTotal.toFixed(0)} <span style={{ color:'#9CA3AF',fontSize:13 }}>/ {BV_GOAL}</span></span>
-            </div>
-            <ProgressBar value={bvTotal} max={BV_GOAL} color="#F97316" />
+
+        {/* 業績 */}
+        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
+            <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>本季業績進度</span>
+            <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
+              onClick={()=>navigate('/transactions')}>查看詳情 →</button>
           </div>
-          <div style={{ flex:1 }}>
-            <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-              <span style={{ fontSize:13,fontWeight:800,color:'#3B82F6' }}>IBV</span>
-              <span style={{ fontSize:16,fontWeight:700 }}>{ibvTotal.toFixed(0)} <span style={{ color:'#9CA3AF',fontSize:13 }}>/ {IBV_GOAL}</span></span>
-            </div>
-            <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#3B82F6" />
-          </div>
-        </div>
-        <div style={{ display:'flex',justifyContent:'space-between',paddingTop:12,borderTop:'1px solid #F3F4F6' }}>
-          <span style={{ color:'#6B7280',fontSize:13 }}>本月獲利</span>
-          <span style={{ color:profit>=0?'#16A34A':'#DC2626',fontWeight:700,fontSize:17 }}>
-            NT${profit.toLocaleString()}
-          </span>
-        </div>
-      </section>
-
-      {/* 待跟進 */}
-      <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <span style={{ fontSize:15,fontWeight:700,color:'#111827',display:'flex',alignItems:'center',gap:8 }}>
-            待跟進
-            {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:99,background:'#FEF2F2',color:'#DC2626' }}>{allDue.length} 人今天</span>}
-          </span>
-          <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
-            onClick={()=>navigate('/contacts?filter=due')}>全部 →</button>
-        </div>
-        {allDue.length===0
-          ? <p style={{ fontSize:14,color:'#9CA3AF',textAlign:'center',padding:'16px 0',margin:0 }}>今天沒有待跟進的聯絡人 🎉</p>
-          : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-              {allDue.slice(0,5).map(c=>{
-                const ov=isOverdue(c.next_contact_date)
-                return (
-                  <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
-                    style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:12,width:'100%',
-                      background:ov?'#FFF5F5':'#F9FAFB',border:`1px solid ${ov?'#FECACA':'#F3F4F6'}`,
-                      cursor:'pointer',textAlign:'left' }}>
-                    <Avatar name={c.name} size={38} />
-                    <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                        <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>{c.name}</span>
-                        <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
-                          background:getEggBg(c.egg_type),color:getEggColor(c.egg_type) }}>{c.egg_type}</span>
-                      </div>
-                      <div style={{ fontSize:12,color:'#9CA3AF',marginTop:2,display:'flex',gap:4 }}>
-                        {c.occupation&&<span>{c.occupation}</span>}{c.occupation&&<span>·</span>}
-                        <span>{c.action_type}</span>
-                      </div>
-                    </div>
-                    <span style={{ fontSize:12,fontWeight:600,whiteSpace:'nowrap',color:ov?'#DC2626':'#F97316' }}>
-                      {formatDate(c.next_contact_date)}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-        }
-      </section>
-
-      {/* 快捷 */}
-      <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:'14px 16px',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-        <div style={{ display:'flex',gap:10 }}>
-          <QuickBtn icon="👥" label="+互動" color="#3B82F6" onClick={()=>navigate('/contacts/new')} />
-          <QuickBtn icon="📊" label="+業績" color="#F97316" onClick={()=>navigate('/transactions/new')} />
-          <QuickBtn icon="🔍" label="查顧客" color="#22C55E" onClick={()=>navigate('/customers')} />
-        </div>
-      </section>
-
-      {/* 打卡 */}
-      <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>今日打卡</span>
-          <span style={{ fontSize:13,color:'#6B7280' }}>{checkTotal}/{DAILY_TASKS.length}</span>
-        </div>
-        <div style={{ display:'flex',justifyContent:'space-between',padding:'8px 4px',background:'#F8FAFC',borderRadius:10,marginBottom:4 }}>
-          {weekStatus.map((w,i)=>{
-            const isT=w.date===today()
-            const dc=w.status==='full'?'#22C55E':w.status==='partial'?'#F97316':'#E5E7EB'
-            return (
-              <div key={i} style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4 }}>
-                <span style={{ fontSize:11,color:isT?'#3B82F6':'#9CA3AF',fontWeight:isT?700:400 }}>
-                  {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
-                </span>
-                <div style={{ width:10,height:10,borderRadius:'50%',background:dc,
-                  outline:isT?'2px solid #3B82F6':'none',outlineOffset:2 }} />
+          <div style={{ display:'flex',gap:16,marginBottom:16 }}>
+            <div style={{ flex:1 }}>
+              <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                <span style={{ fontSize:13,fontWeight:800,color:'#F97316' }}>BV</span>
+                <span style={{ fontSize:16,fontWeight:700 }}>{bvTotal.toFixed(0)} <span style={{ color:'#9CA3AF',fontSize:13 }}>/ {BV_GOAL}</span></span>
               </div>
-            )
-          })}
-        </div>
-        <div style={{ display:'flex',flexDirection:'column',gap:2,marginTop:8 }}>
-          {DAILY_TASKS.map(task=>{
-            const done=!!checkins[task.key]
-            return (
-              <button key={task.key} onClick={()=>toggleCheckin(task.key)}
-                style={{ display:'flex',alignItems:'center',gap:12,padding:'8px 0',
-                  borderBottom:'1px solid #F9FAFB',background:'none',border:'none',
-                  cursor:'pointer',width:'100%',textAlign:'left' }}>
-                <div style={{ width:20,height:20,borderRadius:6,flexShrink:0,
-                  border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
-                  display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s' }}>
-                  {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
-                </div>
-                <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',textDecoration:done?'line-through':'none',flex:1 }}>
-                  {task.label}
-                  {task.special&&todayContacted.length>0&&(
-                    <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
-                      {todayContacted.join('、')} ✓
-                    </span>
-                  )}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
+              <ProgressBar value={bvTotal} max={BV_GOAL} color="#F97316" />
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                <span style={{ fontSize:13,fontWeight:800,color:'#3B82F6' }}>IBV</span>
+                <span style={{ fontSize:16,fontWeight:700 }}>{ibvTotal.toFixed(0)} <span style={{ color:'#9CA3AF',fontSize:13 }}>/ {IBV_GOAL}</span></span>
+              </div>
+              <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#3B82F6" />
+            </div>
+          </div>
+          <div style={{ display:'flex',justifyContent:'space-between',paddingTop:12,borderTop:'1px solid #F3F4F6' }}>
+            <span style={{ color:'#6B7280',fontSize:13 }}>本月獲利</span>
+            <span style={{ color:profit>=0?'#16A34A':'#DC2626',fontWeight:700,fontSize:17 }}>
+              NT${profit.toLocaleString()}
+            </span>
+          </div>
+        </section>
 
-      <div style={{ height:80 }} />
+        {/* 待跟進 */}
+        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
+            <span style={{ fontSize:15,fontWeight:700,color:'#111827',display:'flex',alignItems:'center',gap:8 }}>
+              待跟進
+              {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:99,background:'#FEF2F2',color:'#DC2626' }}>{allDue.length} 人今天</span>}
+            </span>
+            <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
+              onClick={()=>navigate('/contacts?filter=due')}>全部 →</button>
+          </div>
+          {allDue.length===0
+            ? <p style={{ fontSize:14,color:'#9CA3AF',textAlign:'center',padding:'16px 0',margin:0 }}>今天沒有待跟進的聯絡人 🎉</p>
+            : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {allDue.slice(0,5).map(c=>{
+                  const ov=isOverdue(c.next_contact_date)
+                  return (
+                    <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
+                      style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:12,width:'100%',
+                        background:ov?'#FFF5F5':'#F9FAFB',border:`1px solid ${ov?'#FECACA':'#F3F4F6'}`,
+                        cursor:'pointer',textAlign:'left' }}>
+                      <Avatar name={c.name} size={38} />
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+                          <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>{c.name}</span>
+                          <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
+                            background:getEggBg(c.egg_type),color:getEggColor(c.egg_type) }}>{c.egg_type}</span>
+                        </div>
+                        <div style={{ fontSize:12,color:'#9CA3AF',marginTop:2,display:'flex',gap:4 }}>
+                          {c.occupation&&<span>{c.occupation}</span>}{c.occupation&&<span>·</span>}
+                          <span>{c.action_type}</span>
+                        </div>
+                      </div>
+                      <span style={{ fontSize:12,fontWeight:600,whiteSpace:'nowrap',color:ov?'#DC2626':'#F97316' }}>
+                        {formatFollowDate(c.next_contact_date)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+          }
+        </section>
+
+        {/* 快捷 */}
+        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:'14px 16px',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+          <div style={{ display:'flex',gap:10 }}>
+            <QuickBtn icon="👥" label="+互動" color="#3B82F6" onClick={()=>navigate('/contacts/new')} />
+            <QuickBtn icon="📊" label="+業績" color="#F97316" onClick={()=>navigate('/transactions/new')} />
+            <QuickBtn icon="🔍" label="查顧客" color="#22C55E" onClick={()=>navigate('/customers')} />
+          </div>
+        </section>
+
+        {/* 打卡 */}
+        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+          {/* 標題列含日期切換 */}
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
+            <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>
+              {isToday ? '今日打卡' : '打卡紀錄'}
+            </span>
+            <span style={{ fontSize:13,color:'#6B7280' }}>{checkTotal}/{DAILY_TASKS.length}</span>
+          </div>
+
+          {/* 日期切換列 */}
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
+            marginBottom:10,background:'#F8FAFC',borderRadius:10,padding:'6px 10px' }}>
+            <button onClick={() => changeDate(-1)}
+              style={{ background:'none',border:'none',color:'#6B7280',
+                fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
+            <div style={{ textAlign:'center' }}>
+              <span style={{ fontSize:13,fontWeight:600,color: isToday?'#2563EB':'#F59E0B' }}>
+                {isToday ? '今天' : formatDateLabel(viewDate)}
+              </span>
+              {!isToday && (
+                <button onClick={() => setViewDate(today())}
+                  style={{ marginLeft:8,fontSize:11,color:'#2563EB',background:'none',
+                    border:'none',cursor:'pointer',fontWeight:600 }}>回今天</button>
+              )}
+            </div>
+            <button onClick={() => changeDate(1)}
+              style={{ background:'none',border:'none',
+                color: isToday?'#D1D5DB':'#6B7280',
+                fontSize:18,cursor: isToday?'default':'pointer',
+                padding:'0 4px',lineHeight:1 }}>›</button>
+          </div>
+
+          {/* 週點狀圖 */}
+          <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
+            background:'#F8FAFC',borderRadius:10,marginBottom:8 }}>
+            {weekStatus.map((w,i)=>{
+              const isSelected = w.date === viewDate
+              const isT = w.date === today()
+              const dc=w.status==='full'?'#22C55E':w.status==='partial'?'#F97316':'#E5E7EB'
+              return (
+                <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
+                  style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                    cursor: w.date<=today()?'pointer':'default' }}>
+                  <span style={{ fontSize:11,
+                    color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
+                    fontWeight: isSelected||isT?700:400 }}>
+                    {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
+                  </span>
+                  <div style={{ width:10,height:10,borderRadius:'50%',background:dc,
+                    outline: isSelected?'2px solid #2563EB':isT?'2px solid #3B82F6':'none',
+                    outlineOffset:2 }} />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 任務列表 */}
+          <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
+            {DAILY_TASKS.map(task=>{
+              const done=!!checkins[task.key]
+              return (
+                <button key={task.key} onClick={()=>toggleCheckin(task.key)}
+                  style={{ display:'flex',alignItems:'center',gap:12,padding:'8px 0',
+                    borderBottom:'1px solid #F9FAFB',background:'none',border:'none',
+                    cursor:'pointer',width:'100%',textAlign:'left' }}>
+                  <div style={{ width:20,height:20,borderRadius:6,flexShrink:0,
+                    border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
+                    display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s' }}>
+                    {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
+                    textDecoration:done?'line-through':'none',flex:1 }}>
+                    {task.label}
+                    {task.special&&viewContacted.length>0&&(
+                      <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
+                        {viewContacted.join('、')} ✓
+                      </span>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        <div style={{ height:80 }} />
       </div>
     </div>
   )
