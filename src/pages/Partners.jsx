@@ -13,18 +13,18 @@ function formatDate(d) {
   return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}`
 }
 
+function todayTW() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+}
+
 export default function Partners() {
   const [user, setUser] = useState(null)
-  const [myEmail, setMyEmail] = useState('')
   const [partners, setPartners] = useState([])
   const [pending, setPending] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      setMyEmail(user.email)
-    })
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
   useEffect(() => { if (user) fetchPartners() }, [user])
@@ -32,33 +32,32 @@ export default function Partners() {
   async function fetchPartners() {
     setLoading(true)
 
-    // 撈直屬夥伴
-    const { data: partnerUsers, error: partnerError } = await supabase
-  .from('users')
-  .select('id,name,created_at')
-  .eq('referrer_id', user.id)
-console.log('夥伴查詢結果:', partnerUsers, '錯誤:', partnerError)
+    const { data: partnerUsers } = await supabase
+      .from('users')
+      .select('id,name,created_at')
+      .eq('referrer_id', user.id)
 
     if (partnerUsers && partnerUsers.length > 0) {
       const now = new Date()
       const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`
-      const todayDay = now.getDate()
+      const todayDay = parseInt(todayTW().split('-')[2])
 
       const enriched = await Promise.all(partnerUsers.map(async p => {
-        // 本月業績
-        const { data: txs } = await supabase.from('transactions')
-          .select('type,points').eq('user_id', p.id).gte('date', monthStart)
+        // 用 security definer function 查 BV/IBV
+        const { data: bvData } = await supabase.rpc('get_partner_monthly_bv', {
+          partner_id: p.id,
+          month_start: monthStart,
+        })
+        const bv = bvData?.[0]?.bv || 0
+        const ibv = bvData?.[0]?.ibv || 0
 
-        const bv = txs ? txs.filter(t => t.type==='BV').reduce((s,t) => s+Number(t.points), 0) : 0
-        const ibv = txs ? txs.filter(t => t.type==='IBV').reduce((s,t) => s+Number(t.points), 0) : 0
-
-        // 打卡率（本月，有打卡的天數）
-        const { data: checkins } = await supabase.from('daily_checkins')
-          .select('date').eq('user_id', p.id)
-          .gte('date', monthStart).eq('is_done', true)
-
-        const checkinDays = checkins ? new Set(checkins.map(c => c.date)).size : 0
-        const checkinRate = Math.round((checkinDays / todayDay) * 100)
+        // 用 security definer function 查打卡率
+        const { data: checkinData } = await supabase.rpc('get_partner_checkin_rate', {
+          partner_id: p.id,
+          month_start: monthStart,
+          today_day: todayDay,
+        })
+        const checkinRate = Number(checkinData) || 0
 
         // 直屬夥伴數
         const { count } = await supabase.from('users')
@@ -76,7 +75,7 @@ console.log('夥伴查詢結果:', partnerUsers, '錯誤:', partnerError)
       setPartners([])
     }
 
-    // 待確認串聯：找 referrer_email_pending = 我的 email 的人
+    // 待確認串聯
     const { data: pendingData } = await supabase
       .from('users')
       .select('id,name,created_at')
@@ -105,7 +104,6 @@ console.log('夥伴查詢結果:', partnerUsers, '錯誤:', partnerError)
       </div>
 
       <div style={{ padding:'12px 16px',display:'flex',flexDirection:'column',gap:10 }}>
-
         {loading ? (
           <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>載入中…</div>
         ) : partners.length === 0 && pending.length === 0 ? (
