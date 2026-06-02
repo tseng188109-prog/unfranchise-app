@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
-function toDateStr(d) { return d.toISOString().split('T')[0] }
+function toDateStr(d) {
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+}
 function today() { return toDateStr(new Date()) }
 
 const DAILY_TASKS = [

@@ -15,7 +15,9 @@ const DAILY_TASKS = [
   { key: 'daily_3_contacts', label: '每日3互動', special: true },
 ]
 
-function toDateStr(d) { return d.toISOString().split('T')[0] }
+function toDateStr(d) {
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+}
 function today() { return toDateStr(new Date()) }
 
 function getWeekDays(dateStr) {
