@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { useNavigate } from 'react-router-dom'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
 function toDateStr(d) {
@@ -8,13 +9,13 @@ function toDateStr(d) {
 function today() { return toDateStr(new Date()) }
 
 const DAILY_TASKS = [
-  { key: 'goal_declaration', label: '目標宣言' },
-  { key: 'backend_announcement', label: '後台公告/管理報告' },
-  { key: 'respond_social', label: '回應臉書IDEA/LINE' },
-  { key: 'daily_practice', label: '每日練習' },
-  { key: 'listen_recording', label: '聽錄音' },
-  { key: 'ig_story', label: 'IG 限動' },
-  { key: 'daily_3_contacts', label: '每日3互動', special: true },
+  { key: 'goal_declaration', label: '目標宣言', icon: '🎯' },
+  { key: 'backend_announcement', label: '後台公告/管理報告', icon: '📋', url: 'https://tw.unfranchise.com' },
+  { key: 'respond_social', label: '回應臉書IDEA/LINE', icon: '💬', social: true },
+  { key: 'daily_practice', label: '每日練習', icon: '📚', url: 'https://drive.google.com/drive/folders/1v6jtYu5wrYJLX1Uqj9W_s2b15-ZK4Ckf' },
+  { key: 'listen_recording', label: '聽錄音', icon: '🎧', url: 'https://docs.google.com/document/d/112pPi7ulPzb7Gex3ZDsUFb6E6lhfCgpFrtIuftc0E64/edit?usp=drivesdk' },
+  { key: 'ig_story', label: 'IG 限動', icon: '📸', url: 'https://www.instagram.com' },
+  { key: 'daily_3_contacts', label: '每日3互動', icon: '👥', special: true, toContacts: true },
 ]
 
 const WEEKLY_COUNTERS = [
@@ -62,6 +63,7 @@ function formatDateLabel(dateStr) {
 }
 
 export default function Daily() {
+  const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [viewDate, setViewDate] = useState(today())
   const [checkins, setCheckins] = useState({})
@@ -76,8 +78,17 @@ export default function Daily() {
   const [monthGoalInput, setMonthGoalInput] = useState({ new_product: '', gmtss: '' })
   const [loading, setLoading] = useState(true)
 
+  // 目標宣言 Modal
+  const [goalModal, setGoalModal] = useState(false)
+  const [goalText, setGoalText] = useState('')
+  const [goalSaving, setGoalSaving] = useState(false)
+  const [goalSaved, setGoalSaved] = useState(false)
+
+  // 社群連結 Modal
+  const [socialModal, setSocialModal] = useState(false)
+
   // 備註 Modal
-  const [logModal, setLogModal] = useState(null) // { key, label }
+  const [logModal, setLogModal] = useState(null)
   const [logContact, setLogContact] = useState('')
   const [logContactId, setLogContactId] = useState(null)
   const [logProduct, setLogProduct] = useState('')
@@ -86,7 +97,7 @@ export default function Daily() {
   const [searchLoading, setSearchLoading] = useState(false)
 
   // 週目標編輯
-  const [editingGoal, setEditingGoal] = useState(null) // counter key
+  const [editingGoal, setEditingGoal] = useState(null)
   const [goalInput, setGoalInput] = useState('')
 
   useEffect(() => {
@@ -97,7 +108,7 @@ export default function Daily() {
 
   async function fetchAll() {
     setLoading(true)
-    await Promise.all([fetchCheckins(), fetchWeekStatus(), fetchCounters(), fetchTodayContacted(), fetchMonthGoals()])
+    await Promise.all([fetchCheckins(), fetchWeekStatus(), fetchCounters(), fetchTodayContacted(), fetchMonthGoals(), fetchGoalText()])
     setLoading(false)
   }
 
@@ -159,6 +170,19 @@ export default function Daily() {
     }
   }
 
+  async function fetchGoalText() {
+    const { data } = await supabase.from('users').select('goal_declaration').eq('id', user.id).single()
+    if (data?.goal_declaration) setGoalText(data.goal_declaration)
+  }
+
+  async function saveGoalText() {
+    setGoalSaving(true)
+    await supabase.from('users').update({ goal_declaration: goalText }).eq('id', user.id)
+    setGoalSaving(false)
+    setGoalSaved(true)
+    setTimeout(() => setGoalSaved(false), 2000)
+  }
+
   function changeDate(delta) {
     const d = new Date(viewDate + 'T00:00:00')
     d.setDate(d.getDate() + delta)
@@ -177,7 +201,13 @@ export default function Daily() {
     }, { onConflict: 'user_id,date,task_key' })
   }
 
-  // 週目標設定
+  function handleTaskAction(task) {
+    if (task.key === 'goal_declaration') { setGoalModal(true); return }
+    if (task.social) { setSocialModal(true); return }
+    if (task.toContacts) { navigate('/contacts'); return }
+    if (task.url) { window.open(task.url, '_blank'); return }
+  }
+
   async function saveGoal(key) {
     const nv = parseInt(goalInput) || 0
     setGoals(p => ({ ...p, [key]: nv }))
@@ -189,7 +219,6 @@ export default function Daily() {
     }, { onConflict: 'user_id,week_start,counter_key' })
   }
 
-  // 計數器 -1
   async function decreaseCounter(key) {
     const cur = counters[key] || 0
     const nv = Math.max(0, cur - 1)
@@ -201,7 +230,6 @@ export default function Daily() {
     }, { onConflict: 'user_id,week_start,counter_key' })
   }
 
-  // 計數器 +1 → 開 modal
   function openLogModal(key, label) {
     setLogModal({ key, label })
     setLogContact('')
@@ -225,20 +253,17 @@ export default function Daily() {
     const key = logModal.key
     const nv = (counters[key] || 0) + 1
     setCounters(p => ({ ...p, [key]: nv }))
-
     const ws = getWeekStart(viewDate)
     await supabase.from('weekly_counters').upsert({
       user_id: user.id, week_start: ws, counter_key: key,
       count: nv, goal: goals[key] || 0,
     }, { onConflict: 'user_id,week_start,counter_key' })
-
     await supabase.from('counter_logs').insert({
       user_id: user.id, counter_key: key, date: viewDate,
       contact_id: logContactId,
       product_name: logProduct || null,
       note: logNote || null,
     })
-
     setLogModal(null)
   }
 
@@ -346,26 +371,37 @@ export default function Daily() {
           </div>
           {DAILY_TASKS.map(task => {
             const done = !!checkins[task.key]
+            const hasAction = task.url || task.social || task.toContacts || task.key === 'goal_declaration'
             return (
-              <button key={task.key} onClick={() => toggleCheckin(task.key)}
-                style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',
-                  borderBottom:'1px solid #F9FAFB',background:'none',border:'none',
-                  width:'100%',textAlign:'left',cursor:'pointer' }}>
-                <div style={{ width:22,height:22,borderRadius:6,flexShrink:0,
-                  border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
-                  display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s' }}>
+              <div key={task.key} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',
+                borderBottom:'1px solid #F9FAFB' }}>
+                {/* 打勾按鈕 */}
+                <button onClick={() => toggleCheckin(task.key)}
+                  style={{ width:22,height:22,borderRadius:6,flexShrink:0,
+                    border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    transition:'all 0.15s',cursor:'pointer' }}>
                   {done&&<span style={{ fontSize:12,color:'#fff' }}>✓</span>}
-                </div>
-                <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
-                  textDecoration:done?'line-through':'none',flex:1 }}>
-                  {task.label}
-                  {task.special&&todayContacted.length>0&&(
-                    <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
-                      {todayContacted.join('、')} ✓
-                    </span>
+                </button>
+                {/* 任務名稱＋連結 */}
+                <button onClick={() => hasAction && handleTaskAction(task)}
+                  style={{ flex:1,background:'none',border:'none',textAlign:'left',
+                    cursor: hasAction?'pointer':'default',padding:0,
+                    display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                  <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
+                    textDecoration:done?'line-through':'none' }}>
+                    {task.icon} {task.label}
+                    {task.special&&todayContacted.length>0&&(
+                      <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
+                        {todayContacted.join('、')} ✓
+                      </span>
+                    )}
+                  </span>
+                  {hasAction && (
+                    <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:8,flexShrink:0 }}>›</span>
                   )}
-                </span>
-              </button>
+                </button>
+              </div>
             )
           })}
         </div>
@@ -382,15 +418,13 @@ export default function Daily() {
                 <div style={{ display:'flex',alignItems:'center' }}>
                   <span style={{ flex:1,fontSize:14,color:'#374151' }}>{c.label}</span>
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    {/* 目標設定 */}
                     {isEditingThis ? (
                       <div style={{ display:'flex',alignItems:'center',gap:4 }}>
                         <input type="number" min="0" value={goalInput}
                           onChange={e => setGoalInput(e.target.value)}
                           style={{ width:52,padding:'4px 6px',borderRadius:6,
                             border:'1px solid #2563EB',fontSize:13,textAlign:'center' }}
-                          autoFocus
-                        />
+                          autoFocus />
                         <button onClick={() => saveGoal(c.key)}
                           style={{ fontSize:12,color:'#fff',background:'#2563EB',
                             border:'none',borderRadius:6,padding:'4px 8px',cursor:'pointer' }}>✓</button>
@@ -402,8 +436,7 @@ export default function Daily() {
                       <button onClick={() => { setEditingGoal(c.key); setGoalInput(String(goal)) }}
                         style={{ fontSize:12,color:'#9CA3AF',background:'none',border:'none',
                           cursor:'pointer',display:'flex',alignItems:'center',gap:2 }}>
-                        <span style={{ fontSize:13,color: count>0&&count>=goal?'#22C55E':'#6B7280',
-                          fontWeight:600 }}>{count}</span>
+                        <span style={{ fontSize:13,color: count>0&&count>=goal?'#22C55E':'#6B7280',fontWeight:600 }}>{count}</span>
                         <span style={{ color:'#D1D5DB' }}>/</span>
                         <span style={{ color:'#9CA3AF' }}>{goal||'設定目標'}</span>
                       </button>
@@ -472,6 +505,64 @@ export default function Daily() {
 
       </div>
 
+      {/* 目標宣言 Modal */}
+      {goalModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
+          onClick={e => { if (e.target===e.currentTarget) setGoalModal(false) }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            width:'100%',maxWidth:430 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
+              <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>🎯 我的目標宣言</h3>
+              <button onClick={() => setGoalModal(false)}
+                style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
+            </div>
+            <textarea
+              value={goalText}
+              onChange={e => setGoalText(e.target.value)}
+              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
+              style={{ width:'100%',minHeight:120,padding:'12px',borderRadius:10,
+                border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
+                outline:'none',resize:'vertical',lineHeight:1.6 }}
+            />
+            <button onClick={saveGoalText} disabled={goalSaving}
+              style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
+                background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
+                color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer',marginTop:12 }}>
+              {goalSaved ? '✓ 已儲存' : goalSaving ? '儲存中…' : '儲存'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 社群連結 Modal */}
+      {socialModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
+          onClick={e => { if (e.target===e.currentTarget) setSocialModal(false) }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            width:'100%',maxWidth:430 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+              <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>💬 前往回應</h3>
+              <button onClick={() => setSocialModal(false)}
+                style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
+            </div>
+            <div style={{ display:'flex',gap:12,marginBottom:8 }}>
+              <button onClick={() => { window.open('https://www.facebook.com/groups/710836659091767/', '_blank'); setSocialModal(false) }}
+                style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
+                  background:'#1877F2',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                📘 臉書 IDEA
+              </button>
+              <button onClick={() => { window.open('https://line.me', '_blank'); setSocialModal(false) }}
+                style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
+                  background:'#06C755',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                💚 LINE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 備註 Modal */}
       {logModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
@@ -486,16 +577,11 @@ export default function Daily() {
               <button onClick={() => setLogModal(null)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
-
-            {/* 選人 必填 */}
             <div style={{ marginBottom:16 }}>
               <label style={labelStyle}>分享對象 <span style={{ color:'#EF4444' }}>必填</span></label>
-              <input
-                placeholder="搜尋互動名單..."
-                value={logContact}
+              <input placeholder="搜尋互動名單..." value={logContact}
                 onChange={e => { setLogContact(e.target.value); setLogContactId(null); searchContacts(e.target.value) }}
-                style={inputStyle}
-              />
+                style={inputStyle} />
               {contactSearch.length > 0 && (
                 <div style={{ border:'1px solid #E5E7EB',borderRadius:8,marginTop:4,overflow:'hidden' }}>
                   {contactSearch.map(c => (
@@ -509,28 +595,20 @@ export default function Daily() {
                   ))}
                 </div>
               )}
-              {logContactId && (
-                <p style={{ fontSize:12,color:'#22C55E',margin:'4px 0 0' }}>✓ 已選擇：{logContact}</p>
-              )}
+              {logContactId && <p style={{ fontSize:12,color:'#22C55E',margin:'4px 0 0' }}>✓ 已選擇：{logContact}</p>}
             </div>
-
-            {/* 產品 選填 */}
             <div style={{ marginBottom:16 }}>
               <label style={labelStyle}>分享產品 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
               <input placeholder="輸入產品名稱..." value={logProduct}
                 onChange={e => setLogProduct(e.target.value)} style={inputStyle} />
             </div>
-
-            {/* 備註 選填 */}
             <div style={{ marginBottom:20 }}>
               <label style={labelStyle}>備註 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
               <textarea placeholder="記錄重點..." value={logNote}
                 onChange={e => setLogNote(e.target.value)}
                 style={{ ...inputStyle,height:72,resize:'none' }} />
             </div>
-
-            <button onClick={confirmLog}
-              disabled={!logContactId}
+            <button onClick={confirmLog} disabled={!logContactId}
               style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
                 background: logContactId?'#2563EB':'#D1D5DB',
                 color:'#fff',fontSize:15,fontWeight:700,
@@ -574,22 +652,15 @@ export default function Daily() {
   )
 }
 
-const card = {
-  background:'#fff',borderRadius:16,padding:'16px',
-  boxShadow:'0 1px 3px rgba(0,0,0,0.07)',
-}
+const card = { background:'#fff',borderRadius:16,padding:'16px',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }
 const sectionTitle = { fontSize:15,fontWeight:700,color:'#111827' }
 const counterBtn = {
   width:30,height:30,borderRadius:8,border:'1px solid #E5E7EB',
   background:'#F9FAFB',color:'#374151',fontSize:16,
-  cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
-  fontWeight:700,
+  cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,
 }
-const labelStyle = {
-  fontSize:13,color:'#374151',fontWeight:600,display:'block',marginBottom:6
-}
+const labelStyle = { fontSize:13,color:'#374151',fontWeight:600,display:'block',marginBottom:6 }
 const inputStyle = {
   width:'100%',padding:'10px 12px',borderRadius:10,
-  border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-  outline:'none',
+  border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',outline:'none',
 }
