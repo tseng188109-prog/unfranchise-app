@@ -14,6 +14,14 @@ export default function Settings() {
   const [newReferrerEmail, setNewReferrerEmail] = useState('')
   const [referrerMsg, setReferrerMsg] = useState('')
 
+  // 密碼修改
+  const [editingPassword, setEditingPassword] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(false)
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
@@ -48,22 +56,36 @@ export default function Settings() {
     if (newReferrerEmail.toLowerCase() === user.email.toLowerCase()) {
       setReferrerMsg('不能填自己的 Email'); return
     }
-
-    // 查是否已註冊
-    const { data: refUsers } = await supabase.from('users').select('id,name')
-    // 透過 auth 查 email — 用 profiles 表 or users 表比對
-    // 因為 users.id = auth.users.id，改用 email 欄位需要另外存
-    // 這裡先存 pending，讓後台處理串聯
     await supabase.from('users').update({
       referrer_email_pending: newReferrerEmail,
       referrer_id: null,
     }).eq('id', user.id)
-
     setReferrerPending(newReferrerEmail)
     setReferrerName('')
     setEditingReferrer(false)
     setReferrerMsg('')
     setNewReferrerEmail('')
+  }
+
+  async function handleSavePassword() {
+    setPasswordMsg('')
+    if (!newPassword) { setPasswordMsg('請輸入新密碼'); return }
+    if (newPassword.length < 6) { setPasswordMsg('密碼至少 6 個字元'); return }
+    if (newPassword !== confirmPassword) { setPasswordMsg('兩次密碼不一致'); return }
+    setPasswordSaving(true)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setPasswordSaving(false)
+    if (error) {
+      setPasswordMsg('修改失敗，請重新登入後再試')
+    } else {
+      setPasswordSaved(true)
+      setNewPassword('')
+      setConfirmPassword('')
+      setTimeout(() => {
+        setPasswordSaved(false)
+        setEditingPassword(false)
+      }, 2000)
+    }
   }
 
   async function handleSignOut() {
@@ -108,10 +130,54 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* 密碼修改 */}
+        <div style={card}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom: editingPassword?12:0 }}>
+            <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:0 }}>帳號安全</p>
+            <button onClick={() => { setEditingPassword(!editingPassword); setPasswordMsg(''); setNewPassword(''); setConfirmPassword('') }}
+              style={{ fontSize:13,color:'#2563EB',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}>
+              {editingPassword ? '取消' : '修改密碼'}
+            </button>
+          </div>
+
+          {editingPassword && (
+            <div>
+              <div style={{ marginBottom:12 }}>
+                <label style={lb}>新密碼</label>
+                <input
+                  type="password"
+                  placeholder="至少 6 個字元"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <label style={lb}>確認新密碼</label>
+                <input
+                  type="password"
+                  placeholder="再輸入一次"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              {passwordMsg && (
+                <p style={{ fontSize:12,color:'#EF4444',margin:'0 0 8px' }}>{passwordMsg}</p>
+              )}
+              <button onClick={handleSavePassword} disabled={passwordSaving}
+                style={{ width:'100%',padding:'11px',borderRadius:10,border:'none',
+                  background: passwordSaved?'#22C55E':passwordSaving?'#93C5FD':'#2563EB',
+                  color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                {passwordSaved ? '✓ 密碼已更新' : passwordSaving ? '更新中…' : '確認修改'}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* 推薦關係 */}
         <div style={card}>
           <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:'0 0 12px' }}>推薦關係</p>
-
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
             <span style={{ fontSize:14,color:'#374151' }}>推薦人</span>
             <button onClick={() => { setEditingReferrer(!editingReferrer); setReferrerMsg('') }}
@@ -120,7 +186,6 @@ export default function Settings() {
               {editingReferrer ? '取消' : '修改'}
             </button>
           </div>
-
           {!editingReferrer ? (
             <p style={{ fontSize:14,color: referrerName?'#111827':referrerPending?'#F59E0B':'#9CA3AF',
               margin:'4px 0 0',fontWeight: referrerName?600:400 }}>
@@ -128,18 +193,10 @@ export default function Settings() {
             </p>
           ) : (
             <div style={{ marginTop:8 }}>
-              <input
-                type="email"
-                placeholder="輸入推薦人 Email..."
-                value={newReferrerEmail}
-                onChange={e => setNewReferrerEmail(e.target.value)}
-                style={{ width:'100%',padding:'10px 12px',borderRadius:10,
-                  border:'1px solid #D1D5DB',fontSize:14,boxSizing:'border-box',
-                  outline:'none',marginBottom:8 }}
-              />
-              {referrerMsg && (
-                <p style={{ fontSize:12,color:'#EF4444',margin:'0 0 8px' }}>{referrerMsg}</p>
-              )}
+              <input type="email" placeholder="輸入推薦人 Email..."
+                value={newReferrerEmail} onChange={e => setNewReferrerEmail(e.target.value)}
+                style={{ ...inputStyle, marginBottom:8 }} />
+              {referrerMsg && <p style={{ fontSize:12,color:'#EF4444',margin:'0 0 8px' }}>{referrerMsg}</p>}
               <p style={{ fontSize:11,color:'#9CA3AF',margin:'0 0 8px' }}>
                 推薦人尚未註冊也沒關係，對方日後建立帳號後會自動串聯
               </p>
@@ -186,3 +243,8 @@ export default function Settings() {
 
 const card = { background:'#fff',borderRadius:16,padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }
 const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }
+const inputStyle = {
+  width:'100%',padding:'10px 12px',borderRadius:10,
+  border:'1px solid #D1D5DB',fontSize:14,boxSizing:'border-box',
+  outline:'none',color:'#111827',
+}
