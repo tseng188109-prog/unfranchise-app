@@ -6,13 +6,13 @@ const BV_GOAL = 1500
 const IBV_GOAL = 300
 const DAYS_ZH = ['日', '一', '二', '三', '四', '五', '六']
 const DAILY_TASKS = [
-  { key: 'goal_declaration', label: '目標宣言' },
-  { key: 'backend_announcement', label: '後台公告/管理報告' },
-  { key: 'respond_social', label: '回應臉書IDEA/LINE' },
-  { key: 'daily_practice', label: '每日練習' },
-  { key: 'listen_recording', label: '聽錄音' },
-  { key: 'ig_story', label: 'IG 限動' },
-  { key: 'daily_3_contacts', label: '每日3互動', special: true },
+  { key: 'goal_declaration', label: '目標宣言', icon: '🎯' },
+  { key: 'backend_announcement', label: '後台公告/管理報告', icon: '📋', url: 'https://tw.unfranchise.com' },
+  { key: 'respond_social', label: '回應臉書IDEA/LINE', icon: '💬', social: true },
+  { key: 'daily_practice', label: '每日練習', icon: '📚', url: 'https://drive.google.com/drive/folders/1v6jtYu5wrYJLX1Uqj9W_s2b15-ZK4Ckf' },
+  { key: 'listen_recording', label: '聽錄音', icon: '🎧', url: 'https://docs.google.com/document/d/112pPi7ulPzb7Gex3ZDsUFb6E6lhfCgpFrtIuftc0E64/edit?usp=drivesdk' },
+  { key: 'ig_story', label: 'IG 限動', icon: '📸', url: 'https://www.instagram.com' },
+  { key: 'daily_3_contacts', label: '每日3互動', icon: '👥', special: true, toContacts: true },
 ]
 
 function toDateStr(d) {
@@ -103,6 +103,15 @@ export default function Dashboard() {
   const [viewDate, setViewDate] = useState(today())
   const [loading, setLoading] = useState(true)
 
+  // 目標宣言 Modal
+  const [goalModal, setGoalModal] = useState(false)
+  const [goalText, setGoalText] = useState('')
+  const [goalSaving, setGoalSaving] = useState(false)
+  const [goalSaved, setGoalSaved] = useState(false)
+
+  // 社群連結 Modal
+  const [socialModal, setSocialModal] = useState(false)
+
   const isToday = viewDate === today()
 
   useEffect(() => {
@@ -123,7 +132,7 @@ export default function Dashboard() {
     setLoading(true)
     await Promise.all([
       fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
-      fetchCheckin(), fetchWeekStatus(), fetchViewContacted()
+      fetchCheckin(), fetchWeekStatus(), fetchViewContacted(), fetchGoalText()
     ])
     setLoading(false)
   }
@@ -131,6 +140,11 @@ export default function Dashboard() {
   async function fetchProfile() {
     const { data } = await supabase.from('users').select('name').eq('id',user.id).single()
     if (data) setProfile(data)
+  }
+
+  async function fetchGoalText() {
+    const { data } = await supabase.from('users').select('goal_declaration').eq('id', user.id).single()
+    if (data?.goal_declaration) setGoalText(data.goal_declaration)
   }
 
   async function fetchMonthlyStats() {
@@ -204,6 +218,21 @@ export default function Dashboard() {
       { onConflict:'user_id,date,task_key' }
     )
     if(error){ setCheckins(p=>({...p,[key]:cur})); setCheckTotal(p=>nv?p-1:p+1) }
+  }
+
+  function handleTaskAction(task) {
+    if (task.key === 'goal_declaration') { setGoalModal(true); return }
+    if (task.social) { setSocialModal(true); return }
+    if (task.toContacts) { navigate('/contacts'); return }
+    if (task.url) { window.open(task.url, '_blank'); return }
+  }
+
+  async function saveGoalText() {
+    setGoalSaving(true)
+    await supabase.from('users').update({ goal_declaration: goalText }).eq('id', user.id)
+    setGoalSaving(false)
+    setGoalSaved(true)
+    setTimeout(() => setGoalSaved(false), 2000)
   }
 
   const displayName = profile?.name || user?.email?.split('@')[0] || 'Annie'
@@ -330,7 +359,6 @@ export default function Dashboard() {
 
         {/* 打卡 */}
         <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-          {/* 標題列含日期切換 */}
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
             <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>
               {isToday ? '今日打卡' : '打卡紀錄'}
@@ -385,30 +413,41 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* 任務列表 */}
+          {/* 任務列表（含 icon + 連結） */}
           <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
             {DAILY_TASKS.map(task=>{
               const done=!!checkins[task.key]
+              const hasAction = task.url || task.social || task.toContacts || task.key === 'goal_declaration'
               return (
-                <button key={task.key} onClick={()=>toggleCheckin(task.key)}
-                  style={{ display:'flex',alignItems:'center',gap:12,padding:'8px 0',
-                    borderBottom:'1px solid #F9FAFB',background:'none',border:'none',
-                    cursor:'pointer',width:'100%',textAlign:'left' }}>
-                  <div style={{ width:20,height:20,borderRadius:6,flexShrink:0,
-                    border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
-                    display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s' }}>
+                <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 0',
+                  borderBottom:'1px solid #F9FAFB' }}>
+                  {/* 打勾 */}
+                  <button onClick={()=>toggleCheckin(task.key)}
+                    style={{ width:20,height:20,borderRadius:6,flexShrink:0,
+                      border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      transition:'all 0.15s',cursor:'pointer' }}>
                     {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
-                  </div>
-                  <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
-                    textDecoration:done?'line-through':'none',flex:1 }}>
-                    {task.label}
-                    {task.special&&viewContacted.length>0&&(
-                      <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
-                        {viewContacted.join('、')} ✓
-                      </span>
+                  </button>
+                  {/* 任務名稱＋連結 */}
+                  <button onClick={()=> hasAction && handleTaskAction(task)}
+                    style={{ flex:1,background:'none',border:'none',textAlign:'left',
+                      cursor: hasAction?'pointer':'default',padding:0,
+                      display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                    <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
+                      textDecoration:done?'line-through':'none' }}>
+                      {task.icon} {task.label}
+                      {task.special&&viewContacted.length>0&&(
+                        <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
+                          {viewContacted.join('、')} ✓
+                        </span>
+                      )}
+                    </span>
+                    {hasAction&&(
+                      <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:8,flexShrink:0 }}>›</span>
                     )}
-                  </span>
-                </button>
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -416,6 +455,61 @@ export default function Dashboard() {
 
         <div style={{ height:80 }} />
       </div>
+
+      {/* 目標宣言 Modal */}
+      {goalModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
+          onClick={e=>{ if(e.target===e.currentTarget) setGoalModal(false) }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            width:'100%',maxWidth:430 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
+              <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>🎯 我的目標宣言</h3>
+              <button onClick={()=>setGoalModal(false)}
+                style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
+            </div>
+            <textarea value={goalText} onChange={e=>setGoalText(e.target.value)}
+              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
+              style={{ width:'100%',minHeight:120,padding:'12px',borderRadius:10,
+                border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
+                outline:'none',resize:'vertical',lineHeight:1.6 }} />
+            <button onClick={saveGoalText} disabled={goalSaving}
+              style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
+                background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
+                color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer',marginTop:12 }}>
+              {goalSaved ? '✓ 已儲存' : goalSaving ? '儲存中…' : '儲存'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 社群連結 Modal */}
+      {socialModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
+          onClick={e=>{ if(e.target===e.currentTarget) setSocialModal(false) }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            width:'100%',maxWidth:430 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+              <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>💬 前往回應</h3>
+              <button onClick={()=>setSocialModal(false)}
+                style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
+            </div>
+            <div style={{ display:'flex',gap:12,marginBottom:8 }}>
+              <button onClick={()=>{ window.open('https://www.facebook.com/groups/710836659091767/','_blank'); setSocialModal(false) }}
+                style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
+                  background:'#1877F2',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                📘 臉書 IDEA
+              </button>
+              <button onClick={()=>{ window.open('https://line.me','_blank'); setSocialModal(false) }}
+                style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
+                  background:'#06C755',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                💚 LINE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
