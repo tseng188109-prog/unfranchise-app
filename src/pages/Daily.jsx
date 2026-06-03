@@ -19,7 +19,6 @@ const DAILY_TASKS = [
 ]
 
 const WEEKLY_COUNTERS = [
-  { key: 'daily_3_contacts', label: '每日3互動' },
   { key: 'bv_share', label: 'BV 分享' },
   { key: 'ibv_share', label: 'IBV 分享' },
   { key: 'meetup', label: '見面' },
@@ -31,6 +30,11 @@ const WEEKLY_COUNTERS = [
 const WEEKLY_TASKS = [
   { key: 'contact_referrer', label: '與推薦人聯絡' },
   { key: 'coring', label: 'Coring 培訓' },
+]
+
+const MONTH_ITEMS = [
+  { key: 'new_product', label: '認識新產品', placeholder: '產品名稱' },
+  { key: 'gmtss', label: 'GMTSS 課程', placeholder: '課程名稱' },
 ]
 
 function getWeekStart(dateStr) {
@@ -57,26 +61,44 @@ function getMonthStart(dateStr) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
 }
 
+function getMonthDays(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const year = d.getFullYear()
+  const month = d.getMonth()
+  const total = new Date(year, month + 1, 0).getDate()
+  const days = []
+  for (let i = 1; i <= total; i++) {
+    days.push(`${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`)
+  }
+  return days
+}
+
 function formatDateLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' })
+}
+
+function formatShortDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getMonth()+1}/${d.getDate()} 週${DAYS_ZH[d.getDay()]}`
 }
 
 export default function Daily() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [viewDate, setViewDate] = useState(today())
+  const [weekViewDate, setWeekViewDate] = useState(today())
+  const [monthViewDate, setMonthViewDate] = useState(today())
   const [checkins, setCheckins] = useState({})
-  const [weekCheckins, setWeekCheckins] = useState({})
-  const [counters, setCounters] = useState({})
-  const [goals, setGoals] = useState({})
+  const [weekTaskCheckins, setWeekTaskCheckins] = useState({})
   const [weekStatus, setWeekStatus] = useState([])
   const [todayContacted, setTodayContacted] = useState([])
-  const [monthGoals, setMonthGoals] = useState({ new_product: 0, gmtss: 0 })
-  const [monthProgress, setMonthProgress] = useState({ new_product: 0, gmtss: 0 })
-  const [editingMonth, setEditingMonth] = useState(false)
-  const [monthGoalInput, setMonthGoalInput] = useState({ new_product: '', gmtss: '' })
   const [loading, setLoading] = useState(true)
+
+  // 週行動記錄 (counter_logs)
+  const [weekLogs, setWeekLogs] = useState([]) // 本週所有 logs
+  // 月行動記錄
+  const [monthLogs, setMonthLogs] = useState([])
 
   // 目標宣言 Modal
   const [goalModal, setGoalModal] = useState(false)
@@ -87,28 +109,30 @@ export default function Daily() {
   // 社群連結 Modal
   const [socialModal, setSocialModal] = useState(false)
 
-  // 備註 Modal
-  const [logModal, setLogModal] = useState(null)
+  // 新增記錄 Modal（週計數器 + 月目標共用）
+  const [logModal, setLogModal] = useState(null) // { key, label, mode:'week'|'month' }
+  const [logDate, setLogDate] = useState(today())
   const [logContact, setLogContact] = useState('')
   const [logContactId, setLogContactId] = useState(null)
   const [logProduct, setLogProduct] = useState('')
   const [logNote, setLogNote] = useState('')
+  const [logSaving, setLogSaving] = useState(false)
   const [contactSearch, setContactSearch] = useState([])
-  const [searchLoading, setSearchLoading] = useState(false)
-
-  // 週目標編輯
-  const [editingGoal, setEditingGoal] = useState(null)
-  const [goalInput, setGoalInput] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
   useEffect(() => { if (user) fetchAll() }, [user, viewDate])
+  useEffect(() => { if (user) fetchWeekLogs() }, [user, weekViewDate])
+  useEffect(() => { if (user) fetchMonthLogs() }, [user, monthViewDate])
 
   async function fetchAll() {
     setLoading(true)
-    await Promise.all([fetchCheckins(), fetchWeekStatus(), fetchCounters(), fetchTodayContacted(), fetchMonthGoals(), fetchGoalText()])
+    await Promise.all([
+      fetchCheckins(), fetchWeekStatus(), fetchTodayContacted(),
+      fetchGoalText(), fetchWeekLogs(), fetchMonthLogs()
+    ])
     setLoading(false)
   }
 
@@ -120,10 +144,13 @@ export default function Daily() {
     const daily = {}, weekly = {}
     data.forEach(d => {
       if (d.date === viewDate) daily[d.task_key] = d.is_done
-      if (WEEKLY_TASKS.find(t => t.key === d.task_key)) weekly[d.task_key] = d.is_done
+      if (WEEKLY_TASKS.find(t => t.key === d.task_key)) {
+        if (!weekly[d.task_key]) weekly[d.task_key] = {}
+        weekly[d.task_key][d.date] = d.is_done
+      }
     })
     setCheckins(daily)
-    setWeekCheckins(weekly)
+    setWeekTaskCheckins(weekly)
   }
 
   async function fetchWeekStatus() {
@@ -140,39 +167,45 @@ export default function Daily() {
     setWeekStatus(days.map(d => ({ date: d, status: sm[d] || 'none' })))
   }
 
-  async function fetchCounters() {
-    const ws = getWeekStart(viewDate)
-    const { data } = await supabase.from('weekly_counters')
-      .select('counter_key,count,goal').eq('user_id', user.id).eq('week_start', ws)
-    const c = {}, g = {}
-    if (data) data.forEach(d => { c[d.counter_key] = d.count; g[d.counter_key] = d.goal })
-    setCounters(c)
-    setGoals(g)
-  }
-
   async function fetchTodayContacted() {
     const { data } = await supabase.from('contacts').select('name')
       .eq('user_id', user.id).eq('last_contact_date', viewDate).limit(5)
     if (data) setTodayContacted(data.map(c => c.name))
   }
 
-  async function fetchMonthGoals() {
-    const ms = getMonthStart(viewDate)
-    const { data } = await supabase.from('weekly_counters')
-      .select('counter_key,count,goal').eq('user_id', user.id)
-      .eq('week_start', ms).in('counter_key', ['new_product', 'gmtss'])
-    if (data) {
-      const g = { new_product: 0, gmtss: 0 }
-      const p = { new_product: 0, gmtss: 0 }
-      data.forEach(d => { g[d.counter_key] = d.goal; p[d.counter_key] = d.count })
-      setMonthGoals(g)
-      setMonthProgress(p)
-    }
-  }
-
   async function fetchGoalText() {
     const { data } = await supabase.from('users').select('goal_declaration').eq('id', user.id).single()
     if (data?.goal_declaration) setGoalText(data.goal_declaration)
+  }
+
+  async function fetchWeekLogs() {
+    if (!user) return
+    const days = getWeekDays(weekViewDate)
+    const { data } = await supabase.from('counter_logs')
+      .select('id,counter_key,date,planned_date,is_done,product_name,note,contact_id,contacts(name)')
+      .eq('user_id', user.id)
+      .or(`date.gte.${days[0]},planned_date.gte.${days[0]}`)
+      .or(`date.lte.${days[6]},planned_date.lte.${days[6]}`)
+    // 只撈本週相關的
+    const ws = days[0], we = days[6]
+    const filtered = (data || []).filter(l => {
+      const d = l.planned_date || l.date
+      return d >= ws && d <= we
+    })
+    setWeekLogs(filtered)
+  }
+
+  async function fetchMonthLogs() {
+    if (!user) return
+    const ms = getMonthStart(monthViewDate)
+    const d = new Date(monthViewDate + 'T00:00:00')
+    const me = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()).padStart(2,'0')}`
+    const { data } = await supabase.from('counter_logs')
+      .select('id,counter_key,date,planned_date,is_done,product_name,note,contact_id,contacts(name)')
+      .eq('user_id', user.id)
+      .in('counter_key', ['new_product', 'gmtss'])
+      .gte('date', ms).lte('date', me)
+    setMonthLogs(data || [])
   }
 
   async function saveGoalText() {
@@ -190,13 +223,22 @@ export default function Daily() {
     if (newDate <= today()) setViewDate(newDate)
   }
 
-  async function toggleCheckin(key, isWeekly = false) {
-    const cur = isWeekly ? weekCheckins[key] : checkins[key]
+  async function toggleCheckin(key) {
+    const cur = checkins[key]
     const nv = !cur
-    if (isWeekly) setWeekCheckins(p => ({ ...p, [key]: nv }))
-    else setCheckins(p => ({ ...p, [key]: nv }))
+    setCheckins(p => ({ ...p, [key]: nv }))
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date: viewDate, task_key: key, is_done: nv,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,date,task_key' })
+  }
+
+  async function toggleWeekTask(key, date) {
+    const cur = weekTaskCheckins[key]?.[date]
+    const nv = !cur
+    setWeekTaskCheckins(p => ({ ...p, [key]: { ...(p[key]||{}), [date]: nv } }))
+    await supabase.from('daily_checkins').upsert({
+      user_id: user.id, date, task_key: key, is_done: nv,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,date,task_key' })
   }
@@ -208,30 +250,9 @@ export default function Daily() {
     if (task.url) { window.open(task.url, '_blank'); return }
   }
 
-  async function saveGoal(key) {
-    const nv = parseInt(goalInput) || 0
-    setGoals(p => ({ ...p, [key]: nv }))
-    setEditingGoal(null)
-    const ws = getWeekStart(viewDate)
-    await supabase.from('weekly_counters').upsert({
-      user_id: user.id, week_start: ws, counter_key: key,
-      count: counters[key] || 0, goal: nv,
-    }, { onConflict: 'user_id,week_start,counter_key' })
-  }
-
-  async function decreaseCounter(key) {
-    const cur = counters[key] || 0
-    const nv = Math.max(0, cur - 1)
-    setCounters(p => ({ ...p, [key]: nv }))
-    const ws = getWeekStart(viewDate)
-    await supabase.from('weekly_counters').upsert({
-      user_id: user.id, week_start: ws, counter_key: key,
-      count: nv, goal: goals[key] || 0,
-    }, { onConflict: 'user_id,week_start,counter_key' })
-  }
-
-  function openLogModal(key, label) {
-    setLogModal({ key, label })
+  function openLogModal(key, label, mode = 'week') {
+    setLogModal({ key, label, mode })
+    setLogDate(today())
     setLogContact('')
     setLogContactId(null)
     setLogProduct('')
@@ -241,61 +262,74 @@ export default function Daily() {
 
   async function searchContacts(q) {
     if (!q) { setContactSearch([]); return }
-    setSearchLoading(true)
     const { data } = await supabase.from('contacts').select('id,name')
       .eq('user_id', user.id).ilike('name', `%${q}%`).limit(8)
     setContactSearch(data || [])
-    setSearchLoading(false)
   }
 
   async function confirmLog() {
-    if (!logContactId) return
-    const key = logModal.key
-    const nv = (counters[key] || 0) + 1
-    setCounters(p => ({ ...p, [key]: nv }))
-    const ws = getWeekStart(viewDate)
-    await supabase.from('weekly_counters').upsert({
-      user_id: user.id, week_start: ws, counter_key: key,
-      count: nv, goal: goals[key] || 0,
-    }, { onConflict: 'user_id,week_start,counter_key' })
+    if (!logContactId && logModal.mode !== 'month') return
+    if (logModal.mode === 'month' && !logProduct && !logNote) return
+    setLogSaving(true)
+    const isFuture = logDate > today()
     await supabase.from('counter_logs').insert({
-      user_id: user.id, counter_key: key, date: viewDate,
-      contact_id: logContactId,
+      user_id: user.id,
+      counter_key: logModal.key,
+      date: isFuture ? today() : logDate,
+      planned_date: isFuture ? logDate : null,
+      is_done: !isFuture,
+      contact_id: logContactId || null,
       product_name: logProduct || null,
       note: logNote || null,
     })
+    setLogSaving(false)
     setLogModal(null)
+    if (logModal.mode === 'month') fetchMonthLogs()
+    else fetchWeekLogs()
   }
 
-  async function adjustMonthProgress(key, delta) {
-    const cur = monthProgress[key] || 0
-    const nv = Math.max(0, cur + delta)
-    setMonthProgress(p => ({ ...p, [key]: nv }))
-    const ms = getMonthStart(viewDate)
-    await supabase.from('weekly_counters').upsert({
-      user_id: user.id, week_start: ms, counter_key: key,
-      count: nv, goal: monthGoals[key] || 0,
-    }, { onConflict: 'user_id,week_start,counter_key' })
+  async function confirmDone(log) {
+    await supabase.from('counter_logs').update({
+      is_done: true, date: today(), planned_date: log.planned_date
+    }).eq('id', log.id)
+    fetchWeekLogs()
+    fetchMonthLogs()
   }
 
-  async function saveMonthGoals() {
-    const ms = getMonthStart(viewDate)
-    const ng = {
-      new_product: parseInt(monthGoalInput.new_product) || monthGoals.new_product,
-      gmtss: parseInt(monthGoalInput.gmtss) || monthGoals.gmtss,
+  async function deleteLog(id, mode) {
+    await supabase.from('counter_logs').delete().eq('id', id)
+    if (mode === 'month') fetchMonthLogs()
+    else fetchWeekLogs()
+  }
+
+  // 週點狀圖日期切換（週行動區塊用）
+  function changeWeekViewDate(delta) {
+    const days = getWeekDays(weekViewDate)
+    const d = new Date((delta < 0 ? days[0] : days[6]) + 'T00:00:00')
+    d.setDate(d.getDate() + delta)
+    setWeekViewDate(toDateStr(d))
+  }
+
+  function changeMonthViewDate(delta) {
+    const d = new Date(monthViewDate + 'T00:00:00')
+    d.setMonth(d.getMonth() + delta)
+    setMonthViewDate(toDateStr(d))
+  }
+
+  // 產生新增 Modal 的日期選項（前3天 + 今天 + 後3天）
+  function getDateOptions() {
+    const opts = []
+    for (let i = -3; i <= 3; i++) {
+      const d = new Date(today() + 'T00:00:00')
+      d.setDate(d.getDate() + i)
+      opts.push(toDateStr(d))
     }
-    setMonthGoals(ng)
-    setEditingMonth(false)
-    for (const key of ['new_product', 'gmtss']) {
-      await supabase.from('weekly_counters').upsert({
-        user_id: user.id, week_start: ms, counter_key: key,
-        count: monthProgress[key] || 0, goal: ng[key],
-      }, { onConflict: 'user_id,week_start,counter_key' })
-    }
+    return opts
   }
 
   const doneCount = DAILY_TASKS.filter(t => checkins[t.key]).length
   const isToday = viewDate === today()
+  const weekDays = getWeekDays(weekViewDate)
 
   if (loading) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
@@ -305,6 +339,7 @@ export default function Daily() {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)' }}>
         <div style={{ maxWidth:430,margin:'0 auto',padding:'52px 20px 20px' }}>
@@ -341,12 +376,13 @@ export default function Daily() {
 
       <div style={{ maxWidth:430,margin:'0 auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
-        {/* 每日任務 */}
+        {/* ── 每日任務 ── */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每日任務</span>
             <span style={{ fontSize:13,color:'#6B7280' }}>{doneCount}/{DAILY_TASKS.length}</span>
           </div>
+          {/* 週點狀圖 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
             background:'#F8FAFC',borderRadius:10,marginBottom:10 }}>
             {weekStatus.map((w,i) => {
@@ -357,8 +393,7 @@ export default function Daily() {
                 <div key={i} onClick={() => { if (w.date <= today()) setViewDate(w.date) }}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                     cursor: w.date <= today()?'pointer':'default' }}>
-                  <span style={{ fontSize:11,
-                    color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
+                  <span style={{ fontSize:11, color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
                     fontWeight: isSelected||isT?700:400 }}>
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
@@ -375,7 +410,6 @@ export default function Daily() {
             return (
               <div key={task.key} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',
                 borderBottom:'1px solid #F9FAFB' }}>
-                {/* 打勾按鈕 */}
                 <button onClick={() => toggleCheckin(task.key)}
                   style={{ width:22,height:22,borderRadius:6,flexShrink:0,
                     border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
@@ -383,7 +417,6 @@ export default function Daily() {
                     transition:'all 0.15s',cursor:'pointer' }}>
                   {done&&<span style={{ fontSize:12,color:'#fff' }}>✓</span>}
                 </button>
-                {/* 任務名稱＋連結 */}
                 <button onClick={() => hasAction && handleTaskAction(task)}
                   style={{ flex:1,background:'none',border:'none',textAlign:'left',
                     cursor: hasAction?'pointer':'default',padding:0,
@@ -397,115 +430,203 @@ export default function Daily() {
                       </span>
                     )}
                   </span>
-                  {hasAction && (
-                    <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:8,flexShrink:0 }}>›</span>
-                  )}
+                  {hasAction && <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:8,flexShrink:0 }}>›</span>}
                 </button>
               </div>
             )
           })}
         </div>
 
-        {/* 週目標計數器 */}
+        {/* ── 每週行動 ── */}
         <div style={card}>
-          <span style={{ ...sectionTitle,display:'block',marginBottom:12 }}>週目標計數器</span>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
+            <span style={sectionTitle}>每週行動</span>
+          </div>
+
+          {/* 週導航 */}
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
+            background:'#F8FAFC',borderRadius:10,padding:'6px 10px',marginBottom:10 }}>
+            <button onClick={() => changeWeekViewDate(-1)}
+              style={{ background:'none',border:'none',color:'#6B7280',fontSize:18,cursor:'pointer',padding:'0 4px' }}>‹</button>
+            <span style={{ fontSize:13,fontWeight:600,color:'#374151' }}>
+              {formatShortDate(weekDays[0])} — {formatShortDate(weekDays[6])}
+            </span>
+            <button onClick={() => changeWeekViewDate(1)}
+              style={{ background:'none',border:'none',
+                color: weekDays[6] >= today() ? '#D1D5DB' : '#6B7280',
+                fontSize:18, cursor: weekDays[6] >= today() ? 'default':'pointer', padding:'0 4px' }}>›</button>
+          </div>
+
+          {/* 週點狀圖（可點切換 weekViewDate 內的選中日） */}
+          <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
+            background:'#F8FAFC',borderRadius:10,marginBottom:12 }}>
+            {weekDays.map((d,i) => {
+              const isSelected = d === weekViewDate
+              const isT = d === today()
+              const isFut = d > today()
+              const dayLogs = weekLogs.filter(l => (l.planned_date || l.date) === d)
+              const hasDone = dayLogs.some(l => l.is_done)
+              const hasPlan = dayLogs.some(l => !l.is_done)
+              const dot = hasDone ? '#22C55E' : hasPlan ? '#F59E0B' : '#E5E7EB'
+              return (
+                <div key={i} onClick={() => setWeekViewDate(d)}
+                  style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,cursor:'pointer' }}>
+                  <span style={{ fontSize:11,
+                    color: isSelected?'#2563EB':isT?'#3B82F6':isFut?'#D1D5DB':'#9CA3AF',
+                    fontWeight: isSelected||isT?700:400 }}>
+                    {DAYS_ZH[new Date(d+'T00:00:00').getDay()]}
+                  </span>
+                  <div style={{ width:10,height:10,borderRadius:'50%',background:dot,
+                    outline: isSelected?'2px solid #2563EB':isT?'2px solid #3B82F6':'none',
+                    outlineOffset:2 }} />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 選中日期標題 */}
+          <div style={{ fontSize:13,fontWeight:600,color:'#6B7280',marginBottom:8 }}>
+            {formatDateLabel(weekViewDate)}
+            {weekViewDate > today() && <span style={{ marginLeft:6,fontSize:11,color:'#F59E0B' }}>預排</span>}
+          </div>
+
+          {/* 每週 checkbox 任務（與推薦人聯絡、Coring） */}
+          {WEEKLY_TASKS.map(task => {
+            const done = !!weekTaskCheckins[task.key]?.[weekViewDate]
+            return (
+              <div key={task.key} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',
+                borderBottom:'1px solid #F9FAFB' }}>
+                <button onClick={() => toggleWeekTask(task.key, weekViewDate)}
+                  style={{ width:22,height:22,borderRadius:6,flexShrink:0,
+                    border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
+                    display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
+                  {done&&<span style={{ fontSize:12,color:'#fff' }}>✓</span>}
+                </button>
+                <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
+                  textDecoration:done?'line-through':'none',flex:1 }}>{task.label}</span>
+              </div>
+            )
+          })}
+
+          {/* 週計數項目 */}
           {WEEKLY_COUNTERS.map(c => {
-            const count = counters[c.key] || 0
-            const goal = goals[c.key] || 0
-            const isEditingThis = editingGoal === c.key
+            const dayLogs = weekLogs.filter(l =>
+              l.counter_key === c.key && (l.planned_date || l.date) === weekViewDate
+            )
+            const weekTotal = weekLogs.filter(l => l.counter_key === c.key && l.is_done).length
             return (
               <div key={c.key} style={{ padding:'10px 0',borderBottom:'1px solid #F9FAFB' }}>
-                <div style={{ display:'flex',alignItems:'center' }}>
-                  <span style={{ flex:1,fontSize:14,color:'#374151' }}>{c.label}</span>
-                  <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    {isEditingThis ? (
-                      <div style={{ display:'flex',alignItems:'center',gap:4 }}>
-                        <input type="number" min="0" value={goalInput}
-                          onChange={e => setGoalInput(e.target.value)}
-                          style={{ width:52,padding:'4px 6px',borderRadius:6,
-                            border:'1px solid #2563EB',fontSize:13,textAlign:'center' }}
-                          autoFocus />
-                        <button onClick={() => saveGoal(c.key)}
-                          style={{ fontSize:12,color:'#fff',background:'#2563EB',
-                            border:'none',borderRadius:6,padding:'4px 8px',cursor:'pointer' }}>✓</button>
-                        <button onClick={() => setEditingGoal(null)}
-                          style={{ fontSize:12,color:'#6B7280',background:'#F3F4F6',
-                            border:'none',borderRadius:6,padding:'4px 8px',cursor:'pointer' }}>✕</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditingGoal(c.key); setGoalInput(String(goal)) }}
-                        style={{ fontSize:12,color:'#9CA3AF',background:'none',border:'none',
-                          cursor:'pointer',display:'flex',alignItems:'center',gap:2 }}>
-                        <span style={{ fontSize:13,color: count>0&&count>=goal?'#22C55E':'#6B7280',fontWeight:600 }}>{count}</span>
-                        <span style={{ color:'#D1D5DB' }}>/</span>
-                        <span style={{ color:'#9CA3AF' }}>{goal||'設定目標'}</span>
-                      </button>
-                    )}
-                    <button onClick={() => decreaseCounter(c.key)} style={counterBtn}>−</button>
-                    <button onClick={() => openLogModal(c.key, c.label)}
-                      style={{ ...counterBtn,background:'#2563EB',color:'#fff' }}>+</button>
-                  </div>
+                <div style={{ display:'flex',alignItems:'center',marginBottom: dayLogs.length>0?8:0 }}>
+                  <span style={{ flex:1,fontSize:14,color:'#374151',fontWeight:600 }}>{c.label}</span>
+                  <span style={{ fontSize:12,color:'#9CA3AF',marginRight:8 }}>本週 {weekTotal} 次</span>
+                  <button onClick={() => openLogModal(c.key, c.label, 'week')}
+                    style={{ ...counterBtn, background:'#2563EB', color:'#fff' }}>+</button>
                 </div>
+                {dayLogs.length > 0 && (
+                  <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+                    {dayLogs.map(log => (
+                      <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
+                        background: log.is_done?'#F0FDF4':'#FFFBEB',
+                        borderRadius:8,padding:'7px 10px' }}>
+                        <span style={{ fontSize:13 }}>{log.is_done ? '✅' : '📅'}</span>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <span style={{ fontSize:13,color:'#374151',fontWeight:600 }}>
+                            {log.contacts?.name || '—'}
+                          </span>
+                          {log.product_name && (
+                            <span style={{ fontSize:12,color:'#6B7280',marginLeft:6 }}>{log.product_name}</span>
+                          )}
+                          {log.note && (
+                            <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>{log.note}</p>
+                          )}
+                        </div>
+                        {!log.is_done && (
+                          <button onClick={() => confirmDone(log)}
+                            style={{ fontSize:12,color:'#16A34A',background:'none',border:'none',
+                              cursor:'pointer',fontWeight:600,whiteSpace:'nowrap' }}>完成</button>
+                        )}
+                        <button onClick={() => deleteLog(log.id, 'week')}
+                          style={{ fontSize:12,color:'#EF4444',background:'none',border:'none',cursor:'pointer' }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {dayLogs.length === 0 && (
+                  <p style={{ fontSize:12,color:'#D1D5DB',margin:'2px 0 0' }}>這天沒有記錄</p>
+                )}
               </div>
             )
           })}
         </div>
 
-        {/* 每週任務 */}
-        <div style={card}>
-          <span style={{ ...sectionTitle,display:'block',marginBottom:12 }}>每週任務</span>
-          {WEEKLY_TASKS.map(task => {
-            const done = !!weekCheckins[task.key]
-            return (
-              <button key={task.key} onClick={() => toggleCheckin(task.key, true)}
-                style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',
-                  borderBottom:'1px solid #F9FAFB',background:'none',border:'none',
-                  width:'100%',textAlign:'left',cursor:'pointer' }}>
-                <div style={{ width:22,height:22,borderRadius:6,flexShrink:0,
-                  border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
-                  display:'flex',alignItems:'center',justifyContent:'center' }}>
-                  {done&&<span style={{ fontSize:12,color:'#fff' }}>✓</span>}
-                </div>
-                <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
-                  textDecoration:done?'line-through':'none' }}>{task.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 每月目標 */}
+        {/* ── 每月目標 ── */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每月目標</span>
-            <button onClick={() => {
-              setMonthGoalInput({ new_product: String(monthGoals.new_product), gmtss: String(monthGoals.gmtss) })
-              setEditingMonth(true)
-            }} style={{ fontSize:13,color:'#2563EB',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}>
-              編輯
-            </button>
-          </div>
-          {[
-            { key:'new_product', label:'認識新產品', unit:'樣' },
-            { key:'gmtss', label:'GMTSS 課程', unit:'次' },
-          ].map(item => (
-            <div key={item.key} style={{ display:'flex',alignItems:'center',
-              padding:'10px 0',borderBottom:'1px solid #F9FAFB' }}>
-              <span style={{ flex:1,fontSize:14,color:'#374151' }}>{item.label}</span>
-              <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                <span style={{ fontSize:13,color:'#9CA3AF',minWidth:50,textAlign:'right' }}>
-                  {monthProgress[item.key]}/{monthGoals[item.key]||'—'} {item.unit}
-                </span>
-                <button onClick={() => adjustMonthProgress(item.key, -1)} style={counterBtn}>−</button>
-                <button onClick={() => adjustMonthProgress(item.key, 1)}
-                  style={{ ...counterBtn,background:'#2563EB',color:'#fff' }}>+</button>
-              </div>
+            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+              <button onClick={() => changeMonthViewDate(-1)}
+                style={{ background:'none',border:'none',color:'#6B7280',fontSize:18,cursor:'pointer' }}>‹</button>
+              <span style={{ fontSize:13,fontWeight:600,color:'#374151' }}>
+                {new Date(monthViewDate+'T00:00:00').toLocaleDateString('zh-TW',{year:'numeric',month:'long'})}
+              </span>
+              <button onClick={() => changeMonthViewDate(1)}
+                style={{ background:'none',border:'none',
+                  color: monthViewDate.slice(0,7) >= today().slice(0,7) ? '#D1D5DB':'#6B7280',
+                  fontSize:18, cursor: monthViewDate.slice(0,7) >= today().slice(0,7) ? 'default':'pointer' }}>›</button>
             </div>
-          ))}
+          </div>
+
+          {MONTH_ITEMS.map(item => {
+            const logs = monthLogs.filter(l => l.counter_key === item.key)
+            const doneCount = logs.filter(l => l.is_done).length
+            return (
+              <div key={item.key} style={{ padding:'12px 0',borderBottom:'1px solid #F9FAFB' }}>
+                <div style={{ display:'flex',alignItems:'center',marginBottom: logs.length>0?8:0 }}>
+                  <span style={{ flex:1,fontSize:14,color:'#374151',fontWeight:600 }}>{item.label}</span>
+                  <span style={{ fontSize:12,color:'#9CA3AF',marginRight:8 }}>已完成 {doneCount} 次</span>
+                  <button onClick={() => openLogModal(item.key, item.label, 'month')}
+                    style={{ ...counterBtn, background:'#2563EB', color:'#fff' }}>+</button>
+                </div>
+                {logs.length > 0 && (
+                  <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
+                    {logs.map(log => {
+                      const displayDate = log.planned_date || log.date
+                      return (
+                        <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
+                          background: log.is_done?'#F0FDF4':'#FFFBEB',
+                          borderRadius:8,padding:'7px 10px' }}>
+                          <span style={{ fontSize:13 }}>{log.is_done ? '✅' : '📅'}</span>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <span style={{ fontSize:13,color:'#374151',fontWeight:600 }}>
+                              {log.product_name || log.note || '—'}
+                            </span>
+                            <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:6 }}>
+                              {formatShortDate(displayDate)}
+                            </span>
+                          </div>
+                          {!log.is_done && (
+                            <button onClick={() => confirmDone(log)}
+                              style={{ fontSize:12,color:'#16A34A',background:'none',border:'none',
+                                cursor:'pointer',fontWeight:600,whiteSpace:'nowrap' }}>完成</button>
+                          )}
+                          <button onClick={() => deleteLog(log.id, 'month')}
+                            style={{ fontSize:12,color:'#EF4444',background:'none',border:'none',cursor:'pointer' }}>✕</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {logs.length === 0 && (
+                  <p style={{ fontSize:12,color:'#D1D5DB',margin:'2px 0 0' }}>這個月還沒有記錄</p>
+                )}
+              </div>
+            )
+          })}
         </div>
 
       </div>
 
-      {/* 目標宣言 Modal */}
+      {/* ── 目標宣言 Modal ── */}
       {goalModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -517,14 +638,11 @@ export default function Daily() {
               <button onClick={() => setGoalModal(false)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
-            <textarea
-              value={goalText}
-              onChange={e => setGoalText(e.target.value)}
+            <textarea value={goalText} onChange={e => setGoalText(e.target.value)}
               placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
               style={{ width:'100%',minHeight:120,padding:'12px',borderRadius:10,
                 border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-                outline:'none',resize:'vertical',lineHeight:1.6 }}
-            />
+                outline:'none',resize:'vertical',lineHeight:1.6 }} />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
                 background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
@@ -535,7 +653,7 @@ export default function Daily() {
         </div>
       )}
 
-      {/* 社群連結 Modal */}
+      {/* ── 社群連結 Modal ── */}
       {socialModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -548,12 +666,12 @@ export default function Daily() {
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
             <div style={{ display:'flex',gap:12,marginBottom:8 }}>
-              <button onClick={() => { window.open('https://www.facebook.com/groups/710836659091767/', '_blank'); setSocialModal(false) }}
+              <button onClick={() => { window.open('https://www.facebook.com/groups/710836659091767/','_blank'); setSocialModal(false) }}
                 style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
                   background:'#1877F2',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 📘 臉書 IDEA
               </button>
-              <button onClick={() => { window.open('https://line.me', '_blank'); setSocialModal(false) }}
+              <button onClick={() => { window.open('https://line.me','_blank'); setSocialModal(false) }}
                 style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
                   background:'#06C755',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 💚 LINE
@@ -563,91 +681,107 @@ export default function Daily() {
         </div>
       )}
 
-      {/* 備註 Modal */}
+      {/* ── 新增記錄 Modal（週計數器 + 月目標） ── */}
       {logModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setLogModal(null) }}>
           <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430,maxHeight:'80vh',overflowY:'auto' }}>
+            width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>
-                {logModal.label} +1
+                {logModal.label} — 新增記錄
               </h3>
               <button onClick={() => setLogModal(null)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
+
+            {/* 日期選擇 */}
             <div style={{ marginBottom:16 }}>
-              <label style={labelStyle}>分享對象 <span style={{ color:'#EF4444' }}>必填</span></label>
-              <input placeholder="搜尋互動名單..." value={logContact}
-                onChange={e => { setLogContact(e.target.value); setLogContactId(null); searchContacts(e.target.value) }}
-                style={inputStyle} />
-              {contactSearch.length > 0 && (
-                <div style={{ border:'1px solid #E5E7EB',borderRadius:8,marginTop:4,overflow:'hidden' }}>
-                  {contactSearch.map(c => (
-                    <button key={c.id} onClick={() => {
-                      setLogContact(c.name); setLogContactId(c.id); setContactSearch([])
-                    }} style={{ display:'block',width:'100%',textAlign:'left',padding:'10px 12px',
-                      background: logContactId===c.id?'#EFF6FF':'#fff',border:'none',
-                      borderBottom:'1px solid #F3F4F6',fontSize:14,cursor:'pointer',color:'#374151' }}>
-                      {c.name}
+              <label style={labelStyle}>日期</label>
+              <div style={{ display:'flex',gap:6,overflowX:'auto',paddingBottom:4 }}>
+                {getDateOptions().map(d => {
+                  const isFut = d > today()
+                  const isSelected = logDate === d
+                  return (
+                    <button key={d} onClick={() => setLogDate(d)}
+                      style={{ flexShrink:0,padding:'6px 10px',borderRadius:8,fontSize:12,
+                        fontWeight: isSelected?700:400,cursor:'pointer',
+                        border: isSelected?'2px solid #2563EB':'1px solid #E5E7EB',
+                        background: isSelected?(isFut?'#FFFBEB':'#EFF6FF'):'#F9FAFB',
+                        color: isSelected?(isFut?'#B45309':'#1D4ED8'):'#6B7280' }}>
+                      {d === today() ? '今天' : formatShortDate(d)}
+                      {isFut && ' 📅'}
                     </button>
-                  ))}
-                </div>
+                  )
+                })}
+              </div>
+              {logDate > today() && (
+                <p style={{ fontSize:12,color:'#F59E0B',margin:'6px 0 0',fontWeight:600 }}>
+                  📅 預排模式：儲存後顯示為「待完成」
+                </p>
               )}
-              {logContactId && <p style={{ fontSize:12,color:'#22C55E',margin:'4px 0 0' }}>✓ 已選擇：{logContact}</p>}
             </div>
+
+            {/* 分享對象（週計數器必填，月目標選填） */}
+            {logModal.mode === 'week' && (
+              <div style={{ marginBottom:16 }}>
+                <label style={labelStyle}>分享對象 <span style={{ color:'#EF4444' }}>必填</span></label>
+                <input placeholder="搜尋互動名單..." value={logContact}
+                  onChange={e => { setLogContact(e.target.value); setLogContactId(null); searchContacts(e.target.value) }}
+                  style={inputStyle} />
+                {contactSearch.length > 0 && (
+                  <div style={{ border:'1px solid #E5E7EB',borderRadius:8,marginTop:4,overflow:'hidden' }}>
+                    {contactSearch.map(c => (
+                      <button key={c.id} onClick={() => {
+                        setLogContact(c.name); setLogContactId(c.id); setContactSearch([])
+                      }} style={{ display:'block',width:'100%',textAlign:'left',padding:'10px 12px',
+                        background: logContactId===c.id?'#EFF6FF':'#fff',border:'none',
+                        borderBottom:'1px solid #F3F4F6',fontSize:14,cursor:'pointer',color:'#374151' }}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {logContactId && <p style={{ fontSize:12,color:'#22C55E',margin:'4px 0 0' }}>✓ 已選擇：{logContact}</p>}
+              </div>
+            )}
+
+            {/* 產品/課程名稱 */}
             <div style={{ marginBottom:16 }}>
-              <label style={labelStyle}>分享產品 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
-              <input placeholder="輸入產品名稱..." value={logProduct}
-                onChange={e => setLogProduct(e.target.value)} style={inputStyle} />
+              <label style={labelStyle}>
+                {logModal.mode === 'month'
+                  ? (MONTH_ITEMS.find(i=>i.key===logModal.key)?.placeholder || '名稱')
+                  : '分享產品'}
+                {logModal.mode === 'month'
+                  ? <span style={{ color:'#EF4444' }}> 必填</span>
+                  : <span style={{ color:'#9CA3AF',fontSize:12 }}> 選填</span>}
+              </label>
+              <input placeholder={logModal.mode==='month'?'請輸入名稱...':'輸入產品名稱...'}
+                value={logProduct} onChange={e => setLogProduct(e.target.value)} style={inputStyle} />
             </div>
+
+            {/* 備註 */}
             <div style={{ marginBottom:20 }}>
               <label style={labelStyle}>備註 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
               <textarea placeholder="記錄重點..." value={logNote}
                 onChange={e => setLogNote(e.target.value)}
                 style={{ ...inputStyle,height:72,resize:'none' }} />
             </div>
-            <button onClick={confirmLog} disabled={!logContactId}
+
+            <button onClick={confirmLog} disabled={logSaving ||
+              (logModal.mode==='week' && !logContactId) ||
+              (logModal.mode==='month' && !logProduct)}
               style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-                background: logContactId?'#2563EB':'#D1D5DB',
+                background: (logModal.mode==='week'?logContactId:logProduct) ? '#2563EB':'#D1D5DB',
                 color:'#fff',fontSize:15,fontWeight:700,
-                cursor: logContactId?'pointer':'not-allowed' }}>
-              確認 +1
+                cursor: (logModal.mode==='week'?logContactId:logProduct) ? 'pointer':'not-allowed' }}>
+              {logSaving ? '儲存中…' : logDate > today() ? '📅 預排' : '確認儲存'}
             </button>
           </div>
         </div>
       )}
 
-      {/* 每月目標編輯 Modal */}
-      {editingMonth && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
-          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430 }}>
-            <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 16px' }}>設定每月目標</h3>
-            {[
-              { key:'new_product', label:'認識新產品（樣）' },
-              { key:'gmtss', label:'GMTSS 課程（次）' },
-            ].map(item => (
-              <div key={item.key} style={{ marginBottom:16 }}>
-                <label style={labelStyle}>{item.label}</label>
-                <input type="number" min="0" value={monthGoalInput[item.key]}
-                  onChange={e => setMonthGoalInput(p => ({ ...p, [item.key]: e.target.value }))}
-                  style={inputStyle} />
-              </div>
-            ))}
-            <div style={{ display:'flex',gap:10,marginTop:8 }}>
-              <button onClick={() => setEditingMonth(false)}
-                style={{ flex:1,padding:'12px',borderRadius:10,border:'1px solid #E5E7EB',
-                  background:'#fff',fontSize:15,cursor:'pointer',color:'#6B7280' }}>取消</button>
-              <button onClick={saveMonthGoals}
-                style={{ flex:1,padding:'12px',borderRadius:10,border:'none',
-                  background:'#2563EB',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>儲存</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
