@@ -130,6 +130,111 @@ export default function Contacts() {
   })
 
   function ContactCard({ c }) {
+  const isOv = c.next_contact_date && c.next_contact_date < today()
+  const isToday = c.next_contact_date === today()
+  const offset = swipeState[c.id] || 0
+  const cardRef = useRef(null)
+
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    let startX = 0, startY = 0, isDragging = false
+
+    function handleTouchStart(e) {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+      isDragging = true
+      activeSwipe.current = c.id
+    }
+
+    function handleTouchMove(e) {
+      if (!isDragging || activeSwipe.current !== c.id) return
+      const dx = e.touches[0].clientX - startX
+      const dy = Math.abs(e.touches[0].clientY - startY)
+      if (dy > Math.abs(dx) && Math.abs(dx) < 10) {
+        isDragging = false
+        activeSwipe.current = null
+        return
+      }
+      e.preventDefault() // 阻止頁面滾動
+      setSwipeState(s => ({ ...s, [c.id]: Math.max(-80, Math.min(80, dx)) }))
+    }
+
+    function handleTouchEnd() {
+      if (!isDragging) return
+      isDragging = false
+      const offset = swipeState[c.id] || 0
+      if (offset < -SWIPE_THRESHOLD) {
+        setSwipeState(s => ({ ...s, [c.id]: -80 }))
+        setArchiveTarget(c.id)
+      } else if (offset > SWIPE_THRESHOLD) {
+        handlePin(c)
+      } else {
+        setSwipeState(s => ({ ...s, [c.id]: 0 }))
+      }
+      activeSwipe.current = null
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [c.id, swipeState[c.id]])
+
+  return (
+    <div style={{ position:'relative', overflow:'hidden', borderBottom:'1px solid #F3F4F6' }}>
+      {/* 左滑背景（封存） */}
+      <div style={{ position:'absolute',right:0,top:0,bottom:0,width:80,
+        background:'#DC2626',display:'flex',alignItems:'center',justifyContent:'center' }}>
+        <span style={{ color:'#fff',fontSize:12,fontWeight:700 }}>封存</span>
+      </div>
+      {/* 右滑背景（釘選） */}
+      <div style={{ position:'absolute',left:0,top:0,bottom:0,width:80,
+        background: c.is_pinned ? '#9CA3AF' : '#F97316',
+        display:'flex',alignItems:'center',justifyContent:'center' }}>
+        <span style={{ color:'#fff',fontSize:12,fontWeight:700 }}>{c.is_pinned ? '取消釘選' : '📌 釘選'}</span>
+      </div>
+
+      {/* 主卡片 */}
+      <div
+        ref={cardRef}
+        style={{ transform:`translateX(${offset}px)`,
+          transition: activeSwipe.current === c.id ? 'none' : 'transform 0.2s ease',
+          background:'#fff', display:'flex', alignItems:'center', gap:12,
+          padding:'12px 16px', cursor:'pointer', position:'relative', zIndex:1 }}
+        onClick={() => { if (Math.abs(offset) < 5) navigate(`/contacts/${c.id}`) }}>
+        <Avatar name={c.name} size={42} />
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+            {c.is_pinned && <span style={{ fontSize:12 }}>📌</span>}
+            <span style={{ fontSize:15, fontWeight:700, color:'#111827' }}>{c.name}</span>
+            {c.egg_type && (
+              <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
+                background:getEggBg(c.egg_type), color:getEggColor(c.egg_type) }}>
+                {c.egg_type}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize:12, color:'#9CA3AF', display:'flex', gap:4 }}>
+            {c.occupation && <span>{c.occupation}</span>}
+            {c.occupation && c.action_type && <span>·</span>}
+            {c.action_type && <span>{c.action_type}</span>}
+          </div>
+        </div>
+        {c.next_contact_date && (
+          <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap',
+            color:isOv?'#DC2626':isToday?'#F97316':'#9CA3AF' }}>
+            {formatDue(c.next_contact_date)}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
     const isOv = c.next_contact_date && c.next_contact_date < today()
     const isToday = c.next_contact_date === today()
     const offset = swipeState[c.id] || 0
