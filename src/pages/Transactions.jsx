@@ -24,6 +24,15 @@ export default function Transactions() {
   const [giftCost, setGiftCost] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  // 選單
+  const [menuId, setMenuId] = useState(null)
+  // 刪除確認
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  // 編輯 Modal
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
+
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -69,8 +78,50 @@ export default function Transactions() {
     else setMonth(m => m+1)
   }
 
+  // 刪除
+  async function handleDelete() {
+    if (!deleteTarget) return
+    await supabase.from('transactions').delete().eq('id', deleteTarget)
+    setDeleteTarget(null)
+    fetchData()
+  }
+
+  // 開啟編輯
+  function openEdit(t) {
+    setMenuId(null)
+    setEditTarget(t)
+    setEditForm({
+      date: t.date || '',
+      product_name: t.product_name || '',
+      type: t.type || 'BV',
+      points: t.points || '',
+      amount: t.amount || '',
+      cost: t.cost || '',
+      is_gift: t.is_gift || false,
+    })
+  }
+
+  // 儲存編輯
+  async function handleSave() {
+    setSaving(true)
+    await supabase.from('transactions').update({
+      date: editForm.date,
+      product_name: editForm.product_name,
+      type: editForm.type,
+      points: Number(editForm.points),
+      amount: Number(editForm.amount),
+      cost: Number(editForm.cost),
+      is_gift: editForm.is_gift,
+    }).eq('id', editTarget.id)
+    setSaving(false)
+    setEditTarget(null)
+    fetchData()
+  }
+
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+    <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}
+      onClick={() => setMenuId(null)}>
+
       {/* Header */}
       <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
@@ -127,7 +178,7 @@ export default function Transactions() {
             const margin = (t.amount||0) - (t.cost||0)
             return (
               <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,
-                padding:'12px 16px',borderBottom:'1px solid #F3F4F6' }}>
+                padding:'12px 16px',borderBottom:'1px solid #F3F4F6',position:'relative' }}>
                 <div style={{ width:40,height:40,borderRadius:'50%',
                   background: t.is_gift ? '#FED7AA' : avatarBg(name),
                   display:'flex',alignItems:'center',justifyContent:'center',
@@ -154,11 +205,140 @@ export default function Transactions() {
                     {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
                   </p>
                 </div>
+
+                {/* ⋯ 選單按鈕 */}
+                <button
+                  onClick={e => { e.stopPropagation(); setMenuId(menuId === t.id ? null : t.id) }}
+                  style={{ background:'none',border:'none',fontSize:18,cursor:'pointer',
+                    color:'#9CA3AF',padding:'4px 6px',marginLeft:4,flexShrink:0 }}>⋯</button>
+
+                {/* 下拉選單 */}
+                {menuId === t.id && (
+                  <div onClick={e => e.stopPropagation()}
+                    style={{ position:'absolute',right:12,top:44,background:'#fff',
+                      borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.13)',
+                      zIndex:100,overflow:'hidden',minWidth:100 }}>
+                    <button onClick={() => openEdit(t)}
+                      style={{ display:'block',width:'100%',padding:'11px 18px',
+                        background:'none',border:'none',textAlign:'left',
+                        fontSize:14,color:'#374151',cursor:'pointer' }}>✏️ 編輯</button>
+                    <button onClick={() => { setMenuId(null); setDeleteTarget(t.id) }}
+                      style={{ display:'block',width:'100%',padding:'11px 18px',
+                        background:'none',border:'none',textAlign:'left',
+                        fontSize:14,color:'#DC2626',cursor:'pointer' }}>🗑️ 刪除</button>
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
       )}
+
+      {/* 刪除確認 Modal */}
+      {deleteTarget && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
+          <div style={{ background:'#fff',borderRadius:16,padding:24,width:280,textAlign:'center' }}>
+            <p style={{ fontSize:32,margin:'0 0 8px' }}>🗑️</p>
+            <p style={{ fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 8px' }}>確定刪除？</p>
+            <p style={{ fontSize:13,color:'#9CA3AF',margin:'0 0 20px' }}>刪除後無法復原</p>
+            <div style={{ display:'flex',gap:10 }}>
+              <button onClick={() => setDeleteTarget(null)}
+                style={{ flex:1,padding:'10px 0',borderRadius:10,border:'1px solid #E5E7EB',
+                  background:'#fff',fontSize:14,cursor:'pointer',color:'#374151' }}>取消</button>
+              <button onClick={handleDelete}
+                style={{ flex:1,padding:'10px 0',borderRadius:10,border:'none',
+                  background:'#DC2626',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 編輯 Modal */}
+      {editTarget && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200 }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',
+            padding:'24px 20px 36px',width:'100%',maxWidth:480 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+              <h2 style={{ fontSize:17,fontWeight:800,color:'#111827',margin:0 }}>編輯業績紀錄</h2>
+              <button onClick={() => setEditTarget(null)}
+                style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#9CA3AF' }}>×</button>
+            </div>
+
+            {/* 日期 */}
+            <label style={labelStyle}>日期</label>
+            <input type="date" value={editForm.date}
+              onChange={e => setEditForm(f => ({...f, date: e.target.value}))}
+              style={inputStyle} />
+
+            {/* 品名 */}
+            <label style={labelStyle}>品名</label>
+            <input type="text" value={editForm.product_name}
+              onChange={e => setEditForm(f => ({...f, product_name: e.target.value}))}
+              placeholder="商品名稱" style={inputStyle} />
+
+            {/* 類型 */}
+            <label style={labelStyle}>類型</label>
+            <div style={{ display:'flex',gap:8,marginBottom:14 }}>
+              {['BV','IBV'].map(type => (
+                <button key={type} onClick={() => setEditForm(f => ({...f, type}))}
+                  style={{ flex:1,padding:'9px 0',borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',
+                    border: editForm.type===type ? 'none' : '1px solid #E5E7EB',
+                    background: editForm.type===type ? (type==='BV'?'#F97316':'#3B82F6') : '#fff',
+                    color: editForm.type===type ? '#fff' : '#374151' }}>{type}</button>
+              ))}
+            </div>
+
+            {/* 點數 */}
+            <label style={labelStyle}>點數</label>
+            <input type="number" value={editForm.points}
+              onChange={e => setEditForm(f => ({...f, points: e.target.value}))}
+              placeholder="0" style={inputStyle} />
+
+            {/* 金額 & 成本 */}
+            <div style={{ display:'flex',gap:10,marginBottom:14 }}>
+              <div style={{ flex:1 }}>
+                <label style={labelStyle}>售價 (NT$)</label>
+                <input type="number" value={editForm.amount}
+                  onChange={e => setEditForm(f => ({...f, amount: e.target.value}))}
+                  placeholder="0" style={{...inputStyle, marginBottom:0}} />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={labelStyle}>成本 (NT$)</label>
+                <input type="number" value={editForm.cost}
+                  onChange={e => setEditForm(f => ({...f, cost: e.target.value}))}
+                  placeholder="0" style={{...inputStyle, marginBottom:0}} />
+              </div>
+            </div>
+
+            {/* 贈品 */}
+            <label style={{ display:'flex',alignItems:'center',gap:8,
+              fontSize:14,color:'#374151',marginBottom:20,cursor:'pointer' }}>
+              <input type="checkbox" checked={editForm.is_gift}
+                onChange={e => setEditForm(f => ({...f, is_gift: e.target.checked}))}
+                style={{ width:16,height:16 }} />
+              這是贈品（成本計入費用，不計算獲利）
+            </label>
+
+            <button onClick={handleSave} disabled={saving}
+              style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
+                background: saving ? '#93C5FD' : '#2563EB',color:'#fff',
+                fontSize:15,fontWeight:700,cursor:'pointer' }}>
+              {saving ? '儲存中…' : '儲存'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+const labelStyle = {
+  display:'block', fontSize:12, fontWeight:700, color:'#6B7280', marginBottom:4
+}
+const inputStyle = {
+  width:'100%', padding:'10px 12px', borderRadius:10, border:'1px solid #E5E7EB',
+  fontSize:14, color:'#111827', marginBottom:14, boxSizing:'border-box',
+  outline:'none'
 }
