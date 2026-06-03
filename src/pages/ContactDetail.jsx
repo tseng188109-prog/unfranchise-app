@@ -15,7 +15,11 @@ function avatarBg(name){
   let n=0;for(let i=0;i<name.length;i++)n+=name.charCodeAt(i)
   return colors[n%colors.length]
 }
-function today(){return new Date().toISOString().split('T')[0]}
+function today(){
+  const now = new Date()
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+  return tw.toISOString().split('T')[0]
+}
 function formatDateDisplay(d){
   if(!d)return''
   const dt=new Date(d+'T00:00:00')
@@ -30,6 +34,14 @@ export default function ContactDetail() {
   const [loading, setLoading] = useState(true)
   const [marking, setMarking] = useState(false)
 
+  // 備註 modal
+  const [showNoteModal, setShowNoteModal] = useState(false)
+  const [noteInput, setNoteInput] = useState('')
+
+  // 編輯 modal
+  const [editingLog, setEditingLog] = useState(null)
+  const [editNote, setEditNote] = useState('')
+
   useEffect(() => { fetchContact() }, [id])
 
   async function fetchContact() {
@@ -38,18 +50,21 @@ export default function ContactDetail() {
       .select('*').eq('id', id).single()
     if (data) setContact(data)
 
-    // 互動紀錄（從 counter_logs 撈）
-    const { data: logData } = await supabase.from('counter_logs')
-      .select('date,note,product_name')
+    const { data: logData } = await supabase.from('contact_logs')
+      .select('*')
       .eq('contact_id', id)
       .order('date', { ascending: false })
-      .limit(10)
     if (logData) setLogs(logData)
 
     setLoading(false)
   }
 
   async function handleTodayContact() {
+    setNoteInput('')
+    setShowNoteModal(true)
+  }
+
+  async function confirmContact() {
     setMarking(true)
     const todayStr = today()
     const actionType = contact.action_type
@@ -58,20 +73,50 @@ export default function ContactDetail() {
     next.setDate(next.getDate() + days)
     const nextStr = next.toISOString().split('T')[0]
 
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // 更新 contacts
     await supabase.from('contacts').update({
       last_contact_date: todayStr,
       next_contact_date: nextStr,
     }).eq('id', id)
 
-    // 自動更新每日打卡的每日3互動
-    const { data: { user } } = await supabase.auth.getUser()
+    // 寫入 contact_logs
+    await supabase.from('contact_logs').insert({
+      contact_id: id,
+      user_id: user.id,
+      date: todayStr,
+      note: noteInput.trim() || null,
+    })
+
+    // 更新每日打卡
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date: todayStr,
       task_key: 'daily_3_contacts', is_done: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,date,task_key' })
 
+    setShowNoteModal(false)
     setMarking(false)
+    fetchContact()
+  }
+
+  async function handleEditLog(log) {
+    setEditingLog(log)
+    setEditNote(log.note || '')
+  }
+
+  async function confirmEditLog() {
+    await supabase.from('contact_logs')
+      .update({ note: editNote.trim() || null })
+      .eq('id', editingLog.id)
+    setEditingLog(null)
+    fetchContact()
+  }
+
+  async function handleDeleteLog(logId) {
+    if (!confirm('確定刪除這筆互動紀錄？')) return
+    await supabase.from('contact_logs').delete().eq('id', logId)
     fetchContact()
   }
 
@@ -92,6 +137,72 @@ export default function ContactDetail() {
 
   return (
     <div style={{background:'#F8FAFC',minHeight:'100vh',paddingBottom:100}}>
+
+      {/* 備註 Modal */}
+      {showNoteModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
+          display:'flex',alignItems:'center',justifyContent:'center',padding:'0 24px'}}>
+          <div style={{background:'#fff',borderRadius:16,padding:24,width:'100%',maxWidth:400}}>
+            <p style={{fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 6px'}}>今天互動了 ✓</p>
+            <p style={{fontSize:13,color:'#6B7280',margin:'0 0 14px'}}>可以加一點備註（選填）</p>
+            <textarea
+              value={noteInput}
+              onChange={e=>setNoteInput(e.target.value)}
+              placeholder="例：聊了工作壓力，對產品有興趣…"
+              rows={3}
+              style={{width:'100%',borderRadius:10,border:'1px solid #E5E7EB',
+                padding:'10px 12px',fontSize:14,resize:'none',
+                boxSizing:'border-box',outline:'none'}}
+            />
+            <div style={{display:'flex',gap:10,marginTop:14}}>
+              <button onClick={()=>setShowNoteModal(false)}
+                style={{flex:1,padding:'11px',borderRadius:10,border:'1px solid #E5E7EB',
+                  background:'#fff',fontSize:14,cursor:'pointer',color:'#6B7280'}}>
+                取消
+              </button>
+              <button onClick={confirmContact} disabled={marking}
+                style={{flex:2,padding:'11px',borderRadius:10,border:'none',
+                  background:'#22C55E',color:'#fff',fontSize:14,
+                  fontWeight:700,cursor:'pointer'}}>
+                {marking?'儲存中…':'確認儲存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 編輯備註 Modal */}
+      {editingLog && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
+          display:'flex',alignItems:'center',justifyContent:'center',padding:'0 24px'}}>
+          <div style={{background:'#fff',borderRadius:16,padding:24,width:'100%',maxWidth:400}}>
+            <p style={{fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 6px'}}>編輯備註</p>
+            <p style={{fontSize:13,color:'#6B7280',margin:'0 0 14px'}}>{formatDateDisplay(editingLog.date)}</p>
+            <textarea
+              value={editNote}
+              onChange={e=>setEditNote(e.target.value)}
+              rows={3}
+              style={{width:'100%',borderRadius:10,border:'1px solid #E5E7EB',
+                padding:'10px 12px',fontSize:14,resize:'none',
+                boxSizing:'border-box',outline:'none'}}
+            />
+            <div style={{display:'flex',gap:10,marginTop:14}}>
+              <button onClick={()=>setEditingLog(null)}
+                style={{flex:1,padding:'11px',borderRadius:10,border:'1px solid #E5E7EB',
+                  background:'#fff',fontSize:14,cursor:'pointer',color:'#6B7280'}}>
+                取消
+              </button>
+              <button onClick={confirmEditLog}
+                style={{flex:2,padding:'11px',borderRadius:10,border:'none',
+                  background:'#2563EB',color:'#fff',fontSize:14,
+                  fontWeight:700,cursor:'pointer'}}>
+                儲存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -107,7 +218,6 @@ export default function ContactDetail() {
           </div>
         </div>
 
-        {/* 頭像 + 姓名 */}
         <div style={{display:'flex',alignItems:'center',gap:14,marginTop:16}}>
           <div style={{width:56,height:56,borderRadius:'50%',background:avatarBg(contact.name),
             display:'flex',alignItems:'center',justifyContent:'center',
@@ -126,7 +236,7 @@ export default function ContactDetail() {
 
       <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}}>
 
-        {/* 建議行動（藍底） */}
+        {/* 建議行動 */}
         {suggestedAction && (
           <div style={{background:'#2563EB',borderRadius:14,padding:'14px 16px'}}>
             <p style={{margin:'0 0 4px',fontSize:12,color:'#93C5FD',fontWeight:600}}>建議行動</p>
@@ -187,28 +297,34 @@ export default function ContactDetail() {
         {/* 互動紀錄 */}
         <div style={{background:'#fff',borderRadius:14,padding:'14px 16px'}}>
           <p style={{fontSize:13,fontWeight:700,color:'#374151',margin:'0 0 10px'}}>互動紀錄</p>
-          {contact.last_contact_date&&(
-            <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:8}}>
-              <div style={{width:8,height:8,borderRadius:'50%',background:'#22C55E',marginTop:5,flexShrink:0}}/>
-              <div>
-                <p style={{fontSize:13,color:'#374151',margin:0,fontWeight:600}}>
-                  {formatDateDisplay(contact.last_contact_date)} · 最近互動
-                </p>
-              </div>
-            </div>
-          )}
-          {logs.length===0&&!contact.last_contact_date&&(
+          {logs.length===0&&(
             <p style={{fontSize:13,color:'#9CA3AF',margin:0}}>還沒有互動紀錄</p>
           )}
           {logs.map((log,i)=>(
-            <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:8}}>
-              <div style={{width:8,height:8,borderRadius:'50%',background:'#D1D5DB',marginTop:5,flexShrink:0}}/>
-              <div>
-                <p style={{fontSize:13,color:'#374151',margin:0}}>
+            <div key={log.id} style={{display:'flex',gap:10,alignItems:'flex-start',
+              marginBottom:i<logs.length-1?12:0,paddingBottom:i<logs.length-1?12:0,
+              borderBottom:i<logs.length-1?'1px solid #F3F4F6':'none'}}>
+              <div style={{width:8,height:8,borderRadius:'50%',
+                background:i===0?'#22C55E':'#D1D5DB',marginTop:5,flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <p style={{fontSize:13,color:'#374151',margin:0,fontWeight:600}}>
                   {formatDateDisplay(log.date)}
-                  {log.product_name&&` · ${log.product_name}`}
+                  {i===0&&<span style={{fontSize:12,color:'#22C55E',marginLeft:6}}>最近</span>}
                 </p>
-                {log.note&&<p style={{fontSize:12,color:'#9CA3AF',margin:'2px 0 0'}}>{log.note}</p>}
+                {log.note&&(
+                  <p style={{fontSize:13,color:'#6B7280',margin:'3px 0 0'}}>{log.note}</p>
+                )}
+                {!log.note&&(
+                  <p style={{fontSize:12,color:'#D1D5DB',margin:'3px 0 0'}}>無備註</p>
+                )}
+              </div>
+              <div style={{display:'flex',gap:8,flexShrink:0}}>
+                <button onClick={()=>handleEditLog(log)}
+                  style={{background:'none',border:'none',fontSize:13,
+                    color:'#9CA3AF',cursor:'pointer',padding:'2px 4px'}}>編輯</button>
+                <button onClick={()=>handleDeleteLog(log.id)}
+                  style={{background:'none',border:'none',fontSize:13,
+                    color:'#EF4444',cursor:'pointer',padding:'2px 4px'}}>刪除</button>
               </div>
             </div>
           ))}
@@ -219,17 +335,11 @@ export default function ContactDetail() {
       <div style={{position:'fixed',bottom:64,left:'50%',transform:'translateX(-50%)',
         width:'100%',maxWidth:430,padding:'12px 16px',background:'#fff',
         borderTop:'1px solid #F3F4F6',display:'flex',gap:10,boxSizing:'border-box'}}>
-        <button onClick={handleTodayContact} disabled={marking}
+        <button onClick={handleTodayContact}
           style={{flex:1,padding:'13px',borderRadius:12,border:'none',
-            background:marking?'#86EFAC':'#22C55E',color:'#fff',
+            background:'#22C55E',color:'#fff',
             fontSize:14,fontWeight:700,cursor:'pointer'}}>
-          {marking?'記錄中…':'✓ 今天互動了'}
-        </button>
-        <button onClick={()=>navigate('/customers')}
-          style={{flex:1,padding:'13px',borderRadius:12,
-            border:'1px solid #E5E7EB',background:'#fff',
-            fontSize:14,fontWeight:700,cursor:'pointer',color:'#374151'}}>
-          顧客紀錄
+          ✓ 今天互動了
         </button>
       </div>
     </div>
