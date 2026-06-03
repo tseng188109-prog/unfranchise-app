@@ -29,7 +29,6 @@ function Avatar({ name, size=40 }) {
 }
 
 const EGG_FILTERS = ['全部','茶葉蛋','荷包蛋','生雞蛋']
-const SWIPE_THRESHOLD = 50
 
 export default function Contacts() {
   const navigate = useNavigate()
@@ -38,10 +37,8 @@ export default function Contacts() {
   const [search, setSearch] = useState('')
   const [eggFilter, setEggFilter] = useState('全部')
   const [loading, setLoading] = useState(true)
-  const [archiveTarget, setArchiveTarget] = useState(null)
-  const [swipeState, setSwipeState] = useState({}) // { [id]: offset }
-  const touchStart = useRef({})
-  const activeSwipe = useRef(null)
+  const [menuTarget, setMenuTarget] = useState(null) // 長按選單
+  const [archiveTarget, setArchiveTarget] = useState(null) // 封存確認
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -64,48 +61,16 @@ export default function Contacts() {
 
   async function handlePin(c) {
     await supabase.from('contacts').update({ is_pinned: !c.is_pinned }).eq('id', c.id)
-    setSwipeState({})
+    setMenuTarget(null)
     fetchContacts()
   }
 
   async function handleArchive() {
     if (!archiveTarget) return
-    await supabase.from('contacts').update({ is_archived: true }).eq('id', archiveTarget)
+    await supabase.from('contacts').update({ is_archived: true }).eq('id', archiveTarget.id)
     setArchiveTarget(null)
-    setSwipeState({})
+    setMenuTarget(null)
     fetchContacts()
-  }
-
-  function onTouchStart(e, id) {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    activeSwipe.current = id
-  }
-
-  function onTouchMove(e, id) {
-    if (activeSwipe.current !== id) return
-    const dx = e.touches[0].clientX - touchStart.current.x
-    const dy = Math.abs(e.touches[0].clientY - touchStart.current.y)
-    if (dy > 20) { activeSwipe.current = null; return } // 垂直滾動優先
-    setSwipeState(s => ({ ...s, [id]: Math.max(-80, Math.min(80, dx)) }))
-  }
-
-  function onTouchEnd(id, c) {
-    const offset = swipeState[id] || 0
-    if (offset < -SWIPE_THRESHOLD) {
-      // 左滑：準備封存
-      setSwipeState(s => ({ ...s, [id]: -80 }))
-      setArchiveTarget(id)
-    } else if (offset > SWIPE_THRESHOLD) {
-      // 右滑：釘選
-      handlePin(c)
-    } else {
-      setSwipeState(s => ({ ...s, [id]: 0 }))
-    }
-    activeSwipe.current = null
-  }
-
-  function resetSwipe(id) {
-    setSwipeState(s => ({ ...s, [id]: 0 }))
   }
 
   const filtered = contacts.filter(c => {
@@ -130,83 +95,32 @@ export default function Contacts() {
   })
 
   function ContactCard({ c }) {
-  const isOv = c.next_contact_date && c.next_contact_date < today()
-  const isToday = c.next_contact_date === today()
-  const offset = swipeState[c.id] || 0
-  const cardRef = useRef(null)
+    const isOv = c.next_contact_date && c.next_contact_date < today()
+    const isToday = c.next_contact_date === today()
+    const longPressTimer = useRef(null)
 
-  useEffect(() => {
-    const el = cardRef.current
-    if (!el) return
-    let startX = 0, startY = 0, isDragging = false
-
-    function handleTouchStart(e) {
-      startX = e.touches[0].clientX
-      startY = e.touches[0].clientY
-      isDragging = true
-      activeSwipe.current = c.id
+    function onPressStart() {
+      longPressTimer.current = setTimeout(() => {
+        setMenuTarget(c)
+      }, 500)
     }
 
-    function handleTouchMove(e) {
-      if (!isDragging || activeSwipe.current !== c.id) return
-      const dx = e.touches[0].clientX - startX
-      const dy = Math.abs(e.touches[0].clientY - startY)
-      if (dy > Math.abs(dx) && Math.abs(dx) < 10) {
-        isDragging = false
-        activeSwipe.current = null
-        return
-      }
-      e.preventDefault() // 阻止頁面滾動
-      setSwipeState(s => ({ ...s, [c.id]: Math.max(-80, Math.min(80, dx)) }))
+    function onPressEnd() {
+      clearTimeout(longPressTimer.current)
     }
 
-    function handleTouchEnd() {
-      if (!isDragging) return
-      isDragging = false
-      const offset = swipeState[c.id] || 0
-      if (offset < -SWIPE_THRESHOLD) {
-        setSwipeState(s => ({ ...s, [c.id]: -80 }))
-        setArchiveTarget(c.id)
-      } else if (offset > SWIPE_THRESHOLD) {
-        handlePin(c)
-      } else {
-        setSwipeState(s => ({ ...s, [c.id]: 0 }))
-      }
-      activeSwipe.current = null
-    }
-
-    el.addEventListener('touchstart', handleTouchStart, { passive: true })
-    el.addEventListener('touchmove', handleTouchMove, { passive: false })
-    el.addEventListener('touchend', handleTouchEnd, { passive: true })
-    return () => {
-      el.removeEventListener('touchstart', handleTouchStart)
-      el.removeEventListener('touchmove', handleTouchMove)
-      el.removeEventListener('touchend', handleTouchEnd)
-    }
-  }, [c.id, swipeState[c.id]])
-
-  return (
-    <div style={{ position:'relative', overflow:'hidden', borderBottom:'1px solid #F3F4F6' }}>
-      {/* 左滑背景（封存） */}
-      <div style={{ position:'absolute',right:0,top:0,bottom:0,width:80,
-        background:'#DC2626',display:'flex',alignItems:'center',justifyContent:'center' }}>
-        <span style={{ color:'#fff',fontSize:12,fontWeight:700 }}>封存</span>
-      </div>
-      {/* 右滑背景（釘選） */}
-      <div style={{ position:'absolute',left:0,top:0,bottom:0,width:80,
-        background: c.is_pinned ? '#9CA3AF' : '#F97316',
-        display:'flex',alignItems:'center',justifyContent:'center' }}>
-        <span style={{ color:'#fff',fontSize:12,fontWeight:700 }}>{c.is_pinned ? '取消釘選' : '📌 釘選'}</span>
-      </div>
-
-      {/* 主卡片 */}
+    return (
       <div
-        ref={cardRef}
-        style={{ transform:`translateX(${offset}px)`,
-          transition: activeSwipe.current === c.id ? 'none' : 'transform 0.2s ease',
-          background:'#fff', display:'flex', alignItems:'center', gap:12,
-          padding:'12px 16px', cursor:'pointer', position:'relative', zIndex:1 }}
-        onClick={() => { if (Math.abs(offset) < 5) navigate(`/contacts/${c.id}`) }}>
+        onMouseDown={onPressStart}
+        onMouseUp={onPressEnd}
+        onMouseLeave={onPressEnd}
+        onTouchStart={onPressStart}
+        onTouchEnd={onPressEnd}
+        onTouchMove={onPressEnd}
+        onClick={() => navigate(`/contacts/${c.id}`)}
+        style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
+          background: menuTarget?.id === c.id ? '#F8FAFC' : '#fff',
+          borderBottom:'1px solid #F3F4F6', cursor:'pointer', userSelect:'none' }}>
         <Avatar name={c.name} size={42} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
@@ -232,63 +146,6 @@ export default function Contacts() {
           </span>
         )}
       </div>
-    </div>
-  )
-}
-    const isOv = c.next_contact_date && c.next_contact_date < today()
-    const isToday = c.next_contact_date === today()
-    const offset = swipeState[c.id] || 0
-
-    return (
-      <div style={{ position:'relative', overflow:'hidden', borderBottom:'1px solid #F3F4F6' }}>
-        {/* 左滑背景（封存） */}
-        <div style={{ position:'absolute',right:0,top:0,bottom:0,width:80,
-          background:'#DC2626',display:'flex',alignItems:'center',justifyContent:'center' }}>
-          <span style={{ color:'#fff',fontSize:12,fontWeight:700 }}>封存</span>
-        </div>
-        {/* 右滑背景（釘選） */}
-        <div style={{ position:'absolute',left:0,top:0,bottom:0,width:80,
-          background: c.is_pinned ? '#9CA3AF' : '#F97316',
-          display:'flex',alignItems:'center',justifyContent:'center' }}>
-          <span style={{ color:'#fff',fontSize:12,fontWeight:700 }}>{c.is_pinned ? '取消釘選' : '📌 釘選'}</span>
-        </div>
-
-        {/* 主卡片 */}
-        <div
-          onTouchStart={e => onTouchStart(e, c.id)}
-          onTouchMove={e => onTouchMove(e, c.id)}
-          onTouchEnd={() => onTouchEnd(c.id, c)}
-          style={{ transform:`translateX(${offset}px)`,
-            transition: activeSwipe.current === c.id ? 'none' : 'transform 0.2s ease',
-            background:'#fff', display:'flex', alignItems:'center', gap:12,
-            padding:'12px 16px', cursor:'pointer', position:'relative', zIndex:1 }}
-          onClick={() => { if (Math.abs(offset) < 5) navigate(`/contacts/${c.id}`) }}>
-          <Avatar name={c.name} size={42} />
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
-              {c.is_pinned && <span style={{ fontSize:12 }}>📌</span>}
-              <span style={{ fontSize:15, fontWeight:700, color:'#111827' }}>{c.name}</span>
-              {c.egg_type && (
-                <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
-                  background:getEggBg(c.egg_type), color:getEggColor(c.egg_type) }}>
-                  {c.egg_type}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize:12, color:'#9CA3AF', display:'flex', gap:4 }}>
-              {c.occupation && <span>{c.occupation}</span>}
-              {c.occupation && c.action_type && <span>·</span>}
-              {c.action_type && <span>{c.action_type}</span>}
-            </div>
-          </div>
-          {c.next_contact_date && (
-            <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap',
-              color:isOv?'#DC2626':isToday?'#F97316':'#9CA3AF' }}>
-              {formatDue(c.next_contact_date)}
-            </span>
-          )}
-        </div>
-      </div>
     )
   }
 
@@ -308,13 +165,13 @@ export default function Contacts() {
 
   return (
     <div style={{ background:'#F8FAFC', minHeight:'100vh' }}
-      onClick={() => setSwipeState({})}>
+      onClick={() => setMenuTarget(null)}>
 
       {/* Header */}
       <div style={{ background:'#fff', padding:'52px 16px 0', borderBottom:'1px solid #F3F4F6' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
           <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>互動名單</h1>
-          <button onClick={() => navigate('/contacts/new')}
+          <button onClick={e => { e.stopPropagation(); navigate('/contacts/new') }}
             style={{ width:36, height:36, borderRadius:'50%', background:'#2563EB',
               border:'none', color:'#fff', fontSize:22, cursor:'pointer',
               display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
@@ -354,7 +211,7 @@ export default function Contacts() {
           <p style={{ fontSize:15 }}>還沒有聯絡人，點 + 新增第一位吧！</p>
         </div>
       ) : (
-        <div style={{ background:'#fff', marginTop:8, margin:'8px 0' }}>
+        <div style={{ background:'#fff', margin:'8px 0' }}>
           <Section title="📌 釘選" count={pinned.length} items={pinned} />
           <Section title="逾期" count={overdue.length} items={overdue} />
           <Section title="今天到期" count={dueToday.length} items={dueToday} />
@@ -363,16 +220,52 @@ export default function Contacts() {
         </div>
       )}
 
+      {/* 長按選單 Modal */}
+      {menuTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
+          display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}
+          onClick={() => setMenuTarget(null)}>
+          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
+            padding:'20px 16px 36px', width:'100%', maxWidth:480 }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize:16, fontWeight:800, color:'#111827',
+              margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
+            <button onClick={() => handlePin(menuTarget)}
+              style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                padding:'14px 16px', borderRadius:12, border:'none',
+                background:'#FFF7ED', marginBottom:10, cursor:'pointer' }}>
+              <span style={{ fontSize:20 }}>{menuTarget.is_pinned ? '📌' : '📌'}</span>
+              <span style={{ fontSize:15, fontWeight:600, color:'#374151' }}>
+                {menuTarget.is_pinned ? '取消釘選' : '釘選到最上面'}
+              </span>
+            </button>
+            <button onClick={() => { setArchiveTarget(menuTarget) }}
+              style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                padding:'14px 16px', borderRadius:12, border:'none',
+                background:'#FEF2F2', marginBottom:10, cursor:'pointer' }}>
+              <span style={{ fontSize:20 }}>📦</span>
+              <span style={{ fontSize:15, fontWeight:600, color:'#DC2626' }}>封存</span>
+            </button>
+            <button onClick={() => setMenuTarget(null)}
+              style={{ width:'100%', padding:'13px 0', borderRadius:12,
+                border:'1px solid #E5E7EB', background:'#fff',
+                fontSize:15, color:'#6B7280', cursor:'pointer' }}>取消</button>
+          </div>
+        </div>
+      )}
+
       {/* 封存確認 Modal */}
       {archiveTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}>
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:24, width:280, textAlign:'center' }}>
             <p style={{ fontSize:32, margin:'0 0 8px' }}>📦</p>
-            <p style={{ fontSize:16, fontWeight:700, color:'#111827', margin:'0 0 8px' }}>確定封存？</p>
+            <p style={{ fontSize:16, fontWeight:700, color:'#111827', margin:'0 0 8px' }}>
+              確定封存「{archiveTarget.name}」？
+            </p>
             <p style={{ fontSize:13, color:'#9CA3AF', margin:'0 0 20px' }}>封存後可在設定中查看</p>
             <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => { setArchiveTarget(null); resetSwipe(archiveTarget) }}
+              <button onClick={() => setArchiveTarget(null)}
                 style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #E5E7EB',
                   background:'#fff', fontSize:14, cursor:'pointer', color:'#374151' }}>取消</button>
               <button onClick={handleArchive}
