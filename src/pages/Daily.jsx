@@ -19,12 +19,12 @@ const DAILY_TASKS = [
 ]
 
 const WEEKLY_COUNTERS = [
-  { key: 'bv_share', label: 'BV 分享' },
-  { key: 'ibv_share', label: 'IBV 分享' },
-  { key: 'meetup', label: '見面' },
-  { key: 'show_business', label: '展示生意' },
-  { key: 'sell_ticket', label: '賣票' },
-  { key: 'stranger', label: '與陌生人互動' },
+  { key: 'bv_share',      label: 'BV 分享',      mode: 'product' },
+  { key: 'ibv_share',     label: 'IBV 分享',     mode: 'product' },
+  { key: 'meetup',        label: '見面',          mode: 'contact' },
+  { key: 'show_business', label: '展示生意',      mode: 'contact' },
+  { key: 'sell_ticket',   label: '賣票',          mode: 'contact' },
+  { key: 'stranger',      label: '與陌生人互動',  mode: 'stranger' },
 ]
 
 const WEEKLY_TASKS = [
@@ -42,7 +42,6 @@ function getWeekStart(dateStr) {
   d.setDate(d.getDate() - d.getDay())
   return toDateStr(d)
 }
-
 function getWeekDays(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const start = new Date(d)
@@ -55,29 +54,14 @@ function getWeekDays(dateStr) {
   }
   return days
 }
-
 function getMonthStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
 }
-
-function getMonthDays(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00')
-  const year = d.getFullYear()
-  const month = d.getMonth()
-  const total = new Date(year, month + 1, 0).getDate()
-  const days = []
-  for (let i = 1; i <= total; i++) {
-    days.push(`${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`)
-  }
-  return days
-}
-
 function formatDateLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' })
 }
-
 function formatShortDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return `${d.getMonth()+1}/${d.getDate()} 週${DAYS_ZH[d.getDay()]}`
@@ -93,27 +77,22 @@ export default function Daily() {
   const [weekTaskCheckins, setWeekTaskCheckins] = useState({})
   const [weekStatus, setWeekStatus] = useState([])
   const [todayContacted, setTodayContacted] = useState([])
+  const [weekLogs, setWeekLogs] = useState([])
+  const [monthLogs, setMonthLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // 週行動記錄 (counter_logs)
-  const [weekLogs, setWeekLogs] = useState([]) // 本週所有 logs
-  // 月行動記錄
-  const [monthLogs, setMonthLogs] = useState([])
-
-  // 目標宣言 Modal
   const [goalModal, setGoalModal] = useState(false)
   const [goalText, setGoalText] = useState('')
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalSaved, setGoalSaved] = useState(false)
-
-  // 社群連結 Modal
   const [socialModal, setSocialModal] = useState(false)
 
-  // 新增記錄 Modal（週計數器 + 月目標共用）
-  const [logModal, setLogModal] = useState(null) // { key, label, mode:'week'|'month' }
+  // 新增記錄 Modal
+  const [logModal, setLogModal] = useState(null) // { key, label, counterMode, mode:'week'|'month' }
   const [logDate, setLogDate] = useState(today())
   const [logContact, setLogContact] = useState('')
   const [logContactId, setLogContactId] = useState(null)
+  const [logStrangerName, setLogStrangerName] = useState('')
   const [logProduct, setLogProduct] = useState('')
   const [logNote, setLogNote] = useState('')
   const [logSaving, setLogSaving] = useState(false)
@@ -181,13 +160,11 @@ export default function Daily() {
   async function fetchWeekLogs() {
     if (!user) return
     const days = getWeekDays(weekViewDate)
+    const ws = days[0], we = days[6]
     const { data } = await supabase.from('counter_logs')
       .select('id,counter_key,date,planned_date,is_done,product_name,note,contact_id,contacts(name)')
       .eq('user_id', user.id)
-      .or(`date.gte.${days[0]},planned_date.gte.${days[0]}`)
-      .or(`date.lte.${days[6]},planned_date.lte.${days[6]}`)
-    // 只撈本週相關的
-    const ws = days[0], we = days[6]
+      .not('counter_key', 'in', '("new_product","gmtss")')
     const filtered = (data || []).filter(l => {
       const d = l.planned_date || l.date
       return d >= ws && d <= we
@@ -211,8 +188,7 @@ export default function Daily() {
   async function saveGoalText() {
     setGoalSaving(true)
     await supabase.from('users').update({ goal_declaration: goalText }).eq('id', user.id)
-    setGoalSaving(false)
-    setGoalSaved(true)
+    setGoalSaving(false); setGoalSaved(true)
     setTimeout(() => setGoalSaved(false), 2000)
   }
 
@@ -224,8 +200,7 @@ export default function Daily() {
   }
 
   async function toggleCheckin(key) {
-    const cur = checkins[key]
-    const nv = !cur
+    const cur = checkins[key], nv = !cur
     setCheckins(p => ({ ...p, [key]: nv }))
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date: viewDate, task_key: key, is_done: nv,
@@ -234,8 +209,7 @@ export default function Daily() {
   }
 
   async function toggleWeekTask(key, date) {
-    const cur = weekTaskCheckins[key]?.[date]
-    const nv = !cur
+    const cur = weekTaskCheckins[key]?.[date], nv = !cur
     setWeekTaskCheckins(p => ({ ...p, [key]: { ...(p[key]||{}), [date]: nv } }))
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date, task_key: key, is_done: nv,
@@ -250,13 +224,11 @@ export default function Daily() {
     if (task.url) { window.open(task.url, '_blank'); return }
   }
 
-  function openLogModal(key, label, mode = 'week') {
-    setLogModal({ key, label, mode })
+  function openLogModal(key, label, counterMode, mode = 'week') {
+    setLogModal({ key, label, counterMode, mode })
     setLogDate(today())
-    setLogContact('')
-    setLogContactId(null)
-    setLogProduct('')
-    setLogNote('')
+    setLogContact(''); setLogContactId(null)
+    setLogStrangerName(''); setLogProduct(''); setLogNote('')
     setContactSearch([])
   }
 
@@ -268,8 +240,6 @@ export default function Daily() {
   }
 
   async function confirmLog() {
-    if (!logContactId && logModal.mode !== 'month') return
-    if (logModal.mode === 'month' && !logProduct && !logNote) return
     setLogSaving(true)
     const isFuture = logDate > today()
     await supabase.from('counter_logs').insert({
@@ -279,7 +249,9 @@ export default function Daily() {
       planned_date: isFuture ? logDate : null,
       is_done: !isFuture,
       contact_id: logContactId || null,
-      product_name: logProduct || null,
+      product_name: logModal.counterMode === 'stranger'
+        ? (logStrangerName || null)
+        : (logProduct || null),
       note: logNote || null,
     })
     setLogSaving(false)
@@ -289,11 +261,8 @@ export default function Daily() {
   }
 
   async function confirmDone(log) {
-    await supabase.from('counter_logs').update({
-      is_done: true, date: today(), planned_date: log.planned_date
-    }).eq('id', log.id)
-    fetchWeekLogs()
-    fetchMonthLogs()
+    await supabase.from('counter_logs').update({ is_done: true, date: today() }).eq('id', log.id)
+    fetchWeekLogs(); fetchMonthLogs()
   }
 
   async function deleteLog(id, mode) {
@@ -302,7 +271,6 @@ export default function Daily() {
     else fetchWeekLogs()
   }
 
-  // 週點狀圖日期切換（週行動區塊用）
   function changeWeekViewDate(delta) {
     const days = getWeekDays(weekViewDate)
     const d = new Date((delta < 0 ? days[0] : days[6]) + 'T00:00:00')
@@ -316,7 +284,6 @@ export default function Daily() {
     setMonthViewDate(toDateStr(d))
   }
 
-  // 產生新增 Modal 的日期選項（前3天 + 今天 + 後3天）
   function getDateOptions() {
     const opts = []
     for (let i = -3; i <= 3; i++) {
@@ -325,6 +292,14 @@ export default function Daily() {
       opts.push(toDateStr(d))
     }
     return opts
+  }
+
+  // 確認按鈕是否可以送出
+  function canConfirm() {
+    if (!logModal) return false
+    if (logModal.mode === 'month') return !!logProduct
+    if (logModal.counterMode === 'stranger') return true // 全選填
+    return !!logContactId // product / contact 模式必填對象
   }
 
   const doneCount = DAILY_TASKS.filter(t => checkins[t.key]).length
@@ -382,7 +357,6 @@ export default function Daily() {
             <span style={sectionTitle}>每日任務</span>
             <span style={{ fontSize:13,color:'#6B7280' }}>{doneCount}/{DAILY_TASKS.length}</span>
           </div>
-          {/* 週點狀圖 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
             background:'#F8FAFC',borderRadius:10,marginBottom:10 }}>
             {weekStatus.map((w,i) => {
@@ -393,7 +367,8 @@ export default function Daily() {
                 <div key={i} onClick={() => { if (w.date <= today()) setViewDate(w.date) }}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                     cursor: w.date <= today()?'pointer':'default' }}>
-                  <span style={{ fontSize:11, color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
+                  <span style={{ fontSize:11,
+                    color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
                     fontWeight: isSelected||isT?700:400 }}>
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
@@ -453,11 +428,11 @@ export default function Daily() {
             </span>
             <button onClick={() => changeWeekViewDate(1)}
               style={{ background:'none',border:'none',
-                color: weekDays[6] >= today() ? '#D1D5DB' : '#6B7280',
-                fontSize:18, cursor: weekDays[6] >= today() ? 'default':'pointer', padding:'0 4px' }}>›</button>
+                color: weekDays[6] >= today() ? '#D1D5DB':'#6B7280',
+                fontSize:18,cursor: weekDays[6] >= today() ? 'default':'pointer',padding:'0 4px' }}>›</button>
           </div>
 
-          {/* 週點狀圖（可點切換 weekViewDate 內的選中日） */}
+          {/* 週點狀圖 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
             background:'#F8FAFC',borderRadius:10,marginBottom:12 }}>
             {weekDays.map((d,i) => {
@@ -484,13 +459,13 @@ export default function Daily() {
             })}
           </div>
 
-          {/* 選中日期標題 */}
+          {/* 選中日標題 */}
           <div style={{ fontSize:13,fontWeight:600,color:'#6B7280',marginBottom:8 }}>
             {formatDateLabel(weekViewDate)}
             {weekViewDate > today() && <span style={{ marginLeft:6,fontSize:11,color:'#F59E0B' }}>預排</span>}
           </div>
 
-          {/* 每週 checkbox 任務（與推薦人聯絡、Coring） */}
+          {/* 每週 checkbox 任務 */}
           {WEEKLY_TASKS.map(task => {
             const done = !!weekTaskCheckins[task.key]?.[weekViewDate]
             return (
@@ -519,39 +494,40 @@ export default function Daily() {
                 <div style={{ display:'flex',alignItems:'center',marginBottom: dayLogs.length>0?8:0 }}>
                   <span style={{ flex:1,fontSize:14,color:'#374151',fontWeight:600 }}>{c.label}</span>
                   <span style={{ fontSize:12,color:'#9CA3AF',marginRight:8 }}>本週 {weekTotal} 次</span>
-                  <button onClick={() => openLogModal(c.key, c.label, 'week')}
-                    style={{ ...counterBtn, background:'#2563EB', color:'#fff' }}>+</button>
+                  <button onClick={() => openLogModal(c.key, c.label, c.mode, 'week')}
+                    style={{ ...counterBtn,background:'#2563EB',color:'#fff' }}>+</button>
                 </div>
-                {dayLogs.length > 0 && (
+                {dayLogs.length > 0 ? (
                   <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
-                    {dayLogs.map(log => (
-                      <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
-                        background: log.is_done?'#F0FDF4':'#FFFBEB',
-                        borderRadius:8,padding:'7px 10px' }}>
-                        <span style={{ fontSize:13 }}>{log.is_done ? '✅' : '📅'}</span>
-                        <div style={{ flex:1,minWidth:0 }}>
-                          <span style={{ fontSize:13,color:'#374151',fontWeight:600 }}>
-                            {log.contacts?.name || '—'}
-                          </span>
-                          {log.product_name && (
-                            <span style={{ fontSize:12,color:'#6B7280',marginLeft:6 }}>{log.product_name}</span>
+                    {dayLogs.map(log => {
+                      const displayName = c.mode === 'stranger'
+                        ? (log.product_name || '陌生人')
+                        : (log.contacts?.name || '—')
+                      return (
+                        <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
+                          background: log.is_done?'#F0FDF4':'#FFFBEB',borderRadius:8,padding:'7px 10px' }}>
+                          <span style={{ fontSize:13 }}>{log.is_done ? '✅' : '📅'}</span>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <span style={{ fontSize:13,color:'#374151',fontWeight:600 }}>{displayName}</span>
+                            {c.mode === 'product' && log.product_name && (
+                              <span style={{ fontSize:12,color:'#6B7280',marginLeft:6 }}>{log.product_name}</span>
+                            )}
+                            {log.note && (
+                              <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>{log.note}</p>
+                            )}
+                          </div>
+                          {!log.is_done && (
+                            <button onClick={() => confirmDone(log)}
+                              style={{ fontSize:12,color:'#16A34A',background:'none',border:'none',
+                                cursor:'pointer',fontWeight:600,whiteSpace:'nowrap' }}>完成</button>
                           )}
-                          {log.note && (
-                            <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>{log.note}</p>
-                          )}
+                          <button onClick={() => deleteLog(log.id, 'week')}
+                            style={{ fontSize:12,color:'#EF4444',background:'none',border:'none',cursor:'pointer' }}>✕</button>
                         </div>
-                        {!log.is_done && (
-                          <button onClick={() => confirmDone(log)}
-                            style={{ fontSize:12,color:'#16A34A',background:'none',border:'none',
-                              cursor:'pointer',fontWeight:600,whiteSpace:'nowrap' }}>完成</button>
-                        )}
-                        <button onClick={() => deleteLog(log.id, 'week')}
-                          style={{ fontSize:12,color:'#EF4444',background:'none',border:'none',cursor:'pointer' }}>✕</button>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
-                )}
-                {dayLogs.length === 0 && (
+                ) : (
                   <p style={{ fontSize:12,color:'#D1D5DB',margin:'2px 0 0' }}>這天沒有記錄</p>
                 )}
               </div>
@@ -572,7 +548,7 @@ export default function Daily() {
               <button onClick={() => changeMonthViewDate(1)}
                 style={{ background:'none',border:'none',
                   color: monthViewDate.slice(0,7) >= today().slice(0,7) ? '#D1D5DB':'#6B7280',
-                  fontSize:18, cursor: monthViewDate.slice(0,7) >= today().slice(0,7) ? 'default':'pointer' }}>›</button>
+                  fontSize:18,cursor: monthViewDate.slice(0,7) >= today().slice(0,7) ? 'default':'pointer' }}>›</button>
             </div>
           </div>
 
@@ -583,26 +559,28 @@ export default function Daily() {
               <div key={item.key} style={{ padding:'12px 0',borderBottom:'1px solid #F9FAFB' }}>
                 <div style={{ display:'flex',alignItems:'center',marginBottom: logs.length>0?8:0 }}>
                   <span style={{ flex:1,fontSize:14,color:'#374151',fontWeight:600 }}>{item.label}</span>
-                  <span style={{ fontSize:12,color:'#9CA3AF',marginRight:8 }}>已完成 {doneCount} 次</span>
-                  <button onClick={() => openLogModal(item.key, item.label, 'month')}
-                    style={{ ...counterBtn, background:'#2563EB', color:'#fff' }}>+</button>
+                  <span style={{ fontSize:12,color:'#9CA3AF',marginRight:8 }}>完成 {doneCount} 次</span>
+                  <button onClick={() => openLogModal(item.key, item.label, 'month_item', 'month')}
+                    style={{ ...counterBtn,background:'#2563EB',color:'#fff' }}>+</button>
                 </div>
-                {logs.length > 0 && (
+                {logs.length > 0 ? (
                   <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
                     {logs.map(log => {
                       const displayDate = log.planned_date || log.date
                       return (
                         <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
-                          background: log.is_done?'#F0FDF4':'#FFFBEB',
-                          borderRadius:8,padding:'7px 10px' }}>
+                          background: log.is_done?'#F0FDF4':'#FFFBEB',borderRadius:8,padding:'7px 10px' }}>
                           <span style={{ fontSize:13 }}>{log.is_done ? '✅' : '📅'}</span>
                           <div style={{ flex:1,minWidth:0 }}>
                             <span style={{ fontSize:13,color:'#374151',fontWeight:600 }}>
-                              {log.product_name || log.note || '—'}
+                              {log.product_name || '—'}
                             </span>
                             <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:6 }}>
                               {formatShortDate(displayDate)}
                             </span>
+                            {log.note && (
+                              <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>{log.note}</p>
+                            )}
                           </div>
                           {!log.is_done && (
                             <button onClick={() => confirmDone(log)}
@@ -615,8 +593,7 @@ export default function Daily() {
                       )
                     })}
                   </div>
-                )}
-                {logs.length === 0 && (
+                ) : (
                   <p style={{ fontSize:12,color:'#D1D5DB',margin:'2px 0 0' }}>這個月還沒有記錄</p>
                 )}
               </div>
@@ -631,8 +608,7 @@ export default function Daily() {
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setGoalModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430 }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,width:'100%',maxWidth:430 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>🎯 我的目標宣言</h3>
               <button onClick={() => setGoalModal(false)}
@@ -658,8 +634,7 @@ export default function Daily() {
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430 }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,width:'100%',maxWidth:430 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>💬 前往回應</h3>
               <button onClick={() => setSocialModal(false)}
@@ -681,7 +656,7 @@ export default function Daily() {
         </div>
       )}
 
-      {/* ── 新增記錄 Modal（週計數器 + 月目標） ── */}
+      {/* ── 新增記錄 Modal ── */}
       {logModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -710,8 +685,7 @@ export default function Daily() {
                         border: isSelected?'2px solid #2563EB':'1px solid #E5E7EB',
                         background: isSelected?(isFut?'#FFFBEB':'#EFF6FF'):'#F9FAFB',
                         color: isSelected?(isFut?'#B45309':'#1D4ED8'):'#6B7280' }}>
-                      {d === today() ? '今天' : formatShortDate(d)}
-                      {isFut && ' 📅'}
+                      {d === today() ? '今天' : formatShortDate(d)}{isFut ? ' 📅' : ''}
                     </button>
                   )
                 })}
@@ -723,21 +697,50 @@ export default function Daily() {
               )}
             </div>
 
-            {/* 分享對象（週計數器必填，月目標選填） */}
-            {logModal.mode === 'week' && (
+            {/* A: product 模式 — 對象(必填) + 產品(選填) */}
+            {logModal.counterMode === 'product' && (
+              <>
+                <div style={{ marginBottom:16 }}>
+                  <label style={labelStyle}>分享對象 <span style={{ color:'#EF4444' }}>必填</span></label>
+                  <input placeholder="搜尋互動名單..." value={logContact}
+                    onChange={e => { setLogContact(e.target.value); setLogContactId(null); searchContacts(e.target.value) }}
+                    style={inputStyle} />
+                  {contactSearch.length > 0 && (
+                    <div style={{ border:'1px solid #E5E7EB',borderRadius:8,marginTop:4,overflow:'hidden' }}>
+                      {contactSearch.map(c => (
+                        <button key={c.id} onClick={() => { setLogContact(c.name); setLogContactId(c.id); setContactSearch([]) }}
+                          style={{ display:'block',width:'100%',textAlign:'left',padding:'10px 12px',
+                            background: logContactId===c.id?'#EFF6FF':'#fff',border:'none',
+                            borderBottom:'1px solid #F3F4F6',fontSize:14,cursor:'pointer',color:'#374151' }}>
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {logContactId && <p style={{ fontSize:12,color:'#22C55E',margin:'4px 0 0' }}>✓ 已選擇：{logContact}</p>}
+                </div>
+                <div style={{ marginBottom:16 }}>
+                  <label style={labelStyle}>分享產品 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
+                  <input placeholder="輸入產品名稱..." value={logProduct}
+                    onChange={e => setLogProduct(e.target.value)} style={inputStyle} />
+                </div>
+              </>
+            )}
+
+            {/* B: contact 模式 — 對象(必填) */}
+            {logModal.counterMode === 'contact' && (
               <div style={{ marginBottom:16 }}>
-                <label style={labelStyle}>分享對象 <span style={{ color:'#EF4444' }}>必填</span></label>
+                <label style={labelStyle}>對象 <span style={{ color:'#EF4444' }}>必填</span></label>
                 <input placeholder="搜尋互動名單..." value={logContact}
                   onChange={e => { setLogContact(e.target.value); setLogContactId(null); searchContacts(e.target.value) }}
                   style={inputStyle} />
                 {contactSearch.length > 0 && (
                   <div style={{ border:'1px solid #E5E7EB',borderRadius:8,marginTop:4,overflow:'hidden' }}>
                     {contactSearch.map(c => (
-                      <button key={c.id} onClick={() => {
-                        setLogContact(c.name); setLogContactId(c.id); setContactSearch([])
-                      }} style={{ display:'block',width:'100%',textAlign:'left',padding:'10px 12px',
-                        background: logContactId===c.id?'#EFF6FF':'#fff',border:'none',
-                        borderBottom:'1px solid #F3F4F6',fontSize:14,cursor:'pointer',color:'#374151' }}>
+                      <button key={c.id} onClick={() => { setLogContact(c.name); setLogContactId(c.id); setContactSearch([]) }}
+                        style={{ display:'block',width:'100%',textAlign:'left',padding:'10px 12px',
+                          background: logContactId===c.id?'#EFF6FF':'#fff',border:'none',
+                          borderBottom:'1px solid #F3F4F6',fontSize:14,cursor:'pointer',color:'#374151' }}>
                         {c.name}
                       </button>
                     ))}
@@ -747,21 +750,28 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 產品/課程名稱 */}
-            <div style={{ marginBottom:16 }}>
-              <label style={labelStyle}>
-                {logModal.mode === 'month'
-                  ? (MONTH_ITEMS.find(i=>i.key===logModal.key)?.placeholder || '名稱')
-                  : '分享產品'}
-                {logModal.mode === 'month'
-                  ? <span style={{ color:'#EF4444' }}> 必填</span>
-                  : <span style={{ color:'#9CA3AF',fontSize:12 }}> 選填</span>}
-              </label>
-              <input placeholder={logModal.mode==='month'?'請輸入名稱...':'輸入產品名稱...'}
-                value={logProduct} onChange={e => setLogProduct(e.target.value)} style={inputStyle} />
-            </div>
+            {/* C: stranger 模式 — 姓名(選填) */}
+            {logModal.counterMode === 'stranger' && (
+              <div style={{ marginBottom:16 }}>
+                <label style={labelStyle}>姓名 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填，不認識可不填</span></label>
+                <input placeholder="例：捷運旁的阿姨、咖啡廳客人…" value={logStrangerName}
+                  onChange={e => setLogStrangerName(e.target.value)} style={inputStyle} />
+              </div>
+            )}
 
-            {/* 備註 */}
+            {/* D: month 模式 — 名稱(必填) */}
+            {logModal.counterMode === 'month_item' && (
+              <div style={{ marginBottom:16 }}>
+                <label style={labelStyle}>
+                  {MONTH_ITEMS.find(i=>i.key===logModal.key)?.placeholder || '名稱'}
+                  <span style={{ color:'#EF4444' }}> 必填</span>
+                </label>
+                <input placeholder="請輸入名稱..." value={logProduct}
+                  onChange={e => setLogProduct(e.target.value)} style={inputStyle} />
+              </div>
+            )}
+
+            {/* 備註（所有模式都有） */}
             <div style={{ marginBottom:20 }}>
               <label style={labelStyle}>備註 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
               <textarea placeholder="記錄重點..." value={logNote}
@@ -769,13 +779,11 @@ export default function Daily() {
                 style={{ ...inputStyle,height:72,resize:'none' }} />
             </div>
 
-            <button onClick={confirmLog} disabled={logSaving ||
-              (logModal.mode==='week' && !logContactId) ||
-              (logModal.mode==='month' && !logProduct)}
+            <button onClick={confirmLog} disabled={logSaving || !canConfirm()}
               style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-                background: (logModal.mode==='week'?logContactId:logProduct) ? '#2563EB':'#D1D5DB',
+                background: canConfirm() ? '#2563EB':'#D1D5DB',
                 color:'#fff',fontSize:15,fontWeight:700,
-                cursor: (logModal.mode==='week'?logContactId:logProduct) ? 'pointer':'not-allowed' }}>
+                cursor: canConfirm() ? 'pointer':'not-allowed' }}>
               {logSaving ? '儲存中…' : logDate > today() ? '📅 預排' : '確認儲存'}
             </button>
           </div>

@@ -7,7 +7,6 @@ function avatarBg(name) {
   let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
   return colors[n % colors.length]
 }
-
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
@@ -22,13 +21,10 @@ export default function Transactions() {
   const [ibvTotal, setIbvTotal] = useState(0)
   const [profit, setProfit] = useState(0)
   const [giftCost, setGiftCost] = useState(0)
+  const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
-
-  // 選單
   const [menuId, setMenuId] = useState(null)
-  // 刪除確認
   const [deleteTarget, setDeleteTarget] = useState(null)
-  // 編輯 Modal
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -40,23 +36,16 @@ export default function Transactions() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
-
   useEffect(() => { if (user) fetchData() }, [user, year, month])
 
   async function fetchData() {
     setLoading(true)
     const start = `${year}-${String(month).padStart(2,'0')}-01`
     const end = new Date(year, month, 0).toISOString().split('T')[0]
-
-    const { data } = await supabase
-      .from('transactions')
-      .select('*,customers(name)')
-      .eq('user_id', user.id)
-      .gte('date', start).lte('date', end)
-      .order('date', { ascending: false })
-
+    const { data } = await supabase.from('transactions')
+      .select('*,customers(name)').eq('user_id', user.id)
+      .gte('date', start).lte('date', end).order('date', { ascending: false })
     if (!data) { setLoading(false); return }
-
     setTransactions(data)
     let bv=0, ibv=0, p=0, gc=0
     data.forEach(t => {
@@ -66,7 +55,23 @@ export default function Transactions() {
       else p += (t.amount||0) - (t.cost||0)
     })
     setBvTotal(bv); setIbvTotal(ibv); setProfit(p); setGiftCost(gc)
+    buildChartData(data, year, month)
     setLoading(false)
+  }
+
+  function buildChartData(data, y, m) {
+    const daysInMonth = new Date(y, m, 0).getDate()
+    const days = []
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(i).padStart(2,'0')}`
+      const dayTx = data.filter(t => t.date === dateStr)
+      days.push({
+        day: i,
+        bv: dayTx.filter(t => t.type==='BV').reduce((s,t) => s + Number(t.points), 0),
+        ibv: dayTx.filter(t => t.type==='IBV').reduce((s,t) => s + Number(t.points), 0),
+      })
+    }
+    setChartData(days)
   }
 
   function prevMonth() {
@@ -78,45 +83,37 @@ export default function Transactions() {
     else setMonth(m => m+1)
   }
 
-  // 刪除
   async function handleDelete() {
     if (!deleteTarget) return
     await supabase.from('transactions').delete().eq('id', deleteTarget)
-    setDeleteTarget(null)
-    fetchData()
+    setDeleteTarget(null); fetchData()
   }
 
-  // 開啟編輯
   function openEdit(t) {
-    setMenuId(null)
-    setEditTarget(t)
+    setMenuId(null); setEditTarget(t)
     setEditForm({
-      date: t.date || '',
-      product_name: t.product_name || '',
-      type: t.type || 'BV',
-      points: t.points || '',
-      amount: t.amount || '',
-      cost: t.cost || '',
-      is_gift: t.is_gift || false,
+      date: t.date || '', product_name: t.product_name || '',
+      type: t.type || 'BV', points: t.points || '',
+      amount: t.amount || '', cost: t.cost || '', is_gift: t.is_gift || false,
     })
   }
 
-  // 儲存編輯
   async function handleSave() {
     setSaving(true)
     await supabase.from('transactions').update({
-      date: editForm.date,
-      product_name: editForm.product_name,
-      type: editForm.type,
-      points: Number(editForm.points),
-      amount: Number(editForm.amount),
-      cost: Number(editForm.cost),
+      date: editForm.date, product_name: editForm.product_name,
+      type: editForm.type, points: Number(editForm.points),
+      amount: Number(editForm.amount), cost: Number(editForm.cost),
       is_gift: editForm.is_gift,
     }).eq('id', editTarget.id)
-    setSaving(false)
-    setEditTarget(null)
-    fetchData()
+    setSaving(false); setEditTarget(null); fetchData()
   }
+
+  // 趨勢圖：計算最大值做比例
+  const maxBv = Math.max(...chartData.map(d => d.bv), 1)
+  const maxIbv = Math.max(...chartData.map(d => d.ibv), 1)
+  const maxVal = Math.max(maxBv, maxIbv, 1)
+  const chartHeight = 80
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}
@@ -141,7 +138,7 @@ export default function Transactions() {
             style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>›</button>
         </div>
 
-        {/* 統計 */}
+        {/* 統計卡片 */}
         <div style={{ display:'flex',gap:10,marginBottom:8 }}>
           <div style={{ flex:1,background:'#FFF7ED',borderRadius:12,padding:'12px' }}>
             <p style={{ fontSize:11,fontWeight:700,color:'#F97316',margin:'0 0 4px' }}>BV</p>
@@ -157,9 +154,54 @@ export default function Transactions() {
           </div>
         </div>
         {giftCost > 0 && (
-          <p style={{ fontSize:12,color:'#F97316',textAlign:'right',margin:0 }}>
+          <p style={{ fontSize:12,color:'#F97316',textAlign:'right',margin:'0 0 8px' }}>
             贈品成本：-NT${giftCost.toLocaleString()}
           </p>
+        )}
+
+        {/* 趨勢圖 */}
+        {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
+          <div style={{ background:'#F8FAFC',borderRadius:12,padding:'12px 8px 8px',marginTop:4 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
+              <span style={{ fontSize:12,fontWeight:700,color:'#6B7280' }}>每日點數趨勢</span>
+              <div style={{ display:'flex',gap:10 }}>
+                <span style={{ fontSize:11,color:'#F97316',display:'flex',alignItems:'center',gap:3 }}>
+                  <span style={{ width:8,height:8,borderRadius:2,background:'#F97316',display:'inline-block' }}/>BV
+                </span>
+                <span style={{ fontSize:11,color:'#3B82F6',display:'flex',alignItems:'center',gap:3 }}>
+                  <span style={{ width:8,height:8,borderRadius:2,background:'#3B82F6',display:'inline-block' }}/>IBV
+                </span>
+              </div>
+            </div>
+            <div style={{ display:'flex',alignItems:'flex-end',gap:1,height:chartHeight,overflowX:'auto' }}>
+              {chartData.map(d => (
+                <div key={d.day} style={{ display:'flex',flexDirection:'column',alignItems:'center',
+                  gap:1,minWidth:9,flex:1 }}>
+                  {/* BV bar */}
+                  <div style={{ width:'100%',display:'flex',flexDirection:'column',
+                    alignItems:'center',justifyContent:'flex-end',height:chartHeight-16 }}>
+                    {d.bv > 0 && (
+                      <div style={{ width:'100%',background:'#F97316',borderRadius:'2px 2px 0 0',
+                        height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px`,
+                        opacity:0.85 }} />
+                    )}
+                    {d.ibv > 0 && (
+                      <div style={{ width:'100%',background:'#3B82F6',borderRadius:'2px 2px 0 0',
+                        height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,
+                        opacity:0.85,marginTop:1 }} />
+                    )}
+                    {d.bv === 0 && d.ibv === 0 && (
+                      <div style={{ width:'100%',height:2,background:'#F3F4F6',borderRadius:2 }} />
+                    )}
+                  </div>
+                  {/* 日期標籤（每5天顯示一次） */}
+                  <span style={{ fontSize:9,color:'#D1D5DB',lineHeight:1 }}>
+                    {d.day % 5 === 1 ? d.day : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
@@ -205,14 +247,9 @@ export default function Transactions() {
                     {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
                   </p>
                 </div>
-
-                {/* ⋯ 選單按鈕 */}
-                <button
-                  onClick={e => { e.stopPropagation(); setMenuId(menuId === t.id ? null : t.id) }}
+                <button onClick={e => { e.stopPropagation(); setMenuId(menuId === t.id ? null : t.id) }}
                   style={{ background:'none',border:'none',fontSize:18,cursor:'pointer',
                     color:'#9CA3AF',padding:'4px 6px',marginLeft:4,flexShrink:0 }}>⋯</button>
-
-                {/* 下拉選單 */}
                 {menuId === t.id && (
                   <div onClick={e => e.stopPropagation()}
                     style={{ position:'absolute',right:12,top:44,background:'#fff',
@@ -265,20 +302,13 @@ export default function Transactions() {
               <button onClick={() => setEditTarget(null)}
                 style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#9CA3AF' }}>×</button>
             </div>
-
-            {/* 日期 */}
             <label style={labelStyle}>日期</label>
             <input type="date" value={editForm.date}
-              onChange={e => setEditForm(f => ({...f, date: e.target.value}))}
-              style={inputStyle} />
-
-            {/* 品名 */}
+              onChange={e => setEditForm(f => ({...f, date: e.target.value}))} style={inputStyle} />
             <label style={labelStyle}>品名</label>
             <input type="text" value={editForm.product_name}
               onChange={e => setEditForm(f => ({...f, product_name: e.target.value}))}
               placeholder="商品名稱" style={inputStyle} />
-
-            {/* 類型 */}
             <label style={labelStyle}>類型</label>
             <div style={{ display:'flex',gap:8,marginBottom:14 }}>
               {['BV','IBV'].map(type => (
@@ -289,14 +319,10 @@ export default function Transactions() {
                     color: editForm.type===type ? '#fff' : '#374151' }}>{type}</button>
               ))}
             </div>
-
-            {/* 點數 */}
             <label style={labelStyle}>點數</label>
             <input type="number" value={editForm.points}
               onChange={e => setEditForm(f => ({...f, points: e.target.value}))}
               placeholder="0" style={inputStyle} />
-
-            {/* 金額 & 成本 */}
             <div style={{ display:'flex',gap:10,marginBottom:14 }}>
               <div style={{ flex:1 }}>
                 <label style={labelStyle}>售價 (NT$)</label>
@@ -311,8 +337,6 @@ export default function Transactions() {
                   placeholder="0" style={{...inputStyle, marginBottom:0}} />
               </div>
             </div>
-
-            {/* 贈品 */}
             <label style={{ display:'flex',alignItems:'center',gap:8,
               fontSize:14,color:'#374151',marginBottom:20,cursor:'pointer' }}>
               <input type="checkbox" checked={editForm.is_gift}
@@ -320,7 +344,6 @@ export default function Transactions() {
                 style={{ width:16,height:16 }} />
               這是贈品（成本計入費用，不計算獲利）
             </label>
-
             <button onClick={handleSave} disabled={saving}
               style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
                 background: saving ? '#93C5FD' : '#2563EB',color:'#fff',
@@ -339,6 +362,5 @@ const labelStyle = {
 }
 const inputStyle = {
   width:'100%', padding:'10px 12px', borderRadius:10, border:'1px solid #E5E7EB',
-  fontSize:14, color:'#111827', marginBottom:14, boxSizing:'border-box',
-  outline:'none'
+  fontSize:14, color:'#111827', marginBottom:14, boxSizing:'border-box', outline:'none'
 }
