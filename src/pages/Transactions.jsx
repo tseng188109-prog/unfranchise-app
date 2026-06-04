@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 
@@ -12,6 +12,27 @@ function formatDate(d) {
   const dt = new Date(d + 'T00:00:00')
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
+
+// ── CSV 工具 ──────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) return []
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
+  return lines.slice(1).map(line => {
+    const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || []
+    const row = {}
+    headers.forEach((h, i) => {
+      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'')
+    })
+    return row
+  }).filter(r => r.date && r.product_name && r.type && r.points)
+}
+
+const TRANSACTIONS_TEMPLATE = `date,customer_name,product_name,type,points,amount,cost,is_gift
+2025-06-01,王小明,ISOTONIX OPC-3,BV,100,3200,2800,false
+2025-06-02,李美玲,TLS 代餐,IBV,50,1500,1200,false
+2025-06-03,張大偉,試用組合,BV,0,0,500,true`
+// ─────────────────────────────────────────────────────
 
 export default function Transactions() {
   const navigate = useNavigate()
@@ -28,6 +49,14 @@ export default function Transactions() {
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
+
+  // CSV 匯入狀態
+  const [showImport, setShowImport] = useState(false)
+  const [importRows, setImportRows] = useState([])
+  const [importErrors, setImportErrors] = useState([])
+  const [importing, setImporting] = useState(false)
+  const [importDone, setImportDone] = useState(null)
+  const fileInputRef = useRef(null)
 
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -109,7 +138,85 @@ export default function Transactions() {
     setSaving(false); setEditTarget(null); fetchData()
   }
 
-  // 趨勢圖：計算最大值做比例
+  // ── CSV 匯入邏輯 ──────────────────────────────────
+  function handleFileChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const rows = parseCSV(ev.target.result)
+      const errors = []
+      rows.forEach((r, i) => {
+        if (!r.date) errors.push(`第${i+2}行：缺少日期`)
+        else if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date))
+          errors.push(`第${i+2}行：日期格式應為 YYYY-MM-DD`)
+        if (!r.product_name) errors.push(`第${i+2}行：缺少品名`)
+        if (!['BV','IBV'].includes(r.type))
+          errors.push(`第${i+2}行「${r.product_name}」：類型應為 BV 或 IBV`)
+        if (!r.points || isNaN(Number(r.points)))
+          errors.push(`第${i+2}行「${r.product_name}」：點數應為數字`)
+      })
+      setImportRows(rows)
+      setImportErrors(errors)
+      setImportDone(null)
+    }
+    reader.readAsText(file, 'UTF-8')
+    e.target.value = ''
+  }
+
+  async function handleImport() {
+    if (!importRows.length || importErrors.length) return
+    setImporting(true)
+
+    // 先取得顧客名稱→ID 對應表
+    const { data: custList } = await supabase
+      .from('customers').select('id,name').eq('user_id', user.id)
+    const custMap = {}
+    ;(custList||[]).forEach(c => { custMap[c.name] = c.id })
+
+    // 新顧客先建立
+    const newCustNames = [...new Set(
+      importRows.map(r => r.customer_name).filter(n => n && !custMap[n])
+    )]
+    if (newCustNames.length > 0) {
+      const { data: newCusts } = await supabase.from('customers').insert(
+        newCustNames.map(name => ({ user_id: user.id, name, is_pinned: false }))
+      ).select('id,name')
+      ;(newCusts||[]).forEach(c => { custMap[c.name] = c.id })
+    }
+
+    const toInsert = importRows.map(r => ({
+      user_id: user.id,
+      customer_id: r.customer_name ? (custMap[r.customer_name] || null) : null,
+      date: r.date,
+      product_name: r.product_name,
+      type: r.type,
+      points: Number(r.points),
+      amount: r.amount ? Number(r.amount) : 0,
+      cost: r.cost ? Number(r.cost) : 0,
+      is_gift: r.is_gift === 'true' || r.is_gift === '1',
+    }))
+
+    await supabase.from('transactions').insert(toInsert)
+
+    setImporting(false)
+    setImportDone({ success: toInsert.length, skip: 0 })
+    fetchData()
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob(['\uFEFF' + TRANSACTIONS_TEMPLATE], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url
+    a.download = '業績紀錄範本.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function resetImport() {
+    setImportRows([]); setImportErrors([]); setImportDone(null)
+  }
+  // ─────────────────────────────────────────────────
+
   const maxBv = Math.max(...chartData.map(d => d.bv), 1)
   const maxIbv = Math.max(...chartData.map(d => d.ibv), 1)
   const maxVal = Math.max(maxBv, maxIbv, 1)
@@ -123,10 +230,17 @@ export default function Transactions() {
       <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>業績紀錄</h1>
-          <button onClick={() => navigate('/transactions/new')}
-            style={{ width:36,height:36,borderRadius:'50%',background:'#2563EB',
-              border:'none',color:'#fff',fontSize:22,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center' }}>+</button>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
+              style={{ width:36,height:36,borderRadius:'50%',background:'#F0FDF4',
+                border:'1px solid #22C55E',color:'#16A34A',fontSize:18,cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center' }}
+              title="CSV 批量匯入">📥</button>
+            <button onClick={() => navigate('/transactions/new')}
+              style={{ width:36,height:36,borderRadius:'50%',background:'#2563EB',
+                border:'none',color:'#fff',fontSize:22,cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center' }}>+</button>
+          </div>
         </div>
 
         {/* 月份切換 */}
@@ -177,24 +291,20 @@ export default function Transactions() {
               {chartData.map(d => (
                 <div key={d.day} style={{ display:'flex',flexDirection:'column',alignItems:'center',
                   gap:1,minWidth:9,flex:1 }}>
-                  {/* BV bar */}
                   <div style={{ width:'100%',display:'flex',flexDirection:'column',
                     alignItems:'center',justifyContent:'flex-end',height:chartHeight-16 }}>
                     {d.bv > 0 && (
                       <div style={{ width:'100%',background:'#F97316',borderRadius:'2px 2px 0 0',
-                        height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px`,
-                        opacity:0.85 }} />
+                        height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px`,opacity:0.85 }} />
                     )}
                     {d.ibv > 0 && (
                       <div style={{ width:'100%',background:'#3B82F6',borderRadius:'2px 2px 0 0',
-                        height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,
-                        opacity:0.85,marginTop:1 }} />
+                        height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,opacity:0.85,marginTop:1 }} />
                     )}
                     {d.bv === 0 && d.ibv === 0 && (
                       <div style={{ width:'100%',height:2,background:'#F3F4F6',borderRadius:2 }} />
                     )}
                   </div>
-                  {/* 日期標籤（每5天顯示一次） */}
                   <span style={{ fontSize:9,color:'#D1D5DB',lineHeight:1 }}>
                     {d.day % 5 === 1 ? d.day : ''}
                   </span>
@@ -270,6 +380,124 @@ export default function Transactions() {
           })}
         </div>
       )}
+
+      {/* ── CSV 匯入 Modal ───────────────────────────── */}
+      {showImport && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:400 }}
+          onClick={() => { setShowImport(false); resetImport() }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',
+            padding:'24px 20px 40px',width:'100%',maxWidth:480,
+            maxHeight:'85vh',overflowY:'auto' }}
+            onClick={e => e.stopPropagation()}>
+
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+              <h2 style={{ fontSize:17,fontWeight:800,color:'#111827',margin:0 }}>📥 批量匯入業績</h2>
+              <button onClick={() => { setShowImport(false); resetImport() }}
+                style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#9CA3AF' }}>×</button>
+            </div>
+
+            <button onClick={downloadTemplate}
+              style={{ display:'flex',alignItems:'center',gap:8,width:'100%',
+                padding:'12px 16px',borderRadius:12,border:'1px dashed #22C55E',
+                background:'#F0FDF4',marginBottom:16,cursor:'pointer' }}>
+              <span style={{ fontSize:18 }}>📄</span>
+              <div style={{ textAlign:'left' }}>
+                <p style={{ fontSize:13,fontWeight:700,color:'#16A34A',margin:0 }}>下載 CSV 範本</p>
+                <p style={{ fontSize:11,color:'#6B7280',margin:0 }}>date, customer_name, product_name, type, points, amount, cost, is_gift</p>
+              </div>
+            </button>
+
+            {/* 說明 */}
+            <div style={{ background:'#FFF7ED',borderRadius:10,padding:'10px 14px',marginBottom:16 }}>
+              <p style={{ fontSize:12,color:'#92400E',margin:0,lineHeight:1.6 }}>
+                💡 <strong>customer_name</strong> 若填寫，將自動比對或建立顧客檔案<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;業績紀錄不會偵測重複，請確認後再匯入
+              </p>
+            </div>
+
+            <input ref={fileInputRef} type="file" accept=".csv"
+              onChange={handleFileChange} style={{ display:'none' }} />
+            <button onClick={() => fileInputRef.current.click()}
+              style={{ width:'100%',padding:'13px 0',borderRadius:12,
+                border:'1px solid #E5E7EB',background:'#F8FAFC',
+                fontSize:14,fontWeight:600,color:'#374151',cursor:'pointer',marginBottom:16 }}>
+              📂 選擇 CSV 檔案
+            </button>
+
+            {importRows.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <p style={{ fontSize:13,fontWeight:700,color:'#374151',margin:'0 0 8px' }}>
+                  📋 偵測到 {importRows.length} 筆資料
+                </p>
+                {importErrors.length > 0 && (
+                  <div style={{ background:'#FEF2F2',borderRadius:10,padding:'10px 14px',marginBottom:10 }}>
+                    <p style={{ fontSize:12,fontWeight:700,color:'#DC2626',margin:'0 0 4px' }}>
+                      ⚠️ 發現 {importErrors.length} 個問題：
+                    </p>
+                    {importErrors.map((e,i) => (
+                      <p key={i} style={{ fontSize:12,color:'#DC2626',margin:'2px 0' }}>• {e}</p>
+                    ))}
+                  </div>
+                )}
+                {importErrors.length === 0 && (
+                  <div style={{ border:'1px solid #E5E7EB',borderRadius:10,overflow:'hidden',marginBottom:12 }}>
+                    {importRows.slice(0,5).map((r,i) => (
+                      <div key={i} style={{ display:'flex',alignItems:'center',gap:10,
+                        padding:'9px 14px',borderBottom:i<Math.min(importRows.length,5)-1?'1px solid #F3F4F6':'none',
+                        background:i%2===0?'#fff':'#F8FAFC' }}>
+                        <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
+                          background:r.type==='BV'?'#FFF7ED':'#EFF6FF',
+                          color:r.type==='BV'?'#F97316':'#3B82F6',flexShrink:0 }}>{r.type}</span>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <span style={{ fontSize:13,fontWeight:700,color:'#111827' }}>{r.product_name}</span>
+                          {r.customer_name && <span style={{ fontSize:12,color:'#9CA3AF' }}> · {r.customer_name}</span>}
+                        </div>
+                        <div style={{ textAlign:'right',flexShrink:0 }}>
+                          <span style={{ fontSize:13,fontWeight:700,color:'#374151' }}>{r.points}點</span>
+                          <span style={{ fontSize:11,color:'#9CA3AF',display:'block' }}>{r.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {importRows.length > 5 && (
+                      <div style={{ padding:'8px 14px',background:'#F8FAFC',
+                        fontSize:12,color:'#9CA3AF',textAlign:'center' }}>
+                        …還有 {importRows.length - 5} 筆
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {importDone && (
+              <div style={{ background:'#F0FDF4',borderRadius:10,padding:'12px 16px',marginBottom:16 }}>
+                <p style={{ fontSize:14,fontWeight:700,color:'#16A34A',margin:0 }}>
+                  ✅ 匯入完成！成功 {importDone.success} 筆
+                </p>
+              </div>
+            )}
+
+            {importRows.length > 0 && importErrors.length === 0 && !importDone && (
+              <button onClick={handleImport} disabled={importing}
+                style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
+                  background:importing?'#93C5FD':'#2563EB',
+                  color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
+              </button>
+            )}
+            {importDone && (
+              <button onClick={() => { setShowImport(false); resetImport() }}
+                style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
+                  background:'#2563EB',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                完成
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ───────────────────────────────────────────── */}
 
       {/* 刪除確認 Modal */}
       {deleteTarget && (
