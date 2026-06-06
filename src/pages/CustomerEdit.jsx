@@ -19,7 +19,7 @@ export default function CustomerEdit() {
       name: data.name || '',
       phone: data.phone || '',
       occupation: data.occupation || '',
-      birthday: data.birthday || '',
+      birthday: data.birthday || '',   // MM-DD 格式
       carrier: data.carrier || '',
       address: data.address || '',
       email: data.email || '',
@@ -31,10 +31,16 @@ export default function CustomerEdit() {
     setErrors(e => ({ ...e, [key]: '' }))
   }
 
+  function validateBirthday(val) {
+    if (!val) return true
+    return /^\d{2}-\d{2}$/.test(val)
+  }
+
   async function handleSave() {
     const errs = {}
     if (!form.name.trim()) errs.name = '姓名為必填'
     if (!form.phone.trim()) errs.phone = '電話為必填'
+    if (form.birthday && !validateBirthday(form.birthday)) errs.birthday = '格式需為 MM-DD，例：03-15'
     if (Object.keys(errs).length) { setErrors(errs); return }
 
     setSaving(true)
@@ -84,7 +90,7 @@ export default function CustomerEdit() {
           { key:'name', label:'姓名', req:true, placeholder:'輸入姓名...' },
           { key:'phone', label:'電話', req:true, placeholder:'輸入電話...' },
           { key:'occupation', label:'職業', placeholder:'輸入職業...' },
-          { key:'birthday', label:'生日', type:'date' },
+          { key:'birthday', label:'生日', placeholder:'MM-DD，例：03-15', hint:'只填月份和日期，不需要年份' },
           { key:'carrier', label:'電子發票載具', placeholder:'輸入載具...' },
           { key:'address', label:'地址', placeholder:'輸入地址...' },
           { key:'email', label:'Email', type:'email', placeholder:'輸入 Email...' },
@@ -93,14 +99,22 @@ export default function CustomerEdit() {
             <label style={{ fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }}>
               {f.label} {f.req && <span style={{ color:'#EF4444' }}>*</span>}
             </label>
-            <input type={f.type||'text'} value={form[f.key]}
+            <input
+              type={f.type || 'text'}
+              value={form[f.key]}
               onChange={e => set(f.key, e.target.value)}
-              placeholder={f.placeholder||''}
+              placeholder={f.placeholder || ''}
               style={{ width:'100%',padding:'11px 12px',borderRadius:10,
                 border:`1px solid ${errors[f.key]?'#EF4444':'#E5E7EB'}`,
                 fontSize:14,background:'#fff',boxSizing:'border-box',
-                outline:'none',color:'#111827' }} />
-            {errors[f.key] && <p style={{ fontSize:12,color:'#EF4444',margin:'4px 0 0' }}>{errors[f.key]}</p>}
+                outline:'none',color:'#111827' }}
+            />
+            {f.hint && !errors[f.key] && (
+              <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>{f.hint}</p>
+            )}
+            {errors[f.key] && (
+              <p style={{ fontSize:12,color:'#EF4444',margin:'4px 0 0' }}>{errors[f.key]}</p>
+            )}
           </div>
         ))}
 

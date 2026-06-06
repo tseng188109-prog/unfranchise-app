@@ -20,6 +20,7 @@ export default function ContactEdit() {
   const [saving, setSaving] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [form, setForm] = useState(null)
+  const [birthdayError, setBirthdayError] = useState('')
 
   useEffect(() => { fetchContact() }, [id])
 
@@ -38,8 +39,9 @@ export default function ContactEdit() {
         note: data.note || '',
         pain_point: data.pain_point || '',
         asked_products: data.asked_products || '',
+        birthday: data.birthday || '',   // MM-DD 格式
       })
-      if (data.occupation || data.region || data.note || data.pain_point || data.asked_products) {
+      if (data.occupation || data.region || data.note || data.pain_point || data.asked_products || data.birthday) {
         setShowMore(true)
       }
     }
@@ -55,10 +57,19 @@ export default function ContactEdit() {
       }
       return next
     })
+    if (key === 'birthday') setBirthdayError('')
   }
 
   async function handleSave() {
     if (!form.name.trim()) return
+
+    // 驗證生日格式
+    if (form.birthday && !/^\d{2}-\d{2}$/.test(form.birthday)) {
+      setBirthdayError('格式需為 MM-DD，例：03-15')
+      setShowMore(true)
+      return
+    }
+
     setSaving(true)
 
     let next_contact_date = undefined
@@ -80,6 +91,7 @@ export default function ContactEdit() {
       note: form.note || null,
       pain_point: form.pain_point || null,
       asked_products: form.asked_products || null,
+      birthday: form.birthday || null,
     }
     if (next_contact_date) update.next_contact_date = next_contact_date
 
@@ -107,8 +119,7 @@ export default function ContactEdit() {
 
         <div style={fw}>
           <label style={lb}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
-          <input value={form.name} onChange={e=>set('name',e.target.value)}
-            style={inp} />
+          <input value={form.name} onChange={e=>set('name',e.target.value)} style={inp} />
         </div>
 
         <div style={fw}>
@@ -183,6 +194,21 @@ export default function ContactEdit() {
                   placeholder={f.placeholder} style={inp} />
               </div>
             ))}
+
+            {/* 生日 */}
+            <div style={fw}>
+              <label style={lb}>生日</label>
+              <input
+                value={form.birthday}
+                onChange={e => set('birthday', e.target.value)}
+                placeholder="MM-DD，例：03-15"
+                style={{ ...inp, border:`1px solid ${birthdayError?'#EF4444':'#E5E7EB'}` }}
+              />
+              {birthdayError
+                ? <p style={{ fontSize:12,color:'#EF4444',margin:'4px 0 0' }}>{birthdayError}</p>
+                : <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只填月份和日期，不需要年份</p>
+              }
+            </div>
           </>
         )}
 
