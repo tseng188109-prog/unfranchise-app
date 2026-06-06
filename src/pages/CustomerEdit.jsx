@@ -66,12 +66,13 @@ export default function CustomerEdit() {
   async function handleSave() {
     const errs = {}
     if (!form.name.trim()) errs.name = '姓名為必填'
+    if (!form.phone.trim()) errs.phone = '電話為必填'
     if (Object.keys(errs).length) { setErrors(errs); return }
 
     setSaving(true)
     const { error } = await supabase.from('customers').update({
       name: form.name.trim(),
-      phone: form.phone.trim() || null,
+      phone: form.phone.trim(),
       occupation: form.occupation || null,
       birthday: form.birthday || null,
       carrier: form.carrier || null,
@@ -113,7 +114,6 @@ export default function CustomerEdit() {
 
       <div style={{ padding:'16px 16px 100px' }}>
 
-        {/* 姓名（必填） */}
         <div style={fw}>
           <label style={lb}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
           <input value={form.name} onChange={e => set('name', e.target.value)}
@@ -122,42 +122,38 @@ export default function CustomerEdit() {
           {errors.name && <p style={err}>{errors.name}</p>}
         </div>
 
-        {/* 電話（選填） */}
         <div style={fw}>
-          <label style={lb}>電話</label>
+          <label style={lb}>電話 <span style={{ color:'#EF4444' }}>*</span></label>
           <input value={form.phone} onChange={e => set('phone', e.target.value)}
-            placeholder="輸入電話..." style={inp} />
+            placeholder="輸入電話..."
+            style={{ ...inp, borderColor: errors.phone ? '#EF4444' : '#E5E7EB' }} />
+          {errors.phone && <p style={err}>{errors.phone}</p>}
         </div>
 
-        {/* 職業 */}
         <div style={fw}>
           <label style={lb}>職業</label>
           <input value={form.occupation} onChange={e => set('occupation', e.target.value)}
             placeholder="輸入職業..." style={inp} />
         </div>
 
-        {/* 生日 */}
         <div style={fw}>
           <label style={lb}>生日</label>
           <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
           <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
         </div>
 
-        {/* 電子發票載具 */}
         <div style={fw}>
           <label style={lb}>電子發票載具</label>
           <input value={form.carrier} onChange={e => set('carrier', e.target.value)}
             placeholder="輸入載具..." style={inp} />
         </div>
 
-        {/* 地址 */}
         <div style={fw}>
           <label style={lb}>地址</label>
           <input value={form.address} onChange={e => set('address', e.target.value)}
             placeholder="輸入地址..." style={inp} />
         </div>
 
-        {/* Email */}
         <div style={fw}>
           <label style={lb}>Email</label>
           <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
