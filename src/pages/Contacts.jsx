@@ -43,10 +43,10 @@ function parseCSV(text) {
   }).filter(r => r.name && r.name.trim())
 }
 
-const CONTACTS_TEMPLATE = `name,occupation,egg_type,need_level,action_type,next_contact_date
-王小明,上班族,茶葉蛋,大三,電話,2025-07-01
-李美玲,老師,荷包蛋,大二,LINE,
-張大偉,自營業,生雞蛋,大一,,`
+const CONTACTS_TEMPLATE = `name,occupation,egg_type,need_level,action_type,birthday,next_contact_date
+王小明,上班族,茶葉蛋,大三,直接法,06-15,2025-07-01
+李美玲,老師,荷包蛋,大二,軟性活動,03-22,
+張大偉,自營業,生雞蛋,大一,輕鬆互動,,`
 
 const EGG_VALID = ['茶葉蛋','荷包蛋','生雞蛋','']
 const NEED_VALID = ['大一','大二','大三','大四','']
@@ -71,7 +71,7 @@ export default function Contacts() {
   const [importRows, setImportRows] = useState([])
   const [importErrors, setImportErrors] = useState([])
   const [importing, setImporting] = useState(false)
-  const [importDone, setImportDone] = useState(null) // { success, skip }
+  const [importDone, setImportDone] = useState(null)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -133,6 +133,8 @@ export default function Contacts() {
           errors.push(`第${i+2}行「${r.name}」：蛋型「${r.egg_type}」不正確（茶葉蛋/荷包蛋/生雞蛋）`)
         if (r.need_level && !NEED_VALID.includes(r.need_level))
           errors.push(`第${i+2}行「${r.name}」：需求度「${r.need_level}」不正確（大一/大二/大三/大四）`)
+        if (r.birthday && !/^\d{2}-\d{2}$/.test(r.birthday))
+          errors.push(`第${i+2}行「${r.name}」：生日格式應為 MM-DD，例：06-15`)
         if (r.next_contact_date && !/^\d{4}-\d{2}-\d{2}$/.test(r.next_contact_date))
           errors.push(`第${i+2}行「${r.name}」：日期格式應為 YYYY-MM-DD`)
       })
@@ -148,7 +150,6 @@ export default function Contacts() {
     if (!importRows.length || importErrors.length) return
     setImporting(true)
 
-    // 取得現有名單（偵測重複）
     const { data: existing } = await supabase
       .from('contacts').select('name').eq('user_id', user.id)
     const existingNames = new Set((existing||[]).map(c => c.name))
@@ -164,6 +165,7 @@ export default function Contacts() {
         egg_type: r.egg_type || null,
         need_level: r.need_level || null,
         action_type: r.action_type || null,
+        birthday: r.birthday || null,
         next_contact_date: r.next_contact_date || null,
         is_pinned: false,
         is_archived: false,
@@ -288,7 +290,6 @@ export default function Contacts() {
           <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>互動名單</h1>
           {!showArchived && (
             <div style={{ display:'flex', gap:8 }}>
-              {/* CSV 匯入按鈕 */}
               <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
                 style={{ width:36, height:36, borderRadius:'50%', background:'#F0FDF4',
                   border:'1px solid #22C55E', color:'#16A34A', fontSize:18, cursor:'pointer',
@@ -302,7 +303,6 @@ export default function Contacts() {
           )}
         </div>
 
-        {/* 搜尋 */}
         <div style={{ position:'relative', marginBottom:12 }}>
           <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)',
             fontSize:16, color:'#9CA3AF' }}>🔍</span>
@@ -313,7 +313,6 @@ export default function Contacts() {
               boxSizing:'border-box', outline:'none' }} />
         </div>
 
-        {/* 篩選列 */}
         <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
           <button onClick={() => { setShowArchived(!showArchived); setEggFilter('全部'); setSearch('') }}
             style={{ padding:'5px 14px', borderRadius:99, border:'none',
@@ -381,7 +380,6 @@ export default function Contacts() {
                 style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9CA3AF' }}>×</button>
             </div>
 
-            {/* 下載範本 */}
             <button onClick={downloadTemplate}
               style={{ display:'flex', alignItems:'center', gap:8, width:'100%',
                 padding:'12px 16px', borderRadius:12, border:'1px dashed #22C55E',
@@ -389,11 +387,10 @@ export default function Contacts() {
               <span style={{ fontSize:18 }}>📄</span>
               <div style={{ textAlign:'left' }}>
                 <p style={{ fontSize:13, fontWeight:700, color:'#16A34A', margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>name, occupation, egg_type, need_level, action_type, next_contact_date</p>
+                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>name*, occupation, egg_type, need_level, action_type, birthday(MM-DD), next_contact_date(YYYY-MM-DD)</p>
               </div>
             </button>
 
-            {/* 選擇檔案 */}
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
@@ -403,14 +400,11 @@ export default function Contacts() {
               📂 選擇 CSV 檔案
             </button>
 
-            {/* 解析結果預覽 */}
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
                 <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 8px' }}>
                   📋 偵測到 {importRows.length} 筆資料
                 </p>
-
-                {/* 錯誤提示 */}
                 {importErrors.length > 0 && (
                   <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px', marginBottom:10 }}>
                     <p style={{ fontSize:12, fontWeight:700, color:'#DC2626', margin:'0 0 4px' }}>
@@ -421,8 +415,6 @@ export default function Contacts() {
                     ))}
                   </div>
                 )}
-
-                {/* 預覽前5筆 */}
                 {importErrors.length === 0 && (
                   <div style={{ border:'1px solid #E5E7EB', borderRadius:10, overflow:'hidden', marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
@@ -437,6 +429,7 @@ export default function Contacts() {
                         <div style={{ flex:1 }}>
                           <span style={{ fontSize:13, fontWeight:700, color:'#111827' }}>{r.name}</span>
                           {r.occupation && <span style={{ fontSize:12, color:'#9CA3AF' }}> · {r.occupation}</span>}
+                          {r.birthday && <span style={{ fontSize:11, color:'#A855F7', marginLeft:6 }}>🎂 {r.birthday}</span>}
                         </div>
                         {r.egg_type && (
                           <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
@@ -457,7 +450,6 @@ export default function Contacts() {
               </div>
             )}
 
-            {/* 匯入結果 */}
             {importDone && (
               <div style={{ background:'#F0FDF4', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
                 <p style={{ fontSize:14, fontWeight:700, color:'#16A34A', margin:0 }}>
@@ -467,7 +459,6 @@ export default function Contacts() {
               </div>
             )}
 
-            {/* 確認匯入按鈕 */}
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
                 style={{ width:'100%', padding:'13px 0', borderRadius:12, border:'none',
@@ -476,7 +467,6 @@ export default function Contacts() {
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
               </button>
             )}
-
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
                 style={{ width:'100%', padding:'13px 0', borderRadius:12, border:'none',
@@ -487,7 +477,6 @@ export default function Contacts() {
           </div>
         </div>
       )}
-      {/* ───────────────────────────────────────────── */}
 
       {/* 長按選單 Modal */}
       {menuTarget && (
