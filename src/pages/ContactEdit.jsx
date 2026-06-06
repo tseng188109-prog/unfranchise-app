@@ -14,13 +14,44 @@ const ACTION_MAP = {
 }
 const DAYS_MAP = {'輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5}
 
+function BirthdayPicker({ value, onChange }) {
+  const months = Array.from({length:12}, (_,i) => String(i+1).padStart(2,'0'))
+  const days = Array.from({length:31}, (_,i) => String(i+1).padStart(2,'0'))
+  const parts = value ? value.split('-') : ['','']
+  const mm = parts[0] || ''
+  const dd = parts[1] || ''
+
+  function handleChange(newMm, newDd) {
+    if (newMm && newDd) onChange(`${newMm}-${newDd}`)
+    else onChange('')
+  }
+
+  return (
+    <div style={{ display:'flex', gap:8 }}>
+      <select value={mm} onChange={e => handleChange(e.target.value, dd)}
+        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+          fontSize:14,background:'#fff',outline:'none',
+          color:mm?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+        <option value=''>月份</option>
+        {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
+      </select>
+      <select value={dd} onChange={e => handleChange(mm, e.target.value)}
+        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+          fontSize:14,background:'#fff',outline:'none',
+          color:dd?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+        <option value=''>日期</option>
+        {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
+      </select>
+    </div>
+  )
+}
+
 export default function ContactEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [form, setForm] = useState(null)
-  const [birthdayError, setBirthdayError] = useState('')
 
   useEffect(() => { fetchContact() }, [id])
 
@@ -39,7 +70,7 @@ export default function ContactEdit() {
         note: data.note || '',
         pain_point: data.pain_point || '',
         asked_products: data.asked_products || '',
-        birthday: data.birthday || '',   // MM-DD 格式
+        birthday: data.birthday || '',
       })
       if (data.occupation || data.region || data.note || data.pain_point || data.asked_products || data.birthday) {
         setShowMore(true)
@@ -57,19 +88,10 @@ export default function ContactEdit() {
       }
       return next
     })
-    if (key === 'birthday') setBirthdayError('')
   }
 
   async function handleSave() {
     if (!form.name.trim()) return
-
-    // 驗證生日格式
-    if (form.birthday && !/^\d{2}-\d{2}$/.test(form.birthday)) {
-      setBirthdayError('格式需為 MM-DD，例：03-15')
-      setShowMore(true)
-      return
-    }
-
     setSaving(true)
 
     let next_contact_date = undefined
@@ -195,19 +217,10 @@ export default function ContactEdit() {
               </div>
             ))}
 
-            {/* 生日 */}
             <div style={fw}>
               <label style={lb}>生日</label>
-              <input
-                value={form.birthday}
-                onChange={e => set('birthday', e.target.value)}
-                placeholder="MM-DD，例：03-15"
-                style={{ ...inp, border:`1px solid ${birthdayError?'#EF4444':'#E5E7EB'}` }}
-              />
-              {birthdayError
-                ? <p style={{ fontSize:12,color:'#EF4444',margin:'4px 0 0' }}>{birthdayError}</p>
-                : <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只填月份和日期，不需要年份</p>
-              }
+              <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
+              <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
             </div>
           </>
         )}

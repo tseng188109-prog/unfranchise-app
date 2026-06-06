@@ -2,6 +2,38 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 
+function BirthdayPicker({ value, onChange }) {
+  const months = Array.from({length:12}, (_,i) => String(i+1).padStart(2,'0'))
+  const days = Array.from({length:31}, (_,i) => String(i+1).padStart(2,'0'))
+  const parts = value ? value.split('-') : ['','']
+  const mm = parts[0] || ''
+  const dd = parts[1] || ''
+
+  function handleChange(newMm, newDd) {
+    if (newMm && newDd) onChange(`${newMm}-${newDd}`)
+    else onChange('')
+  }
+
+  return (
+    <div style={{ display:'flex', gap:8 }}>
+      <select value={mm} onChange={e => handleChange(e.target.value, dd)}
+        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+          fontSize:14,background:'#fff',outline:'none',
+          color:mm?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+        <option value=''>月份</option>
+        {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
+      </select>
+      <select value={dd} onChange={e => handleChange(mm, e.target.value)}
+        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+          fontSize:14,background:'#fff',outline:'none',
+          color:dd?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+        <option value=''>日期</option>
+        {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
+      </select>
+    </div>
+  )
+}
+
 export default function CustomerEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -19,7 +51,7 @@ export default function CustomerEdit() {
       name: data.name || '',
       phone: data.phone || '',
       occupation: data.occupation || '',
-      birthday: data.birthday || '',   // MM-DD 格式
+      birthday: data.birthday || '',
       carrier: data.carrier || '',
       address: data.address || '',
       email: data.email || '',
@@ -31,16 +63,10 @@ export default function CustomerEdit() {
     setErrors(e => ({ ...e, [key]: '' }))
   }
 
-  function validateBirthday(val) {
-    if (!val) return true
-    return /^\d{2}-\d{2}$/.test(val)
-  }
-
   async function handleSave() {
     const errs = {}
     if (!form.name.trim()) errs.name = '姓名為必填'
     if (!form.phone.trim()) errs.phone = '電話為必填'
-    if (form.birthday && !validateBirthday(form.birthday)) errs.birthday = '格式需為 MM-DD，例：03-15'
     if (Object.keys(errs).length) { setErrors(errs); return }
 
     setSaving(true)
@@ -86,37 +112,52 @@ export default function CustomerEdit() {
       </div>
 
       <div style={{ padding:'16px 16px 100px' }}>
-        {[
-          { key:'name', label:'姓名', req:true, placeholder:'輸入姓名...' },
-          { key:'phone', label:'電話', req:true, placeholder:'輸入電話...' },
-          { key:'occupation', label:'職業', placeholder:'輸入職業...' },
-          { key:'birthday', label:'生日', placeholder:'MM-DD，例：03-15', hint:'只填月份和日期，不需要年份' },
-          { key:'carrier', label:'電子發票載具', placeholder:'輸入載具...' },
-          { key:'address', label:'地址', placeholder:'輸入地址...' },
-          { key:'email', label:'Email', type:'email', placeholder:'輸入 Email...' },
-        ].map(f => (
-          <div key={f.key} style={{ marginBottom:16 }}>
-            <label style={{ fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }}>
-              {f.label} {f.req && <span style={{ color:'#EF4444' }}>*</span>}
-            </label>
-            <input
-              type={f.type || 'text'}
-              value={form[f.key]}
-              onChange={e => set(f.key, e.target.value)}
-              placeholder={f.placeholder || ''}
-              style={{ width:'100%',padding:'11px 12px',borderRadius:10,
-                border:`1px solid ${errors[f.key]?'#EF4444':'#E5E7EB'}`,
-                fontSize:14,background:'#fff',boxSizing:'border-box',
-                outline:'none',color:'#111827' }}
-            />
-            {f.hint && !errors[f.key] && (
-              <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>{f.hint}</p>
-            )}
-            {errors[f.key] && (
-              <p style={{ fontSize:12,color:'#EF4444',margin:'4px 0 0' }}>{errors[f.key]}</p>
-            )}
-          </div>
-        ))}
+
+        <div style={fw}>
+          <label style={lb}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
+          <input value={form.name} onChange={e => set('name', e.target.value)}
+            placeholder="輸入姓名..."
+            style={{ ...inp, borderColor: errors.name ? '#EF4444' : '#E5E7EB' }} />
+          {errors.name && <p style={err}>{errors.name}</p>}
+        </div>
+
+        <div style={fw}>
+          <label style={lb}>電話 <span style={{ color:'#EF4444' }}>*</span></label>
+          <input value={form.phone} onChange={e => set('phone', e.target.value)}
+            placeholder="輸入電話..."
+            style={{ ...inp, borderColor: errors.phone ? '#EF4444' : '#E5E7EB' }} />
+          {errors.phone && <p style={err}>{errors.phone}</p>}
+        </div>
+
+        <div style={fw}>
+          <label style={lb}>職業</label>
+          <input value={form.occupation} onChange={e => set('occupation', e.target.value)}
+            placeholder="輸入職業..." style={inp} />
+        </div>
+
+        <div style={fw}>
+          <label style={lb}>生日</label>
+          <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
+          <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
+        </div>
+
+        <div style={fw}>
+          <label style={lb}>電子發票載具</label>
+          <input value={form.carrier} onChange={e => set('carrier', e.target.value)}
+            placeholder="輸入載具..." style={inp} />
+        </div>
+
+        <div style={fw}>
+          <label style={lb}>地址</label>
+          <input value={form.address} onChange={e => set('address', e.target.value)}
+            placeholder="輸入地址..." style={inp} />
+        </div>
+
+        <div style={fw}>
+          <label style={lb}>Email</label>
+          <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+            placeholder="輸入 Email..." style={inp} />
+        </div>
 
         <button onClick={handleSave} disabled={saving}
           style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
@@ -126,7 +167,6 @@ export default function CustomerEdit() {
         </button>
       </div>
 
-      {/* 刪除確認 Modal */}
       {showDelete && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:20 }}>
@@ -151,3 +191,9 @@ export default function CustomerEdit() {
     </div>
   )
 }
+
+const fw = { marginBottom:16 }
+const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }
+const inp = { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
+  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' }
+const err = { fontSize:12,color:'#EF4444',margin:'4px 0 0' }
