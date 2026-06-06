@@ -12,6 +12,13 @@ function formatDate(d) {
   const dt = new Date(d + 'T00:00:00')
   return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
+// 生日 MM-DD 格式顯示為「X月X日」
+function formatBirthday(mmdd) {
+  if (!mmdd) return ''
+  const parts = mmdd.split('-')
+  if (parts.length !== 2) return mmdd
+  return `${Number(parts[0])} 月 ${Number(parts[1])} 日`
+}
 
 export default function CustomerDetail() {
   const { id } = useParams()
@@ -59,14 +66,12 @@ export default function CustomerDetail() {
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
       {/* Header */}
       <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
-        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%' }}>
-  <button onClick={() => navigate(-1)}
-    style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
-  <button onClick={() => navigate(`/customers/${id}/edit`)}
-    style={{ background:'none',border:'1px solid #E5E7EB',borderRadius:8,
-      padding:'6px 12px',fontSize:13,cursor:'pointer',color:'#374151' }}>✎ 編輯</button>
-</div>
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%' }}>
+          <button onClick={() => navigate(-1)}
+            style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
+          <button onClick={() => navigate(`/customers/${id}/edit`)}
+            style={{ background:'none',border:'1px solid #E5E7EB',borderRadius:8,
+              padding:'6px 12px',fontSize:13,cursor:'pointer',color:'#374151' }}>✎ 編輯</button>
         </div>
         <div style={{ display:'flex',alignItems:'center',gap:14,marginTop:16 }}>
           <div style={{ width:56,height:56,borderRadius:'50%',background:avatarBg(customer.name),
@@ -105,7 +110,7 @@ export default function CustomerDetail() {
           <p style={{ fontSize:13,fontWeight:700,color:'#374151',margin:'0 0 10px' }}>基本資料</p>
           {[
             { label:'電話', value: customer.phone },
-            { label:'生日', value: formatDate(customer.birthday) },
+            { label:'生日', value: formatBirthday(customer.birthday) },
             { label:'地址', value: customer.address },
             { label:'Email', value: customer.email },
             { label:'載具', value: customer.carrier },
