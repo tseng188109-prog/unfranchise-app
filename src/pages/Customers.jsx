@@ -28,10 +28,10 @@ function parseCSV(text) {
   }).filter(r => r.name && r.name.trim())
 }
 
-const CUSTOMERS_TEMPLATE = `name,phone,occupation,repurchase_reminder
-王小明,0912-345678,上班族,2025-08-01
-李美玲,0923-456789,老師,
-張大偉,,自營業,`
+const CUSTOMERS_TEMPLATE = `name,phone,occupation,birthday,repurchase_reminder
+王小明,0912-345678,上班族,06-15,2025-08-01
+李美玲,0923-456789,老師,03-22,
+張大偉,,自營業,,`
 // ─────────────────────────────────────────────────────
 
 export default function Customers() {
@@ -104,6 +104,8 @@ export default function Customers() {
       const errors = []
       rows.forEach((r, i) => {
         if (!r.name) errors.push(`第${i+2}行：缺少姓名`)
+        if (r.birthday && !/^\d{2}-\d{2}$/.test(r.birthday))
+          errors.push(`第${i+2}行「${r.name}」：生日格式應為 MM-DD，例：06-15`)
         if (r.repurchase_reminder && !/^\d{4}-\d{2}-\d{2}$/.test(r.repurchase_reminder))
           errors.push(`第${i+2}行「${r.name}」：回購日期格式應為 YYYY-MM-DD`)
       })
@@ -132,6 +134,7 @@ export default function Customers() {
         name: r.name,
         phone: r.phone || null,
         occupation: r.occupation || null,
+        birthday: r.birthday || null,
         repurchase_reminder: r.repurchase_reminder || null,
         is_pinned: false,
       })
@@ -276,7 +279,7 @@ export default function Customers() {
               <span style={{ fontSize:18 }}>📄</span>
               <div style={{ textAlign:'left' }}>
                 <p style={{ fontSize:13, fontWeight:700, color:'#16A34A', margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>name, phone, occupation, repurchase_reminder</p>
+                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>name*, phone*, occupation, birthday(MM-DD), repurchase_reminder(YYYY-MM-DD)</p>
               </div>
             </button>
 
@@ -319,7 +322,10 @@ export default function Customers() {
                           <span style={{ fontSize:13, fontWeight:700, color:'#111827' }}>{r.name}</span>
                           {r.phone && <span style={{ fontSize:12, color:'#9CA3AF' }}> · {r.phone}</span>}
                         </div>
-                        {r.occupation && <span style={{ fontSize:12, color:'#6B7280' }}>{r.occupation}</span>}
+                        <div style={{ textAlign:'right' }}>
+                          {r.birthday && <span style={{ fontSize:11, color:'#A855F7' }}>🎂 {r.birthday}</span>}
+                          {r.occupation && <span style={{ fontSize:12, color:'#6B7280', marginLeft:6 }}>{r.occupation}</span>}
+                        </div>
                       </div>
                     ))}
                     {importRows.length > 5 && (
@@ -360,7 +366,6 @@ export default function Customers() {
           </div>
         </div>
       )}
-      {/* ───────────────────────────────────────────── */}
 
       {/* 長按選單 Modal */}
       {menuTarget && (
