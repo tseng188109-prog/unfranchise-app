@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import NotificationBell from './NotificationBell'
 
 const BV_GOAL = 1500
 const IBV_GOAL = 300
@@ -260,10 +261,7 @@ export default function Dashboard() {
             <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
           </div>
           <div style={{ display:'flex',gap:8 }}>
-            <button style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
-              width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
-              <span style={{ fontSize:20 }}>🔔</span>
-            </button>
+       <NotificationBell userId={user?.id} />
             <button onClick={()=>navigate('/settings')}
               style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
               width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
