@@ -237,7 +237,7 @@ export default function Contacts() {
     e.target.value = ''
   }
 
-  async function handleImport() {
+async function handleImport() {
     if (!importRows.length || importErrors.length) return
     setImporting(true)
 
@@ -263,8 +263,13 @@ export default function Contacts() {
       })
     })
 
+    console.log('準備插入筆數:', toInsert.length)
+    console.log('第一筆資料:', JSON.stringify(toInsert[0]))
+
     if (toInsert.length > 0) {
-      await supabase.from('contacts').insert(toInsert)
+      const { data, error } = await supabase.from('contacts').insert(toInsert)
+      console.log('insert result:', data)
+      console.log('insert error:', JSON.stringify(error))
     }
 
     setImporting(false)
