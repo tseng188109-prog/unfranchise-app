@@ -56,10 +56,10 @@ function parseDate(val) {
   return ''
 }
 
-const TRANSACTIONS_TEMPLATE = `date,customer_name,product_name,type,points,amount,cost,is_gift
-2025-06-01,王小明,ISOTONIX OPC-3,BV,100,3200,2800,false
-2025-06-02,李美玲,TLS 代餐,IBV,50,1500,1200,false
-2025-06-03,張大偉,試用組合,BV,0,0,500,true`
+const TRANSACTIONS_TEMPLATE = `date,customer_name,customer_phone,product_name,type,points,amount,cost,is_gift
+2025-06-01,王小明,0912345678,ISOTONIX OPC-3,BV,100,3200,2800,false
+2025-06-02,李美玲,0923456789,TLS 代餐,IBV,50,1500,1200,false
+2025-06-03,張大偉,,試用組合,BV,0,0,500,true`
 // ─────────────────────────────────────────────────────
 
 export default function Transactions() {
@@ -209,32 +209,65 @@ export default function Transactions() {
     if (!importRows.length || importErrors.length) return
     setImporting(true)
 
+    // 取得所有顧客（含電話）
     const { data: custList } = await supabase
-      .from('customers').select('id,name').eq('user_id', user.id)
-    const custMap = {}
-    ;(custList||[]).forEach(c => { custMap[c.name] = c.id })
+      .from('customers').select('id,name,phone').eq('user_id', user.id)
 
-    const newCustNames = [...new Set(
-      importRows.map(r => r.customer_name).filter(n => n && !custMap[n])
-    )]
-    if (newCustNames.length > 0) {
-      const { data: newCusts } = await supabase.from('customers').insert(
-        newCustNames.map(name => ({ user_id: user.id, name, is_pinned: false }))
-      ).select('id,name')
-      ;(newCusts||[]).forEach(c => { custMap[c.name] = c.id })
+    // 建立兩個對照表：電話→id、名字→id
+    const phoneMap = {}
+    const nameMap = {}
+    ;(custList||[]).forEach(c => {
+      if (c.phone) phoneMap[c.phone.replace(/[-\s]/g,'')] = c.id
+      nameMap[c.name] = c.id
+    })
+
+    // 找出需要新建的顧客（電話和名字都找不到）
+    const toCreateCusts = []
+    importRows.forEach(r => {
+      if (!r.customer_name) return
+      const phone = (r.customer_phone||'').replace(/[-\s]/g,'')
+      const foundById = phone ? phoneMap[phone] : null
+      const foundByName = nameMap[r.customer_name]
+      if (!foundById && !foundByName) {
+        // 還沒建過，加入待建清單（去重）
+        if (!toCreateCusts.find(c => c.name === r.customer_name)) {
+          toCreateCusts.push({
+            user_id: user.id,
+            name: r.customer_name,
+            phone: r.customer_phone || null,
+            is_pinned: false,
+          })
+        }
+      }
+    })
+
+    if (toCreateCusts.length > 0) {
+      const { data: newCusts } = await supabase.from('customers')
+        .insert(toCreateCusts).select('id,name,phone')
+      ;(newCusts||[]).forEach(c => {
+        if (c.phone) phoneMap[c.phone.replace(/[-\s]/g,'')] = c.id
+        nameMap[c.name] = c.id
+      })
     }
 
-    const toInsert = importRows.map(r => ({
-      user_id: user.id,
-      customer_id: r.customer_name ? (custMap[r.customer_name] || null) : null,
-      date: r.date,
-      product_name: r.product_name,
-      type: r.type,
-      points: Number(r.points),
-      amount: r.amount ? Number(r.amount) : 0,
-      cost: r.cost ? Number(r.cost) : 0,
-      is_gift: r.is_gift === 'true' || r.is_gift === '1',
-    }))
+    const toInsert = importRows.map(r => {
+      // 電話優先，找不到再用名字
+      const phone = (r.customer_phone||'').replace(/[-\s]/g,'')
+      const customerId = (phone && phoneMap[phone])
+        || (r.customer_name && nameMap[r.customer_name])
+        || null
+      return {
+        user_id: user.id,
+        customer_id: customerId,
+        date: r.date,
+        product_name: r.product_name,
+        type: r.type,
+        points: Number(r.points),
+        amount: r.amount ? Number(r.amount) : 0,
+        cost: r.cost ? Number(r.cost) : 0,
+        is_gift: r.is_gift === 'true' || r.is_gift === '1',
+      }
+    })
 
     await supabase.from('transactions').insert(toInsert)
 
@@ -437,14 +470,15 @@ export default function Transactions() {
               <span style={{ fontSize:18 }}>📄</span>
               <div style={{ textAlign:'left' }}>
                 <p style={{ fontSize:13,fontWeight:700,color:'#16A34A',margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11,color:'#6B7280',margin:0 }}>date, customer_name, product_name, type, points, amount, cost, is_gift</p>
+                <p style={{ fontSize:11,color:'#6B7280',margin:0 }}>date, customer_name, customer_phone, product_name, type, points, amount, cost, is_gift</p>
               </div>
             </button>
 
             <div style={{ background:'#FFF7ED',borderRadius:10,padding:'10px 14px',marginBottom:16 }}>
               <p style={{ fontSize:12,color:'#92400E',margin:0,lineHeight:1.6 }}>
                 💡 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_name</strong> 若填寫，將自動比對或建立顧客檔案<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_name</strong> 電話找不到時用名字配對，都沒有就新建<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false
               </p>
             </div>
