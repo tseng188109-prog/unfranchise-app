@@ -50,6 +50,9 @@ function parseDate(val) {
   val = val.trim()
   if (!val) return ''
 
+  // Excel 空白日期產生的無效值，直接忽略
+  if (val.startsWith('1900') || val === '0' || val === '00/00' || val.includes('/00')) return ''
+
   // 已經是 YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
 
@@ -57,8 +60,29 @@ function parseDate(val) {
   const slashFull = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
   if (slashFull) {
     const [, y, m, d] = slashFull
+    if (m === '0' || d === '0' || m === '00' || d === '00') return ''
     return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
   }
+
+  // 民國 YYY/M/D
+  const rocSlash = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
+  if (rocSlash) {
+    const [, ry, m, d] = rocSlash
+    if (m === '0' || d === '0' || m === '00' || d === '00') return ''
+    const y = parseInt(ry) + 1911
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  // YYYY-M-D
+  const dashFull = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (dashFull) {
+    const [, y, m, d] = dashFull
+    if (m === '0' || d === '0' || m === '00' || d === '00') return ''
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  return ''
+}
 
   // 民國 YYY/M/D（3位年份，如 114/7/1）
   const rocSlash = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
