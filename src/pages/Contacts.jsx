@@ -175,16 +175,13 @@ export default function Contacts() {
       const rows = rawRows.map((r, i) => {
         const parsed = { ...r }
 
-        // 解析 next_contact_date
-        const rawDate = r.next_contact_date || ''
-        if (rawDate) {
-          const converted = parseDate(rawDate)
-          if (!converted) {
-            errors.push(`第${i+2}行「${r.name}」：無法識別日期「${rawDate}」，請改用 YYYY/MM/DD 或 YYYY-MM-DD`)
-          } else {
-            parsed.next_contact_date = converted
-          }
-        }
+       // 解析 next_contact_date
+const rawDate = r.next_contact_date || ''
+if (rawDate) {
+  const converted = parseDate(rawDate)
+  // 無法解析就當空值，不報錯
+  parsed.next_contact_date = converted || null
+}
 
         // 解析 birthday
         const rawBday = r.birthday || ''
