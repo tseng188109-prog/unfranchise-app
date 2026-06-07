@@ -43,6 +43,67 @@ function parseCSV(text) {
   }).filter(r => r.name && r.name.trim())
 }
 
+// 解析各種日期格式 → YYYY-MM-DD
+// 支援：2025-07-01 / 2025/7/1 / 2025/07/01 / 114/7/1（民國）
+function parseDate(val) {
+  if (!val) return ''
+  val = val.trim()
+  if (!val) return ''
+
+  // 已經是 YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
+
+  // YYYY/M/D 或 YYYY/MM/DD（西元）
+  const slashFull = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+  if (slashFull) {
+    const [, y, m, d] = slashFull
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  // 民國 YYY/M/D（3位年份，如 114/7/1）
+  const rocSlash = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
+  if (rocSlash) {
+    const [, ry, m, d] = rocSlash
+    const y = parseInt(ry) + 1911
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  // YYYY-M-D（年份4位但月日沒補零）
+  const dashFull = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (dashFull) {
+    const [, y, m, d] = dashFull
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  return '' // 無法解析
+}
+
+// 解析生日 → MM-DD
+// 支援：06-15 / 6-15 / 06/15 / 6/15
+function parseBirthday(val) {
+  if (!val) return ''
+  val = val.trim()
+  if (!val) return ''
+
+  // 已經是 MM-DD
+  if (/^\d{2}-\d{2}$/.test(val)) return val
+
+  // M-D 或 M/D 或 MM/DD
+  const match = val.match(/^(\d{1,2})[-\/](\d{1,2})$/)
+  if (match) {
+    const [, m, d] = match
+    return `${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  // 如果是完整日期格式（Excel 存了年月日），只取月日
+  const fullDate = parseDate(val)
+  if (fullDate) {
+    return fullDate.slice(5) // 取 MM-DD
+  }
+
+  return ''
+}
+
 const CONTACTS_TEMPLATE = `name,occupation,egg_type,need_level,action_type,birthday,next_contact_date
 王小明,上班族,茶葉蛋,大三,直接法,06-15,2025-07-01
 李美玲,老師,荷包蛋,大二,軟性活動,03-22,
@@ -125,19 +186,46 @@ export default function Contacts() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const rows = parseCSV(ev.target.result)
+      const rawRows = parseCSV(ev.target.result)
       const errors = []
-      rows.forEach((r, i) => {
-        if (!r.name) errors.push(`第${i+2}行：缺少姓名`)
+
+      // 解析並轉換每一行的日期欄位
+      const rows = rawRows.map((r, i) => {
+        const parsed = { ...r }
+
+        // 解析 next_contact_date
+        const rawDate = r.next_contact_date || ''
+        if (rawDate) {
+          const converted = parseDate(rawDate)
+          if (!converted) {
+            errors.push(`第${i+2}行「${r.name}」：無法識別日期「${rawDate}」，請改用 YYYY/MM/DD 或 YYYY-MM-DD`)
+          } else {
+            parsed.next_contact_date = converted
+          }
+        }
+
+        // 解析 birthday
+        const rawBday = r.birthday || ''
+        if (rawBday) {
+          const converted = parseBirthday(rawBday)
+          if (!converted) {
+            errors.push(`第${i+2}行「${r.name}」：無法識別生日「${rawBday}」，請改用 MM/DD 或 MM-DD`)
+          } else {
+            parsed.birthday = converted
+          }
+        }
+
+        // 驗證蛋型
         if (r.egg_type && !EGG_VALID.includes(r.egg_type))
           errors.push(`第${i+2}行「${r.name}」：蛋型「${r.egg_type}」不正確（茶葉蛋/荷包蛋/生雞蛋）`)
+
+        // 驗證需求度
         if (r.need_level && !NEED_VALID.includes(r.need_level))
           errors.push(`第${i+2}行「${r.name}」：需求度「${r.need_level}」不正確（大一/大二/大三/大四）`)
-        if (r.birthday && !/^\d{2}-\d{2}$/.test(r.birthday))
-          errors.push(`第${i+2}行「${r.name}」：生日格式應為 MM-DD，例：06-15`)
-        if (r.next_contact_date && !/^\d{4}-\d{2}-\d{2}$/.test(r.next_contact_date))
-          errors.push(`第${i+2}行「${r.name}」：日期格式應為 YYYY-MM-DD`)
+
+        return parsed
       })
+
       setImportRows(rows)
       setImportErrors(errors)
       setImportDone(null)
@@ -387,9 +475,19 @@ export default function Contacts() {
               <span style={{ fontSize:18 }}>📄</span>
               <div style={{ textAlign:'left' }}>
                 <p style={{ fontSize:13, fontWeight:700, color:'#16A34A', margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>name*, occupation, egg_type, need_level, action_type, birthday(MM-DD), next_contact_date(YYYY-MM-DD)</p>
+                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>
+                  日期格式支援：YYYY-MM-DD、YYYY/MM/DD、民國年（如 114/7/1）
+                </p>
               </div>
             </button>
+
+            {/* 格式說明 */}
+            <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:'#1D4ED8', margin:'0 0 4px' }}>💡 日期格式說明</p>
+              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 跟進日期：2025-07-01 或 2025/7/1 或 114/7/1 都可以</p>
+              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 生日：06-15 或 6/15 或 06/15 都可以</p>
+              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• Excel 存出的格式會自動轉換，不用特別處理</p>
+            </div>
 
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
@@ -408,7 +506,7 @@ export default function Contacts() {
                 {importErrors.length > 0 && (
                   <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px', marginBottom:10 }}>
                     <p style={{ fontSize:12, fontWeight:700, color:'#DC2626', margin:'0 0 4px' }}>
-                      ⚠️ 發現 {importErrors.length} 個問題，請修正 CSV 後重新上傳：
+                      ⚠️ 發現 {importErrors.length} 個問題，請修正後重新上傳：
                     </p>
                     {importErrors.map((e,i) => (
                       <p key={i} style={{ fontSize:12, color:'#DC2626', margin:'2px 0' }}>• {e}</p>
@@ -429,6 +527,7 @@ export default function Contacts() {
                         <div style={{ flex:1 }}>
                           <span style={{ fontSize:13, fontWeight:700, color:'#111827' }}>{r.name}</span>
                           {r.occupation && <span style={{ fontSize:12, color:'#9CA3AF' }}> · {r.occupation}</span>}
+                          {r.next_contact_date && <span style={{ fontSize:11, color:'#6B7280', marginLeft:6 }}>📅 {r.next_contact_date}</span>}
                           {r.birthday && <span style={{ fontSize:11, color:'#A855F7', marginLeft:6 }}>🎂 {r.birthday}</span>}
                         </div>
                         {r.egg_type && (
