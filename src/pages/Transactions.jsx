@@ -15,17 +15,45 @@ function formatDate(d) {
 
 // ── CSV 工具 ──────────────────────────────────────────
 function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, '')
   const lines = text.trim().split(/\r?\n/)
   if (lines.length < 2) return []
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
   return lines.slice(1).map(line => {
-    const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || []
+    const vals = line.split(',')
     const row = {}
     headers.forEach((h, i) => {
-      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'')
+      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'').replace(/\r$/, '')
     })
     return row
   }).filter(r => r.date && r.product_name && r.type && r.points)
+}
+
+function parseDate(val) {
+  if (!val) return ''
+  val = val.trim()
+  if (!val) return ''
+  if (/\/00|-00|^1900/.test(val)) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
+  const m1 = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+  if (m1) {
+    const [, y, mo, d] = m1
+    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  const m2 = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
+  if (m2) {
+    const [, ry, mo, d] = m2
+    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
+    return `${parseInt(ry)+1911}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  const m3 = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (m3) {
+    const [, y, mo, d] = m3
+    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  return ''
 }
 
 const TRANSACTIONS_TEMPLATE = `date,customer_name,product_name,type,points,amount,cost,is_gift
@@ -50,7 +78,6 @@ export default function Transactions() {
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
 
-  // CSV 匯入狀態
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
   const [importErrors, setImportErrors] = useState([])
@@ -144,18 +171,32 @@ export default function Transactions() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const rows = parseCSV(ev.target.result)
+      const rawRows = parseCSV(ev.target.result)
       const errors = []
-      rows.forEach((r, i) => {
-        if (!r.date) errors.push(`第${i+2}行：缺少日期`)
-        else if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date))
-          errors.push(`第${i+2}行：日期格式應為 YYYY-MM-DD`)
+
+      const rows = rawRows.map((r, i) => {
+        const parsed = { ...r }
+
+        // 解析日期
+        const rawDate = r.date || ''
+        if (rawDate) {
+          const converted = parseDate(rawDate)
+          if (!converted) {
+            errors.push(`第${i+2}行「${r.product_name}」：無法識別日期「${rawDate}」`)
+          } else {
+            parsed.date = converted
+          }
+        }
+
         if (!r.product_name) errors.push(`第${i+2}行：缺少品名`)
         if (!['BV','IBV'].includes(r.type))
           errors.push(`第${i+2}行「${r.product_name}」：類型應為 BV 或 IBV`)
         if (!r.points || isNaN(Number(r.points)))
           errors.push(`第${i+2}行「${r.product_name}」：點數應為數字`)
+
+        return parsed
       })
+
       setImportRows(rows)
       setImportErrors(errors)
       setImportDone(null)
@@ -168,13 +209,11 @@ export default function Transactions() {
     if (!importRows.length || importErrors.length) return
     setImporting(true)
 
-    // 先取得顧客名稱→ID 對應表
     const { data: custList } = await supabase
       .from('customers').select('id,name').eq('user_id', user.id)
     const custMap = {}
     ;(custList||[]).forEach(c => { custMap[c.name] = c.id })
 
-    // 新顧客先建立
     const newCustNames = [...new Set(
       importRows.map(r => r.customer_name).filter(n => n && !custMap[n])
     )]
@@ -226,7 +265,6 @@ export default function Transactions() {
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}
       onClick={() => setMenuId(null)}>
 
-      {/* Header */}
       <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>業績紀錄</h1>
@@ -243,7 +281,6 @@ export default function Transactions() {
           </div>
         </div>
 
-        {/* 月份切換 */}
         <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginBottom:16 }}>
           <button onClick={prevMonth}
             style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>‹</button>
@@ -252,7 +289,6 @@ export default function Transactions() {
             style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>›</button>
         </div>
 
-        {/* 統計卡片 */}
         <div style={{ display:'flex',gap:10,marginBottom:8 }}>
           <div style={{ flex:1,background:'#FFF7ED',borderRadius:12,padding:'12px' }}>
             <p style={{ fontSize:11,fontWeight:700,color:'#F97316',margin:'0 0 4px' }}>BV</p>
@@ -273,7 +309,6 @@ export default function Transactions() {
           </p>
         )}
 
-        {/* 趨勢圖 */}
         {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
           <div style={{ background:'#F8FAFC',borderRadius:12,padding:'12px 8px 8px',marginTop:4 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
@@ -315,7 +350,6 @@ export default function Transactions() {
         )}
       </div>
 
-      {/* 列表 */}
       {loading ? (
         <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>載入中…</div>
       ) : transactions.length === 0 ? (
@@ -381,7 +415,6 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* ── CSV 匯入 Modal ───────────────────────────── */}
       {showImport && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:400 }}
@@ -408,12 +441,11 @@ export default function Transactions() {
               </div>
             </button>
 
-            {/* 說明 */}
             <div style={{ background:'#FFF7ED',borderRadius:10,padding:'10px 14px',marginBottom:16 }}>
               <p style={{ fontSize:12,color:'#92400E',margin:0,lineHeight:1.6 }}>
-                💡 <strong>customer_name</strong> 若填寫，將自動比對或建立顧客檔案<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;業績紀錄不會偵測重複，請確認後再匯入
+                💡 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_name</strong> 若填寫，將自動比對或建立顧客檔案<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false
               </p>
             </div>
 
@@ -497,9 +529,7 @@ export default function Transactions() {
           </div>
         </div>
       )}
-      {/* ───────────────────────────────────────────── */}
 
-      {/* 刪除確認 Modal */}
       {deleteTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
@@ -519,7 +549,6 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* 編輯 Modal */}
       {editTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200 }}>

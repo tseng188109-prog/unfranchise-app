@@ -15,17 +15,60 @@ function formatDate(d) {
 
 // ── CSV 工具 ──────────────────────────────────────────
 function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, '')
   const lines = text.trim().split(/\r?\n/)
   if (lines.length < 2) return []
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
   return lines.slice(1).map(line => {
-    const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || []
+    const vals = line.split(',')
     const row = {}
     headers.forEach((h, i) => {
-      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'')
+      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'').replace(/\r$/, '')
     })
     return row
   }).filter(r => r.name && r.name.trim())
+}
+
+function parseDate(val) {
+  if (!val) return ''
+  val = val.trim()
+  if (!val) return ''
+  if (/\/00|-00|^1900/.test(val)) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
+  const m1 = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+  if (m1) {
+    const [, y, mo, d] = m1
+    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  const m2 = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
+  if (m2) {
+    const [, ry, mo, d] = m2
+    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
+    return `${parseInt(ry)+1911}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  const m3 = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (m3) {
+    const [, y, mo, d] = m3
+    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  return ''
+}
+
+function parseBirthday(val) {
+  if (!val) return ''
+  val = val.trim()
+  if (!val) return ''
+  if (/^\d{2}-\d{2}$/.test(val)) return val
+  const match = val.match(/^(\d{1,2})[-\/](\d{1,2})$/)
+  if (match) {
+    const [, m, d] = match
+    return `${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+  const fullDate = parseDate(val)
+  if (fullDate) return fullDate.slice(5)
+  return ''
 }
 
 const CUSTOMERS_TEMPLATE = `name,phone,occupation,birthday,repurchase_reminder
@@ -43,7 +86,6 @@ export default function Customers() {
   const [menuTarget, setMenuTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  // CSV 匯入狀態
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
   const [importErrors, setImportErrors] = useState([])
@@ -100,15 +142,29 @@ export default function Customers() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const rows = parseCSV(ev.target.result)
+      const rawRows = parseCSV(ev.target.result)
       const errors = []
-      rows.forEach((r, i) => {
-        if (!r.name) errors.push(`第${i+2}行：缺少姓名`)
-        if (r.birthday && !/^\d{2}-\d{2}$/.test(r.birthday))
-          errors.push(`第${i+2}行「${r.name}」：生日格式應為 MM-DD，例：06-15`)
-        if (r.repurchase_reminder && !/^\d{4}-\d{2}-\d{2}$/.test(r.repurchase_reminder))
-          errors.push(`第${i+2}行「${r.name}」：回購日期格式應為 YYYY-MM-DD`)
+
+      const rows = rawRows.map((r, i) => {
+        const parsed = { ...r }
+
+        if (r.repurchase_reminder) {
+          parsed.repurchase_reminder = parseDate(r.repurchase_reminder) || null
+          if (r.repurchase_reminder && !parsed.repurchase_reminder) {
+            errors.push(`第${i+2}行「${r.name}」：無法識別回購日期「${r.repurchase_reminder}」`)
+          }
+        }
+
+        if (r.birthday) {
+          parsed.birthday = parseBirthday(r.birthday) || null
+          if (r.birthday && !parsed.birthday) {
+            errors.push(`第${i+2}行「${r.name}」：無法識別生日「${r.birthday}」`)
+          }
+        }
+
+        return parsed
       })
+
       setImportRows(rows)
       setImportErrors(errors)
       setImportDone(null)
@@ -216,7 +272,6 @@ export default function Customers() {
     <div style={{ background:'#F8FAFC', minHeight:'100vh' }}
       onClick={() => setMenuTarget(null)}>
 
-      {/* Header */}
       <div style={{ background:'#fff', padding:'52px 16px 0', borderBottom:'1px solid #F3F4F6' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
           <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>顧客檔案</h1>
@@ -256,7 +311,6 @@ export default function Customers() {
         </div>
       )}
 
-      {/* ── CSV 匯入 Modal ───────────────────────────── */}
       {showImport && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400 }}
@@ -279,9 +333,16 @@ export default function Customers() {
               <span style={{ fontSize:18 }}>📄</span>
               <div style={{ textAlign:'left' }}>
                 <p style={{ fontSize:13, fontWeight:700, color:'#16A34A', margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>name*, phone*, occupation, birthday(MM-DD), repurchase_reminder(YYYY-MM-DD)</p>
+                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>日期支援 YYYY/MM/DD、民國年、Excel 格式</p>
               </div>
             </button>
+
+            <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:'#1D4ED8', margin:'0 0 4px' }}>💡 日期格式說明</p>
+              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 回購日期：2025-08-01 或 2025/8/1 都可以</p>
+              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 生日：06-15 或 6/15 都可以</p>
+              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• Excel 空白日期會自動忽略</p>
+            </div>
 
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
@@ -367,7 +428,6 @@ export default function Customers() {
         </div>
       )}
 
-      {/* 長按選單 Modal */}
       {menuTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}
