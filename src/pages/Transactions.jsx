@@ -19,11 +19,20 @@ function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/)
   if (lines.length < 2) return []
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
+
   return lines.slice(1).map(line => {
-    const vals = line.split(',')
+    const vals = []
+    let cur = '', inQuote = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') { inQuote = !inQuote }
+      else if (ch === ',' && !inQuote) { vals.push(cur.trim()); cur = '' }
+      else { cur += ch }
+    }
+    vals.push(cur.trim())
     const row = {}
     headers.forEach((h, i) => {
-      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'').replace(/\r$/, '')
+      row[h] = (vals[i] || '').replace(/^"|"$/g,'').replace(/\r$/, '')
     })
     return row
   }).filter(r => r.date && r.product_name && r.type && r.points)
@@ -54,6 +63,15 @@ function parseDate(val) {
     return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
   }
   return ''
+}
+
+// 電話標準化：去除符號，補回 Excel 吃掉的開頭 0
+function normalizePhone(val) {
+  if (!val) return ''
+  let p = String(val).trim().replace(/[-\s()]/g, '')
+  if (!p) return ''
+  if (/^\d{9}$/.test(p)) p = '0' + p
+  return p
 }
 
 const TRANSACTIONS_TEMPLATE = `date,customer_name,customer_phone,product_name,type,points,amount,cost,is_gift
@@ -177,7 +195,6 @@ export default function Transactions() {
       const rows = rawRows.map((r, i) => {
         const parsed = { ...r }
 
-        // 解析日期
         const rawDate = r.date || ''
         if (rawDate) {
           const converted = parseDate(rawDate)
@@ -209,32 +226,28 @@ export default function Transactions() {
     if (!importRows.length || importErrors.length) return
     setImporting(true)
 
-    // 取得所有顧客（含電話）
     const { data: custList } = await supabase
       .from('customers').select('id,name,phone').eq('user_id', user.id)
 
-    // 建立兩個對照表：電話→id、名字→id
     const phoneMap = {}
     const nameMap = {}
     ;(custList||[]).forEach(c => {
-      if (c.phone) phoneMap[c.phone.replace(/[-\s]/g,'')] = c.id
+      if (c.phone) phoneMap[normalizePhone(c.phone)] = c.id
       nameMap[c.name] = c.id
     })
 
-    // 找出需要新建的顧客（電話和名字都找不到）
     const toCreateCusts = []
     importRows.forEach(r => {
       if (!r.customer_name) return
-      const phone = (r.customer_phone||'').replace(/[-\s]/g,'')
-      const foundById = phone ? phoneMap[phone] : null
+      const phone = normalizePhone(r.customer_phone)
+      const foundByPhone = phone ? phoneMap[phone] : null
       const foundByName = nameMap[r.customer_name]
-      if (!foundById && !foundByName) {
-        // 還沒建過，加入待建清單（去重）
+      if (!foundByPhone && !foundByName) {
         if (!toCreateCusts.find(c => c.name === r.customer_name)) {
           toCreateCusts.push({
             user_id: user.id,
             name: r.customer_name,
-            phone: r.customer_phone || null,
+            phone: normalizePhone(r.customer_phone) || null,
             is_pinned: false,
           })
         }
@@ -245,14 +258,13 @@ export default function Transactions() {
       const { data: newCusts } = await supabase.from('customers')
         .insert(toCreateCusts).select('id,name,phone')
       ;(newCusts||[]).forEach(c => {
-        if (c.phone) phoneMap[c.phone.replace(/[-\s]/g,'')] = c.id
+        if (c.phone) phoneMap[normalizePhone(c.phone)] = c.id
         nameMap[c.name] = c.id
       })
     }
 
     const toInsert = importRows.map(r => {
-      // 電話優先，找不到再用名字
-      const phone = (r.customer_phone||'').replace(/[-\s]/g,'')
+      const phone = normalizePhone(r.customer_phone)
       const customerId = (phone && phoneMap[phone])
         || (r.customer_name && nameMap[r.customer_name])
         || null
@@ -479,7 +491,8 @@ export default function Transactions() {
                 💡 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_name</strong> 電話找不到時用名字配對，都沒有就新建<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false
+                &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;電話開頭的 0 被 Excel 吃掉沒關係，系統會自動補回
               </p>
             </div>
 
