@@ -196,9 +196,11 @@ export default function Customers() {
       })
     })
 
-    if (toInsert.length > 0) {
-      await supabase.from('customers').insert(toInsert)
-    }
+ if (toInsert.length > 0) {
+  const { data, error } = await supabase.from('customers').insert(toInsert)
+  console.log('customers insert error:', JSON.stringify(error))
+  console.log('customers insert data:', data)
+}
 
     setImporting(false)
     setImportDone({ success: toInsert.length, skip })
