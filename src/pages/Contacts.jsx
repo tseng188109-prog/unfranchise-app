@@ -53,55 +53,34 @@ function parseDate(val) {
   val = val.trim()
   if (!val) return ''
 
+  // 任何含 /00 或 -00 或 1900 開頭的都直接丟棄
+  if (/\/00|-00|^1900/.test(val)) return ''
+
   // 已經是 YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
 
-  // YYYY/M/D 或 YYYY/MM/DD（西元）
-  const slashFull = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-  if (slashFull) {
-    const [, y, m, d] = slashFull
-    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  // YYYY/M/D 或 YYYY/MM/DD
+  const m1 = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+  if (m1) {
+    const [, y, mo, d] = m1
+    if (mo === '0' || d === '0' || mo === '00' || d === '00') return ''
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
   }
 
-  // 民國 YYY/M/D（3位年份，如 114/7/1）
-  const rocSlash = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
-  if (rocSlash) {
-    const [, ry, m, d] = rocSlash
-    const y = parseInt(ry) + 1911
-    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+  // 民國 YYY/M/D
+  const m2 = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
+  if (m2) {
+    const [, ry, mo, d] = m2
+    if (mo === '0' || d === '0' || mo === '00' || d === '00') return ''
+    return `${parseInt(ry)+1911}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
   }
 
-  // YYYY-M-D（年份4位但月日沒補零）
-  const dashFull = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (dashFull) {
-    const [, y, m, d] = dashFull
-    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-
-  return '' // 無法解析
-}
-
-// 解析生日 → MM-DD
-// 支援：06-15 / 6-15 / 06/15 / 6/15
-function parseBirthday(val) {
-  if (!val) return ''
-  val = val.trim()
-  if (!val) return ''
-
-  // 已經是 MM-DD
-  if (/^\d{2}-\d{2}$/.test(val)) return val
-
-  // M-D 或 M/D 或 MM/DD
-  const match = val.match(/^(\d{1,2})[-\/](\d{1,2})$/)
-  if (match) {
-    const [, m, d] = match
-    return `${m.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-
-  // 如果是完整日期格式（Excel 存了年月日），只取月日
-  const fullDate = parseDate(val)
-  if (fullDate) {
-    return fullDate.slice(5) // 取 MM-DD
+  // YYYY-M-D
+  const m3 = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (m3) {
+    const [, y, mo, d] = m3
+    if (mo === '0' || d === '0' || mo === '00' || d === '00') return ''
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
   }
 
   return ''
