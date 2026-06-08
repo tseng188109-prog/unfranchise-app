@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 
@@ -86,9 +86,10 @@ export default function Daily() {
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalSaved, setGoalSaved] = useState(false)
   const [socialModal, setSocialModal] = useState(false)
+  const goalTextareaRef = useRef(null)
 
   // 新增記錄 Modal
-  const [logModal, setLogModal] = useState(null) // { key, label, counterMode, mode:'week'|'month' }
+  const [logModal, setLogModal] = useState(null)
   const [logDate, setLogDate] = useState(today())
   const [logContact, setLogContact] = useState('')
   const [logContactId, setLogContactId] = useState(null)
@@ -105,6 +106,15 @@ export default function Daily() {
   useEffect(() => { if (user) fetchAll() }, [user, viewDate])
   useEffect(() => { if (user) fetchWeekLogs() }, [user, weekViewDate])
   useEffect(() => { if (user) fetchMonthLogs() }, [user, monthViewDate])
+
+  // Modal 開啟時自動撐高 textarea
+  useEffect(() => {
+    if (goalModal && goalTextareaRef.current) {
+      const el = goalTextareaRef.current
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    }
+  }, [goalModal])
 
   async function fetchAll() {
     setLoading(true)
@@ -294,12 +304,11 @@ export default function Daily() {
     return opts
   }
 
-  // 確認按鈕是否可以送出
   function canConfirm() {
     if (!logModal) return false
     if (logModal.mode === 'month') return !!logProduct
-    if (logModal.counterMode === 'stranger') return true // 全選填
-    return !!logContactId // product / contact 模式必填對象
+    if (logModal.counterMode === 'stranger') return true
+    return !!logContactId
   }
 
   const doneCount = DAILY_TASKS.filter(t => checkins[t.key]).length
@@ -418,7 +427,6 @@ export default function Daily() {
             <span style={sectionTitle}>每週行動</span>
           </div>
 
-          {/* 週導航 */}
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
             background:'#F8FAFC',borderRadius:10,padding:'6px 10px',marginBottom:10 }}>
             <button onClick={() => changeWeekViewDate(-1)}
@@ -432,7 +440,6 @@ export default function Daily() {
                 fontSize:18,cursor: weekDays[6] >= today() ? 'default':'pointer',padding:'0 4px' }}>›</button>
           </div>
 
-          {/* 週點狀圖 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
             background:'#F8FAFC',borderRadius:10,marginBottom:12 }}>
             {weekDays.map((d,i) => {
@@ -459,13 +466,11 @@ export default function Daily() {
             })}
           </div>
 
-          {/* 選中日標題 */}
           <div style={{ fontSize:13,fontWeight:600,color:'#6B7280',marginBottom:8 }}>
             {formatDateLabel(weekViewDate)}
             {weekViewDate > today() && <span style={{ marginLeft:6,fontSize:11,color:'#F59E0B' }}>預排</span>}
           </div>
 
-          {/* 每週 checkbox 任務 */}
           {WEEKLY_TASKS.map(task => {
             const done = !!weekTaskCheckins[task.key]?.[weekViewDate]
             return (
@@ -483,7 +488,6 @@ export default function Daily() {
             )
           })}
 
-          {/* 週計數項目 */}
           {WEEKLY_COUNTERS.map(c => {
             const dayLogs = weekLogs.filter(l =>
               l.counter_key === c.key && (l.planned_date || l.date) === weekViewDate
@@ -614,15 +618,21 @@ export default function Daily() {
               <button onClick={() => setGoalModal(false)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
-            <textarea value={goalText}
-  onChange={e => setGoalText(e.target.value)}
-  onInput={e => { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
-  placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
-  rows={4}
-  style={{ width:'100%',padding:'12px',borderRadius:10,
-    border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-    outline:'none',resize:'none',lineHeight:1.8,overflow:'hidden',
-    display:'block' }} />
+            <textarea
+              ref={goalTextareaRef}
+              value={goalText}
+              onChange={e => {
+                setGoalText(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
+              rows={4}
+              style={{ width:'100%',padding:'12px',borderRadius:10,
+                border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
+                outline:'none',resize:'none',lineHeight:1.8,overflow:'hidden',
+                display:'block' }}
+            />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
                 background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
@@ -675,7 +685,6 @@ export default function Daily() {
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
 
-            {/* 日期選擇 */}
             <div style={{ marginBottom:16 }}>
               <label style={labelStyle}>日期</label>
               <div style={{ display:'flex',gap:6,overflowX:'auto',paddingBottom:4 }}>
@@ -701,7 +710,6 @@ export default function Daily() {
               )}
             </div>
 
-            {/* A: product 模式 — 對象(必填) + 產品(選填) */}
             {logModal.counterMode === 'product' && (
               <>
                 <div style={{ marginBottom:16 }}>
@@ -731,7 +739,6 @@ export default function Daily() {
               </>
             )}
 
-            {/* B: contact 模式 — 對象(必填) */}
             {logModal.counterMode === 'contact' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>對象 <span style={{ color:'#EF4444' }}>必填</span></label>
@@ -754,7 +761,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* C: stranger 模式 — 姓名(選填) */}
             {logModal.counterMode === 'stranger' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>姓名 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填，不認識可不填</span></label>
@@ -763,7 +769,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* D: month 模式 — 名稱(必填) */}
             {logModal.counterMode === 'month_item' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>
@@ -775,7 +780,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 備註（所有模式都有） */}
             <div style={{ marginBottom:20 }}>
               <label style={labelStyle}>備註 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
               <textarea placeholder="記錄重點..." value={logNote}

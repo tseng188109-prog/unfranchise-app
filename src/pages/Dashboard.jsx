@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
@@ -104,14 +104,12 @@ export default function Dashboard() {
   const [viewDate, setViewDate] = useState(today())
   const [loading, setLoading] = useState(true)
 
-  // 目標宣言 Modal
   const [goalModal, setGoalModal] = useState(false)
   const [goalText, setGoalText] = useState('')
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalSaved, setGoalSaved] = useState(false)
-
-  // 社群連結 Modal
   const [socialModal, setSocialModal] = useState(false)
+  const goalTextareaRef = useRef(null)
 
   const isToday = viewDate === today()
 
@@ -128,6 +126,15 @@ export default function Dashboard() {
       fetchViewContacted()
     }
   }, [user, viewDate])
+
+  // Modal 開啟時自動撐高 textarea
+  useEffect(() => {
+    if (goalModal && goalTextareaRef.current) {
+      const el = goalTextareaRef.current
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    }
+  }, [goalModal])
 
   async function fetchAll() {
     setLoading(true)
@@ -261,7 +268,7 @@ export default function Dashboard() {
             <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
           </div>
           <div style={{ display:'flex',gap:8 }}>
-       <NotificationBell userId={user?.id} />
+            <NotificationBell userId={user?.id} />
             <button onClick={()=>navigate('/settings')}
               style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
               width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
@@ -364,7 +371,6 @@ export default function Dashboard() {
             <span style={{ fontSize:13,color:'#6B7280' }}>{checkTotal}/{DAILY_TASKS.length}</span>
           </div>
 
-          {/* 日期切換列 */}
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
             marginBottom:10,background:'#F8FAFC',borderRadius:10,padding:'6px 10px' }}>
             <button onClick={() => changeDate(-1)}
@@ -387,7 +393,6 @@ export default function Dashboard() {
                 padding:'0 4px',lineHeight:1 }}>›</button>
           </div>
 
-          {/* 週點狀圖 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
             background:'#F8FAFC',borderRadius:10,marginBottom:8 }}>
             {weekStatus.map((w,i)=>{
@@ -411,7 +416,6 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* 任務列表（含 icon + 連結） */}
           <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
             {DAILY_TASKS.map(task=>{
               const done=!!checkins[task.key]
@@ -419,7 +423,6 @@ export default function Dashboard() {
               return (
                 <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 0',
                   borderBottom:'1px solid #F9FAFB' }}>
-                  {/* 打勾 */}
                   <button onClick={()=>toggleCheckin(task.key)}
                     style={{ width:20,height:20,borderRadius:6,flexShrink:0,
                       border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
@@ -427,7 +430,6 @@ export default function Dashboard() {
                       transition:'all 0.15s',cursor:'pointer' }}>
                     {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
                   </button>
-                  {/* 任務名稱＋連結 */}
                   <button onClick={()=> hasAction && handleTaskAction(task)}
                     style={{ flex:1,background:'none',border:'none',textAlign:'left',
                       cursor: hasAction?'pointer':'default',padding:0,
@@ -466,15 +468,21 @@ export default function Dashboard() {
               <button onClick={()=>setGoalModal(false)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
-            <textarea value={goalText}
-  onChange={e=>setGoalText(e.target.value)}
-  onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
-  placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
-  rows={4}
-  style={{ width:'100%',padding:'12px',borderRadius:10,
-    border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-    outline:'none',resize:'none',lineHeight:1.8,overflow:'hidden',
-    display:'block' }} />
+            <textarea
+              ref={goalTextareaRef}
+              value={goalText}
+              onChange={e=>{
+                setGoalText(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
+              rows={4}
+              style={{ width:'100%',padding:'12px',borderRadius:10,
+                border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
+                outline:'none',resize:'none',lineHeight:1.8,overflow:'hidden',
+                display:'block' }}
+            />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
                 background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
