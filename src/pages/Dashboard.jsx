@@ -462,7 +462,7 @@ export default function Dashboard() {
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e=>{ if(e.target===e.currentTarget) setGoalModal(false) }}>
           <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430 }}>
+            width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>🎯 我的目標宣言</h3>
               <button onClick={()=>setGoalModal(false)}
@@ -480,7 +480,7 @@ export default function Dashboard() {
               rows={4}
               style={{ width:'100%',padding:'12px',borderRadius:10,
                 border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-                outline:'none',resize:'none',lineHeight:1.8,overflow:'hidden',
+                outline:'none',resize:'none',lineHeight:1.8,
                 display:'block' }}
             />
             <button onClick={saveGoalText} disabled={goalSaving}
