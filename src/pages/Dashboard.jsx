@@ -466,11 +466,15 @@ export default function Dashboard() {
               <button onClick={()=>setGoalModal(false)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
-            <textarea value={goalText} onChange={e=>setGoalText(e.target.value)}
-              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
-              style={{ width:'100%',minHeight:120,padding:'12px',borderRadius:10,
-                border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-                outline:'none',resize:'vertical',lineHeight:1.6 }} />
+            <textarea value={goalText}
+  onChange={e=>setGoalText(e.target.value)}
+  onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
+  placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
+  rows={4}
+  style={{ width:'100%',padding:'12px',borderRadius:10,
+    border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
+    outline:'none',resize:'none',lineHeight:1.8,overflow:'hidden',
+    display:'block' }} />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
                 background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
