@@ -15,15 +15,23 @@ function avatarBg(name){
   let n=0;for(let i=0;i<name.length;i++)n+=name.charCodeAt(i)
   return colors[n%colors.length]
 }
-function today(){
-  const now = new Date()
-  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
-  return tw.toISOString().split('T')[0]
+function toDateStr(d){
+  return d.toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'})
 }
+function today(){ return toDateStr(new Date()) }
 function formatDateDisplay(d){
   if(!d)return''
   const dt=new Date(d+'T00:00:00')
   return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
+}
+function getDateOptions(){
+  const opts=[]
+  for(let i=0;i>=-6;i--){
+    const d=new Date(today()+'T00:00:00')
+    d.setDate(d.getDate()+i)
+    opts.push(toDateStr(d))
+  }
+  return opts
 }
 
 export default function ContactDetail() {
@@ -34,9 +42,15 @@ export default function ContactDetail() {
   const [loading, setLoading] = useState(true)
   const [marking, setMarking] = useState(false)
 
-  // 備註 modal
+  // 今天互動 modal
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [noteInput, setNoteInput] = useState('')
+
+  // 新增互動紀錄 modal
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addDate, setAddDate] = useState(today())
+  const [addNote, setAddNote] = useState('')
+  const [addSaving, setAddSaving] = useState(false)
 
   // 編輯 modal
   const [editingLog, setEditingLog] = useState(null)
@@ -59,6 +73,7 @@ export default function ContactDetail() {
     setLoading(false)
   }
 
+  // 今天互動了
   async function handleTodayContact() {
     setNoteInput('')
     setShowNoteModal(true)
@@ -71,17 +86,15 @@ export default function ContactDetail() {
     const days = DAYS_MAP[actionType] || 30
     const next = new Date()
     next.setDate(next.getDate() + days)
-    const nextStr = next.toISOString().split('T')[0]
+    const nextStr = toDateStr(next)
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    // 更新 contacts
     await supabase.from('contacts').update({
       last_contact_date: todayStr,
       next_contact_date: nextStr,
     }).eq('id', id)
 
-    // 寫入 contact_logs
     await supabase.from('contact_logs').insert({
       contact_id: id,
       user_id: user.id,
@@ -89,7 +102,6 @@ export default function ContactDetail() {
       note: noteInput.trim() || null,
     })
 
-    // 更新每日打卡
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date: todayStr,
       task_key: 'daily_3_contacts', is_done: true,
@@ -98,6 +110,49 @@ export default function ContactDetail() {
 
     setShowNoteModal(false)
     setMarking(false)
+    fetchContact()
+  }
+
+  // 新增互動紀錄（可選日期）
+  function openAddModal() {
+    setAddDate(today())
+    setAddNote('')
+    setShowAddModal(true)
+  }
+
+  async function confirmAddLog() {
+    setAddSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // 寫入互動紀錄
+    await supabase.from('contact_logs').insert({
+      contact_id: id,
+      user_id: user.id,
+      date: addDate,
+      note: addNote.trim() || null,
+    })
+
+    // 同步更新 daily_checkins（讓那天的每日3互動顯示此人）
+    await supabase.from('daily_checkins').upsert({
+      user_id: user.id, date: addDate,
+      task_key: 'daily_3_contacts', is_done: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,date,task_key' })
+
+    // 若是今天或比 last_contact_date 更新，就更新聯絡人日期
+    const isNewerOrToday = !contact.last_contact_date || addDate >= contact.last_contact_date
+    if (isNewerOrToday) {
+      const days = DAYS_MAP[contact.action_type] || 30
+      const next = new Date(addDate + 'T00:00:00')
+      next.setDate(next.getDate() + days)
+      await supabase.from('contacts').update({
+        last_contact_date: addDate,
+        next_contact_date: toDateStr(next),
+      }).eq('id', id)
+    }
+
+    setAddSaving(false)
+    setShowAddModal(false)
     fetchContact()
   }
 
@@ -134,11 +189,12 @@ export default function ContactDetail() {
   if (!contact) return null
 
   const suggestedAction = ACTION_MAP[contact.egg_type]?.[contact.need_level] || contact.action_type
+  const dateOptions = getDateOptions()
 
   return (
     <div style={{background:'#F8FAFC',minHeight:'100vh',paddingBottom:100}}>
 
-      {/* 備註 Modal */}
+      {/* 今天互動了 Modal */}
       {showNoteModal && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
           display:'flex',alignItems:'center',justifyContent:'center',padding:'0 24px'}}>
@@ -167,6 +223,64 @@ export default function ContactDetail() {
                 {marking?'儲存中…':'確認儲存'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 新增互動紀錄 Modal */}
+      {showAddModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
+          display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowAddModal(false)}}>
+          <div style={{background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <p style={{fontSize:16,fontWeight:700,color:'#111827',margin:0}}>📝 新增互動紀錄</p>
+              <button onClick={()=>setShowAddModal(false)}
+                style={{background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer'}}>✕</button>
+            </div>
+
+            {/* 日期選擇 */}
+            <div style={{marginBottom:16}}>
+              <label style={labelStyle}>日期</label>
+              <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4}}>
+                {dateOptions.map(d=>{
+                  const isSelected = addDate===d
+                  const isT = d===today()
+                  return (
+                    <button key={d} onClick={()=>setAddDate(d)}
+                      style={{flexShrink:0,padding:'6px 10px',borderRadius:8,fontSize:12,
+                        fontWeight:isSelected?700:400,cursor:'pointer',
+                        border:isSelected?'2px solid #2563EB':'1px solid #E5E7EB',
+                        background:isSelected?'#EFF6FF':'#F9FAFB',
+                        color:isSelected?'#1D4ED8':'#6B7280'}}>
+                      {isT?'今天':formatDateDisplay(d)}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 備註 */}
+            <div style={{marginBottom:20}}>
+              <label style={labelStyle}>備註 <span style={{color:'#9CA3AF',fontSize:12}}>選填</span></label>
+              <textarea
+                value={addNote}
+                onChange={e=>setAddNote(e.target.value)}
+                placeholder="例：聊了工作近況、對健康產品感興趣…"
+                rows={3}
+                style={{width:'100%',borderRadius:10,border:'1px solid #E5E7EB',
+                  padding:'10px 12px',fontSize:14,resize:'none',
+                  boxSizing:'border-box',outline:'none'}}
+              />
+            </div>
+
+            <button onClick={confirmAddLog} disabled={addSaving}
+              style={{width:'100%',padding:'13px',borderRadius:12,border:'none',
+                background:'#2563EB',color:'#fff',fontSize:15,
+                fontWeight:700,cursor:'pointer'}}>
+              {addSaving?'儲存中…':'確認新增'}
+            </button>
           </div>
         </div>
       )}
@@ -335,6 +449,12 @@ export default function ContactDetail() {
       <div style={{position:'fixed',bottom:64,left:'50%',transform:'translateX(-50%)',
         width:'100%',maxWidth:430,padding:'12px 16px',background:'#fff',
         borderTop:'1px solid #F3F4F6',display:'flex',gap:10,boxSizing:'border-box'}}>
+        <button onClick={openAddModal}
+          style={{flex:1,padding:'13px',borderRadius:12,border:'1px solid #E5E7EB',
+            background:'#F9FAFB',color:'#374151',
+            fontSize:14,fontWeight:700,cursor:'pointer'}}>
+          📝 新增互動紀錄
+        </button>
         <button onClick={handleTodayContact}
           style={{flex:1,padding:'13px',borderRadius:12,border:'none',
             background:'#22C55E',color:'#fff',
@@ -345,3 +465,5 @@ export default function ContactDetail() {
     </div>
   )
 }
+
+const labelStyle = {fontSize:13,color:'#374151',fontWeight:600,display:'block',marginBottom:6}
