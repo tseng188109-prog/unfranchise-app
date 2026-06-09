@@ -17,6 +17,16 @@ function todayTW() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 }
 
+// 取得本週一（台灣時區）
+function getWeekMonday() {
+  const today = new Date(todayTW())
+  const dow = today.getDay() // 0=日,1=一,...,6=六
+  const diff = dow === 0 ? -6 : 1 - dow // 週一為起點
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+  return monday.toLocaleDateString('sv-SE')
+}
+
 const DAILY_TASKS = [
   { key: 'goal_declaration',     label: '目標宣言' },
   { key: 'backend_announcement', label: '後台公告' },
@@ -49,7 +59,7 @@ export default function Partners() {
   const [panelLoading, setPanelLoading] = useState(false)
 
   // 打卡明細 popup
-  const [dayDetail, setDayDetail] = useState(null) // { date, tasks: [{key,label,is_done}] }
+  const [dayDetail, setDayDetail] = useState(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -97,27 +107,39 @@ export default function Partners() {
       const now = new Date()
       const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`
       const todayDay = parseInt(todayTW().split('-')[2])
+      const weekMonday = getWeekMonday()
+      const todayStr = todayTW()
 
       const enriched = await Promise.all(partnerUsers.map(async p => {
+        // BV / IBV
         const { data: bvData } = await supabase.rpc('get_partner_monthly_bv', {
           partner_id: p.id, month_start: monthStart,
         })
         const bv = bvData?.[0]?.bv || 0
         const ibv = bvData?.[0]?.ibv || 0
 
-        const { data: checkinData } = await supabase.rpc('get_partner_checkin_rate', {
-          partner_id: p.id, month_start: monthStart, today_day: todayDay,
-        })
-        const checkinRate = Number(checkinData) || 0
+        // 本週打卡天數（直接查 daily_checkins，不用 RPC）
+        const { data: weekRows } = await supabase
+          .from('daily_checkins')
+          .select('checkin_date')
+          .eq('user_id', p.id)
+          .eq('is_done', true)
+          .gte('checkin_date', weekMonday)
+          .lte('checkin_date', todayStr)
 
+        // 統計有幾個不同日期有打卡
+        const weekDays = new Set((weekRows || []).map(r => r.checkin_date)).size
+
+        // 直屬人數
         const { count } = await supabase.from('users')
           .select('id', { count:'exact', head:true }).eq('referrer_id', p.id)
 
         const bvRate = Math.min(100, Math.round((bv / 1500) * 100))
         const ibvRate = Math.min(100, Math.round((ibv / 300) * 100))
-        const isActive = bvRate >= 30 || checkinRate >= 50
+        // 活躍判定：BV 達 30% 或本週打卡 >= 3 天
+        const isActive = bvRate >= 30 || weekDays >= 3
 
-        return { ...p, bv, ibv, bvRate, ibvRate, checkinRate, directCount: count||0, isActive }
+        return { ...p, bv, ibv, bvRate, ibvRate, weekDays, directCount: count||0, isActive }
       }))
       setPartners(enriched)
     } else {
@@ -146,12 +168,20 @@ export default function Partners() {
 
     const now = new Date()
     const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`
+    const todayStr = todayTW()
 
     // 本月所有打卡明細
     const { data: checkinRows } = await supabase.rpc('get_partner_daily_checkins', {
       partner_id: p.id,
       month_start: monthStart,
     })
+
+    // 今日打卡明細（從 checkinRows 裡取今天的）
+    const todayTasks = DAILY_TASKS.map(t => {
+      const row = (checkinRows || []).find(r => r.checkin_date === todayStr && r.task_key === t.key)
+      return { ...t, is_done: row?.is_done === true }
+    })
+    const todayDoneCount = todayTasks.filter(t => t.is_done).length
 
     // 互動名單數
     const { count: contactCount } = await supabase
@@ -162,7 +192,7 @@ export default function Partners() {
       partner_id: p.id, month_start: monthStart,
     })
 
-    // 把打卡資料整理成 { '2026-06-01': { goal_declaration: true, ... }, ... }
+    // 打卡資料整理成 map
     const checkinMap = {}
     ;(checkinRows || []).forEach(r => {
       if (!checkinMap[r.checkin_date]) checkinMap[r.checkin_date] = {}
@@ -170,7 +200,6 @@ export default function Partners() {
     })
 
     // 產生本月日曆格子
-    const today = todayTW()
     const year = now.getFullYear()
     const month = now.getMonth()
     const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -179,16 +208,14 @@ export default function Partners() {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       const dayTasks = checkinMap[dateStr] || {}
       const doneCount = Object.values(dayTasks).filter(Boolean).length
-      const totalTracked = Object.keys(dayTasks).length
       let status = 'none'
-      if (dateStr > today) status = 'future'
+      if (dateStr > todayStr) status = 'future'
       else if (doneCount === 0) status = 'none'
       else if (doneCount >= DAILY_TASKS.length) status = 'full'
       else status = 'partial'
-      calDays.push({ dateStr, d, doneCount, totalTracked, status, dayTasks })
+      calDays.push({ dateStr, d, doneCount, status, dayTasks })
     }
 
-    // 月第一天是星期幾（用來對齊格子）
     const firstDow = new Date(year, month, 1).getDay()
 
     setPanelDetail({
@@ -196,6 +223,8 @@ export default function Partners() {
       contactCount: contactCount || 0,
       bv: txData?.[0]?.bv || 0,
       ibv: txData?.[0]?.ibv || 0,
+      todayTasks,
+      todayDoneCount,
     })
     setPanelLoading(false)
   }
@@ -211,6 +240,13 @@ export default function Partners() {
 
   const isAdmin = user?.id === MY_ID
   const DAYS_ZH = ['日','一','二','三','四','五','六']
+
+  // 本週進度條顏色
+  function weekBarColor(days) {
+    if (days >= 5) return '#22C55E'
+    if (days >= 3) return '#F59E0B'
+    return '#EF4444'
+  }
 
   return (
     <div style={{ background:'#F8FAFC', minHeight:'100vh', paddingBottom:80 }}>
@@ -326,6 +362,8 @@ export default function Partners() {
                   boxShadow:'0 1px 3px rgba(0,0,0,0.07)', cursor:'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'}
                 onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.07)'}>
+
+                {/* 名字列 */}
                 <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
                   <div style={{ width:44, height:44, borderRadius:'50%',
                     background:avatarBg(p.name||'?'),
@@ -351,11 +389,12 @@ export default function Partners() {
                   </div>
                   <span style={{ fontSize:18, color:'#D1D5DB' }}>›</span>
                 </div>
-                <div style={{ display:'flex', gap:8 }}>
+
+                {/* BV / IBV */}
+                <div style={{ display:'flex', gap:8, marginBottom:10 }}>
                   {[
                     { label:'BV達成', value:p.bvRate, color:'#F97316' },
                     { label:'IBV達成', value:p.ibvRate, color:'#3B82F6' },
-                    { label:'打卡率', value:p.checkinRate, color:'#22C55E' },
                   ].map(m => (
                     <div key={m.label} style={{ flex:1, background:'#F8FAFC',
                       borderRadius:10, padding:'8px', textAlign:'center' }}>
@@ -367,6 +406,27 @@ export default function Partners() {
                       </p>
                     </div>
                   ))}
+                </div>
+
+                {/* 本週打卡進度條 */}
+                <div style={{ background:'#F8FAFC', borderRadius:10, padding:'8px 10px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between',
+                    alignItems:'center', marginBottom:5 }}>
+                    <span style={{ fontSize:11, color:'#9CA3AF', fontWeight:600 }}>本週打卡</span>
+                    <span style={{ fontSize:12, fontWeight:800,
+                      color: weekBarColor(p.weekDays) }}>
+                      {p.weekDays} / 7 天
+                    </span>
+                  </div>
+                  <div style={{ height:5, background:'#E5E7EB', borderRadius:99 }}>
+                    <div style={{
+                      height:'100%',
+                      width:`${Math.round((p.weekDays / 7) * 100)}%`,
+                      background: weekBarColor(p.weekDays),
+                      borderRadius:99,
+                      transition:'width 0.5s ease',
+                    }} />
+                  </div>
                 </div>
               </div>
             ))}
@@ -445,6 +505,39 @@ export default function Partners() {
                 <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>載入中…</div>
               ) : panelDetail && (
                 <>
+                  {/* 今日任務快照 */}
+                  <div style={{ background:'#F0FDF4', borderRadius:12, padding:14,
+                    border:'1px solid #BBF7D0' }}>
+                    <div style={{ display:'flex', alignItems:'center',
+                      justifyContent:'space-between', marginBottom:8 }}>
+                      <p style={{ fontSize:13, fontWeight:700, color:'#15803D', margin:0 }}>
+                        ✅ 今日任務
+                      </p>
+                      <span style={{ fontSize:13, fontWeight:800, color:'#15803D' }}>
+                        {panelDetail.todayDoneCount} / {DAILY_TASKS.length}
+                      </span>
+                    </div>
+                    {/* 小圓點顯示每項任務 */}
+                    <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+                      {panelDetail.todayTasks.map(t => (
+                        <div key={t.key}
+                          title={t.label}
+                          style={{
+                            padding:'3px 8px', borderRadius:99, fontSize:11, fontWeight:600,
+                            background: t.is_done ? '#22C55E' : '#E5E7EB',
+                            color: t.is_done ? '#fff' : '#9CA3AF',
+                          }}>
+                          {t.label}
+                        </div>
+                      ))}
+                    </div>
+                    {panelDetail.todayDoneCount === 0 && (
+                      <p style={{ fontSize:12, color:'#6B7280', margin:'8px 0 0' }}>
+                        今天還沒有任何打卡記錄
+                      </p>
+                    )}
+                  </div>
+
                   {/* 本月數據 */}
                   <div style={{ background:'#F8FAFC', borderRadius:12, padding:14 }}>
                     <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 10px' }}>
@@ -478,7 +571,9 @@ export default function Partners() {
                     {[
                       { label:'BV（目標1500）', value:selectedPartner.bvRate, color:'#F97316' },
                       { label:'IBV（目標300）', value:selectedPartner.ibvRate, color:'#3B82F6' },
-                      { label:'打卡率', value:selectedPartner.checkinRate, color:'#22C55E' },
+                      { label:`本週打卡（${selectedPartner.weekDays}/7天）`,
+                        value: Math.round((selectedPartner.weekDays / 7) * 100),
+                        color: weekBarColor(selectedPartner.weekDays) },
                     ].map(m => (
                       <div key={m.label} style={{ marginBottom:10 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
@@ -501,8 +596,6 @@ export default function Partners() {
                     <p style={{ fontSize:11, color:'#9CA3AF', margin:'0 0 10px' }}>
                       點格子可查看當天完成項目
                     </p>
-
-                    {/* 星期標題 */}
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)',
                       gap:3, marginBottom:4 }}>
                       {DAYS_ZH.map(d => (
@@ -510,10 +603,7 @@ export default function Partners() {
                           color:'#9CA3AF', fontWeight:600, padding:'2px 0' }}>{d}</div>
                       ))}
                     </div>
-
-                    {/* 日期格子 */}
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3 }}>
-                      {/* 補空格對齊第一天 */}
                       {Array.from({ length: panelDetail.firstDow }).map((_, i) => (
                         <div key={`empty-${i}`} />
                       ))}
@@ -529,8 +619,7 @@ export default function Partners() {
                         return (
                           <div key={day.dateStr}
                             onClick={() => clickable && handleDayClick(day)}
-                            style={{ aspectRatio:'1', borderRadius:6,
-                              background: bg,
+                            style={{ aspectRatio:'1', borderRadius:6, background:bg,
                               border: isToday ? '2px solid #2563EB' : '2px solid transparent',
                               display:'flex', alignItems:'center', justifyContent:'center',
                               cursor: clickable ? 'pointer' : 'default',
@@ -544,8 +633,6 @@ export default function Partners() {
                         )
                       })}
                     </div>
-
-                    {/* 圖例 */}
                     <div style={{ display:'flex', gap:12, marginTop:10, flexWrap:'wrap' }}>
                       {[
                         { color:'#22C55E', label:'全部完成' },
