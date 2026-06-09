@@ -16,6 +16,14 @@ const DAILY_TASKS = [
   { key: 'daily_3_contacts', label: '每日3互動', icon: '👥', special: true, toContacts: true },
 ]
 
+const STARTER_TASKS = [
+  { id: 'has_contact',      label: '新增第一筆互動名單',     icon: '👥' },
+  { id: 'has_checkin',      label: '完成今天打卡',           icon: '✅' },
+  { id: 'week3_checkin',    label: '一週內累積打卡 3 天',    icon: '🔥' },
+  { id: 'has_log',          label: '新增第一筆互動紀錄',     icon: '📝' },
+  { id: 'has_declaration',  label: '設定你的目標宣言',       icon: '🎯' },
+]
+
 function toDateStr(d) {
   return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 }
@@ -111,6 +119,11 @@ export default function Dashboard() {
   const [socialModal, setSocialModal] = useState(false)
   const goalTextareaRef = useRef(null)
 
+  // 新手任務卡
+  const [starterTasks, setStarterTasks] = useState(null) // null = 還沒載入
+  const [starterExpanded, setStarterExpanded] = useState(true)
+  const [onboardingDone, setOnboardingDone] = useState(true)
+
   const isToday = viewDate === today()
 
   useEffect(() => {
@@ -127,7 +140,6 @@ export default function Dashboard() {
     }
   }, [user, viewDate])
 
-  // Modal 開啟時自動撐高 textarea
   useEffect(() => {
     if (goalModal && goalTextareaRef.current) {
       const el = goalTextareaRef.current
@@ -140,19 +152,71 @@ export default function Dashboard() {
     setLoading(true)
     await Promise.all([
       fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
-      fetchCheckin(), fetchWeekStatus(), fetchViewContacted(), fetchGoalText()
+      fetchCheckin(), fetchWeekStatus(), fetchViewContacted(),
+      fetchGoalText(), fetchStarterTasks()
     ])
     setLoading(false)
   }
 
   async function fetchProfile() {
-    const { data } = await supabase.from('users').select('name').eq('id',user.id).single()
-    if (data) setProfile(data)
+    const { data } = await supabase.from('users')
+      .select('name, onboarding_done')
+      .eq('id', user.id).single()
+    if (data) {
+      setProfile(data)
+      setOnboardingDone(data.onboarding_done === true)
+    }
   }
 
   async function fetchGoalText() {
     const { data } = await supabase.from('users').select('goal_declaration').eq('id', user.id).single()
     if (data?.goal_declaration) setGoalText(data.goal_declaration)
+  }
+
+  async function fetchStarterTasks() {
+    const todayStr = today()
+
+    // 1. 有沒有互動名單
+    const { count: contactCount } = await supabase
+      .from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+
+    // 2. 今天有沒有打卡
+    const { data: todayCheckin } = await supabase
+      .from('daily_checkins').select('id')
+      .eq('user_id', user.id).eq('date', todayStr).eq('is_done', true).limit(1)
+
+    // 3. 最近 7 天打卡天數 >= 3
+    const sevenDaysAgo = toDateStr(new Date(Date.now() - 6 * 86400000))
+    const { data: weekCheckins } = await supabase
+      .from('daily_checkins').select('date')
+      .eq('user_id', user.id).eq('is_done', true)
+      .gte('date', sevenDaysAgo).lte('date', todayStr)
+    const uniqueDays = new Set((weekCheckins || []).map(r => r.date)).size
+
+    // 4. 有沒有互動紀錄
+    const { count: logCount } = await supabase
+      .from('contact_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+
+    // 5. 有沒有設目標宣言
+    const { data: userData } = await supabase
+      .from('users').select('goal_declaration, onboarding_done').eq('id', user.id).single()
+
+    const tasks = {
+      has_contact:     (contactCount || 0) > 0,
+      has_checkin:     (todayCheckin || []).length > 0,
+      week3_checkin:   uniqueDays >= 3,
+      has_log:         (logCount || 0) > 0,
+      has_declaration: !!(userData?.goal_declaration?.trim()),
+    }
+
+    setOnboardingDone(userData?.onboarding_done === true)
+    setStarterTasks(tasks)
+
+    // 全部完成 → 不顯示任務卡（已全勾）
+    const allDone = Object.values(tasks).every(Boolean)
+    // 超過一半完成 → 預設縮小
+    const doneCount = Object.values(tasks).filter(Boolean).length
+    if (doneCount >= 3) setStarterExpanded(false)
   }
 
   async function fetchMonthlyStats() {
@@ -226,6 +290,8 @@ export default function Dashboard() {
       { onConflict:'user_id,date,task_key' }
     )
     if(error){ setCheckins(p=>({...p,[key]:cur})); setCheckTotal(p=>nv?p-1:p+1) }
+    // 打卡後重新偵測任務完成狀態
+    setTimeout(() => fetchStarterTasks(), 500)
   }
 
   function handleTaskAction(task) {
@@ -241,6 +307,7 @@ export default function Dashboard() {
     setGoalSaving(false)
     setGoalSaved(true)
     setTimeout(() => setGoalSaved(false), 2000)
+    setTimeout(() => fetchStarterTasks(), 500)
   }
 
   const displayName = profile?.name || user?.email?.split('@')[0] || 'Annie'
@@ -249,6 +316,12 @@ export default function Dashboard() {
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} 星期${DAYS_ZH[d.getDay()]}`
   })()
   const allDue = [...overdueContacts,...todayDueContacts]
+
+  // 新手任務計算
+  const starterDoneCount = starterTasks ? Object.values(starterTasks).filter(Boolean).length : 0
+  const starterAllDone = starterDoneCount === STARTER_TASKS.length
+  // 只有 onboarding_done = true 且任務未全完成才顯示任務卡
+  const showStarterCard = onboardingDone && starterTasks !== null && !starterAllDone
 
   if(loading) return (
     <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
@@ -279,6 +352,84 @@ export default function Dashboard() {
       </div>
 
       <div style={{ maxWidth:430,margin:'0 auto' }}>
+
+        {/* 新手任務卡 */}
+        {showStarterCard && (
+          <section style={{ margin:'12px 16px 0',borderRadius:16,overflow:'hidden',
+            border:'1.5px solid #BFDBFE',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+
+            {/* 縮小狀態 */}
+            {!starterExpanded && (
+              <button onClick={() => setStarterExpanded(true)}
+                style={{ width:'100%',background:'#EFF6FF',border:'none',cursor:'pointer',
+                  padding:'10px 14px',display:'flex',alignItems:'center',gap:10 }}>
+                <span style={{ fontSize:14 }}>🚀</span>
+                <div style={{ flex:1,height:6,background:'#DBEAFE',borderRadius:99,overflow:'hidden' }}>
+                  <div style={{ height:'100%',borderRadius:99,background:'#2563EB',
+                    width:`${Math.round((starterDoneCount/STARTER_TASKS.length)*100)}%`,
+                    transition:'width 0.5s ease' }} />
+                </div>
+                <span style={{ fontSize:12,fontWeight:700,color:'#2563EB',whiteSpace:'nowrap' }}>
+                  {starterDoneCount} / {STARTER_TASKS.length}
+                </span>
+                <span style={{ fontSize:12,color:'#93C5FD' }}>▼</span>
+              </button>
+            )}
+
+            {/* 展開狀態 */}
+            {starterExpanded && (
+              <div style={{ background:'#fff' }}>
+                <div style={{ background:'#EFF6FF',padding:'12px 14px',
+                  display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                  <div>
+                    <p style={{ fontSize:14,fontWeight:700,color:'#1D4ED8',margin:0 }}>
+                      🚀 新手起步任務
+                    </p>
+                    <p style={{ fontSize:11,color:'#60A5FA',margin:'2px 0 0' }}>
+                      完成這 5 件事，讓你的事業正式起步！
+                    </p>
+                  </div>
+                  <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                    <span style={{ fontSize:12,fontWeight:700,
+                      background:'#2563EB',color:'#fff',
+                      padding:'3px 10px',borderRadius:99 }}>
+                      {starterDoneCount}/{STARTER_TASKS.length}
+                    </span>
+                    <button onClick={() => setStarterExpanded(false)}
+                      style={{ background:'none',border:'none',color:'#93C5FD',
+                        cursor:'pointer',fontSize:14,padding:0 }}>▲</button>
+                  </div>
+                </div>
+
+                <div style={{ padding:'8px 14px 12px' }}>
+                  {STARTER_TASKS.map(task => {
+                    const done = starterTasks?.[task.id] === true
+                    return (
+                      <div key={task.id} style={{ display:'flex',alignItems:'center',gap:10,
+                        padding:'9px 0',borderBottom:'1px solid #F3F4F6' }}>
+                        <div style={{ width:22,height:22,borderRadius:'50%',flexShrink:0,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          background: done ? '#22C55E' : '#F3F4F6',
+                          border: done ? 'none' : '1.5px solid #D1D5DB' }}>
+                          {done && <span style={{ fontSize:12,color:'#fff' }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize:13,
+                          color: done ? '#9CA3AF' : '#374151',
+                          textDecoration: done ? 'line-through' : 'none',
+                          flex:1 }}>
+                          {task.icon} {task.label}
+                        </span>
+                        {done && (
+                          <span style={{ fontSize:11,color:'#22C55E',fontWeight:600 }}>完成</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 業績 */}
         <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
