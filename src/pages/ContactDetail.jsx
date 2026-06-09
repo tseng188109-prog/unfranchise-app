@@ -219,10 +219,10 @@ export default function ContactDetail() {
       {/* 新增互動紀錄 Modal */}
       {showAddModal && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
-          display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          display:'flex',alignItems:'center',justifyContent:'center',padding:'0 24px'}}
           onClick={e=>{if(e.target===e.currentTarget)setShowAddModal(false)}}>
-          <div style={{background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto'}}>
+          <div style={{background:'#fff',borderRadius:16,padding:24,
+            width:'100%',maxWidth:400,maxHeight:'85vh',overflowY:'auto'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <p style={{fontSize:16,fontWeight:700,color:'#111827',margin:0}}>📝 新增互動紀錄</p>
               <button onClick={()=>setShowAddModal(false)}
@@ -260,12 +260,19 @@ export default function ContactDetail() {
               />
             </div>
 
-            <button onClick={confirmAddLog} disabled={addSaving}
-              style={{width:'100%',padding:'13px',borderRadius:12,border:'none',
-                background:'#2563EB',color:'#fff',fontSize:15,
-                fontWeight:700,cursor:'pointer'}}>
-              {addSaving?'儲存中…':'確認新增'}
-            </button>
+            <div style={{display:'flex',gap:10,marginTop:4}}>
+              <button onClick={()=>setShowAddModal(false)}
+                style={{flex:1,padding:'11px',borderRadius:10,border:'1px solid #E5E7EB',
+                  background:'#fff',fontSize:14,cursor:'pointer',color:'#6B7280'}}>
+                取消
+              </button>
+              <button onClick={confirmAddLog} disabled={addSaving}
+                style={{flex:2,padding:'11px',borderRadius:10,border:'none',
+                  background:'#2563EB',color:'#fff',fontSize:14,
+                  fontWeight:700,cursor:'pointer'}}>
+                {addSaving?'儲存中…':'確認新增'}
+              </button>
+            </div>
           </div>
         </div>
       )}
