@@ -24,16 +24,6 @@ function formatDateDisplay(d){
   const dt=new Date(d+'T00:00:00')
   return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
-function getDateOptions(){
-  const opts=[]
-  for(let i=0;i>=-6;i--){
-    const d=new Date(today()+'T00:00:00')
-    d.setDate(d.getDate()+i)
-    opts.push(toDateStr(d))
-  }
-  return opts
-}
-
 export default function ContactDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -189,7 +179,6 @@ export default function ContactDetail() {
   if (!contact) return null
 
   const suggestedAction = ACTION_MAP[contact.egg_type]?.[contact.need_level] || contact.action_type
-  const dateOptions = getDateOptions()
 
   return (
     <div style={{background:'#F8FAFC',minHeight:'100vh',paddingBottom:100}}>
@@ -232,8 +221,7 @@ export default function ContactDetail() {
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
           display:'flex',alignItems:'flex-end',justifyContent:'center'}}
           onClick={e=>{if(e.target===e.currentTarget)setShowAddModal(false)}}>
-         <div style={{background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            paddingBottom:40,
+          <div style={{background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <p style={{fontSize:16,fontWeight:700,color:'#111827',margin:0}}>📝 新增互動紀錄</p>
@@ -244,22 +232,18 @@ export default function ContactDetail() {
             {/* 日期選擇 */}
             <div style={{marginBottom:16}}>
               <label style={labelStyle}>日期</label>
-              <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4}}>
-                {dateOptions.map(d=>{
-                  const isSelected = addDate===d
-                  const isT = d===today()
-                  return (
-                    <button key={d} onClick={()=>setAddDate(d)}
-                      style={{flexShrink:0,padding:'6px 10px',borderRadius:8,fontSize:12,
-                        fontWeight:isSelected?700:400,cursor:'pointer',
-                        border:isSelected?'2px solid #2563EB':'1px solid #E5E7EB',
-                        background:isSelected?'#EFF6FF':'#F9FAFB',
-                        color:isSelected?'#1D4ED8':'#6B7280'}}>
-                      {isT?'今天':formatDateDisplay(d)}
-                    </button>
-                  )
-                })}
-              </div>
+              <input
+                type="date"
+                value={addDate}
+                max={today()}
+                onChange={e=>setAddDate(e.target.value)}
+                style={{width:'100%',padding:'10px 12px',borderRadius:10,
+                  border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
+                  outline:'none',color:'#374151',background:'#fff'}}
+              />
+              {addDate===today()&&(
+                <p style={{fontSize:12,color:'#22C55E',margin:'6px 0 0',fontWeight:600}}>今天</p>
+              )}
             </div>
 
             {/* 備註 */}
