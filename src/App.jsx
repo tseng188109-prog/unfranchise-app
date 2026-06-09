@@ -18,23 +18,46 @@ import CustomerEdit from './pages/CustomerEdit'
 import Settings from './pages/Settings'
 import Samples from './pages/Samples'
 import Partners from './pages/Partners'
+import Onboarding from './pages/Onboarding'
 
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [onboardingDone, setOnboardingDone] = useState(true) // 預設 true，避免閃爍
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setLoading(false)
+      if (session) {
+        checkOnboarding(session.user.id)
+      } else {
+        setLoading(false)
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      if (session) {
+        checkOnboarding(session.user.id)
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  async function checkOnboarding(userId) {
+    const { data } = await supabase
+      .from('users')
+      .select('onboarding_done')
+      .eq('id', userId)
+      .single()
+    setOnboardingDone(data?.onboarding_done === true)
+    setLoading(false)
+  }
+
+  function handleOnboardingComplete() {
+    setOnboardingDone(true)
+  }
 
   if (loading) return (
     <div style={{
@@ -45,6 +68,14 @@ function App() {
   )
 
   if (!session) return <Auth />
+
+  // 新用戶還沒完成引導
+  if (!onboardingDone) return (
+    <Onboarding
+      user={session.user}
+      onComplete={handleOnboardingComplete}
+    />
+  )
 
   return (
     <BrowserRouter>
