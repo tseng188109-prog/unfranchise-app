@@ -232,7 +232,8 @@ export default function ContactDetail() {
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:100,
           display:'flex',alignItems:'flex-end',justifyContent:'center'}}
           onClick={e=>{if(e.target===e.currentTarget)setShowAddModal(false)}}>
-          <div style={{background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+         <div style={{background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+            paddingBottom:40,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <p style={{fontSize:16,fontWeight:700,color:'#111827',margin:0}}>📝 新增互動紀錄</p>
