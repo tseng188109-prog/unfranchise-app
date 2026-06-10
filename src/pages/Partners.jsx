@@ -121,16 +121,16 @@ export default function Partners() {
         // 本週打卡天數（直接查 daily_checkins，不用 RPC）
         const { data: weekRows } = await supabase
           .from('daily_checkins')
-          .select('checkin_date, is_done')
+          .select('date, is_done')
           .eq('user_id', p.id)
-          .gte('checkin_date', weekMonday)
-          .lte('checkin_date', todayStr)
+          .gte('date', weekMonday)
+          .lte('date', todayStr)
 
         // 每天統計有幾項 is_done=true，>=1 就算那天有打卡
         const dayMap = {}
         ;(weekRows || []).forEach(r => {
-          if (!dayMap[r.checkin_date]) dayMap[r.checkin_date] = 0
-          if (r.is_done) dayMap[r.checkin_date]++
+          if (!dayMap[r.date]) dayMap[r.date] = 0
+          if (r.is_done) dayMap[r.date]++
         })
         const weekDays = Object.values(dayMap).filter(count => count >= 1).length
 
