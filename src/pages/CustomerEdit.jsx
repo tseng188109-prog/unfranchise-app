@@ -60,24 +60,26 @@ export default function CustomerEdit() {
 
   function set(key, val) {
     setForm(p => ({ ...p, [key]: val }))
-    setErrors(e => ({ ...e, [key]: '' }))
+    setErrors(e => ({ ...e, [key]: '', _ref: '' }))
   }
 
   async function handleSave() {
     const errs = {}
     if (!form.name.trim()) errs.name = '姓名為必填'
-    if (!form.phone.trim()) errs.phone = '電話為必填'
+    if (!form.phone.trim() && !form.birthday.trim() && !form.occupation.trim()) {
+      errs._ref = '請至少填寫手機、生日或職業其中一項，以便日後識別顧客'
+    }
     if (Object.keys(errs).length) { setErrors(errs); return }
 
     setSaving(true)
     const { error } = await supabase.from('customers').update({
       name: form.name.trim(),
-      phone: form.phone.trim(),
-      occupation: form.occupation || null,
+      phone: form.phone.trim() || null,
+      occupation: form.occupation.trim() || null,
       birthday: form.birthday || null,
-      carrier: form.carrier || null,
-      address: form.address || null,
-      email: form.email || null,
+      carrier: form.carrier.trim() || null,
+      address: form.address.trim() || null,
+      email: form.email.trim() || null,
     }).eq('id', id)
     setSaving(false)
     if (!error) navigate(`/customers/${id}`)
@@ -97,12 +99,14 @@ export default function CustomerEdit() {
     </div>
   )
 
+  const hasRef = form.phone.trim() || form.birthday.trim() || form.occupation.trim()
+
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
-      <div style={{ background:'#fff',padding:'52px 16px 16px',
-        borderBottom:'1px solid #F3F4F6',display:'flex',alignItems:'center',
+    <div style={{ background:'#F8FAFC', minHeight:'100vh' }}>
+      <div style={{ background:'#fff', padding:'52px 16px 16px',
+        borderBottom:'1px solid #F3F4F6', display:'flex', alignItems:'center',
         justifyContent:'space-between' }}>
-        <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => navigate(-1)}
             style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
           <h1 style={{ fontSize:18,fontWeight:800,color:'#111827',margin:0 }}>編輯顧客</h1>
@@ -114,6 +118,15 @@ export default function CustomerEdit() {
 
       <div style={{ padding:'16px 16px 100px' }}>
 
+        {/* 參照提示 */}
+        <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px',
+          marginBottom:16, border:'1px solid #BFDBFE' }}>
+          <p style={{ fontSize:12, color:'#1D4ED8', margin:0, lineHeight:1.6 }}>
+            📌 除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
+          </p>
+        </div>
+
+        {/* 姓名 */}
         <div style={fw}>
           <label style={lb}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
           <input value={form.name} onChange={e => set('name', e.target.value)}
@@ -122,38 +135,65 @@ export default function CustomerEdit() {
           {errors.name && <p style={err}>{errors.name}</p>}
         </div>
 
+        {/* 手機 */}
         <div style={fw}>
-          <label style={lb}>電話 <span style={{ color:'#EF4444' }}>*</span></label>
+          <label style={lb}>
+            手機
+            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
+              background: form.phone.trim() ? '#DCFCE7' : '#FEF9C3',
+              color: form.phone.trim() ? '#16A34A' : '#CA8A04', fontWeight:600 }}>識別用</span>
+          </label>
           <input value={form.phone} onChange={e => set('phone', e.target.value)}
-            placeholder="輸入電話..."
-            style={{ ...inp, borderColor: errors.phone ? '#EF4444' : '#E5E7EB' }} />
-          {errors.phone && <p style={err}>{errors.phone}</p>}
+            placeholder="輸入手機（選填）..." style={inp} />
         </div>
 
+        {/* 生日 */}
         <div style={fw}>
-          <label style={lb}>職業</label>
-          <input value={form.occupation} onChange={e => set('occupation', e.target.value)}
-            placeholder="輸入職業..." style={inp} />
-        </div>
-
-        <div style={fw}>
-          <label style={lb}>生日</label>
+          <label style={lb}>
+            生日
+            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
+              background: form.birthday.trim() ? '#DCFCE7' : '#FEF9C3',
+              color: form.birthday.trim() ? '#16A34A' : '#CA8A04', fontWeight:600 }}>識別用</span>
+          </label>
           <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
           <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
         </div>
 
+        {/* 職業 */}
+        <div style={fw}>
+          <label style={lb}>
+            職業
+            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
+              background: form.occupation.trim() ? '#DCFCE7' : '#FEF9C3',
+              color: form.occupation.trim() ? '#16A34A' : '#CA8A04', fontWeight:600 }}>識別用</span>
+          </label>
+          <input value={form.occupation} onChange={e => set('occupation', e.target.value)}
+            placeholder="輸入職業（選填）..." style={inp} />
+        </div>
+
+        {/* 參照錯誤 */}
+        {errors._ref && (
+          <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px',
+            marginBottom:16, border:'1px solid #FECACA' }}>
+            <p style={{ fontSize:13, color:'#DC2626', margin:0 }}>⚠️ {errors._ref}</p>
+          </div>
+        )}
+
+        {/* 電子發票載具 */}
         <div style={fw}>
           <label style={lb}>電子發票載具</label>
           <input value={form.carrier} onChange={e => set('carrier', e.target.value)}
             placeholder="輸入載具..." style={inp} />
         </div>
 
+        {/* 地址 */}
         <div style={fw}>
           <label style={lb}>地址</label>
           <input value={form.address} onChange={e => set('address', e.target.value)}
             placeholder="輸入地址..." style={inp} />
         </div>
 
+        {/* Email */}
         <div style={fw}>
           <label style={lb}>Email</label>
           <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
@@ -194,7 +234,7 @@ export default function CustomerEdit() {
 }
 
 const fw = { marginBottom:16 }
-const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }
+const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'flex',alignItems:'center',gap:4,marginBottom:6 }
 const inp = { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
   fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' }
 const err = { fontSize:12,color:'#EF4444',margin:'4px 0 0' }
