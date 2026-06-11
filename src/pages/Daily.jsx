@@ -245,9 +245,11 @@ export default function Daily() {
 
   // 開啟新增 Modal
   function openAddModal(mode, date, counterKey = '') {
+    // 預設類型：月曆預設 new_product，週曆預設 bv_share
+    const defaultKey = counterKey || (mode === 'month' ? 'new_product' : 'bv_share')
     setLogModal({ mode, editId: null })
     setLogDate(date || today())
-    setLogCounterKey(counterKey)
+    setLogCounterKey(defaultKey)
     setLogContact(''); setLogContactId(null)
     setLogStrangerName(''); setLogProduct(''); setLogNote('')
     setContactSearch([])
