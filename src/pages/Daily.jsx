@@ -200,8 +200,12 @@ export default function Daily() {
       .select('id,counter_key,date,planned_date,is_done,product_name,note,contact_id,contacts(name)')
       .eq('user_id', user.id)
       .in('counter_key', ['new_product', 'gmtss'])
-      .gte('date', ms).lte('date', me)
-    setMonthLogs(data || [])
+    // 過濾：date 或 planned_date 在本月範圍內
+    const filtered = (data || []).filter(l => {
+      const d = l.planned_date || l.date
+      return d >= ms && d <= me
+    })
+    setMonthLogs(filtered)
   }
 
   async function saveGoalText() {
