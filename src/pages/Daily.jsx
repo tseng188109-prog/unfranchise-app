@@ -88,7 +88,6 @@ export default function Daily() {
   const [socialModal, setSocialModal] = useState(false)
   const goalTextareaRef = useRef(null)
 
-  // 新增記錄 Modal
   const [logModal, setLogModal] = useState(null)
   const [logDate, setLogDate] = useState(today())
   const [logContact, setLogContact] = useState('')
@@ -107,7 +106,6 @@ export default function Daily() {
   useEffect(() => { if (user) fetchWeekLogs() }, [user, weekViewDate])
   useEffect(() => { if (user) fetchMonthLogs() }, [user, monthViewDate])
 
-  // Modal 開啟時自動撐高 textarea
   useEffect(() => {
     if (goalModal && goalTextareaRef.current) {
       const el = goalTextareaRef.current
@@ -294,16 +292,6 @@ export default function Daily() {
     setMonthViewDate(toDateStr(d))
   }
 
-  function getDateOptions() {
-    const opts = []
-    for (let i = -3; i <= 3; i++) {
-      const d = new Date(today() + 'T00:00:00')
-      d.setDate(d.getDate() + i)
-      opts.push(toDateStr(d))
-    }
-    return opts
-  }
-
   function canConfirm() {
     if (!logModal) return false
     if (logModal.mode === 'month') return !!logProduct
@@ -360,7 +348,7 @@ export default function Daily() {
 
       <div style={{ maxWidth:430,margin:'0 auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
-        {/* ── 每日任務 ── */}
+        {/* 每日任務 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每日任務</span>
@@ -421,7 +409,7 @@ export default function Daily() {
           })}
         </div>
 
-        {/* ── 每週行動 ── */}
+        {/* 每週行動 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每週行動</span>
@@ -539,7 +527,7 @@ export default function Daily() {
           })}
         </div>
 
-        {/* ── 每月目標 ── */}
+        {/* 每月目標 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每月目標</span>
@@ -607,7 +595,7 @@ export default function Daily() {
 
       </div>
 
-      {/* ── 目標宣言 Modal ── */}
+      {/* 目標宣言 Modal */}
       {goalModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -630,8 +618,7 @@ export default function Daily() {
               rows={4}
               style={{ width:'100%',padding:'12px',borderRadius:10,
                 border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-                outline:'none',resize:'none',lineHeight:1.8,
-                display:'block' }}
+                outline:'none',resize:'none',lineHeight:1.8,display:'block' }}
             />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
@@ -643,7 +630,7 @@ export default function Daily() {
         </div>
       )}
 
-      {/* ── 社群連結 Modal ── */}
+      {/* 社群連結 Modal */}
       {socialModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -670,7 +657,7 @@ export default function Daily() {
         </div>
       )}
 
-      {/* ── 新增記錄 Modal ── */}
+      {/* 新增記錄 Modal */}
       {logModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -685,24 +672,15 @@ export default function Daily() {
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
 
+            {/* 日期選擇：改為原生日期選擇器，可自由選任意日期 */}
             <div style={{ marginBottom:16 }}>
               <label style={labelStyle}>日期</label>
-              <div style={{ display:'flex',gap:6,overflowX:'auto',paddingBottom:4 }}>
-                {getDateOptions().map(d => {
-                  const isFut = d > today()
-                  const isSelected = logDate === d
-                  return (
-                    <button key={d} onClick={() => setLogDate(d)}
-                      style={{ flexShrink:0,padding:'6px 10px',borderRadius:8,fontSize:12,
-                        fontWeight: isSelected?700:400,cursor:'pointer',
-                        border: isSelected?'2px solid #2563EB':'1px solid #E5E7EB',
-                        background: isSelected?(isFut?'#FFFBEB':'#EFF6FF'):'#F9FAFB',
-                        color: isSelected?(isFut?'#B45309':'#1D4ED8'):'#6B7280' }}>
-                      {d === today() ? '今天' : formatShortDate(d)}{isFut ? ' 📅' : ''}
-                    </button>
-                  )
-                })}
-              </div>
+              <input
+                type="date"
+                value={logDate}
+                onChange={e => setLogDate(e.target.value)}
+                style={inputStyle}
+              />
               {logDate > today() && (
                 <p style={{ fontSize:12,color:'#F59E0B',margin:'6px 0 0',fontWeight:600 }}>
                   📅 預排模式：儲存後顯示為「待完成」
