@@ -268,7 +268,7 @@ export default function Dashboard() {
     if(data) days.forEach(d=>{
       const dc=data.filter(c=>c.date===d)
       if(dc.length===0) sm[d]='none'
-      else if(dc.filter(c=>c.is_done).length===DAILY_TASKS.length) sm[d]='full'
+      else if(dc.filter(c=>c.is_done).length>=DAILY_TASKS.length) sm[d]='full'
       else sm[d]='partial'
     })
     setWeekStatus(days.map(d=>({date:d,status:sm[d]||'none'})))
