@@ -29,10 +29,13 @@ function toDateStr(d) {
 }
 function today() { return toDateStr(new Date()) }
 
+// 週六為起點，週五為終點
 function getWeekDays(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
+  const dow = d.getDay() // 0=日,1=一,...,6=六
+  const diff = (dow + 1) % 7 // 六=0, 日=1, 一=2, ..., 五=6
   const start = new Date(d)
-  start.setDate(d.getDate() - d.getDay())
+  start.setDate(d.getDate() - diff)
   const days = []
   for (let i = 0; i < 7; i++) {
     const day = new Date(start)
@@ -119,8 +122,7 @@ export default function Dashboard() {
   const [socialModal, setSocialModal] = useState(false)
   const goalTextareaRef = useRef(null)
 
-  // 新手任務卡
-  const [starterTasks, setStarterTasks] = useState(null) // null = 還沒載入
+  const [starterTasks, setStarterTasks] = useState(null)
   const [starterExpanded, setStarterExpanded] = useState(true)
   const [onboardingDone, setOnboardingDone] = useState(true)
 
@@ -176,16 +178,13 @@ export default function Dashboard() {
   async function fetchStarterTasks() {
     const todayStr = today()
 
-    // 1. 有沒有互動名單
     const { count: contactCount } = await supabase
       .from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
 
-    // 2. 今天有沒有打卡
     const { data: todayCheckin } = await supabase
       .from('daily_checkins').select('id')
       .eq('user_id', user.id).eq('date', todayStr).eq('is_done', true).limit(1)
 
-    // 3. 最近 7 天打卡天數 >= 3
     const sevenDaysAgo = toDateStr(new Date(Date.now() - 6 * 86400000))
     const { data: weekCheckins } = await supabase
       .from('daily_checkins').select('date')
@@ -193,11 +192,9 @@ export default function Dashboard() {
       .gte('date', sevenDaysAgo).lte('date', todayStr)
     const uniqueDays = new Set((weekCheckins || []).map(r => r.date)).size
 
-    // 4. 有沒有互動紀錄
     const { count: logCount } = await supabase
       .from('contact_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
 
-    // 5. 有沒有設目標宣言
     const { data: userData } = await supabase
       .from('users').select('goal_declaration, onboarding_done').eq('id', user.id).single()
 
@@ -212,9 +209,6 @@ export default function Dashboard() {
     setOnboardingDone(userData?.onboarding_done === true)
     setStarterTasks(tasks)
 
-    // 全部完成 → 不顯示任務卡（已全勾）
-    const allDone = Object.values(tasks).every(Boolean)
-    // 超過一半完成 → 預設縮小
     const doneCount = Object.values(tasks).filter(Boolean).length
     if (doneCount >= 3) setStarterExpanded(false)
   }
@@ -251,7 +245,8 @@ export default function Dashboard() {
     const map={}
     if(data) data.forEach(d=>{ map[d.task_key]=d.is_done })
     setCheckins(map)
-    setCheckTotal(data ? data.filter(d=>d.is_done).length : 0)
+    // 只計算 DAILY_TASKS 的 7 個 key，不含週任務
+    setCheckTotal(data ? data.filter(d => d.is_done && DAILY_TASKS.some(t => t.key === d.task_key)).length : 0)
   }
 
   async function fetchViewContacted() {
@@ -284,13 +279,21 @@ export default function Dashboard() {
   async function toggleCheckin(key) {
     const cur=checkins[key], nv=!cur
     setCheckins(p=>({...p,[key]:nv}))
-    setCheckTotal(p=>nv?p+1:p-1)
+    setCheckTotal(p => {
+      const isDailyKey = DAILY_TASKS.some(t => t.key === key)
+      return isDailyKey ? (nv ? p+1 : p-1) : p
+    })
     const { error } = await supabase.from('daily_checkins').upsert(
       { user_id:user.id, date:viewDate, task_key:key, is_done:nv, updated_at:new Date().toISOString() },
       { onConflict:'user_id,date,task_key' }
     )
-    if(error){ setCheckins(p=>({...p,[key]:cur})); setCheckTotal(p=>nv?p-1:p+1) }
-    // 打卡後重新偵測任務完成狀態
+    if(error){
+      setCheckins(p=>({...p,[key]:cur}))
+      setCheckTotal(p => {
+        const isDailyKey = DAILY_TASKS.some(t => t.key === key)
+        return isDailyKey ? (nv ? p-1 : p+1) : p
+      })
+    }
     setTimeout(() => fetchStarterTasks(), 500)
   }
 
@@ -317,10 +320,8 @@ export default function Dashboard() {
   })()
   const allDue = [...overdueContacts,...todayDueContacts]
 
-  // 新手任務計算
   const starterDoneCount = starterTasks ? Object.values(starterTasks).filter(Boolean).length : 0
   const starterAllDone = starterDoneCount === STARTER_TASKS.length
-  // 只有 onboarding_done = true 且任務未全完成才顯示任務卡
   const showStarterCard = onboardingDone && starterTasks !== null && !starterAllDone
 
   if(loading) return (
@@ -358,7 +359,6 @@ export default function Dashboard() {
           <section style={{ margin:'12px 16px 0',borderRadius:16,overflow:'hidden',
             border:'1.5px solid #BFDBFE',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
 
-            {/* 縮小狀態 */}
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
                 style={{ width:'100%',background:'#EFF6FF',border:'none',cursor:'pointer',
@@ -376,7 +376,6 @@ export default function Dashboard() {
               </button>
             )}
 
-            {/* 展開狀態 */}
             {starterExpanded && (
               <div style={{ background:'#fff' }}>
                 <div style={{ background:'#EFF6FF',padding:'12px 14px',
@@ -544,6 +543,7 @@ export default function Dashboard() {
                 padding:'0 4px',lineHeight:1 }}>›</button>
           </div>
 
+          {/* 週點狀圖：六日一二三四五 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
             background:'#F8FAFC',borderRadius:10,marginBottom:8 }}>
             {weekStatus.map((w,i)=>{

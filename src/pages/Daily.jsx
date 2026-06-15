@@ -43,11 +43,12 @@ const COUNTER_COLORS = {
   sell_ticket:   '#534AB7', stranger: '#0F6E56',
 }
 
+// 週六為起點，週五為終點
 function getWeekStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const dow = d.getDay()
-  const diff = dow === 0 ? -6 : 1 - dow
-  d.setDate(d.getDate() + diff)
+  const diff = (dow + 1) % 7 // 六=0, 日=1, 一=2, ..., 五=6
+  d.setDate(d.getDate() - diff)
   return toDateStr(d)
 }
 function getWeekDays(dateStr) {
@@ -92,7 +93,6 @@ export default function Daily() {
   const [monthLogs, setMonthLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // 選中的日期（週曆/月曆點擊）
   const [selectedWeekDay, setSelectedWeekDay] = useState(null)
   const [selectedMonthDay, setSelectedMonthDay] = useState(null)
 
@@ -103,8 +103,7 @@ export default function Daily() {
   const [socialModal, setSocialModal] = useState(false)
   const goalTextareaRef = useRef(null)
 
-  // 新增/編輯 Modal
-  const [logModal, setLogModal] = useState(null) // { mode:'week'|'month', editId:null|id }
+  const [logModal, setLogModal] = useState(null)
   const [logDate, setLogDate] = useState(today())
   const [logCounterKey, setLogCounterKey] = useState('')
   const [logContact, setLogContact] = useState('')
@@ -200,7 +199,6 @@ export default function Daily() {
       .select('id,counter_key,date,planned_date,is_done,product_name,note,contact_id,contacts(name)')
       .eq('user_id', user.id)
       .in('counter_key', ['new_product', 'gmtss'])
-    // 過濾：date 或 planned_date 在本月範圍內
     const filtered = (data || []).filter(l => {
       const d = l.planned_date || l.date
       return d >= ms && d <= me
@@ -247,9 +245,7 @@ export default function Daily() {
     if (task.url) { window.open(task.url, '_blank'); return }
   }
 
-  // 開啟新增 Modal
   function openAddModal(mode, date, counterKey = '') {
-    // 預設類型：月曆預設 new_product，週曆預設 bv_share
     const defaultKey = counterKey || (mode === 'month' ? 'new_product' : 'bv_share')
     setLogModal({ mode, editId: null })
     setLogDate(date || today())
@@ -259,7 +255,6 @@ export default function Daily() {
     setContactSearch([])
   }
 
-  // 開啟編輯 Modal
   function openEditModal(mode, log) {
     const counterKey = log.counter_key
     const counterMode = WEEKLY_COUNTERS.find(c => c.key === counterKey)?.mode || 'month_item'
@@ -419,6 +414,8 @@ export default function Daily() {
             <span style={sectionTitle}>每日任務</span>
             <span style={{ fontSize:13,color:'#6B7280' }}>{doneCount}/{DAILY_TASKS.length}</span>
           </div>
+
+          {/* 週點狀圖：六日一二三四五 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
             background:'#F8FAFC',borderRadius:10,marginBottom:10 }}>
             {weekStatus.map((w,i) => {
@@ -440,6 +437,7 @@ export default function Daily() {
               )
             })}
           </div>
+
           {DAILY_TASKS.map(task => {
             const done = !!checkins[task.key]
             const hasAction = task.url || task.social || task.toContacts || task.key === 'goal_declaration'
@@ -480,7 +478,7 @@ export default function Daily() {
             <div style={{ display:'flex',alignItems:'center',gap:8 }}>
               <button onClick={() => changeWeekViewDate(-1)} style={navBtn}>‹</button>
               <span style={{ fontSize:12,fontWeight:600,color:'#374151' }}>
-                {formatShortDate(weekDays[0])} 週一 — {formatShortDate(weekDays[6])} 週日
+                {formatShortDate(weekDays[0])} 週六 — {formatShortDate(weekDays[6])} 週五
               </span>
               <button onClick={() => changeWeekViewDate(1)} style={navBtn}>›</button>
             </div>
@@ -489,7 +487,6 @@ export default function Daily() {
           {/* 每週固定任務 */}
           <div style={{ marginBottom:12,background:'#F8FAFC',borderRadius:10,padding:'8px 10px' }}>
             {WEEKLY_TASKS.map(task => {
-              const done = !!weekTaskCheckins[task.key]?.[weekDays.find(d => d <= today()) || today()]
               const anyDone = weekDays.some(d => weekTaskCheckins[task.key]?.[d])
               return (
                 <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'6px 0' }}>
@@ -509,7 +506,7 @@ export default function Daily() {
             })}
           </div>
 
-          {/* 週曆格子 */}
+          {/* 週曆格子：六日一二三四五 */}
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:4 }}>
             {weekDays.map((d,i) => {
               const isT = d === today()
@@ -643,7 +640,7 @@ export default function Daily() {
             ))}
           </div>
 
-          {/* 星期標題 */}
+          {/* 星期標題（保持日一二三四五六，月曆慣例） */}
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:3 }}>
             {DAYS_ZH.map(d => (
               <div key={d} style={{ textAlign:'center',fontSize:10,color:'#9CA3AF',padding:'2px 0' }}>{d}</div>
@@ -815,7 +812,6 @@ export default function Daily() {
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
 
-            {/* 日期 */}
             <div style={{ marginBottom:16 }}>
               <label style={labelStyle}>日期</label>
               <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)} style={inputStyle} />
@@ -826,7 +822,6 @@ export default function Daily() {
               )}
             </div>
 
-            {/* 週行動：選類型 */}
             {logModal.mode === 'week' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>行動類型</label>
@@ -844,7 +839,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 月目標：選類型 */}
             {logModal.mode === 'month' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>類型</label>
@@ -862,7 +856,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 對象（product/contact 模式）*/}
             {(getCounterMode() === 'product' || getCounterMode() === 'contact') && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>
@@ -888,7 +881,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 產品名稱（product 模式）*/}
             {getCounterMode() === 'product' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>分享產品 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
@@ -897,7 +889,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 陌生人 */}
             {getCounterMode() === 'stranger' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>姓名 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
@@ -906,7 +897,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 月目標名稱 */}
             {getCounterMode() === 'month_item' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>
@@ -918,7 +908,6 @@ export default function Daily() {
               </div>
             )}
 
-            {/* 備註 */}
             <div style={{ marginBottom:20 }}>
               <label style={labelStyle}>備註 <span style={{ color:'#9CA3AF',fontSize:12 }}>選填</span></label>
               <textarea placeholder="記錄重點..." value={logNote}
