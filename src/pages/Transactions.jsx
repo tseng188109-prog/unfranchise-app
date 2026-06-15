@@ -10,6 +10,11 @@ function avatarBg(name) {
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
+  return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
+}
+function formatShortDate(d) {
+  if (!d) return ''
+  const dt = new Date(d + 'T00:00:00')
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
 
@@ -19,7 +24,6 @@ function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/)
   if (lines.length < 2) return []
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
-
   return lines.slice(1).map(line => {
     const vals = []
     let cur = '', inQuote = false
@@ -65,7 +69,6 @@ function parseDate(val) {
   return ''
 }
 
-// 電話標準化：去除符號，補回 Excel 吃掉的開頭 0
 function normalizePhone(val) {
   if (!val) return ''
   let p = String(val).trim().replace(/[-\s()]/g, '')
@@ -96,6 +99,13 @@ export default function Transactions() {
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
 
+  // 搜尋
+  const [searchMode, setSearchMode] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const searchInputRef = useRef(null)
+
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
   const [importErrors, setImportErrors] = useState([])
@@ -111,6 +121,9 @@ export default function Transactions() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
   useEffect(() => { if (user) fetchData() }, [user, year, month])
+  useEffect(() => {
+    if (searchMode && searchInputRef.current) searchInputRef.current.focus()
+  }, [searchMode])
 
   async function fetchData() {
     setLoading(true)
@@ -148,6 +161,56 @@ export default function Transactions() {
     setChartData(days)
   }
 
+  // 搜尋：打字後即時查詢
+  useEffect(() => {
+    if (!searchMode || !user) return
+    if (!searchQuery.trim()) { setSearchResults([]); return }
+    const timer = setTimeout(() => doSearch(searchQuery.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery, searchMode, user])
+
+  async function doSearch(q) {
+    setSearching(true)
+    // 同時搜尋 customer_name 欄位和 product_name 欄位
+    const { data: byProduct } = await supabase.from('transactions')
+      .select('*,customers(name)')
+      .eq('user_id', user.id)
+      .ilike('product_name', `%${q}%`)
+      .order('date', { ascending: false })
+      .limit(50)
+
+    const { data: byCustomerName } = await supabase.from('transactions')
+      .select('*,customers(name)')
+      .eq('user_id', user.id)
+      .ilike('customer_name', `%${q}%`)
+      .order('date', { ascending: false })
+      .limit(50)
+
+    // 合併去重
+    const merged = [...(byProduct||[]), ...(byCustomerName||[])]
+    const seen = new Set()
+    const unique = merged.filter(t => {
+      if (seen.has(t.id)) return false
+      seen.add(t.id); return true
+    })
+    // 按日期排序
+    unique.sort((a,b) => b.date.localeCompare(a.date))
+    setSearchResults(unique)
+    setSearching(false)
+  }
+
+  function enterSearch() {
+    setSearchMode(true)
+    setSearchQuery('')
+    setSearchResults([])
+  }
+
+  function exitSearch() {
+    setSearchMode(false)
+    setSearchQuery('')
+    setSearchResults([])
+  }
+
   function prevMonth() {
     if (month === 1) { setYear(y => y-1); setMonth(12) }
     else setMonth(m => m-1)
@@ -160,7 +223,9 @@ export default function Transactions() {
   async function handleDelete() {
     if (!deleteTarget) return
     await supabase.from('transactions').delete().eq('id', deleteTarget)
-    setDeleteTarget(null); fetchData()
+    setDeleteTarget(null)
+    fetchData()
+    if (searchMode && searchQuery.trim()) doSearch(searchQuery.trim())
   }
 
   function openEdit(t) {
@@ -180,7 +245,9 @@ export default function Transactions() {
       amount: Number(editForm.amount), cost: Number(editForm.cost),
       is_gift: editForm.is_gift,
     }).eq('id', editTarget.id)
-    setSaving(false); setEditTarget(null); fetchData()
+    setSaving(false); setEditTarget(null)
+    fetchData()
+    if (searchMode && searchQuery.trim()) doSearch(searchQuery.trim())
   }
 
   // ── CSV 匯入邏輯 ──────────────────────────────────
@@ -191,32 +258,22 @@ export default function Transactions() {
     reader.onload = ev => {
       const rawRows = parseCSV(ev.target.result)
       const errors = []
-
       const rows = rawRows.map((r, i) => {
         const parsed = { ...r }
-
         const rawDate = r.date || ''
         if (rawDate) {
           const converted = parseDate(rawDate)
-          if (!converted) {
-            errors.push(`第${i+2}行「${r.product_name}」：無法識別日期「${rawDate}」`)
-          } else {
-            parsed.date = converted
-          }
+          if (!converted) errors.push(`第${i+2}行「${r.product_name}」：無法識別日期「${rawDate}」`)
+          else parsed.date = converted
         }
-
         if (!r.product_name) errors.push(`第${i+2}行：缺少品名`)
         if (!['BV','IBV'].includes(r.type))
           errors.push(`第${i+2}行「${r.product_name}」：類型應為 BV 或 IBV`)
         if (!r.points || isNaN(Number(r.points)))
           errors.push(`第${i+2}行「${r.product_name}」：點數應為數字`)
-
         return parsed
       })
-
-      setImportRows(rows)
-      setImportErrors(errors)
-      setImportDone(null)
+      setImportRows(rows); setImportErrors(errors); setImportDone(null)
     }
     reader.readAsText(file, 'UTF-8')
     e.target.value = ''
@@ -225,95 +282,76 @@ export default function Transactions() {
   async function handleImport() {
     if (!importRows.length || importErrors.length) return
     setImporting(true)
-
     const { data: custList } = await supabase
       .from('customers').select('id,name,phone').eq('user_id', user.id)
-
-    const phoneMap = {}
-    const nameMap = {}
+    const phoneMap = {}, nameMap = {}
     ;(custList||[]).forEach(c => {
       if (c.phone) phoneMap[normalizePhone(c.phone)] = c.id
       nameMap[c.name] = c.id
     })
-
     const toCreateCusts = []
     importRows.forEach(r => {
       if (!r.customer_name) return
       const phone = normalizePhone(r.customer_phone)
-      const foundByPhone = phone ? phoneMap[phone] : null
-      const foundByName = nameMap[r.customer_name]
-      if (!foundByPhone && !foundByName) {
+      if (!phoneMap[phone] && !nameMap[r.customer_name]) {
         if (!toCreateCusts.find(c => c.name === r.customer_name)) {
-          toCreateCusts.push({
-            user_id: user.id,
-            name: r.customer_name,
-            phone: normalizePhone(r.customer_phone) || null,
-            is_pinned: false,
-          })
+          toCreateCusts.push({ user_id: user.id, name: r.customer_name,
+            phone: normalizePhone(r.customer_phone) || null, is_pinned: false })
         }
       }
     })
-
     if (toCreateCusts.length > 0) {
-      const { data: newCusts } = await supabase.from('customers')
-        .insert(toCreateCusts).select('id,name,phone')
+      const { data: newCusts } = await supabase.from('customers').insert(toCreateCusts).select('id,name,phone')
       ;(newCusts||[]).forEach(c => {
         if (c.phone) phoneMap[normalizePhone(c.phone)] = c.id
         nameMap[c.name] = c.id
       })
     }
-
     const toInsert = importRows.map(r => {
       const phone = normalizePhone(r.customer_phone)
-      const customerId = (phone && phoneMap[phone])
-        || (r.customer_name && nameMap[r.customer_name])
-        || null
+      const customerId = (phone && phoneMap[phone]) || (r.customer_name && nameMap[r.customer_name]) || null
       return {
-        user_id: user.id,
-        customer_id: customerId,
-        date: r.date,
-        product_name: r.product_name,
-        type: r.type,
-        points: Number(r.points),
-        amount: r.amount ? Number(r.amount) : 0,
-        cost: r.cost ? Number(r.cost) : 0,
+        user_id: user.id, customer_id: customerId, date: r.date,
+        product_name: r.product_name, type: r.type, points: Number(r.points),
+        amount: r.amount ? Number(r.amount) : 0, cost: r.cost ? Number(r.cost) : 0,
         is_gift: r.is_gift === 'true' || r.is_gift === '1',
       }
     })
-
     await supabase.from('transactions').insert(toInsert)
-
-    setImporting(false)
-    setImportDone({ success: toInsert.length, skip: 0 })
-    fetchData()
+    setImporting(false); setImportDone({ success: toInsert.length, skip: 0 }); fetchData()
   }
 
   function downloadTemplate() {
     const blob = new Blob(['\uFEFF' + TRANSACTIONS_TEMPLATE], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
-    a.download = '業績紀錄範本.csv'; a.click()
-    URL.revokeObjectURL(url)
+    a.download = '業績紀錄範本.csv'; a.click(); URL.revokeObjectURL(url)
   }
-
-  function resetImport() {
-    setImportRows([]); setImportErrors([]); setImportDone(null)
-  }
+  function resetImport() { setImportRows([]); setImportErrors([]); setImportDone(null) }
   // ─────────────────────────────────────────────────
 
-  const maxBv = Math.max(...chartData.map(d => d.bv), 1)
-  const maxIbv = Math.max(...chartData.map(d => d.ibv), 1)
-  const maxVal = Math.max(maxBv, maxIbv, 1)
+  const maxVal = Math.max(...chartData.map(d => Math.max(d.bv, d.ibv)), 1)
   const chartHeight = 80
+  const displayList = searchMode ? searchResults : transactions
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}
       onClick={() => setMenuId(null)}>
 
       <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
+
+        {/* Title row */}
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>業績紀錄</h1>
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex',gap:8 }}>
+            <button onClick={searchMode ? exitSearch : enterSearch}
+              style={{ width:36,height:36,borderRadius:'50%',
+                background: searchMode ? '#2563EB' : '#F0F9FF',
+                border: searchMode ? 'none' : '1px solid #BAE6FD',
+                color: searchMode ? '#fff' : '#0284C7',
+                fontSize:16,cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center' }}
+              title="搜尋">🔍</button>
             <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
               style={{ width:36,height:36,borderRadius:'50%',background:'#F0FDF4',
                 border:'1px solid #22C55E',color:'#16A34A',fontSize:18,cursor:'pointer',
@@ -326,86 +364,135 @@ export default function Transactions() {
           </div>
         </div>
 
-        <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginBottom:16 }}>
-          <button onClick={prevMonth}
-            style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>‹</button>
-          <span style={{ fontSize:16,fontWeight:700,color:'#111827' }}>{year} 年 {month} 月</span>
-          <button onClick={nextMonth}
-            style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>›</button>
-        </div>
-
-        <div style={{ display:'flex',gap:10,marginBottom:8 }}>
-          <div style={{ flex:1,background:'#FFF7ED',borderRadius:12,padding:'12px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:'#F97316',margin:'0 0 4px' }}>BV</p>
-            <p style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>{bvTotal.toFixed(0)}</p>
+        {/* 搜尋列 */}
+        {searchMode && (
+          <div style={{ display:'flex',gap:8,marginBottom:12 }}>
+            <input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="搜尋顧客姓名或產品名稱…"
+              style={{ flex:1,padding:'9px 14px',borderRadius:10,
+                border:'1.5px solid #2563EB',fontSize:14,outline:'none',
+                color:'#111827',background:'#F0F9FF' }}
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setSearchResults([]) }}
+                style={{ padding:'0 12px',borderRadius:10,border:'1px solid #E5E7EB',
+                  background:'#fff',fontSize:13,color:'#6B7280',cursor:'pointer' }}>
+                清除
+              </button>
+            )}
           </div>
-          <div style={{ flex:1,background:'#EFF6FF',borderRadius:12,padding:'12px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:'#3B82F6',margin:'0 0 4px' }}>IBV</p>
-            <p style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>{ibvTotal.toFixed(0)}</p>
-          </div>
-          <div style={{ flex:1,background:'#F0FDF4',borderRadius:12,padding:'12px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:'#16A34A',margin:'0 0 4px' }}>獲利</p>
-            <p style={{ fontSize:18,fontWeight:800,color:'#16A34A',margin:0 }}>NT${profit.toLocaleString()}</p>
-          </div>
-        </div>
-        {giftCost > 0 && (
-          <p style={{ fontSize:12,color:'#F97316',textAlign:'right',margin:'0 0 8px' }}>
-            贈品成本：-NT${giftCost.toLocaleString()}
-          </p>
         )}
 
-        {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
-          <div style={{ background:'#F8FAFC',borderRadius:12,padding:'12px 8px 8px',marginTop:4 }}>
-            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
-              <span style={{ fontSize:12,fontWeight:700,color:'#6B7280' }}>每日點數趨勢</span>
-              <div style={{ display:'flex',gap:10 }}>
-                <span style={{ fontSize:11,color:'#F97316',display:'flex',alignItems:'center',gap:3 }}>
-                  <span style={{ width:8,height:8,borderRadius:2,background:'#F97316',display:'inline-block' }}/>BV
-                </span>
-                <span style={{ fontSize:11,color:'#3B82F6',display:'flex',alignItems:'center',gap:3 }}>
-                  <span style={{ width:8,height:8,borderRadius:2,background:'#3B82F6',display:'inline-block' }}/>IBV
-                </span>
+        {/* 月份切換（非搜尋模式） */}
+        {!searchMode && (
+          <>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginBottom:12 }}>
+              <button onClick={prevMonth}
+                style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>‹</button>
+              <span style={{ fontSize:16,fontWeight:700,color:'#111827' }}>{year} 年 {month} 月</span>
+              <button onClick={nextMonth}
+                style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>›</button>
+            </div>
+
+            <div style={{ display:'flex',gap:10,marginBottom:8 }}>
+              <div style={{ flex:1,background:'#FFF7ED',borderRadius:12,padding:'12px' }}>
+                <p style={{ fontSize:11,fontWeight:700,color:'#F97316',margin:'0 0 4px' }}>BV</p>
+                <p style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>{bvTotal.toFixed(0)}</p>
+              </div>
+              <div style={{ flex:1,background:'#EFF6FF',borderRadius:12,padding:'12px' }}>
+                <p style={{ fontSize:11,fontWeight:700,color:'#3B82F6',margin:'0 0 4px' }}>IBV</p>
+                <p style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>{ibvTotal.toFixed(0)}</p>
+              </div>
+              <div style={{ flex:1,background:'#F0FDF4',borderRadius:12,padding:'12px' }}>
+                <p style={{ fontSize:11,fontWeight:700,color:'#16A34A',margin:'0 0 4px' }}>獲利</p>
+                <p style={{ fontSize:18,fontWeight:800,color:'#16A34A',margin:0 }}>NT${profit.toLocaleString()}</p>
               </div>
             </div>
-            <div style={{ display:'flex',alignItems:'flex-end',gap:1,height:chartHeight,overflowX:'auto' }}>
-              {chartData.map(d => (
-                <div key={d.day} style={{ display:'flex',flexDirection:'column',alignItems:'center',
-                  gap:1,minWidth:9,flex:1 }}>
-                  <div style={{ width:'100%',display:'flex',flexDirection:'column',
-                    alignItems:'center',justifyContent:'flex-end',height:chartHeight-16 }}>
-                    {d.bv > 0 && (
-                      <div style={{ width:'100%',background:'#F97316',borderRadius:'2px 2px 0 0',
-                        height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px`,opacity:0.85 }} />
-                    )}
-                    {d.ibv > 0 && (
-                      <div style={{ width:'100%',background:'#3B82F6',borderRadius:'2px 2px 0 0',
-                        height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,opacity:0.85,marginTop:1 }} />
-                    )}
-                    {d.bv === 0 && d.ibv === 0 && (
-                      <div style={{ width:'100%',height:2,background:'#F3F4F6',borderRadius:2 }} />
-                    )}
+            {giftCost > 0 && (
+              <p style={{ fontSize:12,color:'#F97316',textAlign:'right',margin:'0 0 8px' }}>
+                贈品成本：-NT${giftCost.toLocaleString()}
+              </p>
+            )}
+
+            {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
+              <div style={{ background:'#F8FAFC',borderRadius:12,padding:'12px 8px 8px',marginTop:4 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
+                  <span style={{ fontSize:12,fontWeight:700,color:'#6B7280' }}>每日點數趨勢</span>
+                  <div style={{ display:'flex',gap:10 }}>
+                    <span style={{ fontSize:11,color:'#F97316',display:'flex',alignItems:'center',gap:3 }}>
+                      <span style={{ width:8,height:8,borderRadius:2,background:'#F97316',display:'inline-block' }}/>BV
+                    </span>
+                    <span style={{ fontSize:11,color:'#3B82F6',display:'flex',alignItems:'center',gap:3 }}>
+                      <span style={{ width:8,height:8,borderRadius:2,background:'#3B82F6',display:'inline-block' }}/>IBV
+                    </span>
                   </div>
-                  <span style={{ fontSize:9,color:'#D1D5DB',lineHeight:1 }}>
-                    {d.day % 5 === 1 ? d.day : ''}
-                  </span>
                 </div>
-              ))}
-            </div>
+                <div style={{ display:'flex',alignItems:'flex-end',gap:1,height:chartHeight,overflowX:'auto' }}>
+                  {chartData.map(d => (
+                    <div key={d.day} style={{ display:'flex',flexDirection:'column',alignItems:'center',
+                      gap:1,minWidth:9,flex:1 }}>
+                      <div style={{ width:'100%',display:'flex',flexDirection:'column',
+                        alignItems:'center',justifyContent:'flex-end',height:chartHeight-16 }}>
+                        {d.bv > 0 && (
+                          <div style={{ width:'100%',background:'#F97316',borderRadius:'2px 2px 0 0',
+                            height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px`,opacity:0.85 }} />
+                        )}
+                        {d.ibv > 0 && (
+                          <div style={{ width:'100%',background:'#3B82F6',borderRadius:'2px 2px 0 0',
+                            height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,opacity:0.85,marginTop:1 }} />
+                        )}
+                        {d.bv === 0 && d.ibv === 0 && (
+                          <div style={{ width:'100%',height:2,background:'#F3F4F6',borderRadius:2 }} />
+                        )}
+                      </div>
+                      <span style={{ fontSize:9,color:'#D1D5DB',lineHeight:1 }}>
+                        {d.day % 5 === 1 ? d.day : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 搜尋模式狀態列 */}
+        {searchMode && (
+          <div style={{ fontSize:13,color:'#6B7280',padding:'4px 0' }}>
+            {searching ? '搜尋中…' :
+             !searchQuery.trim() ? '輸入關鍵字開始搜尋' :
+             `找到 ${searchResults.length} 筆結果`}
           </div>
         )}
       </div>
 
-      {loading ? (
+      {/* 列表 */}
+      {!searchMode && loading ? (
         <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>載入中…</div>
-      ) : transactions.length === 0 ? (
+      ) : !searchMode && transactions.length === 0 ? (
         <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
           <p style={{ fontSize:36,margin:'0 0 12px' }}>📊</p>
           <p style={{ fontSize:15 }}>這個月還沒有業績紀錄，點 + 開始新增！</p>
         </div>
+      ) : searchMode && !searchQuery.trim() ? (
+        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
+          <p style={{ fontSize:36,margin:'0 0 12px' }}>🔍</p>
+          <p style={{ fontSize:15 }}>輸入顧客姓名或產品名稱</p>
+        </div>
+      ) : searchMode && searching ? (
+        <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>搜尋中…</div>
+      ) : searchMode && searchResults.length === 0 && searchQuery.trim() ? (
+        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
+          <p style={{ fontSize:36,margin:'0 0 12px' }}>😶</p>
+          <p style={{ fontSize:15 }}>找不到「{searchQuery}」的紀錄</p>
+        </div>
       ) : (
         <div style={{ margin:'8px 0',background:'#fff' }}>
-          {transactions.map(t => {
-            const name = t.customers?.name || '未知顧客'
+          {displayList.map(t => {
+            const name = t.customers?.name || t.customer_name || '未知顧客'
             const margin = (t.amount||0) - (t.cost||0)
             return (
               <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,
@@ -417,17 +504,17 @@ export default function Transactions() {
                   {t.is_gift ? '🎁' : name[0]}
                 </div>
                 <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+                  <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
                     <span style={{ fontSize:14,fontWeight:700,color:'#111827' }}>{name}</span>
                     <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
                       background:t.type==='BV'?'#FFF7ED':'#EFF6FF',
                       color:t.type==='BV'?'#F97316':'#3B82F6' }}>{t.type}</span>
                   </div>
                   <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>
-                    {t.product_name} · {formatDate(t.date)}
+                    {t.product_name} · {searchMode ? formatDate(t.date) : formatShortDate(t.date)}
                   </p>
                 </div>
-                <div style={{ textAlign:'right' }}>
+                <div style={{ textAlign:'right',flexShrink:0 }}>
                   <p style={{ fontSize:13,fontWeight:700,color:'#111827',margin:0 }}>
                     {Number(t.points).toFixed(0)} 點
                   </p>
@@ -460,6 +547,7 @@ export default function Transactions() {
         </div>
       )}
 
+      {/* CSV 匯入 Modal */}
       {showImport && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:400 }}
@@ -468,13 +556,11 @@ export default function Transactions() {
             padding:'24px 20px 40px',width:'100%',maxWidth:480,
             maxHeight:'85vh',overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
-
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
               <h2 style={{ fontSize:17,fontWeight:800,color:'#111827',margin:0 }}>📥 批量匯入業績</h2>
               <button onClick={() => { setShowImport(false); resetImport() }}
                 style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#9CA3AF' }}>×</button>
             </div>
-
             <button onClick={downloadTemplate}
               style={{ display:'flex',alignItems:'center',gap:8,width:'100%',
                 padding:'12px 16px',borderRadius:12,border:'1px dashed #22C55E',
@@ -485,17 +571,14 @@ export default function Transactions() {
                 <p style={{ fontSize:11,color:'#6B7280',margin:0 }}>date, customer_name, customer_phone, product_name, type, points, amount, cost, is_gift</p>
               </div>
             </button>
-
             <div style={{ background:'#FFF7ED',borderRadius:10,padding:'10px 14px',marginBottom:16 }}>
               <p style={{ fontSize:12,color:'#92400E',margin:0,lineHeight:1.6 }}>
                 💡 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_name</strong> 電話找不到時用名字配對，都沒有就新建<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;電話開頭的 0 被 Excel 吃掉沒關係，系統會自動補回
               </p>
             </div>
-
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
@@ -504,7 +587,6 @@ export default function Transactions() {
                 fontSize:14,fontWeight:600,color:'#374151',cursor:'pointer',marginBottom:16 }}>
               📂 選擇 CSV 檔案
             </button>
-
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
                 <p style={{ fontSize:13,fontWeight:700,color:'#374151',margin:'0 0 8px' }}>
@@ -549,7 +631,6 @@ export default function Transactions() {
                 )}
               </div>
             )}
-
             {importDone && (
               <div style={{ background:'#F0FDF4',borderRadius:10,padding:'12px 16px',marginBottom:16 }}>
                 <p style={{ fontSize:14,fontWeight:700,color:'#16A34A',margin:0 }}>
@@ -557,7 +638,6 @@ export default function Transactions() {
                 </p>
               </div>
             )}
-
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
                 style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
@@ -577,6 +657,7 @@ export default function Transactions() {
         </div>
       )}
 
+      {/* 刪除確認 */}
       {deleteTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
@@ -596,6 +677,7 @@ export default function Transactions() {
         </div>
       )}
 
+      {/* 編輯 Modal */}
       {editTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200 }}>
