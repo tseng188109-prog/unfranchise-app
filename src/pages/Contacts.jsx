@@ -103,6 +103,7 @@ export default function Contacts() {
   const [contacts, setContacts] = useState([])
   const [search, setSearch] = useState('')
   const [eggFilter, setEggFilter] = useState('全部')
+  const [sortBy, setSortBy] = useState('default') // default | name | last_contact | due
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
   const [menuTarget, setMenuTarget] = useState(null)
@@ -276,20 +277,48 @@ async function handleImport() {
     return matchEgg && matchSearch
   })
 
-  const pinned = filtered.filter(c => c.is_pinned)
+  // 排序函數（依目前選擇套用到任一分組陣列）
+  function applySort(arr) {
+    if (sortBy === 'name') {
+      return [...arr].sort((a,b) => (a.name||'').localeCompare(b.name||'', 'zh-Hant'))
+    }
+    if (sortBy === 'last_contact') {
+      return [...arr].sort((a,b) => {
+        if (!a.last_contact_date && !b.last_contact_date) return 0
+        if (!a.last_contact_date) return 1
+        if (!b.last_contact_date) return -1
+        return b.last_contact_date.localeCompare(a.last_contact_date) // 最近的在前
+      })
+    }
+    if (sortBy === 'due') {
+      return [...arr].sort((a,b) => {
+        if (!a.next_contact_date && !b.next_contact_date) return 0
+        if (!a.next_contact_date) return 1
+        if (!b.next_contact_date) return -1
+        return a.next_contact_date.localeCompare(b.next_contact_date) // 最快到期在前
+      })
+    }
+    return arr // default：保留原始查詢排序
+  }
+
+  const pinned = applySort(filtered.filter(c => c.is_pinned))
   const unpinned = filtered.filter(c => !c.is_pinned)
-  const overdue = unpinned.filter(c => c.next_contact_date && c.next_contact_date < today())
-  const dueToday = unpinned.filter(c => c.next_contact_date === today())
-  const thisWeek = unpinned.filter(c => {
+  const overdueRaw = unpinned.filter(c => c.next_contact_date && c.next_contact_date < today())
+  const dueTodayRaw = unpinned.filter(c => c.next_contact_date === today())
+  const thisWeekRaw = unpinned.filter(c => {
     if (!c.next_contact_date || c.next_contact_date <= today()) return false
     const diff = Math.floor((new Date(c.next_contact_date) - new Date(today())) / 86400000)
     return diff <= 7
   })
-  const others = unpinned.filter(c => {
+  const othersRaw = unpinned.filter(c => {
     if (!c.next_contact_date) return true
     const diff = Math.floor((new Date(c.next_contact_date) - new Date(today())) / 86400000)
     return diff > 7
   })
+  const overdue = applySort(overdueRaw)
+  const dueToday = applySort(dueTodayRaw)
+  const thisWeek = applySort(thisWeekRaw)
+  const others = applySort(othersRaw)
 
   function ContactCard({ c }) {
     const isOv = c.next_contact_date && c.next_contact_date < today()
@@ -407,6 +436,26 @@ async function handleImport() {
             </button>
           ))}
         </div>
+
+        {!showArchived && (
+          <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
+            <span style={{ fontSize:12, color:'#9CA3AF', alignSelf:'center', flexShrink:0 }}>排序：</span>
+            {[
+              { key:'default', label:'預設' },
+              { key:'name', label:'姓名' },
+              { key:'last_contact', label:'最近互動' },
+              { key:'due', label:'跟進到期' },
+            ].map(s => (
+              <button key={s.key} onClick={() => setSortBy(s.key)}
+                style={{ padding:'4px 12px', borderRadius:99, border:'none',
+                  background: sortBy===s.key ? '#EFF6FF' : '#F8FAFC',
+                  color: sortBy===s.key ? '#2563EB' : '#9CA3AF',
+                  fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {showArchived && (
