@@ -449,7 +449,7 @@ async function handleImport() {
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="搜尋姓名、職業..."
             style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:10,
-              border:'1px solid #E5E7EB', fontSize:14, background:'#F8FAFC',
+              border:'1px solid #E5E7EB', fontSize:14, background:'#F8FAFC', color:'#111827',
               boxSizing:'border-box', outline:'none' }} />
         </div>
 
@@ -492,11 +492,11 @@ async function handleImport() {
             {sortBy !== 'default' && (
               <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
                 title={sortDir === 'asc' ? '升冪（點擊切換為降冪）' : '降冪（點擊切換為升冪）'}
-                style={{ padding:'4px 10px', borderRadius:99, border:'1px solid #E5E7EB',
-                  background:'#fff', color:'#374151', fontSize:12, fontWeight:700,
-                  cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
-                  display:'flex', alignItems:'center', gap:3 }}>
-                {sortDir === 'asc' ? '↑ 升冪' : '↓ 降冪'}
+                style={{ width:26, height:26, borderRadius:'50%', border:'1px solid #E5E7EB',
+                  background:'#fff', color:'#374151', fontSize:14, fontWeight:700,
+                  cursor:'pointer', flexShrink:0,
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {sortDir === 'asc' ? '↑' : '↓'}
               </button>
             )}
           </div>
