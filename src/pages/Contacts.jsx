@@ -266,9 +266,13 @@ async function handleImport() {
   }
   // ─────────────────────────────────────────────────
 
+  // 搜尋不分大小寫：兩邊都轉小寫再比對
+  const searchLower = search.trim().toLowerCase()
   const filtered = contacts.filter(c => {
     const matchEgg = eggFilter === '全部' || c.egg_type === eggFilter
-    const matchSearch = !search || c.name.includes(search) || (c.occupation||'').includes(search)
+    const matchSearch = !searchLower
+      || (c.name || '').toLowerCase().includes(searchLower)
+      || (c.occupation || '').toLowerCase().includes(searchLower)
     return matchEgg && matchSearch
   })
 
