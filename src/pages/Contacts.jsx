@@ -104,6 +104,8 @@ export default function Contacts() {
   const [search, setSearch] = useState('')
   const [eggFilter, setEggFilter] = useState('全部')
   const [sortBy, setSortBy] = useState('default') // default | name | last_contact | due
+  const [sortDir, setSortDir] = useState('desc') // desc | asc
+  const [realLastContact, setRealLastContact] = useState({}) // { contact_id: 'YYYY-MM-DD' }
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
   const [menuTarget, setMenuTarget] = useState(null)
@@ -123,6 +125,7 @@ export default function Contacts() {
   }, [])
 
   useEffect(() => { if (user) fetchContacts() }, [user, showArchived])
+  useEffect(() => { if (user && sortBy === 'last_contact') fetchRealLastContact() }, [user, sortBy])
 
   async function fetchContacts() {
     setLoading(true)
@@ -143,6 +146,21 @@ export default function Contacts() {
     const { data } = await query
     if (data) setContacts(data)
     setLoading(false)
+  }
+
+  // 「最近互動」排序：直接查 contact_logs 表，取每位聯絡人最新一筆互動紀錄的日期
+  async function fetchRealLastContact() {
+    const { data } = await supabase
+      .from('contact_logs')
+      .select('contact_id,date')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false })
+    if (!data) return
+    const map = {}
+    data.forEach(l => {
+      if (l.contact_id && !map[l.contact_id]) map[l.contact_id] = l.date
+    })
+    setRealLastContact(map)
   }
 
   async function handlePin(c) {
@@ -277,25 +295,31 @@ async function handleImport() {
     return matchEgg && matchSearch
   })
 
-  // 排序函數（依目前選擇套用到任一分組陣列）
+  // 排序函數（依目前選擇 + 方向套用到任一分組陣列）
   function applySort(arr) {
+    const dirMul = sortDir === 'asc' ? 1 : -1
     if (sortBy === 'name') {
-      return [...arr].sort((a,b) => (a.name||'').localeCompare(b.name||'', 'zh-Hant'))
+      // 姓名：asc=A→Z／一→囧, desc=反過來
+      return [...arr].sort((a,b) => dirMul * -1 * (a.name||'').localeCompare(b.name||'', 'zh-Hant'))
     }
     if (sortBy === 'last_contact') {
+      // 真實最近互動日期（來自 contact_logs），asc=最久遠優先, desc=最近優先
       return [...arr].sort((a,b) => {
-        if (!a.last_contact_date && !b.last_contact_date) return 0
-        if (!a.last_contact_date) return 1
-        if (!b.last_contact_date) return -1
-        return b.last_contact_date.localeCompare(a.last_contact_date) // 最近的在前
+        const da = realLastContact[a.id] || ''
+        const db = realLastContact[b.id] || ''
+        if (!da && !db) return 0
+        if (!da) return 1
+        if (!db) return -1
+        return dirMul * -1 * da.localeCompare(db)
       })
     }
     if (sortBy === 'due') {
+      // 建議互動（next_contact_date），asc=最快到期優先, desc=最晚到期優先
       return [...arr].sort((a,b) => {
         if (!a.next_contact_date && !b.next_contact_date) return 0
         if (!a.next_contact_date) return 1
         if (!b.next_contact_date) return -1
-        return a.next_contact_date.localeCompare(b.next_contact_date) // 最快到期在前
+        return dirMul * -1 * a.next_contact_date.localeCompare(b.next_contact_date)
       })
     }
     return arr // default：保留原始查詢排序
@@ -438,22 +462,32 @@ async function handleImport() {
         </div>
 
         {!showArchived && (
-          <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
-            <span style={{ fontSize:12, color:'#9CA3AF', alignSelf:'center', flexShrink:0 }}>排序：</span>
+          <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto', alignItems:'center' }}>
+            <span style={{ fontSize:12, color:'#9CA3AF', flexShrink:0 }}>排序：</span>
             {[
               { key:'default', label:'預設' },
               { key:'name', label:'姓名' },
               { key:'last_contact', label:'最近互動' },
-              { key:'due', label:'跟進到期' },
+              { key:'due', label:'建議互動' },
             ].map(s => (
               <button key={s.key} onClick={() => setSortBy(s.key)}
                 style={{ padding:'4px 12px', borderRadius:99, border:'none',
                   background: sortBy===s.key ? '#EFF6FF' : '#F8FAFC',
                   color: sortBy===s.key ? '#2563EB' : '#9CA3AF',
-                  fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
                 {s.label}
               </button>
             ))}
+            {sortBy !== 'default' && (
+              <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                title={sortDir === 'asc' ? '升冪（點擊切換為降冪）' : '降冪（點擊切換為升冪）'}
+                style={{ padding:'4px 10px', borderRadius:99, border:'1px solid #E5E7EB',
+                  background:'#fff', color:'#374151', fontSize:12, fontWeight:700,
+                  cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
+                  display:'flex', alignItems:'center', gap:3 }}>
+                {sortDir === 'asc' ? '↑ 升冪' : '↓ 降冪'}
+              </button>
+            )}
           </div>
         )}
       </div>
