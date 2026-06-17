@@ -166,9 +166,21 @@ export default function Daily() {
   }
 
   async function fetchTodayContacted() {
-    const { data } = await supabase.from('contacts').select('name')
-      .eq('user_id', user.id).eq('last_contact_date', viewDate).limit(5)
-    if (data) setTodayContacted(data.map(c => c.name))
+    // 改查 contact_logs，新增/刪除互動紀錄時能即時同步（不依賴 contacts.last_contact_date）
+    const { data } = await supabase.from('contact_logs')
+      .select('contact_id,contacts(id,name)')
+      .eq('user_id', user.id).eq('date', viewDate)
+    if (data) {
+      const seen = new Set()
+      const list = []
+      data.forEach(l => {
+        if (l.contacts && !seen.has(l.contacts.id)) {
+          seen.add(l.contacts.id)
+          list.push({ id: l.contacts.id, name: l.contacts.name })
+        }
+      })
+      setTodayContacted(list.slice(0, 5))
+    }
   }
 
   async function fetchGoalText() {
@@ -459,8 +471,16 @@ export default function Daily() {
                     textDecoration:done?'line-through':'none' }}>
                     {task.icon} {task.label}
                     {task.special&&todayContacted.length>0&&(
-                      <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
-                        {todayContacted.join('、')} ✓
+                      <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
+                        {todayContacted.map((c,i) => (
+                          <span key={c.id}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
+                            style={{ color:'#22C55E',fontWeight:600,cursor:'pointer',
+                              textDecoration:'underline' }}>
+                            {c.name}{i<todayContacted.length-1?'、':''}
+                          </span>
+                        ))}
+                        <span style={{ color:'#22C55E',fontWeight:600 }}>✓</span>
                       </span>
                     )}
                   </span>

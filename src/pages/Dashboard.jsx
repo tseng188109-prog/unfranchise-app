@@ -250,9 +250,21 @@ export default function Dashboard() {
   }
 
   async function fetchViewContacted() {
-    const { data } = await supabase.from('contacts').select('name')
-      .eq('user_id',user.id).eq('last_contact_date',viewDate).limit(5)
-    if(data) setViewContacted(data.map(c=>c.name))
+    // 改查 contact_logs，新增/刪除互動紀錄時能即時同步（不依賴 contacts.last_contact_date）
+    const { data } = await supabase.from('contact_logs')
+      .select('contact_id,contacts(id,name)')
+      .eq('user_id', user.id).eq('date', viewDate)
+    if (data) {
+      const seen = new Set()
+      const list = []
+      data.forEach(l => {
+        if (l.contacts && !seen.has(l.contacts.id)) {
+          seen.add(l.contacts.id)
+          list.push({ id: l.contacts.id, name: l.contacts.name })
+        }
+      })
+      setViewContacted(list.slice(0, 5))
+    }
   }
 
   async function fetchWeekStatus() {
@@ -589,8 +601,16 @@ export default function Dashboard() {
                       textDecoration:done?'line-through':'none' }}>
                       {task.icon} {task.label}
                       {task.special&&viewContacted.length>0&&(
-                        <span style={{ color:'#22C55E',fontWeight:600,marginLeft:6 }}>
-                          {viewContacted.join('、')} ✓
+                        <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
+                          {viewContacted.map((c,i) => (
+                            <span key={c.id}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
+                              style={{ color:'#22C55E',fontWeight:600,cursor:'pointer',
+                                textDecoration:'underline' }}>
+                              {c.name}{i<viewContacted.length-1?'、':''}
+                            </span>
+                          ))}
+                          <span style={{ color:'#22C55E',fontWeight:600 }}>✓</span>
                         </span>
                       )}
                     </span>
