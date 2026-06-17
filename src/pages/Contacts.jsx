@@ -325,8 +325,14 @@ async function handleImport() {
     return arr // default：保留原始查詢排序
   }
 
+  const isFlatSort = sortBy === 'last_contact' || sortBy === 'due'
+
   const pinned = applySort(filtered.filter(c => c.is_pinned))
   const unpinned = filtered.filter(c => !c.is_pinned)
+
+  // 「最近互動」「建議互動」：取消逾期/今天/本週分組，整份通盤排序
+  const flatUnpinned = isFlatSort ? applySort(unpinned) : []
+
   const overdueRaw = unpinned.filter(c => c.next_contact_date && c.next_contact_date < today())
   const dueTodayRaw = unpinned.filter(c => c.next_contact_date === today())
   const thisWeekRaw = unpinned.filter(c => {
@@ -382,7 +388,12 @@ async function handleImport() {
             {c.action_type && <span>{c.action_type}</span>}
           </div>
         </div>
-        {!showArchived && c.next_contact_date && (
+        {!showArchived && sortBy === 'last_contact' && (
+          <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', color:'#16A34A' }}>
+            {realLastContact[c.id] ? `互動於 ${realLastContact[c.id].slice(5).replace('-','/')}` : '尚無互動'}
+          </span>
+        )}
+        {!showArchived && sortBy !== 'last_contact' && c.next_contact_date && (
           <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap',
             color:isOv?'#DC2626':isToday?'#F97316':'#9CA3AF' }}>
             {formatDue(c.next_contact_date)}
@@ -512,6 +523,15 @@ async function handleImport() {
       ) : showArchived ? (
         <div style={{ background:'#fff', margin:'8px 0' }}>
           <Section title="📦 封存中" count={filtered.length} items={filtered} />
+        </div>
+      ) : isFlatSort ? (
+        <div style={{ background:'#fff', margin:'8px 0' }}>
+          <Section title="📌 釘選" count={pinned.length} items={pinned} />
+          <Section
+            title={sortBy === 'last_contact' ? '依最近互動排序' : '依建議互動排序'}
+            count={flatUnpinned.length}
+            items={flatUnpinned}
+          />
         </div>
       ) : (
         <div style={{ background:'#fff', margin:'8px 0' }}>
