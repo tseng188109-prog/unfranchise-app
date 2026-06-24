@@ -19,6 +19,7 @@ import CustomerEdit from './pages/CustomerEdit'
 import Settings from './pages/Settings'
 import Samples from './pages/Samples'
 import Partners from './pages/Partners'
+import Team from './pages/Team'
 import Onboarding from './pages/Onboarding'
 
 function App() {
@@ -113,6 +114,7 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/samples" element={<Samples />} />
           <Route path="/partners" element={<Partners />} />
+          <Route path="/team" element={<Team />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>

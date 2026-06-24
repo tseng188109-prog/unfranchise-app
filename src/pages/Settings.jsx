@@ -218,6 +218,7 @@ export default function Settings() {
             { label:'👥 顧客檔案', path:'/customers' },
             { label:'🧪 試用品追蹤', path:'/samples' },
             { label:'🤝 我的夥伴', path:'/partners' },
+            { label:'🚀 戰隊', path:'/team' },
           ].map(item => (
             <button key={item.path} onClick={() => navigate(item.path)}
               style={{ width:'100%',display:'flex',justifyContent:'space-between',
