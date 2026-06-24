@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabase'
 import Auth from './pages/Auth'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Layout from './pages/Layout'
 import Contacts from './pages/Contacts'
@@ -24,6 +25,10 @@ function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [onboardingDone, setOnboardingDone] = useState(true) // 預設 true，避免閃爍
+
+  // 重設密碼連結會帶 /reset-password 路徑，這個頁面不受 session 檢查阻擋，
+  // 否則使用者點連結後會被攔在 <Auth /> 畫面，永遠看不到輸入新密碼的表單
+  const isResetPasswordPath = window.location.pathname.startsWith('/reset-password')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -57,6 +62,18 @@ function App() {
 
   function handleOnboardingComplete() {
     setOnboardingDone(true)
+  }
+
+  // 重設密碼頁面：無論有沒有 session、有沒有 loading，都直接顯示這個頁面
+  if (isResetPasswordPath) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<Navigate to="/reset-password" />} />
+        </Routes>
+      </BrowserRouter>
+    )
   }
 
   if (loading) return (
