@@ -273,8 +273,15 @@ export default function Customers() {
   return (
     <div style={{ background:'#F8FAFC', minHeight:'100vh' }}
       onClick={() => setMenuTarget(null)}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
-      <div style={{ background:'#fff', padding:'52px 16px 0', borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:'1px solid #F3F4F6' }}>
+      <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
           <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>顧客檔案</h1>
           <div style={{ display:'flex', gap:8 }}>
@@ -299,7 +306,9 @@ export default function Customers() {
               boxSizing:'border-box', outline:'none', color:'#111827' }} />
         </div>
       </div>
+      </div>
 
+      <div className="dash-container">
       {loading ? (
         <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>載入中…</div>
       ) : filtered.length === 0 ? (
@@ -312,6 +321,7 @@ export default function Customers() {
           {filtered.map(c => <CustomerCard key={c.id} c={c} />)}
         </div>
       )}
+      </div>
 
       {showImport && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',

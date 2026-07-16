@@ -383,9 +383,15 @@ export default function Daily() {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)' }}>
-        <div style={{ maxWidth:430,margin:'0 auto',padding:'52px 20px 20px' }}>
+        <div className="dash-container" style={{ padding:'52px 20px 20px' }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>每日行動</h1>
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:8 }}>
             <button onClick={() => changeDate(-1)}
@@ -415,7 +421,7 @@ export default function Daily() {
         </div>
       </div>
 
-      <div style={{ maxWidth:430,margin:'0 auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
+      <div className="dash-container" style={{ padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>

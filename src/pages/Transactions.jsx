@@ -337,8 +337,15 @@ export default function Transactions() {
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}
       onClick={() => setMenuId(null)}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
-      <div style={{ background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff',padding:'52px 0 16px',borderBottom:'1px solid #F3F4F6' }}>
+      <div className="dash-container" style={{ padding:'0 16px' }}>
 
         {/* Title row */}
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
@@ -468,7 +475,9 @@ export default function Transactions() {
           </div>
         )}
       </div>
+      </div>
 
+      <div className="dash-container">
       {/* 列表 */}
       {!searchMode && loading ? (
         <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>載入中…</div>
@@ -546,6 +555,7 @@ export default function Transactions() {
           })}
         </div>
       )}
+      </div>
 
       {/* CSV 匯入 Modal */}
       {showImport && (

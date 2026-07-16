@@ -423,9 +423,16 @@ async function handleImport() {
   return (
     <div style={{ background:'#F8FAFC', minHeight:'100vh' }}
       onClick={() => setMenuTarget(null)}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff', padding:'52px 16px 0', borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:'1px solid #F3F4F6' }}>
+      <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
           <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>互動名單</h1>
           {!showArchived && (
@@ -502,7 +509,9 @@ async function handleImport() {
           </div>
         )}
       </div>
+      </div>
 
+      <div className="dash-container">
       {showArchived && (
         <div style={{ background:'#FEF9C3', padding:'10px 16px',
           fontSize:13, color:'#92400E', display:'flex', alignItems:'center', gap:6 }}>
@@ -542,6 +551,7 @@ async function handleImport() {
           <Section title="其他" count={others.length} items={others} />
         </div>
       )}
+      </div>
 
       {/* ── CSV 匯入 Modal ───────────────────────────── */}
       {showImport && (
