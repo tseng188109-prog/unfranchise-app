@@ -1,6 +1,27 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import {
+  IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
+  IconDotsVertical, IconPencil, IconTrash, IconX, IconGift, IconChartBar,
+} from '@tabler/icons-react'
+
+// 設計系統色碼
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_YELLOW = '#FFD166'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_GREEN = '#3ECF8E'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
+const SUBCARD_BG = '#F5F8FC'
 
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
@@ -335,7 +356,7 @@ export default function Transactions() {
   const displayList = searchMode ? searchResults : transactions
 
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}
+    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}
       onClick={() => setMenuId(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -344,30 +365,30 @@ export default function Transactions() {
         }
       `}</style>
 
-      <div style={{ background:'#fff',padding:'52px 0 16px',borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff',padding:'52px 0 16px',borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
 
         {/* Title row */}
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>業績紀錄</h1>
+          <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={searchMode ? exitSearch : enterSearch}
-              style={{ width:36,height:36,borderRadius:'50%',
-                background: searchMode ? '#2563EB' : '#F0F9FF',
-                border: searchMode ? 'none' : '1px solid #BAE6FD',
-                color: searchMode ? '#fff' : '#0284C7',
-                fontSize:16,cursor:'pointer',
+              style={{ width:36,height:36,borderRadius:12,
+                background: searchMode ? PRIMARY : PRIMARY_SOFT,
+                border: 'none',
+                color: searchMode ? '#fff' : PRIMARY,
+                cursor:'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center' }}
-              title="搜尋">🔍</button>
+              title="搜尋"><IconSearch size={16} stroke={1.9} /></button>
             <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-              style={{ width:36,height:36,borderRadius:'50%',background:'#F0FDF4',
-                border:'1px solid #22C55E',color:'#16A34A',fontSize:18,cursor:'pointer',
+              style={{ width:36,height:36,borderRadius:12,background:ACCENT_GREEN_SOFT,
+                border:'none',color:ACCENT_GREEN_TEXT,cursor:'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center' }}
-              title="CSV 批量匯入">📥</button>
+              title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
             <button onClick={() => navigate('/transactions/new')}
-              style={{ width:36,height:36,borderRadius:'50%',background:'#2563EB',
-                border:'none',color:'#fff',fontSize:22,cursor:'pointer',
-                display:'flex',alignItems:'center',justifyContent:'center' }}>+</button>
+              style={{ width:36,height:36,borderRadius:12,background:PRIMARY,
+                border:'none',color:'#fff',cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
           </div>
         </div>
 
@@ -379,14 +400,14 @@ export default function Transactions() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="搜尋顧客姓名或產品名稱…"
-              style={{ flex:1,padding:'9px 14px',borderRadius:10,
-                border:'1.5px solid #2563EB',fontSize:14,outline:'none',
-                color:'#111827',background:'#F0F9FF' }}
+              style={{ flex:1,padding:'9px 14px',borderRadius:12,
+                border:`1.5px solid ${PRIMARY}`,fontSize:14,outline:'none',
+                color:TEXT_MAIN,background:PRIMARY_SOFT }}
             />
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]) }}
-                style={{ padding:'0 12px',borderRadius:10,border:'1px solid #E5E7EB',
-                  background:'#fff',fontSize:13,color:'#6B7280',cursor:'pointer' }}>
+                style={{ padding:'0 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+                  background:'#fff',fontSize:13,color:TEXT_SECONDARY,cursor:'pointer' }}>
                 清除
               </button>
             )}
@@ -398,42 +419,42 @@ export default function Transactions() {
           <>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginBottom:12 }}>
               <button onClick={prevMonth}
-                style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>‹</button>
-              <span style={{ fontSize:16,fontWeight:700,color:'#111827' }}>{year} 年 {month} 月</span>
+                style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:TEXT_SECONDARY }}>‹</button>
+              <span style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
               <button onClick={nextMonth}
-                style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#374151' }}>›</button>
+                style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:TEXT_SECONDARY }}>›</button>
             </div>
 
             <div style={{ display:'flex',gap:10,marginBottom:8 }}>
-              <div style={{ flex:1,background:'#FFF7ED',borderRadius:12,padding:'12px' }}>
-                <p style={{ fontSize:11,fontWeight:700,color:'#F97316',margin:'0 0 4px' }}>BV</p>
-                <p style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>{bvTotal.toFixed(0)}</p>
+              <div style={{ flex:1,background:ACCENT_YELLOW_SOFT,borderRadius:14,padding:'12px' }}>
+                <p style={{ fontSize:11,fontWeight:700,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
+                <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
               </div>
-              <div style={{ flex:1,background:'#EFF6FF',borderRadius:12,padding:'12px' }}>
-                <p style={{ fontSize:11,fontWeight:700,color:'#3B82F6',margin:'0 0 4px' }}>IBV</p>
-                <p style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>{ibvTotal.toFixed(0)}</p>
+              <div style={{ flex:1,background:PRIMARY_SOFT,borderRadius:14,padding:'12px' }}>
+                <p style={{ fontSize:11,fontWeight:700,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
+                <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
               </div>
-              <div style={{ flex:1,background:'#F0FDF4',borderRadius:12,padding:'12px' }}>
-                <p style={{ fontSize:11,fontWeight:700,color:'#16A34A',margin:'0 0 4px' }}>獲利</p>
-                <p style={{ fontSize:18,fontWeight:800,color:'#16A34A',margin:0 }}>NT${profit.toLocaleString()}</p>
+              <div style={{ flex:1,background:ACCENT_GREEN_SOFT,borderRadius:14,padding:'12px' }}>
+                <p style={{ fontSize:11,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
+                <p style={{ fontSize:18,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
               </div>
             </div>
             {giftCost > 0 && (
-              <p style={{ fontSize:12,color:'#F97316',textAlign:'right',margin:'0 0 8px' }}>
+              <p style={{ fontSize:12,color:ACCENT_YELLOW_TEXT,textAlign:'right',margin:'0 0 8px' }}>
                 贈品成本：-NT${giftCost.toLocaleString()}
               </p>
             )}
 
             {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
-              <div style={{ background:'#F8FAFC',borderRadius:12,padding:'12px 8px 8px',marginTop:4 }}>
+              <div style={{ background:SUBCARD_BG,borderRadius:14,padding:'12px 8px 8px',marginTop:4 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
-                  <span style={{ fontSize:12,fontWeight:700,color:'#6B7280' }}>每日點數趨勢</span>
+                  <span style={{ fontSize:12,fontWeight:700,color:TEXT_SECONDARY }}>每日點數趨勢</span>
                   <div style={{ display:'flex',gap:10 }}>
-                    <span style={{ fontSize:11,color:'#F97316',display:'flex',alignItems:'center',gap:3 }}>
-                      <span style={{ width:8,height:8,borderRadius:2,background:'#F97316',display:'inline-block' }}/>BV
+                    <span style={{ fontSize:11,color:ACCENT_YELLOW_TEXT,display:'flex',alignItems:'center',gap:3 }}>
+                      <span style={{ width:8,height:8,borderRadius:2,background:ACCENT_YELLOW,display:'inline-block' }}/>BV
                     </span>
-                    <span style={{ fontSize:11,color:'#3B82F6',display:'flex',alignItems:'center',gap:3 }}>
-                      <span style={{ width:8,height:8,borderRadius:2,background:'#3B82F6',display:'inline-block' }}/>IBV
+                    <span style={{ fontSize:11,color:PRIMARY,display:'flex',alignItems:'center',gap:3 }}>
+                      <span style={{ width:8,height:8,borderRadius:2,background:PRIMARY,display:'inline-block' }}/>IBV
                     </span>
                   </div>
                 </div>
@@ -444,18 +465,18 @@ export default function Transactions() {
                       <div style={{ width:'100%',display:'flex',flexDirection:'column',
                         alignItems:'center',justifyContent:'flex-end',height:chartHeight-16 }}>
                         {d.bv > 0 && (
-                          <div style={{ width:'100%',background:'#F97316',borderRadius:'2px 2px 0 0',
-                            height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px`,opacity:0.85 }} />
+                          <div style={{ width:'100%',background:ACCENT_YELLOW,borderRadius:'2px 2px 0 0',
+                            height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px` }} />
                         )}
                         {d.ibv > 0 && (
-                          <div style={{ width:'100%',background:'#3B82F6',borderRadius:'2px 2px 0 0',
-                            height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,opacity:0.85,marginTop:1 }} />
+                          <div style={{ width:'100%',background:PRIMARY,borderRadius:'2px 2px 0 0',
+                            height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,marginTop:1 }} />
                         )}
                         {d.bv === 0 && d.ibv === 0 && (
-                          <div style={{ width:'100%',height:2,background:'#F3F4F6',borderRadius:2 }} />
+                          <div style={{ width:'100%',height:2,background:BORDER,borderRadius:2 }} />
                         )}
                       </div>
-                      <span style={{ fontSize:9,color:'#D1D5DB',lineHeight:1 }}>
+                      <span style={{ fontSize:9,color:TEXT_MUTED,lineHeight:1 }}>
                         {d.day % 5 === 1 ? d.day : ''}
                       </span>
                     </div>
@@ -468,7 +489,7 @@ export default function Transactions() {
 
         {/* 搜尋模式狀態列 */}
         {searchMode && (
-          <div style={{ fontSize:13,color:'#6B7280',padding:'4px 0' }}>
+          <div style={{ fontSize:13,color:TEXT_SECONDARY,padding:'4px 0' }}>
             {searching ? '搜尋中…' :
              !searchQuery.trim() ? '輸入關鍵字開始搜尋' :
              `找到 ${searchResults.length} 筆結果`}
@@ -480,22 +501,21 @@ export default function Transactions() {
       <div className="dash-container">
       {/* 列表 */}
       {!searchMode && loading ? (
-        <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>載入中…</div>
+        <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
       ) : !searchMode && transactions.length === 0 ? (
-        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
-          <p style={{ fontSize:36,margin:'0 0 12px' }}>📊</p>
+        <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED }}>
+          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconChartBar size={36} stroke={1.5} /></div>
           <p style={{ fontSize:15 }}>這個月還沒有業績紀錄，點 + 開始新增！</p>
         </div>
       ) : searchMode && !searchQuery.trim() ? (
-        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
-          <p style={{ fontSize:36,margin:'0 0 12px' }}>🔍</p>
+        <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED }}>
+          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconSearch size={36} stroke={1.5} /></div>
           <p style={{ fontSize:15 }}>輸入顧客姓名或產品名稱</p>
         </div>
       ) : searchMode && searching ? (
-        <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>搜尋中…</div>
+        <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>搜尋中…</div>
       ) : searchMode && searchResults.length === 0 && searchQuery.trim() ? (
-        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
-          <p style={{ fontSize:36,margin:'0 0 12px' }}>😶</p>
+        <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED }}>
           <p style={{ fontSize:15 }}>找不到「{searchQuery}」的紀錄</p>
         </div>
       ) : (
@@ -505,49 +525,49 @@ export default function Transactions() {
             const margin = (t.amount||0) - (t.cost||0)
             return (
               <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,
-                padding:'12px 16px',borderBottom:'1px solid #F3F4F6',position:'relative' }}>
+                padding:'12px 16px',borderBottom:`1px solid ${BORDER}`,position:'relative' }}>
                 <div style={{ width:40,height:40,borderRadius:'50%',
-                  background: t.is_gift ? '#FED7AA' : avatarBg(name),
+                  background: t.is_gift ? '#F0F1F4' : avatarBg(name),
                   display:'flex',alignItems:'center',justifyContent:'center',
-                  color: t.is_gift ? '#F97316' : '#fff',fontWeight:700,fontSize:15,flexShrink:0 }}>
-                  {t.is_gift ? '🎁' : name[0]}
+                  color: t.is_gift ? TEXT_SECONDARY : '#fff',fontWeight:700,fontSize:15,flexShrink:0 }}>
+                  {t.is_gift ? <IconGift size={17} stroke={1.9} /> : name[0]}
                 </div>
                 <div style={{ flex:1,minWidth:0 }}>
                   <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
-                    <span style={{ fontSize:14,fontWeight:700,color:'#111827' }}>{name}</span>
+                    <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{name}</span>
                     <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
-                      background:t.type==='BV'?'#FFF7ED':'#EFF6FF',
-                      color:t.type==='BV'?'#F97316':'#3B82F6' }}>{t.type}</span>
+                      background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
+                      color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
                   </div>
-                  <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>
+                  <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
                     {t.product_name} · {searchMode ? formatDate(t.date) : formatShortDate(t.date)}
                   </p>
                 </div>
                 <div style={{ textAlign:'right',flexShrink:0 }}>
-                  <p style={{ fontSize:13,fontWeight:700,color:'#111827',margin:0 }}>
+                  <p style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
                     {Number(t.points).toFixed(0)} 點
                   </p>
                   <p style={{ fontSize:12,margin:'2px 0 0',
-                    color: t.is_gift ? '#F97316' : margin >= 0 ? '#16A34A' : '#DC2626' }}>
+                    color: t.is_gift ? TEXT_SECONDARY : margin >= 0 ? ACCENT_GREEN_TEXT : DANGER }}>
                     {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
                   </p>
                 </div>
                 <button onClick={e => { e.stopPropagation(); setMenuId(menuId === t.id ? null : t.id) }}
-                  style={{ background:'none',border:'none',fontSize:18,cursor:'pointer',
-                    color:'#9CA3AF',padding:'4px 6px',marginLeft:4,flexShrink:0 }}>⋯</button>
+                  style={{ background:'none',border:'none',cursor:'pointer',
+                    color:TEXT_MUTED,padding:'4px 6px',marginLeft:4,flexShrink:0 }}><IconDotsVertical size={17} stroke={1.9} /></button>
                 {menuId === t.id && (
                   <div onClick={e => e.stopPropagation()}
                     style={{ position:'absolute',right:12,top:44,background:'#fff',
-                      borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.13)',
-                      zIndex:100,overflow:'hidden',minWidth:100 }}>
+                      borderRadius:12,boxShadow:'0 4px 20px rgba(19,42,77,0.13)',
+                      zIndex:100,overflow:'hidden',minWidth:110 }}>
                     <button onClick={() => openEdit(t)}
-                      style={{ display:'block',width:'100%',padding:'11px 18px',
+                      style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
                         background:'none',border:'none',textAlign:'left',
-                        fontSize:14,color:'#374151',cursor:'pointer' }}>✏️ 編輯</button>
+                        fontSize:14,color:TEXT_MAIN,cursor:'pointer' }}><IconPencil size={15} stroke={1.9} /> 編輯</button>
                     <button onClick={() => { setMenuId(null); setDeleteTarget(t.id) }}
-                      style={{ display:'block',width:'100%',padding:'11px 18px',
+                      style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
                         background:'none',border:'none',textAlign:'left',
-                        fontSize:14,color:'#DC2626',cursor:'pointer' }}>🗑️ 刪除</button>
+                        fontSize:14,color:DANGER,cursor:'pointer' }}><IconTrash size={15} stroke={1.9} /> 刪除</button>
                   </div>
                 )}
               </div>
@@ -559,81 +579,82 @@ export default function Transactions() {
 
       {/* CSV 匯入 Modal */}
       {showImport && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',
+          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 40px',width:'100%',maxWidth:480,
             maxHeight:'85vh',overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h2 style={{ fontSize:17,fontWeight:800,color:'#111827',margin:0 }}>📥 批量匯入業績</h2>
+              <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>批量匯入業績</h2>
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#9CA3AF' }}>×</button>
+                style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
             <button onClick={downloadTemplate}
-              style={{ display:'flex',alignItems:'center',gap:8,width:'100%',
-                padding:'12px 16px',borderRadius:12,border:'1px dashed #22C55E',
-                background:'#F0FDF4',marginBottom:16,cursor:'pointer' }}>
-              <span style={{ fontSize:18 }}>📄</span>
+              style={{ display:'flex',alignItems:'center',gap:10,width:'100%',
+                padding:'12px 16px',borderRadius:14,border:`1px dashed ${ACCENT_GREEN}`,
+                background:ACCENT_GREEN_SOFT,marginBottom:16,cursor:'pointer' }}>
+              <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
-                <p style={{ fontSize:13,fontWeight:700,color:'#16A34A',margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11,color:'#6B7280',margin:0 }}>date, customer_name, customer_phone, product_name, type, points, amount, cost, is_gift</p>
+                <p style={{ fontSize:13,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>下載 CSV 範本</p>
+                <p style={{ fontSize:11,color:TEXT_SECONDARY,margin:0 }}>date, customer_name, customer_phone, product_name, type, points, amount, cost, is_gift</p>
               </div>
             </button>
-            <div style={{ background:'#FFF7ED',borderRadius:10,padding:'10px 14px',marginBottom:16 }}>
-              <p style={{ fontSize:12,color:'#92400E',margin:0,lineHeight:1.6 }}>
-                💡 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;<strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;<strong>is_gift</strong> 填 true/false<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;電話開頭的 0 被 Excel 吃掉沒關係，系統會自動補回
+            <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:12,padding:'10px 14px',marginBottom:16 }}>
+              <p style={{ fontSize:12,color:'#8A5A16',margin:0,lineHeight:1.6 }}>
+                <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
+                <strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
+                <strong>is_gift</strong> 填 true/false<br/>
+                電話開頭的 0 被 Excel 吃掉沒關係，系統會自動補回
               </p>
             </div>
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
-              style={{ width:'100%',padding:'13px 0',borderRadius:12,
-                border:'1px solid #E5E7EB',background:'#F8FAFC',
-                fontSize:14,fontWeight:600,color:'#374151',cursor:'pointer',marginBottom:16 }}>
-              📂 選擇 CSV 檔案
+              style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                width:'100%',padding:'13px 0',borderRadius:14,
+                border:`1px solid ${BORDER}`,background:SUBCARD_BG,
+                fontSize:14,fontWeight:600,color:TEXT_MAIN,cursor:'pointer',marginBottom:16 }}>
+              <IconFolder size={17} stroke={1.9} /> 選擇 CSV 檔案
             </button>
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <p style={{ fontSize:13,fontWeight:700,color:'#374151',margin:'0 0 8px' }}>
-                  📋 偵測到 {importRows.length} 筆資料
+                <p style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>
+                  偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
-                  <div style={{ background:'#FEF2F2',borderRadius:10,padding:'10px 14px',marginBottom:10 }}>
-                    <p style={{ fontSize:12,fontWeight:700,color:'#DC2626',margin:'0 0 4px' }}>
-                      ⚠️ 發現 {importErrors.length} 個問題：
+                  <div style={{ background:DANGER_SOFT,borderRadius:12,padding:'10px 14px',marginBottom:10 }}>
+                    <p style={{ fontSize:12,fontWeight:700,color:DANGER,margin:'0 0 4px' }}>
+                      發現 {importErrors.length} 個問題：
                     </p>
                     {importErrors.map((e,i) => (
-                      <p key={i} style={{ fontSize:12,color:'#DC2626',margin:'2px 0' }}>• {e}</p>
+                      <p key={i} style={{ fontSize:12,color:DANGER,margin:'2px 0' }}>• {e}</p>
                     ))}
                   </div>
                 )}
                 {importErrors.length === 0 && (
-                  <div style={{ border:'1px solid #E5E7EB',borderRadius:10,overflow:'hidden',marginBottom:12 }}>
+                  <div style={{ border:`1px solid ${BORDER}`,borderRadius:12,overflow:'hidden',marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex',alignItems:'center',gap:10,
-                        padding:'9px 14px',borderBottom:i<Math.min(importRows.length,5)-1?'1px solid #F3F4F6':'none',
-                        background:i%2===0?'#fff':'#F8FAFC' }}>
+                        padding:'9px 14px',borderBottom:i<Math.min(importRows.length,5)-1?`1px solid ${BORDER}`:'none',
+                        background:i%2===0?'#fff':SUBCARD_BG }}>
                         <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
-                          background:r.type==='BV'?'#FFF7ED':'#EFF6FF',
-                          color:r.type==='BV'?'#F97316':'#3B82F6',flexShrink:0 }}>{r.type}</span>
+                          background:r.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
+                          color:r.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY,flexShrink:0 }}>{r.type}</span>
                         <div style={{ flex:1,minWidth:0 }}>
-                          <span style={{ fontSize:13,fontWeight:700,color:'#111827' }}>{r.product_name}</span>
-                          {r.customer_name && <span style={{ fontSize:12,color:'#9CA3AF' }}> · {r.customer_name}</span>}
+                          <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{r.product_name}</span>
+                          {r.customer_name && <span style={{ fontSize:12,color:TEXT_MUTED }}> · {r.customer_name}</span>}
                         </div>
                         <div style={{ textAlign:'right',flexShrink:0 }}>
-                          <span style={{ fontSize:13,fontWeight:700,color:'#374151' }}>{r.points}點</span>
-                          <span style={{ fontSize:11,color:'#9CA3AF',display:'block' }}>{r.date}</span>
+                          <span style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY }}>{r.points}點</span>
+                          <span style={{ fontSize:11,color:TEXT_MUTED,display:'block' }}>{r.date}</span>
                         </div>
                       </div>
                     ))}
                     {importRows.length > 5 && (
-                      <div style={{ padding:'8px 14px',background:'#F8FAFC',
-                        fontSize:12,color:'#9CA3AF',textAlign:'center' }}>
+                      <div style={{ padding:'8px 14px',background:SUBCARD_BG,
+                        fontSize:12,color:TEXT_MUTED,textAlign:'center' }}>
                         …還有 {importRows.length - 5} 筆
                       </div>
                     )}
@@ -642,24 +663,24 @@ export default function Transactions() {
               </div>
             )}
             {importDone && (
-              <div style={{ background:'#F0FDF4',borderRadius:10,padding:'12px 16px',marginBottom:16 }}>
-                <p style={{ fontSize:14,fontWeight:700,color:'#16A34A',margin:0 }}>
-                  ✅ 匯入完成！成功 {importDone.success} 筆
+              <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:12,padding:'12px 16px',marginBottom:16 }}>
+                <p style={{ fontSize:14,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>
+                  匯入完成！成功 {importDone.success} 筆
                 </p>
               </div>
             )}
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
-                style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
-                  background:importing?'#93C5FD':'#2563EB',
+                style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+                  background:importing?'#9BBBF2':PRIMARY,
                   color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
               </button>
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
-                  background:'#2563EB',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+                  background:PRIMARY,color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 完成
               </button>
             )}
@@ -669,19 +690,21 @@ export default function Transactions() {
 
       {/* 刪除確認 */}
       {deleteTarget && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
-          <div style={{ background:'#fff',borderRadius:16,padding:24,width:280,textAlign:'center' }}>
-            <p style={{ fontSize:32,margin:'0 0 8px' }}>🗑️</p>
-            <p style={{ fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 8px' }}>確定刪除？</p>
-            <p style={{ fontSize:13,color:'#9CA3AF',margin:'0 0 20px' }}>刪除後無法復原</p>
+          <div style={{ background:'#fff',borderRadius:18,padding:24,width:280,textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconTrash size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>確定刪除？</p>
+            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>刪除後無法復原</p>
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1,padding:'10px 0',borderRadius:10,border:'1px solid #E5E7EB',
-                  background:'#fff',fontSize:14,cursor:'pointer',color:'#374151' }}>取消</button>
+                style={{ flex:1,padding:'10px 0',borderRadius:12,border:`1px solid ${BORDER}`,
+                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
-                style={{ flex:1,padding:'10px 0',borderRadius:10,border:'none',
-                  background:'#DC2626',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
+                style={{ flex:1,padding:'10px 0',borderRadius:12,border:'none',
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
             </div>
           </div>
         </div>
@@ -689,14 +712,14 @@ export default function Transactions() {
 
       {/* 編輯 Modal */}
       {editTarget && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200 }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',
+          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 36px',width:'100%',maxWidth:480 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h2 style={{ fontSize:17,fontWeight:800,color:'#111827',margin:0 }}>編輯業績紀錄</h2>
+              <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯業績紀錄</h2>
               <button onClick={() => setEditTarget(null)}
-                style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#9CA3AF' }}>×</button>
+                style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
             <label style={labelStyle}>日期</label>
             <input type="date" value={editForm.date}
@@ -709,10 +732,10 @@ export default function Transactions() {
             <div style={{ display:'flex',gap:8,marginBottom:14 }}>
               {['BV','IBV'].map(type => (
                 <button key={type} onClick={() => setEditForm(f => ({...f, type}))}
-                  style={{ flex:1,padding:'9px 0',borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer',
-                    border: editForm.type===type ? 'none' : '1px solid #E5E7EB',
-                    background: editForm.type===type ? (type==='BV'?'#F97316':'#3B82F6') : '#fff',
-                    color: editForm.type===type ? '#fff' : '#374151' }}>{type}</button>
+                  style={{ flex:1,padding:'9px 0',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',
+                    border: 'none',
+                    background: editForm.type===type ? (type==='BV'?ACCENT_YELLOW:PRIMARY) : SUBCARD_BG,
+                    color: editForm.type===type ? (type==='BV'?'#5B3200':'#fff') : TEXT_SECONDARY }}>{type}</button>
               ))}
             </div>
             <label style={labelStyle}>點數</label>
@@ -734,15 +757,15 @@ export default function Transactions() {
               </div>
             </div>
             <label style={{ display:'flex',alignItems:'center',gap:8,
-              fontSize:14,color:'#374151',marginBottom:20,cursor:'pointer' }}>
+              fontSize:14,color:TEXT_MAIN,marginBottom:20,cursor:'pointer' }}>
               <input type="checkbox" checked={editForm.is_gift}
                 onChange={e => setEditForm(f => ({...f, is_gift: e.target.checked}))}
                 style={{ width:16,height:16 }} />
               這是贈品（成本計入費用，不計算獲利）
             </label>
             <button onClick={handleSave} disabled={saving}
-              style={{ width:'100%',padding:'13px 0',borderRadius:12,border:'none',
-                background: saving ? '#93C5FD' : '#2563EB',color:'#fff',
+              style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+                background: saving ? '#9BBBF2' : PRIMARY,color:'#fff',
                 fontSize:15,fontWeight:700,cursor:'pointer' }}>
               {saving ? '儲存中…' : '儲存'}
             </button>
@@ -754,9 +777,9 @@ export default function Transactions() {
 }
 
 const labelStyle = {
-  display:'block', fontSize:12, fontWeight:700, color:'#6B7280', marginBottom:4
+  display:'block', fontSize:12, fontWeight:700, color:TEXT_SECONDARY, marginBottom:4
 }
 const inputStyle = {
-  width:'100%', padding:'10px 12px', borderRadius:10, border:'1px solid #E5E7EB',
-  fontSize:14, color:'#111827', marginBottom:14, boxSizing:'border-box', outline:'none'
+  width:'100%', padding:'10px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
+  fontSize:14, color:TEXT_MAIN, marginBottom:14, boxSizing:'border-box', outline:'none'
 }

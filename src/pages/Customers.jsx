@@ -1,6 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import {
+  IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
+  IconPin, IconTrash, IconX, IconMail, IconBell,
+} from '@tabler/icons-react'
+
+// 設計系統色碼
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_GREEN = '#3ECF8E'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_PINK = '#F45DA8'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
+const SUBCARD_BG = '#F5F8FC'
 
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
@@ -236,8 +255,8 @@ export default function Customers() {
         onTouchStart={onPressStart} onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
         onClick={() => navigate(`/customers/${c.id}`)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-          background: menuTarget?.id === c.id ? '#F8FAFC' : '#fff',
-          borderBottom:'1px solid #F3F4F6', cursor:'pointer', userSelect:'none' }}>
+          background: menuTarget?.id === c.id ? SUBCARD_BG : '#fff',
+          borderBottom:`1px solid ${BORDER}`, cursor:'pointer', userSelect:'none' }}>
         <div style={{ width:44, height:44, borderRadius:'50%', background:avatarBg(c.name),
           display:'flex', alignItems:'center', justifyContent:'center',
           color:'#fff', fontWeight:700, fontSize:17, flexShrink:0 }}>
@@ -245,23 +264,23 @@ export default function Customers() {
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            {c.is_pinned && <span style={{ fontSize:12 }}>📌</span>}
-            <span style={{ fontSize:15, fontWeight:700, color:'#111827' }}>{c.name}</span>
+            {c.is_pinned && <IconPin size={12} stroke={2} color={TEXT_MUTED} />}
+            <span style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN }}>{c.name}</span>
             {c.repurchase_reminder && c.repurchase_reminder >= today && (
-              <span style={{ fontSize:16 }} title="回購提醒">🔔</span>
+              <IconBell size={14} stroke={1.9} color={ACCENT_PINK} />
             )}
           </div>
-          <p style={{ fontSize:12, color:'#9CA3AF', margin:'2px 0 0' }}>
+          <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>
             {c.occupation||''}
             {c.occupation && c.phone ? ' · ' : ''}{c.phone||''}
           </p>
         </div>
         <div style={{ textAlign:'right' }}>
-          <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:0 }}>
+          <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:0 }}>
             {c.totalBV.toFixed(0)} BV
           </p>
           {c.lastDate && (
-            <p style={{ fontSize:11, color:'#9CA3AF', margin:'2px 0 0' }}>
+            <p style={{ fontSize:11, color:TEXT_MUTED, margin:'2px 0 0' }}>
               {formatDate(c.lastDate)}
             </p>
           )}
@@ -271,7 +290,7 @@ export default function Customers() {
   }
 
   return (
-    <div style={{ background:'#F8FAFC', minHeight:'100vh' }}
+    <div style={{ background:'#fff', minHeight:'100vh' }}
       onClick={() => setMenuTarget(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -280,40 +299,40 @@ export default function Customers() {
         }
       `}</style>
 
-      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>顧客檔案</h1>
+          <h1 style={{ fontSize:20, fontWeight:700, color:TEXT_MAIN, margin:0 }}>顧客檔案</h1>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-              style={{ width:36, height:36, borderRadius:'50%', background:'#F0FDF4',
-                border:'1px solid #22C55E', color:'#16A34A', fontSize:18, cursor:'pointer',
+              style={{ width:36, height:36, borderRadius:12, background:ACCENT_GREEN_SOFT,
+                border:'none', color:ACCENT_GREEN_TEXT, cursor:'pointer',
                 display:'flex', alignItems:'center', justifyContent:'center' }}
-              title="CSV 批量匯入">📥</button>
+              title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
             <button onClick={e => { e.stopPropagation(); navigate('/customers/new') }}
-              style={{ width:36, height:36, borderRadius:'50%', background:'#2563EB',
-                border:'none', color:'#fff', fontSize:22, cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
+              style={{ width:36, height:36, borderRadius:12, background:PRIMARY,
+                border:'none', color:'#fff', cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
           </div>
         </div>
         <div style={{ position:'relative', marginBottom:12 }}>
-          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)',
-            fontSize:16, color:'#9CA3AF' }}>🔍</span>
+          <IconSearch size={16} stroke={1.9} color={TEXT_MUTED}
+            style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="搜尋姓名、電話..."
-            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:10,
-              border:'1px solid #E5E7EB', fontSize:14, background:'#F8FAFC',
-              boxSizing:'border-box', outline:'none', color:'#111827' }} />
+            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:12,
+              border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG,
+              boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
         </div>
       </div>
       </div>
 
       <div className="dash-container">
       {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>載入中…</div>
+        <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
-          <p style={{ fontSize:36, margin:'0 0 12px' }}>✉️</p>
+        <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
+          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconMail size={36} stroke={1.5} /></div>
           <p style={{ fontSize:15 }}>還沒有顧客，從業績新增或點 + 建立顧客檔案</p>
         </div>
       ) : (
@@ -324,86 +343,87 @@ export default function Customers() {
       </div>
 
       {showImport && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.5)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
-          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
+          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
             padding:'24px 20px 40px', width:'100%', maxWidth:480,
             maxHeight:'85vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
 
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h2 style={{ fontSize:17, fontWeight:800, color:'#111827', margin:0 }}>📥 批量匯入顧客</h2>
+              <h2 style={{ fontSize:17, fontWeight:700, color:TEXT_MAIN, margin:0 }}>批量匯入顧客</h2>
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9CA3AF' }}>×</button>
+                style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
 
             <button onClick={downloadTemplate}
-              style={{ display:'flex', alignItems:'center', gap:8, width:'100%',
-                padding:'12px 16px', borderRadius:12, border:'1px dashed #22C55E',
-                background:'#F0FDF4', marginBottom:16, cursor:'pointer' }}>
-              <span style={{ fontSize:18 }}>📄</span>
+              style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+                padding:'12px 16px', borderRadius:14, border:`1px dashed ${ACCENT_GREEN}`,
+                background:ACCENT_GREEN_SOFT, marginBottom:16, cursor:'pointer' }}>
+              <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
-                <p style={{ fontSize:13, fontWeight:700, color:'#16A34A', margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>日期支援 YYYY/MM/DD、民國年、Excel 格式</p>
+                <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>下載 CSV 範本</p>
+                <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:0 }}>日期支援 YYYY/MM/DD、民國年、Excel 格式</p>
               </div>
             </button>
 
-            <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-              <p style={{ fontSize:12, fontWeight:700, color:'#1D4ED8', margin:'0 0 4px' }}>💡 日期格式說明</p>
-              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 回購日期：2025-08-01 或 2025/8/1 都可以</p>
-              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 生日：06-15 或 6/15 都可以</p>
-              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• Excel 空白日期會自動忽略</p>
+            <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:14 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 回購日期：2025-08-01 或 2025/8/1 都可以</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 生日：06-15 或 6/15 都可以</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• Excel 空白日期會自動忽略</p>
             </div>
 
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
-              style={{ width:'100%', padding:'13px 0', borderRadius:12,
-                border:'1px solid #E5E7EB', background:'#F8FAFC',
-                fontSize:14, fontWeight:600, color:'#374151', cursor:'pointer', marginBottom:16 }}>
-              📂 選擇 CSV 檔案
+              style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                width:'100%', padding:'13px 0', borderRadius:14,
+                border:`1px solid ${BORDER}`, background:SUBCARD_BG,
+                fontSize:14, fontWeight:600, color:TEXT_MAIN, cursor:'pointer', marginBottom:16 }}>
+              <IconFolder size={17} stroke={1.9} /> 選擇 CSV 檔案
             </button>
 
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 8px' }}>
-                  📋 偵測到 {importRows.length} 筆資料
+                <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+                  偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
-                  <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px', marginBottom:10 }}>
-                    <p style={{ fontSize:12, fontWeight:700, color:'#DC2626', margin:'0 0 4px' }}>
-                      ⚠️ 發現 {importErrors.length} 個問題：
+                  <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:10 }}>
+                    <p style={{ fontSize:12, fontWeight:700, color:DANGER, margin:'0 0 4px' }}>
+                      發現 {importErrors.length} 個問題：
                     </p>
                     {importErrors.map((e,i) => (
-                      <p key={i} style={{ fontSize:12, color:'#DC2626', margin:'2px 0' }}>• {e}</p>
+                      <p key={i} style={{ fontSize:12, color:DANGER, margin:'2px 0' }}>• {e}</p>
                     ))}
                   </div>
                 )}
                 {importErrors.length === 0 && (
-                  <div style={{ border:'1px solid #E5E7EB', borderRadius:10, overflow:'hidden', marginBottom:12 }}>
+                  <div style={{ border:`1px solid ${BORDER}`, borderRadius:12, overflow:'hidden', marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
-                        padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? '1px solid #F3F4F6' : 'none',
-                        background: i%2===0 ? '#fff' : '#F8FAFC' }}>
+                        padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? `1px solid ${BORDER}` : 'none',
+                        background: i%2===0 ? '#fff' : SUBCARD_BG }}>
                         <div style={{ width:28, height:28, borderRadius:'50%',
                           background:avatarBg(r.name), display:'flex', alignItems:'center',
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
                           {r.name[0]}
                         </div>
                         <div style={{ flex:1 }}>
-                          <span style={{ fontSize:13, fontWeight:700, color:'#111827' }}>{r.name}</span>
-                          {r.phone && <span style={{ fontSize:12, color:'#9CA3AF' }}> · {r.phone}</span>}
+                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{r.name}</span>
+                          {r.phone && <span style={{ fontSize:12, color:TEXT_MUTED }}> · {r.phone}</span>}
                         </div>
                         <div style={{ textAlign:'right' }}>
-                          {r.birthday && <span style={{ fontSize:11, color:'#A855F7' }}>🎂 {r.birthday}</span>}
-                          {r.occupation && <span style={{ fontSize:12, color:'#6B7280', marginLeft:6 }}>{r.occupation}</span>}
+                          {r.birthday && <span style={{ fontSize:11, color:'#A855F7' }}>{r.birthday}</span>}
+                          {r.occupation && <span style={{ fontSize:12, color:TEXT_SECONDARY, marginLeft:6 }}>{r.occupation}</span>}
                         </div>
                       </div>
                     ))}
                     {importRows.length > 5 && (
-                      <div style={{ padding:'8px 14px', background:'#F8FAFC',
-                        fontSize:12, color:'#9CA3AF', textAlign:'center' }}>
+                      <div style={{ padding:'8px 14px', background:SUBCARD_BG,
+                        fontSize:12, color:TEXT_MUTED, textAlign:'center' }}>
                         …還有 {importRows.length - 5} 筆
                       </div>
                     )}
@@ -413,9 +433,9 @@ export default function Customers() {
             )}
 
             {importDone && (
-              <div style={{ background:'#F0FDF4', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
-                <p style={{ fontSize:14, fontWeight:700, color:'#16A34A', margin:0 }}>
-                  ✅ 匯入完成！成功 {importDone.success} 筆
+              <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+                <p style={{ fontSize:14, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>
+                  匯入完成！成功 {importDone.success} 筆
                   {importDone.skip > 0 && `，跳過重複 ${importDone.skip} 筆`}
                 </p>
               </div>
@@ -423,16 +443,16 @@ export default function Customers() {
 
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
-                style={{ width:'100%', padding:'13px 0', borderRadius:12, border:'none',
-                  background: importing ? '#93C5FD' : '#2563EB',
+                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                  background: importing ? '#9BBBF2' : PRIMARY,
                   color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
               </button>
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ width:'100%', padding:'13px 0', borderRadius:12, border:'none',
-                  background:'#2563EB', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                  background:PRIMARY, color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 完成
               </button>
             )}
@@ -441,54 +461,56 @@ export default function Customers() {
       )}
 
       {menuTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}
           onClick={() => setMenuTarget(null)}>
-          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
+          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
             padding:'20px 16px 36px', width:'100%', maxWidth:480 }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16, fontWeight:800, color:'#111827',
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN,
               margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
             <button onClick={() => handlePin(menuTarget)}
               style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                padding:'14px 16px', borderRadius:12, border:'none',
-                background:'#FFF7ED', marginBottom:10, cursor:'pointer' }}>
-              <span style={{ fontSize:20 }}>📌</span>
-              <span style={{ fontSize:15, fontWeight:600, color:'#374151' }}>
+                padding:'14px 16px', borderRadius:14, border:'none',
+                background:SUBCARD_BG, marginBottom:10, cursor:'pointer' }}>
+              <IconPin size={19} stroke={1.9} color={TEXT_MAIN} />
+              <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
                 {menuTarget.is_pinned ? '取消釘選' : '釘選到最上面'}
               </span>
             </button>
             <button onClick={() => setDeleteTarget(menuTarget)}
               style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                padding:'14px 16px', borderRadius:12, border:'none',
-                background:'#FEF2F2', marginBottom:10, cursor:'pointer' }}>
-              <span style={{ fontSize:20 }}>🗑️</span>
-              <span style={{ fontSize:15, fontWeight:600, color:'#DC2626' }}>刪除顧客</span>
+                padding:'14px 16px', borderRadius:14, border:'none',
+                background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
+              <IconTrash size={19} stroke={1.9} color={DANGER} />
+              <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>刪除顧客</span>
             </button>
             <button onClick={() => setMenuTarget(null)}
-              style={{ width:'100%', padding:'13px 0', borderRadius:12,
-                border:'1px solid #E5E7EB', background:'#fff',
-                fontSize:15, color:'#6B7280', cursor:'pointer' }}>取消</button>
+              style={{ width:'100%', padding:'13px 0', borderRadius:14,
+                border:`1px solid ${BORDER}`, background:'#fff',
+                fontSize:15, color:TEXT_SECONDARY, cursor:'pointer' }}>取消</button>
           </div>
         </div>
       )}
 
       {deleteTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:24, width:280, textAlign:'center' }}>
-            <p style={{ fontSize:32, margin:'0 0 8px' }}>🗑️</p>
-            <p style={{ fontSize:16, fontWeight:700, color:'#111827', margin:'0 0 8px' }}>
+          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconTrash size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
               確定刪除「{deleteTarget.name}」？
             </p>
-            <p style={{ fontSize:13, color:'#9CA3AF', margin:'0 0 20px' }}>刪除後無法復原</p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>刪除後無法復原</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #E5E7EB',
-                  background:'#fff', fontSize:14, cursor:'pointer', color:'#374151' }}>取消</button>
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none',
-                  background:'#DC2626', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>刪除</button>
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>刪除</button>
             </div>
           </div>
         </div>

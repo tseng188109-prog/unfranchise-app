@@ -1,6 +1,24 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import {
+  IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
+  IconPin, IconArchive, IconRefresh, IconUsers, IconX,
+} from '@tabler/icons-react'
+
+// 設計系統色碼
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_GREEN = '#3ECF8E'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
+const SUBCARD_BG = '#F5F8FC'
 
 function today() { return new Date().toISOString().split('T')[0] }
 function getEggColor(t) { return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B82F6':t==='生雞蛋'?'#22C55E':'#9CA3AF' }
@@ -367,14 +385,14 @@ async function handleImport() {
         onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
         onClick={() => !showArchived && navigate(`/contacts/${c.id}`)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-          background: menuTarget?.id === c.id ? '#F8FAFC' : '#fff',
-          borderBottom:'1px solid #F3F4F6',
+          background: menuTarget?.id === c.id ? SUBCARD_BG : '#fff',
+          borderBottom:`1px solid ${BORDER}`,
           cursor: showArchived ? 'default' : 'pointer', userSelect:'none' }}>
         <Avatar name={c.name} size={42} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
-            {c.is_pinned && <span style={{ fontSize:12 }}>📌</span>}
-            <span style={{ fontSize:15, fontWeight:700, color: showArchived ? '#9CA3AF' : '#111827' }}>{c.name}</span>
+            {c.is_pinned && <IconPin size={12} stroke={2} color={TEXT_MUTED} />}
+            <span style={{ fontSize:15, fontWeight:700, color: showArchived ? TEXT_MUTED : TEXT_MAIN }}>{c.name}</span>
             {c.egg_type && (
               <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
                 background:getEggBg(c.egg_type), color:getEggColor(c.egg_type) }}>
@@ -382,25 +400,25 @@ async function handleImport() {
               </span>
             )}
           </div>
-          <div style={{ fontSize:12, color:'#9CA3AF', display:'flex', gap:4 }}>
+          <div style={{ fontSize:12, color:TEXT_SECONDARY, display:'flex', gap:4 }}>
             {c.occupation && <span>{c.occupation}</span>}
             {c.occupation && c.action_type && <span>·</span>}
             {c.action_type && <span>{c.action_type}</span>}
           </div>
         </div>
         {!showArchived && sortBy === 'last_contact' && (
-          <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', color:'#16A34A' }}>
+          <span style={{ fontSize:12, fontWeight:700, whiteSpace:'nowrap', color:ACCENT_GREEN_TEXT }}>
             {realLastContact[c.id] ? `互動於 ${realLastContact[c.id].slice(5).replace('-','/')}` : '尚無互動'}
           </span>
         )}
         {!showArchived && sortBy !== 'last_contact' && c.next_contact_date && (
-          <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap',
-            color:isOv?'#DC2626':isToday?'#F97316':'#9CA3AF' }}>
+          <span style={{ fontSize:12, fontWeight:700, whiteSpace:'nowrap',
+            color:isOv?DANGER:isToday?'#9A6A16':TEXT_MUTED }}>
             {formatDue(c.next_contact_date)}
           </span>
         )}
         {showArchived && (
-          <span style={{ fontSize:12, color:'#D1D5DB', whiteSpace:'nowrap' }}>📦 封存中</span>
+          <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>封存中</span>
         )}
       </div>
     )
@@ -410,9 +428,9 @@ async function handleImport() {
     if (items.length === 0) return null
     return (
       <div>
-        <div style={{ padding:'8px 16px', background:'#F8FAFC',
-          fontSize:12, fontWeight:700, color:'#6B7280',
-          borderBottom:'1px solid #F3F4F6' }}>
+        <div style={{ padding:'8px 16px', background:SUBCARD_BG,
+          fontSize:12, fontWeight:700, color:TEXT_SECONDARY,
+          borderBottom:`1px solid ${BORDER}` }}>
           {title} · {count}人
         </div>
         {items.map(c => <ContactCard key={c.id} c={c} />)}
@@ -421,7 +439,7 @@ async function handleImport() {
   }
 
   return (
-    <div style={{ background:'#F8FAFC', minHeight:'100vh' }}
+    <div style={{ background:'#fff', minHeight:'100vh' }}
       onClick={() => setMenuTarget(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -431,48 +449,48 @@ async function handleImport() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <h1 style={{ fontSize:20, fontWeight:800, color:'#111827', margin:0 }}>互動名單</h1>
+          <h1 style={{ fontSize:20, fontWeight:700, color:TEXT_MAIN, margin:0 }}>互動名單</h1>
           {!showArchived && (
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-                style={{ width:36, height:36, borderRadius:'50%', background:'#F0FDF4',
-                  border:'1px solid #22C55E', color:'#16A34A', fontSize:18, cursor:'pointer',
+                style={{ width:36, height:36, borderRadius:12, background:ACCENT_GREEN_SOFT,
+                  border:'none', color:ACCENT_GREEN_TEXT, cursor:'pointer',
                   display:'flex', alignItems:'center', justifyContent:'center' }}
-                title="CSV 批量匯入">📥</button>
+                title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
               <button onClick={e => { e.stopPropagation(); navigate('/contacts/new') }}
-                style={{ width:36, height:36, borderRadius:'50%', background:'#2563EB',
-                  border:'none', color:'#fff', fontSize:22, cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
+                style={{ width:36, height:36, borderRadius:12, background:PRIMARY,
+                  border:'none', color:'#fff', cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
             </div>
           )}
         </div>
 
         <div style={{ position:'relative', marginBottom:12 }}>
-          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)',
-            fontSize:16, color:'#9CA3AF' }}>🔍</span>
+          <IconSearch size={16} stroke={1.9} color={TEXT_MUTED}
+            style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="搜尋姓名、職業..."
-            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:10,
-              border:'1px solid #E5E7EB', fontSize:14, background:'#F8FAFC', color:'#111827',
+            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:12,
+              border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG, color:TEXT_MAIN,
               boxSizing:'border-box', outline:'none' }} />
         </div>
 
         <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
           <button onClick={() => { setShowArchived(!showArchived); setEggFilter('全部'); setSearch('') }}
-            style={{ padding:'5px 14px', borderRadius:99, border:'none',
-              background: showArchived ? '#6B7280' : '#F3F4F6',
-              color: showArchived ? '#fff' : '#6B7280',
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:99, border:'none',
+              background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
+              color: showArchived ? '#fff' : TEXT_SECONDARY,
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-            📦 {showArchived ? '查看一般' : '封存名單'}
+            <IconArchive size={13} stroke={2} /> {showArchived ? '查看一般' : '封存名單'}
           </button>
           {EGG_FILTERS.map(f => (
             <button key={f} onClick={() => setEggFilter(f)}
               style={{ padding:'5px 14px', borderRadius:99, border:'none',
-                background: eggFilter===f ? (showArchived ? '#6B7280' : '#2563EB') : '#F3F4F6',
-                color: eggFilter===f ? '#fff' : '#6B7280',
+                background: eggFilter===f ? (showArchived ? TEXT_SECONDARY : PRIMARY) : SUBCARD_BG,
+                color: eggFilter===f ? '#fff' : TEXT_SECONDARY,
                 fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
               {f}
             </button>
@@ -481,7 +499,7 @@ async function handleImport() {
 
         {!showArchived && (
           <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto', alignItems:'center' }}>
-            <span style={{ fontSize:12, color:'#9CA3AF', flexShrink:0 }}>排序：</span>
+            <span style={{ fontSize:12, color:TEXT_MUTED, flexShrink:0 }}>排序：</span>
             {[
               { key:'default', label:'預設' },
               { key:'name', label:'姓名' },
@@ -490,8 +508,8 @@ async function handleImport() {
             ].map(s => (
               <button key={s.key} onClick={() => setSortBy(s.key)}
                 style={{ padding:'4px 12px', borderRadius:99, border:'none',
-                  background: sortBy===s.key ? '#EFF6FF' : '#F8FAFC',
-                  color: sortBy===s.key ? '#2563EB' : '#9CA3AF',
+                  background: sortBy===s.key ? PRIMARY_SOFT : SUBCARD_BG,
+                  color: sortBy===s.key ? PRIMARY : TEXT_MUTED,
                   fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
                 {s.label}
               </button>
@@ -499,8 +517,8 @@ async function handleImport() {
             {sortBy !== 'default' && (
               <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
                 title={sortDir === 'asc' ? '升冪（點擊切換為降冪）' : '降冪（點擊切換為升冪）'}
-                style={{ width:26, height:26, borderRadius:'50%', border:'1px solid #E5E7EB',
-                  background:'#fff', color:'#374151', fontSize:14, fontWeight:700,
+                style={{ width:26, height:26, borderRadius:'50%', border:`1px solid ${BORDER}`,
+                  background:'#fff', color:TEXT_SECONDARY, fontSize:14, fontWeight:700,
                   cursor:'pointer', flexShrink:0,
                   display:'flex', alignItems:'center', justifyContent:'center' }}>
                 {sortDir === 'asc' ? '↑' : '↓'}
@@ -513,29 +531,31 @@ async function handleImport() {
 
       <div className="dash-container">
       {showArchived && (
-        <div style={{ background:'#FEF9C3', padding:'10px 16px',
-          fontSize:13, color:'#92400E', display:'flex', alignItems:'center', gap:6 }}>
-          <span>📦</span>
+        <div style={{ background:'#FFF9E9', padding:'10px 16px',
+          fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
+          <IconArchive size={15} stroke={1.9} />
           <span>封存名單 · 長按可復原聯絡人</span>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>載入中…</div>
+        <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
-          <p style={{ fontSize:40, margin:'0 0 12px' }}>{showArchived ? '📦' : '👥'}</p>
+        <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
+          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>
+            {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconUsers size={36} stroke={1.5} />}
+          </div>
           <p style={{ fontSize:15 }}>
             {showArchived ? '沒有封存的聯絡人' : '還沒有聯絡人，點 + 新增第一位吧！'}
           </p>
         </div>
       ) : showArchived ? (
         <div style={{ background:'#fff', margin:'8px 0' }}>
-          <Section title="📦 封存中" count={filtered.length} items={filtered} />
+          <Section title="封存中" count={filtered.length} items={filtered} />
         </div>
       ) : isFlatSort ? (
         <div style={{ background:'#fff', margin:'8px 0' }}>
-          <Section title="📌 釘選" count={pinned.length} items={pinned} />
+          <Section title="釘選" count={pinned.length} items={pinned} />
           <Section
             title={sortBy === 'last_contact' ? '依最近互動排序' : '依建議互動排序'}
             count={flatUnpinned.length}
@@ -544,7 +564,7 @@ async function handleImport() {
         </div>
       ) : (
         <div style={{ background:'#fff', margin:'8px 0' }}>
-          <Section title="📌 釘選" count={pinned.length} items={pinned} />
+          <Section title="釘選" count={pinned.length} items={pinned} />
           <Section title="逾期" count={overdue.length} items={overdue} />
           <Section title="今天到期" count={dueToday.length} items={dueToday} />
           <Section title="本週到期" count={thisWeek.length} items={thisWeek} />
@@ -555,81 +575,82 @@ async function handleImport() {
 
       {/* ── CSV 匯入 Modal ───────────────────────────── */}
       {showImport && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.5)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
-          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
+          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
             padding:'24px 20px 40px', width:'100%', maxWidth:480,
             maxHeight:'85vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
 
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h2 style={{ fontSize:17, fontWeight:800, color:'#111827', margin:0 }}>📥 批量匯入名單</h2>
+              <h2 style={{ fontSize:17, fontWeight:700, color:TEXT_MAIN, margin:0 }}>批量匯入名單</h2>
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9CA3AF' }}>×</button>
+                style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
 
             <button onClick={downloadTemplate}
-              style={{ display:'flex', alignItems:'center', gap:8, width:'100%',
-                padding:'12px 16px', borderRadius:12, border:'1px dashed #22C55E',
-                background:'#F0FDF4', marginBottom:16, cursor:'pointer' }}>
-              <span style={{ fontSize:18 }}>📄</span>
+              style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+                padding:'12px 16px', borderRadius:14, border:`1px dashed ${ACCENT_GREEN}`,
+                background:ACCENT_GREEN_SOFT, marginBottom:16, cursor:'pointer' }}>
+              <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
-                <p style={{ fontSize:13, fontWeight:700, color:'#16A34A', margin:0 }}>下載 CSV 範本</p>
-                <p style={{ fontSize:11, color:'#6B7280', margin:0 }}>
+                <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>下載 CSV 範本</p>
+                <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:0 }}>
                   日期格式支援：YYYY-MM-DD、YYYY/MM/DD、民國年（如 114/7/1）
                 </p>
               </div>
             </button>
 
             {/* 格式說明 */}
-            <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-              <p style={{ fontSize:12, fontWeight:700, color:'#1D4ED8', margin:'0 0 4px' }}>💡 日期格式說明</p>
-              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 跟進日期：2025-07-01 或 2025/7/1 或 114/7/1 都可以</p>
-              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• 生日：06-15 或 6/15 或 06/15 都可以</p>
-              <p style={{ fontSize:11, color:'#3B82F6', margin:'2px 0' }}>• Excel 存出的格式會自動轉換，不用特別處理</p>
+            <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:14 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 跟進日期：2025-07-01 或 2025/7/1 或 114/7/1 都可以</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 生日：06-15 或 6/15 或 06/15 都可以</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• Excel 存出的格式會自動轉換，不用特別處理</p>
             </div>
 
             <input ref={fileInputRef} type="file" accept=".csv"
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
-              style={{ width:'100%', padding:'13px 0', borderRadius:12,
-                border:'1px solid #E5E7EB', background:'#F8FAFC',
-                fontSize:14, fontWeight:600, color:'#374151', cursor:'pointer', marginBottom:16 }}>
-              📂 選擇 CSV 檔案
+              style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                width:'100%', padding:'13px 0', borderRadius:14,
+                border:`1px solid ${BORDER}`, background:SUBCARD_BG,
+                fontSize:14, fontWeight:600, color:TEXT_MAIN, cursor:'pointer', marginBottom:16 }}>
+              <IconFolder size={17} stroke={1.9} /> 選擇 CSV 檔案
             </button>
 
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 8px' }}>
-                  📋 偵測到 {importRows.length} 筆資料
+                <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+                  偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
-                  <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px', marginBottom:10 }}>
-                    <p style={{ fontSize:12, fontWeight:700, color:'#DC2626', margin:'0 0 4px' }}>
-                      ⚠️ 發現 {importErrors.length} 個問題，請修正後重新上傳：
+                  <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:10 }}>
+                    <p style={{ fontSize:12, fontWeight:700, color:DANGER, margin:'0 0 4px' }}>
+                      發現 {importErrors.length} 個問題，請修正後重新上傳：
                     </p>
                     {importErrors.map((e,i) => (
-                      <p key={i} style={{ fontSize:12, color:'#DC2626', margin:'2px 0' }}>• {e}</p>
+                      <p key={i} style={{ fontSize:12, color:DANGER, margin:'2px 0' }}>• {e}</p>
                     ))}
                   </div>
                 )}
                 {importErrors.length === 0 && (
-                  <div style={{ border:'1px solid #E5E7EB', borderRadius:10, overflow:'hidden', marginBottom:12 }}>
+                  <div style={{ border:`1px solid ${BORDER}`, borderRadius:12, overflow:'hidden', marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
-                        padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? '1px solid #F3F4F6' : 'none',
-                        background: i%2===0 ? '#fff' : '#F8FAFC' }}>
+                        padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? `1px solid ${BORDER}` : 'none',
+                        background: i%2===0 ? '#fff' : SUBCARD_BG }}>
                         <div style={{ width:28, height:28, borderRadius:'50%',
                           background:avatarBg(r.name), display:'flex', alignItems:'center',
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
                           {r.name[0]}
                         </div>
                         <div style={{ flex:1 }}>
-                          <span style={{ fontSize:13, fontWeight:700, color:'#111827' }}>{r.name}</span>
-                          {r.occupation && <span style={{ fontSize:12, color:'#9CA3AF' }}> · {r.occupation}</span>}
-                          {r.next_contact_date && <span style={{ fontSize:11, color:'#6B7280', marginLeft:6 }}>📅 {r.next_contact_date}</span>}
-                          {r.birthday && <span style={{ fontSize:11, color:'#A855F7', marginLeft:6 }}>🎂 {r.birthday}</span>}
+                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{r.name}</span>
+                          {r.occupation && <span style={{ fontSize:12, color:TEXT_MUTED }}> · {r.occupation}</span>}
+                          {r.next_contact_date && <span style={{ fontSize:11, color:TEXT_SECONDARY, marginLeft:6 }}>{r.next_contact_date}</span>}
+                          {r.birthday && <span style={{ fontSize:11, color:'#A855F7', marginLeft:6 }}>{r.birthday}</span>}
                         </div>
                         {r.egg_type && (
                           <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
@@ -640,8 +661,8 @@ async function handleImport() {
                       </div>
                     ))}
                     {importRows.length > 5 && (
-                      <div style={{ padding:'8px 14px', background:'#F8FAFC',
-                        fontSize:12, color:'#9CA3AF', textAlign:'center' }}>
+                      <div style={{ padding:'8px 14px', background:SUBCARD_BG,
+                        fontSize:12, color:TEXT_MUTED, textAlign:'center' }}>
                         …還有 {importRows.length - 5} 筆
                       </div>
                     )}
@@ -651,9 +672,9 @@ async function handleImport() {
             )}
 
             {importDone && (
-              <div style={{ background:'#F0FDF4', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
-                <p style={{ fontSize:14, fontWeight:700, color:'#16A34A', margin:0 }}>
-                  ✅ 匯入完成！成功 {importDone.success} 筆
+              <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+                <p style={{ fontSize:14, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>
+                  匯入完成！成功 {importDone.success} 筆
                   {importDone.skip > 0 && `，跳過重複 ${importDone.skip} 筆`}
                 </p>
               </div>
@@ -661,16 +682,16 @@ async function handleImport() {
 
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
-                style={{ width:'100%', padding:'13px 0', borderRadius:12, border:'none',
-                  background: importing ? '#93C5FD' : '#2563EB',
+                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                  background: importing ? '#9BBBF2' : PRIMARY,
                   color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
               </button>
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ width:'100%', padding:'13px 0', borderRadius:12, border:'none',
-                  background:'#2563EB', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                  background:PRIMARY, color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 完成
               </button>
             )}
@@ -680,87 +701,91 @@ async function handleImport() {
 
       {/* 長按選單 Modal */}
       {menuTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}
           onClick={() => setMenuTarget(null)}>
-          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
+          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
             padding:'20px 16px 36px', width:'100%', maxWidth:480 }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16, fontWeight:800, color:'#111827',
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN,
               margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
             {showArchived ? (
               <button onClick={() => setRestoreTarget(menuTarget)}
                 style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                  padding:'14px 16px', borderRadius:12, border:'none',
-                  background:'#F0FDF4', marginBottom:10, cursor:'pointer' }}>
-                <span style={{ fontSize:20 }}>♻️</span>
-                <span style={{ fontSize:15, fontWeight:600, color:'#16A34A' }}>復原到一般名單</span>
+                  padding:'14px 16px', borderRadius:14, border:'none',
+                  background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
+                <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
+                <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
               </button>
             ) : (
               <>
                 <button onClick={() => handlePin(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:12, border:'none',
-                    background:'#FFF7ED', marginBottom:10, cursor:'pointer' }}>
-                  <span style={{ fontSize:20 }}>📌</span>
-                  <span style={{ fontSize:15, fontWeight:600, color:'#374151' }}>
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:SUBCARD_BG, marginBottom:10, cursor:'pointer' }}>
+                  <IconPin size={19} stroke={1.9} color={TEXT_MAIN} />
+                  <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
                     {menuTarget.is_pinned ? '取消釘選' : '釘選到最上面'}
                   </span>
                 </button>
                 <button onClick={() => setArchiveTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:12, border:'none',
-                    background:'#FEF2F2', marginBottom:10, cursor:'pointer' }}>
-                  <span style={{ fontSize:20 }}>📦</span>
-                  <span style={{ fontSize:15, fontWeight:600, color:'#DC2626' }}>封存</span>
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
+                  <IconArchive size={19} stroke={1.9} color={DANGER} />
+                  <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>封存</span>
                 </button>
               </>
             )}
             <button onClick={() => setMenuTarget(null)}
-              style={{ width:'100%', padding:'13px 0', borderRadius:12,
-                border:'1px solid #E5E7EB', background:'#fff',
-                fontSize:15, color:'#6B7280', cursor:'pointer' }}>取消</button>
+              style={{ width:'100%', padding:'13px 0', borderRadius:14,
+                border:`1px solid ${BORDER}`, background:'#fff',
+                fontSize:15, color:TEXT_SECONDARY, cursor:'pointer' }}>取消</button>
           </div>
         </div>
       )}
 
       {archiveTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:24, width:280, textAlign:'center' }}>
-            <p style={{ fontSize:32, margin:'0 0 8px' }}>📦</p>
-            <p style={{ fontSize:16, fontWeight:700, color:'#111827', margin:'0 0 8px' }}>
+          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconArchive size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
               確定封存「{archiveTarget.name}」？
             </p>
-            <p style={{ fontSize:13, color:'#9CA3AF', margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setArchiveTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #E5E7EB',
-                  background:'#fff', fontSize:14, cursor:'pointer', color:'#374151' }}>取消</button>
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none',
-                  background:'#DC2626', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
             </div>
           </div>
         </div>
       )}
 
       {restoreTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:24, width:280, textAlign:'center' }}>
-            <p style={{ fontSize:32, margin:'0 0 8px' }}>♻️</p>
-            <p style={{ fontSize:16, fontWeight:700, color:'#111827', margin:'0 0 8px' }}>
+          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
               復原「{restoreTarget.name}」？
             </p>
-            <p style={{ fontSize:13, color:'#9CA3AF', margin:'0 0 20px' }}>將移回一般互動名單</p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>將移回一般互動名單</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setRestoreTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #E5E7EB',
-                  background:'#fff', fontSize:14, cursor:'pointer', color:'#374151' }}>取消</button>
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleRestore}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none',
-                  background:'#16A34A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                  background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
             </div>
           </div>
         </div>
