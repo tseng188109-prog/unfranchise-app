@@ -10,8 +10,8 @@ const DAILY_TASKS = [
   { key: 'goal_declaration', label: '目標宣言', icon: '🎯' },
   { key: 'backend_announcement', label: '後台公告/管理報告', icon: '📋', url: 'https://tw.unfranchise.com' },
   { key: 'respond_social', label: '回應臉書IDEA/LINE', icon: '💬', social: true },
-  { key: 'daily_practice', label: '每日練習', icon: '📚', url: 'https://drive.google.com/drive/folders/1v6jtYu5wrYJLX1Uqj9W_s2b15-ZK4Ckf' },
-  { key: 'listen_recording', label: '聽錄音', icon: '🎧', url: 'https://docs.google.com/document/d/112pPi7ulPzb7Gex3ZDsUFb6E6lhfCgpFrtIuftc0E64/edit?usp=drivesdk' },
+  { key: 'daily_practice', label: '每日練習', icon: '📚', internalPath: '/daily-practice' },
+  { key: 'listen_recording', label: '聽錄音', icon: '🎧', internalPath: '/recording' },
   { key: 'ig_story', label: 'IG 限動', icon: '📸', url: 'https://www.instagram.com' },
   { key: 'daily_3_contacts', label: '每日3互動', icon: '👥', special: true, toContacts: true },
 ]
@@ -29,11 +29,10 @@ function toDateStr(d) {
 }
 function today() { return toDateStr(new Date()) }
 
-// 週六為起點，週五為終點
 function getWeekDays(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
-  const dow = d.getDay() // 0=日,1=一,...,6=六
-  const diff = (dow + 1) % 7 // 六=0, 日=1, 一=2, ..., 五=6
+  const dow = d.getDay()
+  const diff = (dow + 1) % 7
   const start = new Date(d)
   start.setDate(d.getDate() - diff)
   const days = []
@@ -177,27 +176,21 @@ export default function Dashboard() {
 
   async function fetchStarterTasks() {
     const todayStr = today()
-
     const { count: contactCount } = await supabase
       .from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-
     const { data: todayCheckin } = await supabase
       .from('daily_checkins').select('id')
       .eq('user_id', user.id).eq('date', todayStr).eq('is_done', true).limit(1)
-
     const sevenDaysAgo = toDateStr(new Date(Date.now() - 6 * 86400000))
     const { data: weekCheckins } = await supabase
       .from('daily_checkins').select('date')
       .eq('user_id', user.id).eq('is_done', true)
       .gte('date', sevenDaysAgo).lte('date', todayStr)
     const uniqueDays = new Set((weekCheckins || []).map(r => r.date)).size
-
     const { count: logCount } = await supabase
       .from('contact_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-
     const { data: userData } = await supabase
       .from('users').select('goal_declaration, onboarding_done').eq('id', user.id).single()
-
     const tasks = {
       has_contact:     (contactCount || 0) > 0,
       has_checkin:     (todayCheckin || []).length > 0,
@@ -205,10 +198,8 @@ export default function Dashboard() {
       has_log:         (logCount || 0) > 0,
       has_declaration: !!(userData?.goal_declaration?.trim()),
     }
-
     setOnboardingDone(userData?.onboarding_done === true)
     setStarterTasks(tasks)
-
     const doneCount = Object.values(tasks).filter(Boolean).length
     if (doneCount >= 3) setStarterExpanded(false)
   }
@@ -245,12 +236,10 @@ export default function Dashboard() {
     const map={}
     if(data) data.forEach(d=>{ map[d.task_key]=d.is_done })
     setCheckins(map)
-    // 只計算 DAILY_TASKS 的 7 個 key，不含週任務
     setCheckTotal(data ? data.filter(d => d.is_done && DAILY_TASKS.some(t => t.key === d.task_key)).length : 0)
   }
 
   async function fetchViewContacted() {
-    // 改查 contact_logs，新增/刪除互動紀錄時能即時同步（不依賴 contacts.last_contact_date）
     const { data } = await supabase.from('contact_logs')
       .select('contact_id,contacts(id,name)')
       .eq('user_id', user.id).eq('date', viewDate)
@@ -313,6 +302,7 @@ export default function Dashboard() {
     if (task.key === 'goal_declaration') { setGoalModal(true); return }
     if (task.social) { setSocialModal(true); return }
     if (task.toContacts) { navigate('/contacts'); return }
+    if (task.internalPath) { navigate(task.internalPath); return }
     if (task.url) { window.open(task.url, '_blank'); return }
   }
 
@@ -331,7 +321,6 @@ export default function Dashboard() {
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} 星期${DAYS_ZH[d.getDay()]}`
   })()
   const allDue = [...overdueContacts,...todayDueContacts]
-
   const starterDoneCount = starterTasks ? Object.values(starterTasks).filter(Boolean).length : 0
   const starterAllDone = starterDoneCount === STARTER_TASKS.length
   const showStarterCard = onboardingDone && starterTasks !== null && !starterAllDone
@@ -366,11 +355,9 @@ export default function Dashboard() {
 
       <div style={{ maxWidth:430,margin:'0 auto' }}>
 
-        {/* 新手任務卡 */}
         {showStarterCard && (
           <section style={{ margin:'12px 16px 0',borderRadius:16,overflow:'hidden',
             border:'1.5px solid #BFDBFE',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
                 style={{ width:'100%',background:'#EFF6FF',border:'none',cursor:'pointer',
@@ -387,31 +374,23 @@ export default function Dashboard() {
                 <span style={{ fontSize:12,color:'#93C5FD' }}>▼</span>
               </button>
             )}
-
             {starterExpanded && (
               <div style={{ background:'#fff' }}>
                 <div style={{ background:'#EFF6FF',padding:'12px 14px',
                   display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                   <div>
-                    <p style={{ fontSize:14,fontWeight:700,color:'#1D4ED8',margin:0 }}>
-                      🚀 新手起步任務
-                    </p>
-                    <p style={{ fontSize:11,color:'#60A5FA',margin:'2px 0 0' }}>
-                      完成這 5 件事，讓你的事業正式起步！
-                    </p>
+                    <p style={{ fontSize:14,fontWeight:700,color:'#1D4ED8',margin:0 }}>🚀 新手起步任務</p>
+                    <p style={{ fontSize:11,color:'#60A5FA',margin:'2px 0 0' }}>完成這 5 件事，讓你的事業正式起步！</p>
                   </div>
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    <span style={{ fontSize:12,fontWeight:700,
-                      background:'#2563EB',color:'#fff',
+                    <span style={{ fontSize:12,fontWeight:700,background:'#2563EB',color:'#fff',
                       padding:'3px 10px',borderRadius:99 }}>
                       {starterDoneCount}/{STARTER_TASKS.length}
                     </span>
                     <button onClick={() => setStarterExpanded(false)}
-                      style={{ background:'none',border:'none',color:'#93C5FD',
-                        cursor:'pointer',fontSize:14,padding:0 }}>▲</button>
+                      style={{ background:'none',border:'none',color:'#93C5FD',cursor:'pointer',fontSize:14,padding:0 }}>▲</button>
                   </div>
                 </div>
-
                 <div style={{ padding:'8px 14px 12px' }}>
                   {STARTER_TASKS.map(task => {
                     const done = starterTasks?.[task.id] === true
@@ -424,15 +403,11 @@ export default function Dashboard() {
                           border: done ? 'none' : '1.5px solid #D1D5DB' }}>
                           {done && <span style={{ fontSize:12,color:'#fff' }}>✓</span>}
                         </div>
-                        <span style={{ fontSize:13,
-                          color: done ? '#9CA3AF' : '#374151',
-                          textDecoration: done ? 'line-through' : 'none',
-                          flex:1 }}>
+                        <span style={{ fontSize:13,color: done?'#9CA3AF':'#374151',
+                          textDecoration: done?'line-through':'none',flex:1 }}>
                           {task.icon} {task.label}
                         </span>
-                        {done && (
-                          <span style={{ fontSize:11,color:'#22C55E',fontWeight:600 }}>完成</span>
-                        )}
+                        {done && <span style={{ fontSize:11,color:'#22C55E',fontWeight:600 }}>完成</span>}
                       </div>
                     )
                   })}
@@ -442,7 +417,6 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* 業績 */}
         <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>本季業績進度</span>
@@ -473,7 +447,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* 待跟進 */}
         <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={{ fontSize:15,fontWeight:700,color:'#111827',display:'flex',alignItems:'center',gap:8 }}>
@@ -515,7 +488,6 @@ export default function Dashboard() {
           }
         </section>
 
-        {/* 快捷 */}
         <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:'14px 16px',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
           <div style={{ display:'flex',gap:10 }}>
             <QuickBtn icon="👥" label="+互動" color="#3B82F6" onClick={()=>navigate('/contacts/new')} />
@@ -524,7 +496,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* 打卡 */}
         <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
             <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>
@@ -555,7 +526,6 @@ export default function Dashboard() {
                 padding:'0 4px',lineHeight:1 }}>›</button>
           </div>
 
-          {/* 週點狀圖：六日一二三四五 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
             background:'#F8FAFC',borderRadius:10,marginBottom:8 }}>
             {weekStatus.map((w,i)=>{
@@ -566,8 +536,7 @@ export default function Dashboard() {
                 <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                     cursor: w.date<=today()?'pointer':'default' }}>
-                  <span style={{ fontSize:11,
-                    color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
+                  <span style={{ fontSize:11,color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
                     fontWeight: isSelected||isT?700:400 }}>
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
@@ -582,7 +551,7 @@ export default function Dashboard() {
           <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
             {DAILY_TASKS.map(task=>{
               const done=!!checkins[task.key]
-              const hasAction = task.url || task.social || task.toContacts || task.key === 'goal_declaration'
+              const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
               return (
                 <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 0',
                   borderBottom:'1px solid #F9FAFB' }}>
@@ -627,7 +596,6 @@ export default function Dashboard() {
         <div style={{ height:80 }} />
       </div>
 
-      {/* 目標宣言 Modal */}
       {goalModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -639,21 +607,11 @@ export default function Dashboard() {
               <button onClick={()=>setGoalModal(false)}
                 style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
             </div>
-            <textarea
-              ref={goalTextareaRef}
-              value={goalText}
-              onChange={e=>{
-                setGoalText(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..."
-              rows={4}
-              style={{ width:'100%',padding:'12px',borderRadius:10,
-                border:'1px solid #D1D5DB',fontSize:15,boxSizing:'border-box',
-                outline:'none',resize:'none',lineHeight:1.8,
-                display:'block' }}
-            />
+            <textarea ref={goalTextareaRef} value={goalText}
+              onChange={e=>{ setGoalText(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
+              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..." rows={4}
+              style={{ width:'100%',padding:'12px',borderRadius:10,border:'1px solid #D1D5DB',
+                fontSize:15,boxSizing:'border-box',outline:'none',resize:'none',lineHeight:1.8,display:'block' }} />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
                 background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
@@ -664,13 +622,11 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 社群連結 Modal */}
       {socialModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e=>{ if(e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
-            width:'100%',maxWidth:430 }}>
+          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,width:'100%',maxWidth:430 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>💬 前往回應</h3>
               <button onClick={()=>setSocialModal(false)}

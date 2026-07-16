@@ -12,8 +12,8 @@ const DAILY_TASKS = [
   { key: 'goal_declaration', label: '目標宣言', icon: '🎯' },
   { key: 'backend_announcement', label: '後台公告/管理報告', icon: '📋', url: 'https://tw.unfranchise.com' },
   { key: 'respond_social', label: '回應臉書IDEA/LINE', icon: '💬', social: true },
-  { key: 'daily_practice', label: '每日練習', icon: '📚', url: 'https://drive.google.com/drive/folders/1v6jtYu5wrYJLX1Uqj9W_s2b15-ZK4Ckf' },
-  { key: 'listen_recording', label: '聽錄音', icon: '🎧', url: 'https://docs.google.com/document/d/112pPi7ulPzb7Gex3ZDsUFb6E6lhfCgpFrtIuftc0E64/edit?usp=drivesdk' },
+  { key: 'daily_practice', label: '每日練習', icon: '📚', internalPath: '/daily-practice' },
+  { key: 'listen_recording', label: '聽錄音', icon: '🎧', internalPath: '/recording' },
   { key: 'ig_story', label: 'IG 限動', icon: '📸', url: 'https://www.instagram.com' },
   { key: 'daily_3_contacts', label: '每日3互動', icon: '👥', special: true, toContacts: true },
 ]
@@ -43,11 +43,10 @@ const COUNTER_COLORS = {
   sell_ticket:   '#534AB7', stranger: '#0F6E56',
 }
 
-// 週六為起點，週五為終點
 function getWeekStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const dow = d.getDay()
-  const diff = (dow + 1) % 7 // 六=0, 日=1, 一=2, ..., 五=6
+  const diff = (dow + 1) % 7
   d.setDate(d.getDate() - diff)
   return toDateStr(d)
 }
@@ -166,7 +165,6 @@ export default function Daily() {
   }
 
   async function fetchTodayContacted() {
-    // 改查 contact_logs，新增/刪除互動紀錄時能即時同步（不依賴 contacts.last_contact_date）
     const { data } = await supabase.from('contact_logs')
       .select('contact_id,contacts(id,name)')
       .eq('user_id', user.id).eq('date', viewDate)
@@ -254,6 +252,7 @@ export default function Daily() {
     if (task.key === 'goal_declaration') { setGoalModal(true); return }
     if (task.social) { setSocialModal(true); return }
     if (task.toContacts) { navigate('/contacts'); return }
+    if (task.internalPath) { navigate(task.internalPath); return }
     if (task.url) { window.open(task.url, '_blank'); return }
   }
 
@@ -360,7 +359,6 @@ export default function Daily() {
   const isToday = viewDate === today()
   const weekDays = getWeekDays(weekViewDate)
 
-  // 月曆資料
   const monthYear = new Date(monthViewDate + 'T00:00:00')
   const monthNum = monthYear.getMonth()
   const yearNum = monthYear.getFullYear()
@@ -386,7 +384,6 @@ export default function Daily() {
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
 
-      {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)' }}>
         <div style={{ maxWidth:430,margin:'0 auto',padding:'52px 20px 20px' }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>每日行動</h1>
@@ -420,14 +417,12 @@ export default function Daily() {
 
       <div style={{ maxWidth:430,margin:'0 auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
-        {/* 每日任務 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每日任務</span>
             <span style={{ fontSize:13,color:'#6B7280' }}>{doneCount}/{DAILY_TASKS.length}</span>
           </div>
 
-          {/* 週點狀圖：六日一二三四五 */}
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
             background:'#F8FAFC',borderRadius:10,marginBottom:10 }}>
             {weekStatus.map((w,i) => {
@@ -452,7 +447,7 @@ export default function Daily() {
 
           {DAILY_TASKS.map(task => {
             const done = !!checkins[task.key]
-            const hasAction = task.url || task.social || task.toContacts || task.key === 'goal_declaration'
+            const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
             return (
               <div key={task.key} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',
                 borderBottom:'1px solid #F9FAFB' }}>
@@ -491,7 +486,6 @@ export default function Daily() {
           })}
         </div>
 
-        {/* ── 每週行動（週曆）── */}
         <div style={card}>
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12 }}>
             <span style={sectionTitle}>每週行動</span>
@@ -504,7 +498,6 @@ export default function Daily() {
             </div>
           </div>
 
-          {/* 每週固定任務 */}
           <div style={{ marginBottom:12,background:'#F8FAFC',borderRadius:10,padding:'8px 10px' }}>
             {WEEKLY_TASKS.map(task => {
               const anyDone = weekDays.some(d => weekTaskCheckins[task.key]?.[d])
@@ -526,7 +519,6 @@ export default function Daily() {
             })}
           </div>
 
-          {/* 週曆格子：六日一二三四五 */}
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:4 }}>
             {weekDays.map((d,i) => {
               const isT = d === today()
@@ -573,7 +565,6 @@ export default function Daily() {
             })}
           </div>
 
-          {/* 選中日期的記錄清單 */}
           {selectedWeekDay && (
             <div style={{ marginTop:12,borderTop:'1px solid #F3F4F6',paddingTop:12 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
@@ -632,7 +623,6 @@ export default function Daily() {
           )}
         </div>
 
-        {/* ── 每月目標（月曆）── */}
         <div style={card}>
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12 }}>
             <span style={sectionTitle}>每月目標</span>
@@ -645,7 +635,6 @@ export default function Daily() {
             </div>
           </div>
 
-          {/* 圖例 */}
           <div style={{ display:'flex',gap:10,marginBottom:10,padding:'6px 10px',
             background:'#F8FAFC',borderRadius:8,flexWrap:'wrap' }}>
             {[
@@ -660,14 +649,12 @@ export default function Daily() {
             ))}
           </div>
 
-          {/* 星期標題（保持日一二三四五六，月曆慣例） */}
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:3 }}>
             {DAYS_ZH.map(d => (
               <div key={d} style={{ textAlign:'center',fontSize:10,color:'#9CA3AF',padding:'2px 0' }}>{d}</div>
             ))}
           </div>
 
-          {/* 月曆格子 */}
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:8 }}>
             {Array.from({ length: firstDow }).map((_,i) => <div key={`e${i}`} />)}
             {calDays.map(day => {
@@ -702,7 +689,6 @@ export default function Daily() {
             })}
           </div>
 
-          {/* 選中日期記錄 */}
           {selectedMonthDay && (
             <div style={{ borderTop:'1px solid #F3F4F6',paddingTop:12 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
@@ -759,7 +745,6 @@ export default function Daily() {
 
       </div>
 
-      {/* 目標宣言 Modal */}
       {goalModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -790,7 +775,6 @@ export default function Daily() {
         </div>
       )}
 
-      {/* 社群 Modal */}
       {socialModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
@@ -817,7 +801,6 @@ export default function Daily() {
         </div>
       )}
 
-      {/* 新增/編輯 Modal */}
       {logModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}

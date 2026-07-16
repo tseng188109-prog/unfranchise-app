@@ -20,15 +20,15 @@ import Settings from './pages/Settings'
 import Samples from './pages/Samples'
 import Partners from './pages/Partners'
 import Team from './pages/Team'
+import DailyPractice from './pages/DailyPractice'
+import Recording from './pages/Recording'
 import Onboarding from './pages/Onboarding'
 
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [onboardingDone, setOnboardingDone] = useState(true) // 預設 true，避免閃爍
+  const [onboardingDone, setOnboardingDone] = useState(true)
 
-  // 重設密碼連結會帶 /reset-password 路徑，這個頁面不受 session 檢查阻擋，
-  // 否則使用者點連結後會被攔在 <Auth /> 畫面，永遠看不到輸入新密碼的表單
   const isResetPasswordPath = window.location.pathname.startsWith('/reset-password')
 
   useEffect(() => {
@@ -65,7 +65,6 @@ function App() {
     setOnboardingDone(true)
   }
 
-  // 重設密碼頁面：無論有沒有 session、有沒有 loading，都直接顯示這個頁面
   if (isResetPasswordPath) {
     return (
       <BrowserRouter>
@@ -87,7 +86,6 @@ function App() {
 
   if (!session) return <Auth />
 
-  // 新用戶還沒完成引導
   if (!onboardingDone) return (
     <Onboarding
       user={session.user}
@@ -115,6 +113,8 @@ function App() {
           <Route path="/samples" element={<Samples />} />
           <Route path="/partners" element={<Partners />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/daily-practice" element={<DailyPractice />} />
+          <Route path="/recording" element={<Recording />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
