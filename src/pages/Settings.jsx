@@ -94,12 +94,21 @@ export default function Settings() {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
+
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',
-        padding:'52px 20px 24px' }}>
-        <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>設定</h1>
+        padding:'52px 0 24px' }}>
+        <div className="dash-container" style={{ padding:'0 20px' }}>
+          <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>設定</h1>
+        </div>
       </div>
 
-      <div style={{ padding:'16px 16px',display:'flex',flexDirection:'column',gap:12 }}>
+      <div className="dash-container" style={{ padding:'16px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
         {/* 帳號資訊 */}
         <div style={card}>

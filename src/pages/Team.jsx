@@ -316,19 +316,27 @@ export default function Team() {
 
   return (
     <div style={{ background:darkBg, minHeight:'100vh', paddingBottom:80 }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ background:'linear-gradient(180deg,#0D1829 0%,#0A0F1E 100%)',
-        padding:'52px 20px 20px', borderBottom:'0.5px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:4 }}>
-          <button onClick={() => navigate('/settings')}
-            style={{ background:'none',border:'none',fontSize:22,color:textPrimary,cursor:'pointer',padding:0 }}>←</button>
-          <h1 style={{ fontSize:20,fontWeight:700,color:textPrimary,margin:0 }}>🚀 戰隊</h1>
+        padding:'52px 0 20px', borderBottom:'0.5px solid rgba(255,255,255,0.06)' }}>
+        <div className="dash-container" style={{ padding:'0 20px' }}>
+          <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:4 }}>
+            <button onClick={() => navigate('/settings')}
+              style={{ background:'none',border:'none',fontSize:22,color:textPrimary,cursor:'pointer',padding:0 }}>←</button>
+            <h1 style={{ fontSize:20,fontWeight:700,color:textPrimary,margin:0 }}>🚀 戰隊</h1>
+          </div>
+          {team && <p style={{ fontSize:12,color:textMuted,margin:'0 0 0 34px' }}>{team.name} · {members.length} 位成員</p>}
         </div>
-        {team && <p style={{ fontSize:12,color:textMuted,margin:'0 0 0 34px' }}>{team.name} · {members.length} 位成員</p>}
       </div>
 
-      <div style={{ padding:'16px',display:'flex',flexDirection:'column',gap:10 }}>
+      <div className="dash-container" style={{ padding:'16px',display:'flex',flexDirection:'column',gap:10 }}>
 
         {!team ? (
           <>
