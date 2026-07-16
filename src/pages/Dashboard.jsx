@@ -335,9 +335,16 @@ export default function Dashboard() {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
+
       <div style={{ background:'linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',
-          padding:'52px 20px 20px',maxWidth:430,margin:'0 auto' }}>
+        <div className="dash-container" style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',
+          padding:'52px 20px 20px' }}>
           <div>
             <p style={{ fontSize:22,fontWeight:800,color:'#fff',margin:0 }}>嗨，{displayName} 👋</p>
             <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
@@ -353,7 +360,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ maxWidth:430,margin:'0 auto' }}>
+      <div className="dash-container">
 
         {showStarterCard && (
           <section style={{ margin:'12px 16px 0',borderRadius:16,overflow:'hidden',
