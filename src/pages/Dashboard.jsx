@@ -368,7 +368,7 @@ export default function Dashboard() {
       <style>{`
         .dashboard-wrap { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
-          .dashboard-wrap { max-width: 1200px; margin: 0; }
+          .dashboard-wrap { max-width: 1600px; margin: 0; }
         }
         .dash-grid { display: block; }
         @media (min-width: 1024px) {
