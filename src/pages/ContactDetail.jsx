@@ -155,6 +155,13 @@ export default function ContactDetail() {
 
   return (
     <div style={{background:'#F8FAFC',minHeight:'100vh',paddingBottom:100}}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
+
 
       {/* 今天互動了 Modal */}
       {showNoteModal && (
@@ -258,7 +265,8 @@ export default function ContactDetail() {
       )}
 
       {/* Header */}
-      <div style={{background:'#fff',padding:'52px 16px 16px',borderBottom:'1px solid #F3F4F6'}}>
+      <div style={{background:'#fff',padding:'52px 0 16px',borderBottom:'1px solid #F3F4F6'}}>
+      <div className="dash-container" style={{padding:'0 16px'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <button onClick={()=>navigate(-1)}
             style={{background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151'}}>←</button>
@@ -286,8 +294,9 @@ export default function ContactDetail() {
           </div>
         </div>
       </div>
+      </div>
 
-      <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}}>
+      <div className="dash-container" style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}}>
 
         {suggestedAction && (
           <div style={{background:'#2563EB',borderRadius:14,padding:'14px 16px'}}>
@@ -379,8 +388,8 @@ export default function ContactDetail() {
       </div>
 
       {/* 底部按鈕 */}
-      <div style={{position:'fixed',bottom:64,left:'50%',transform:'translateX(-50%)',
-        width:'100%',maxWidth:430,padding:'12px 16px',background:'#fff',
+      <div className="dash-container" style={{position:'fixed',bottom:64,left:'50%',transform:'translateX(-50%)',
+        width:'100%',padding:'12px 16px',background:'#fff',
         borderTop:'1px solid #F3F4F6',display:'flex',gap:10,boxSizing:'border-box'}}>
         <button onClick={openAddModal}
           style={{flex:1,padding:'13px',borderRadius:12,border:'1px solid #E5E7EB',

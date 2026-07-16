@@ -102,21 +102,29 @@ export default function ResourceLinks({ type, title, icon }) {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',
-        padding:'52px 20px 24px' }}>
-        <div style={{ display:'flex',alignItems:'center',gap:12 }}>
-          <button onClick={() => navigate(-1)}
-            style={{ background:'none',border:'none',fontSize:22,color:'#fff',cursor:'pointer',padding:0 }}>←</button>
-          <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>{icon} {title}</h1>
+        padding:'52px 0 24px' }}>
+        <div className="dash-container" style={{ padding:'0 20px' }}>
+          <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+            <button onClick={() => navigate(-1)}
+              style={{ background:'none',border:'none',fontSize:22,color:'#fff',cursor:'pointer',padding:0 }}>←</button>
+            <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>{icon} {title}</h1>
+          </div>
+          <p style={{ fontSize:13,color:'rgba(255,255,255,0.6)',margin:'6px 0 0 34px' }}>
+            點按鈕直接開啟連結
+          </p>
         </div>
-        <p style={{ fontSize:13,color:'rgba(255,255,255,0.6)',margin:'6px 0 0 34px' }}>
-          點按鈕直接開啟連結
-        </p>
       </div>
 
-      <div style={{ padding:'16px',display:'flex',flexDirection:'column',gap:12 }}>
+      <div className="dash-container" style={{ padding:'16px',display:'flex',flexDirection:'column',gap:12 }}>
 
         {/* 公共連結區塊 */}
         <div style={card}>
