@@ -366,9 +366,9 @@ export default function Dashboard() {
   return (
     <div style={{ background:PAGE_BG,minHeight:'100vh' }}>
       <style>{`
-        .dash-container { max-width: 430px; margin: 0 auto; }
+        .dashboard-wrap { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
-          .dash-container { max-width: 900px; }
+          .dashboard-wrap { max-width: 1200px; margin: 0; }
         }
         .dash-grid { display: block; }
         @media (min-width: 1024px) {
@@ -391,7 +391,7 @@ export default function Dashboard() {
         }
       `}</style>
 
-      <div className="dash-container" style={{ padding:'20px 16px 0' }}>
+      <div className="dashboard-wrap" style={{ padding:'20px 16px 0' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start' }}>
           <div>
             <p style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>嗨，{displayName} 👋</p>
@@ -408,7 +408,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dash-container" style={{ padding:'14px 16px 0' }}>
+      <div className="dashboard-wrap" style={{ padding:'14px 16px 0' }}>
         <div className="dash-grid">
 
         {showStarterCard && (
