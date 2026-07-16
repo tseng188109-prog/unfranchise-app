@@ -1,19 +1,29 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import {
+  IconHome2, IconUsers, IconChartBar, IconMail, IconCheck,
+  IconFlag, IconSettings,
+} from '@tabler/icons-react'
 
 const TABS = [
-  { path: '/',             icon: '⌂',  label: '首頁'     },
-  { path: '/contacts',     icon: '☰',  label: '互動名單' },
-  { path: '/transactions', icon: '▦',  label: '業績'     },
-  { path: '/customers',    icon: '✉',  label: '顧客'     },
-  { path: '/daily',        icon: '✓',  label: '每日行動' },
+  { path: '/',             Icon: IconHome2,  label: '首頁'     },
+  { path: '/contacts',     Icon: IconUsers,  label: '互動名單' },
+  { path: '/transactions', Icon: IconChartBar, label: '業績'   },
+  { path: '/customers',    Icon: IconMail,   label: '顧客'     },
+  { path: '/daily',        Icon: IconCheck,  label: '每日行動' },
 ]
 
 const SECONDARY_TABS = [
-  { path: '/team',     icon: '⚑', label: '戰隊' },
-  { path: '/settings', icon: '⚙', label: '設定' },
+  { path: '/team',     Icon: IconFlag,     label: '戰隊' },
+  { path: '/settings', Icon: IconSettings, label: '設定' },
 ]
 
 const SIDEBAR_WIDTH = 220
+
+// 設計系統色碼
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
 
 export default function Layout({ children }) {
   const navigate = useNavigate()
@@ -25,6 +35,10 @@ export default function Layout({ children }) {
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
       <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
         .rwd-sidebar { display: none; }
         .rwd-bottomnav { display: flex; }
         .rwd-content { padding-bottom: 64px; }
@@ -38,12 +52,12 @@ export default function Layout({ children }) {
       {/* 電腦版左側固定選單 */}
       <div className="rwd-sidebar" style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: SIDEBAR_WIDTH,
-        background: '#fff', borderRight: '1px solid #E5E7EB',
+        background: '#fff', borderRight: '1px solid #F0F1F4',
         flexDirection: 'column', zIndex: 100,
       }}>
         <div style={{
-          padding: '20px 16px', fontSize: 16, fontWeight: 700, color: '#111827',
-          borderBottom: '1px solid #F3F4F6',
+          padding: '20px 16px', fontSize: 16, fontWeight: 700, color: TEXT_MAIN,
+          borderBottom: '1px solid #F0F1F4',
         }}>
           超連鎖行動計畫
         </div>
@@ -51,19 +65,18 @@ export default function Layout({ children }) {
         <div style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {TABS.map(tab => {
             const active = isActive(tab.path)
+            const Icon = tab.Icon
             return (
               <button key={tab.path} onClick={() => navigate(tab.path)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 12px', borderRadius: 8, border: 'none',
-                  background: active ? '#EFF6FF' : 'transparent',
+                  padding: '10px 12px', borderRadius: 12, border: 'none',
+                  background: active ? PRIMARY_SOFT : 'transparent',
                   cursor: 'pointer', textAlign: 'left', width: '100%',
                 }}>
-                <span style={{ fontSize: 18, lineHeight: 1, color: active ? '#2563EB' : '#6B7280' }}>
-                  {tab.icon}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: active ? 700 : 500,
-                  color: active ? '#2563EB' : '#374151' }}>
+                <Icon size={19} stroke={1.75} color={active ? PRIMARY : TEXT_MUTED} />
+                <span style={{ fontSize: 14, fontWeight: active ? 700 : 600,
+                  color: active ? PRIMARY : TEXT_MAIN }}>
                   {tab.label}
                 </span>
               </button>
@@ -72,24 +85,23 @@ export default function Layout({ children }) {
         </div>
 
         <div style={{
-          padding: '8px', borderTop: '1px solid #F3F4F6',
+          padding: '8px', borderTop: '1px solid #F0F1F4',
           display: 'flex', flexDirection: 'column', gap: 2,
         }}>
           {SECONDARY_TABS.map(tab => {
             const active = isActive(tab.path)
+            const Icon = tab.Icon
             return (
               <button key={tab.path} onClick={() => navigate(tab.path)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 12px', borderRadius: 8, border: 'none',
-                  background: active ? '#EFF6FF' : 'transparent',
+                  padding: '10px 12px', borderRadius: 12, border: 'none',
+                  background: active ? PRIMARY_SOFT : 'transparent',
                   cursor: 'pointer', textAlign: 'left', width: '100%',
                 }}>
-                <span style={{ fontSize: 18, lineHeight: 1, color: active ? '#2563EB' : '#6B7280' }}>
-                  {tab.icon}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: active ? 700 : 500,
-                  color: active ? '#2563EB' : '#374151' }}>
+                <Icon size={19} stroke={1.75} color={active ? PRIMARY : TEXT_MUTED} />
+                <span style={{ fontSize: 14, fontWeight: active ? 700 : 600,
+                  color: active ? PRIMARY : TEXT_MAIN }}>
                   {tab.label}
                 </span>
               </button>
@@ -107,12 +119,13 @@ export default function Layout({ children }) {
       <div className="rwd-bottomnav" style={{
         position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 430,
-        background: '#fff', borderTop: '1px solid #E5E7EB',
+        background: '#fff', borderTop: '1px solid #F0F1F4',
         zIndex: 100,
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {TABS.map(tab => {
           const active = isActive(tab.path)
+          const Icon = tab.Icon
           return (
             <button key={tab.path} onClick={() => navigate(tab.path)}
               style={{
@@ -121,11 +134,9 @@ export default function Layout({ children }) {
                 gap: 3, padding: '8px 0', border: 'none',
                 background: 'none', cursor: 'pointer',
               }}>
-              <span style={{ fontSize: 20, lineHeight: 1, color: active ? '#2563EB' : '#9CA3AF' }}>
-                {tab.icon}
-              </span>
-              <span style={{ fontSize: 10, fontWeight: active ? 700 : 400,
-                color: active ? '#2563EB' : '#9CA3AF' }}>
+              <Icon size={21} stroke={1.75} color={active ? PRIMARY : TEXT_MUTED} />
+              <span style={{ fontSize: 10, fontWeight: active ? 700 : 600,
+                color: active ? PRIMARY : TEXT_MUTED }}>
                 {tab.label}
               </span>
             </button>
