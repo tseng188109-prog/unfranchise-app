@@ -368,7 +368,26 @@ export default function Dashboard() {
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
-          .dash-container { max-width: 720px; }
+          .dash-container { max-width: 900px; }
+        }
+        .dash-grid { display: block; }
+        @media (min-width: 1024px) {
+          .dash-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            grid-template-areas:
+              "starter starter"
+              "kpi followup"
+              "quick followup"
+              "checkin followup";
+            gap: 14px;
+            align-items: start;
+          }
+          .area-starter { grid-area: starter; margin-bottom: 0 !important; }
+          .area-kpi { grid-area: kpi; margin-bottom: 0 !important; }
+          .area-followup { grid-area: followup; margin-bottom: 0 !important; }
+          .area-quick { grid-area: quick; margin-bottom: 0 !important; }
+          .area-checkin { grid-area: checkin; margin-bottom: 0 !important; }
         }
       `}</style>
 
@@ -390,9 +409,10 @@ export default function Dashboard() {
       </div>
 
       <div className="dash-container" style={{ padding:'14px 16px 0' }}>
+        <div className="dash-grid">
 
         {showStarterCard && (
-          <section style={{ borderRadius:18,overflow:'hidden',marginBottom:10,
+          <section className="area-starter" style={{ borderRadius:18,overflow:'hidden',marginBottom:10,
             border:'1px solid #F0F1F4' }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
@@ -455,7 +475,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        <section style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',borderRadius:20,marginBottom:10,
+        <section className="area-kpi" style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',borderRadius:20,marginBottom:10,
           padding:'18px 18px',boxShadow:'0 12px 28px rgba(22,104,227,0.2)' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
             <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>本季業績進度</span>
@@ -486,7 +506,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
+        <section className="area-followup" style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:8 }}>
               待跟進
@@ -527,7 +547,7 @@ export default function Dashboard() {
           }
         </section>
 
-        <section style={{ marginBottom:10 }}>
+        <section className="area-quick" style={{ marginBottom:10 }}>
           <div style={{ display:'flex',gap:10 }}>
             <QuickBtn Icon={IconUsers} label="+互動" color={ACCENT_YELLOW_TEXT} bg={ACCENT_YELLOW_SOFT} onClick={()=>navigate('/contacts/new')} />
             <QuickBtn Icon={IconChartBar} label="+業績" color={ACCENT_GREEN_TEXT} bg={ACCENT_GREEN_SOFT} onClick={()=>navigate('/transactions/new')} />
@@ -535,7 +555,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
+        <section className="area-checkin" style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
             <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
               {isToday ? '今日打卡' : '打卡紀錄'}
@@ -634,6 +654,7 @@ export default function Dashboard() {
           </div>
         </section>
 
+        </div>
         <div style={{ height:80 }} />
       </div>
 
