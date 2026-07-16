@@ -1,5 +1,14 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import {
+  IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
+  IconHeadphones, IconCamera, IconUsers, IconRobot,
+} from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const TEXT_MAIN = '#132A4D'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_GREEN = '#3ECF8E'
 
 const STEPS = [
   'welcome',
@@ -11,13 +20,13 @@ const STEPS = [
 ]
 
 const DAILY_ITEMS = [
-  { emoji: '🎯', key: 'goal_declaration',     label: '目標宣言',   desc: '每天讀一次你的 Why，讓自己記得為什麼出發' },
-  { emoji: '📢', key: 'backend_announcement', label: '後台公告',   desc: '掌握最新團隊動態與公司資訊' },
-  { emoji: '💬', key: 'respond_social',       label: '回應社群',   desc: '在社群上與潛在名單保持連結與互動' },
-  { emoji: '📖', key: 'daily_practice',       label: '每日練習',   desc: '持續精進你的銷售與溝通技巧' },
-  { emoji: '🎧', key: 'listen_recording',     label: '聽錄音',     desc: '每天至少聽一份錄音，建立正確心態' },
-  { emoji: '📱', key: 'ig_story',             label: 'IG 限動',    desc: '透過社群媒體讓更多人認識你的事業' },
-  { emoji: '🤝', key: 'daily_3_contacts',     label: '每日3互動', desc: '每天主動聯繫名單中的人，這是業績的根本' },
+  { Icon: IconTarget, key: 'goal_declaration',     label: '目標宣言',   desc: '每天讀一次你的 Why，讓自己記得為什麼出發' },
+  { Icon: IconSpeakerphone, key: 'backend_announcement', label: '後台公告',   desc: '掌握最新團隊動態與公司資訊' },
+  { Icon: IconMessageCircle, key: 'respond_social',       label: '回應社群',   desc: '在社群上與潛在名單保持連結與互動' },
+  { Icon: IconBook, key: 'daily_practice',       label: '每日練習',   desc: '持續精進你的銷售與溝通技巧' },
+  { Icon: IconHeadphones, key: 'listen_recording',     label: '聽錄音',     desc: '每天至少聽一份錄音，建立正確心態' },
+  { Icon: IconCamera, key: 'ig_story',             label: 'IG 限動',    desc: '透過社群媒體讓更多人認識你的事業' },
+  { Icon: IconUsers, key: 'daily_3_contacts',     label: '每日3互動', desc: '每天主動聯繫名單中的人，這是業績的根本' },
 ]
 
 export default function Onboarding({ user, onComplete }) {
@@ -84,7 +93,7 @@ export default function Onboarding({ user, onComplete }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(160deg, #1E3A5F 0%, #1a56a0 100%)',
+      background: 'linear-gradient(160deg, #1668E3 0%, #2E8FEA 100%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -103,7 +112,7 @@ export default function Onboarding({ user, onComplete }) {
               <div key={s} style={{
                 height: 6, borderRadius: 99,
                 width: active ? 20 : 6,
-                background: done ? '#22C55E' : active ? '#fff' : 'rgba(255,255,255,0.3)',
+                background: done ? ACCENT_GREEN : active ? '#fff' : 'rgba(255,255,255,0.3)',
                 transition: 'all 0.3s ease',
               }} />
             )
@@ -121,71 +130,70 @@ export default function Onboarding({ user, onComplete }) {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <div style={{
             width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-            background: 'rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18,
-          }}>🤖</div>
+          }}><IconRobot size={19} stroke={1.9} color="#fff" /></div>
           <div style={{
-            background: '#fff', borderRadius: '14px 14px 14px 2px',
+            background: '#fff', borderRadius: '18px 18px 18px 4px',
             padding: '14px 16px', maxWidth: 300,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+            boxShadow: '0 8px 24px rgba(19,42,77,0.18)',
           }}>
             {currentStep === 'welcome' && (
               <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, margin: '0 0 8px' }}>
                   歡迎加入超連鎖行動計畫！👋
                 </p>
-                <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   我是你的小助手，花 2 分鐘完成設定，讓 App 陪你從第一天就走在正確的軌道上。
                 </p>
               </>
             )}
             {currentStep === 'name' && (
               <>
-                <p style={{ fontSize: 14, color: '#111827', margin: '0 0 4px', fontWeight: 600 }}>
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 4px', fontWeight: 700 }}>
                   先確認一下你的名字 😊
                 </p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
+                <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0 }}>
                   這會顯示在你的個人頁面上
                 </p>
               </>
             )}
             {currentStep === 'referrer' && (
               <>
-                <p style={{ fontSize: 14, color: '#111827', margin: '0 0 4px', fontWeight: 600 }}>
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 4px', fontWeight: 700 }}>
                   你的推薦人是誰？
                 </p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
+                <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0 }}>
                   輸入推薦人的 Email，讓他/她能看到你的進度（可略過）
                 </p>
               </>
             )}
             {currentStep === 'why' && (
               <>
-                <p style={{ fontSize: 14, color: '#111827', margin: '0 0 6px', fontWeight: 600 }}>
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 6px', fontWeight: 700 }}>
                   你為什麼加入美安？✍️
                 </p>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   寫下你的 Why 和目標，這就是你的目標宣言。遇到困難的時候，它會提醒你為什麼出發。
                 </p>
               </>
             )}
             {currentStep === 'daily' && (
               <>
-                <p style={{ fontSize: 14, color: '#111827', margin: '0 0 6px', fontWeight: 600 }}>
-                  這是你每天要做的 7 件事 📋
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 6px', fontWeight: 700 }}>
+                  這是你每天要做的 7 件事
                 </p>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   這不是 App 發明的，是美安官方起步指南要求的每日行動。點每一項看看為什麼要做。
                 </p>
               </>
             )}
             {currentStep === 'done' && (
               <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, margin: '0 0 8px' }}>
                   設定完成！🎉
                 </p>
-                <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   接下來去新增你的第一批名單吧，起步指南說：第一週就要有首選 10 人名單！
                 </p>
               </>
@@ -204,11 +212,11 @@ export default function Onboarding({ user, onComplete }) {
               autoFocus
               style={{
                 width: '100%', boxSizing: 'border-box',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px', borderRadius: 14,
                 border: 'none', fontSize: 15,
                 background: 'rgba(255,255,255,0.95)',
-                color: '#111827', outline: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                color: TEXT_MAIN, outline: 'none',
+                boxShadow: '0 4px 14px rgba(19,42,77,0.15)',
               }}
             />
           )}
@@ -221,11 +229,11 @@ export default function Onboarding({ user, onComplete }) {
               type="email"
               style={{
                 width: '100%', boxSizing: 'border-box',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px', borderRadius: 14,
                 border: 'none', fontSize: 14,
                 background: 'rgba(255,255,255,0.95)',
-                color: '#111827', outline: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                color: TEXT_MAIN, outline: 'none',
+                boxShadow: '0 4px 14px rgba(19,42,77,0.15)',
               }}
             />
           )}
@@ -238,13 +246,13 @@ export default function Onboarding({ user, onComplete }) {
               rows={5}
               style={{
                 width: '100%', boxSizing: 'border-box',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px', borderRadius: 14,
                 border: 'none', fontSize: 13,
                 background: 'rgba(255,255,255,0.95)',
-                color: '#111827', outline: 'none',
+                color: TEXT_MAIN, outline: 'none',
                 resize: 'none', fontFamily: 'inherit',
                 lineHeight: 1.7,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                boxShadow: '0 4px 14px rgba(19,42,77,0.15)',
               }}
             />
           )}
@@ -258,29 +266,30 @@ export default function Onboarding({ user, onComplete }) {
                     style={{
                       background: activeDaily === item.key
                         ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.15)',
-                      borderRadius: 10, padding: '10px 12px',
+                      borderRadius: 12, padding: '10px 12px',
                       display: 'flex', alignItems: 'center', gap: 10,
                       cursor: 'pointer', transition: 'all 0.2s',
                     }}>
-                    <span style={{ fontSize: 18 }}>{item.emoji}</span>
+                    <item.Icon size={18} stroke={1.9}
+                      color={activeDaily === item.key ? PRIMARY : '#fff'} />
                     <span style={{
                       fontSize: 13, fontWeight: 600,
-                      color: activeDaily === item.key ? '#111827' : '#fff',
+                      color: activeDaily === item.key ? TEXT_MAIN : '#fff',
                       flex: 1,
                     }}>{item.label}</span>
                     <span style={{
                       fontSize: 12,
-                      color: activeDaily === item.key ? '#6B7280' : 'rgba(255,255,255,0.6)',
+                      color: activeDaily === item.key ? TEXT_SECONDARY : 'rgba(255,255,255,0.6)',
                     }}>{activeDaily === item.key ? '▲' : '▼'}</span>
                   </div>
                   {activeDaily === item.key && (
                     <div style={{
-                      background: 'rgba(255,255,255,0.1)',
-                      borderRadius: '0 0 10px 10px',
+                      background: 'rgba(255,255,255,0.12)',
+                      borderRadius: '0 0 12px 12px',
                       padding: '8px 12px 10px 40px',
                       marginTop: -2,
                     }}>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', margin: 0, lineHeight: 1.6 }}>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: 0, lineHeight: 1.6 }}>
                         {item.desc}
                       </p>
                     </div>
@@ -293,10 +302,10 @@ export default function Onboarding({ user, onComplete }) {
           {currentStep === 'done' && (
             <div style={{
               background: 'rgba(255,255,255,0.15)',
-              borderRadius: 12, padding: 14,
+              borderRadius: 14, padding: 14,
             }}>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: '0 0 8px', fontWeight: 600 }}>
-                📋 你的新手任務
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: '0 0 8px', fontWeight: 700 }}>
+                你的新手任務
               </p>
               {[
                 '新增 5 筆互動名單',
@@ -327,9 +336,9 @@ export default function Onboarding({ user, onComplete }) {
             onClick={handleNext}
             disabled={!canNext || saving}
             style={{
-              flex: 1, padding: '13px', borderRadius: 12, border: 'none',
+              flex: 1, padding: '13px', borderRadius: 14, border: 'none',
               background: canNext ? '#fff' : 'rgba(255,255,255,0.3)',
-              color: canNext ? '#1E3A5F' : 'rgba(255,255,255,0.5)',
+              color: canNext ? PRIMARY : 'rgba(255,255,255,0.5)',
               fontWeight: 700, fontSize: 15, cursor: canNext ? 'pointer' : 'default',
               transition: 'all 0.2s',
             }}>
@@ -343,7 +352,7 @@ export default function Onboarding({ user, onComplete }) {
             <button
               onClick={handleSkip}
               style={{
-                padding: '13px 16px', borderRadius: 12,
+                padding: '13px 16px', borderRadius: 14,
                 border: '1.5px solid rgba(255,255,255,0.4)',
                 background: 'transparent', color: 'rgba(255,255,255,0.7)',
                 fontWeight: 600, fontSize: 13, cursor: 'pointer',
