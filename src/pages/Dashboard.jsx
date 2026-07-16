@@ -2,26 +2,53 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
+import {
+  IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
+  IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
+  IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
+} from '@tabler/icons-react'
 
 const BV_GOAL = 1500
 const IBV_GOAL = 300
 const DAYS_ZH = ['日', '一', '二', '三', '四', '五', '六']
+
+// 設計系統色碼
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_YELLOW = '#FFD166'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_GREEN = '#3ECF8E'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_PINK = '#F45DA8'
+const ACCENT_PINK_SOFT = '#FDE8F3'
+const ACCENT_PINK_TEXT = '#D23E8C'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const CARD_BG = '#fff'
+const PAGE_BG = '#fff'
+const SUBCARD_BG = '#F5F8FC'
+
 const DAILY_TASKS = [
-  { key: 'goal_declaration', label: '目標宣言', icon: '🎯' },
-  { key: 'backend_announcement', label: '後台公告/管理報告', icon: '📋', url: 'https://tw.unfranchise.com' },
-  { key: 'respond_social', label: '回應臉書IDEA/LINE', icon: '💬', social: true },
-  { key: 'daily_practice', label: '每日練習', icon: '📚', internalPath: '/daily-practice' },
-  { key: 'listen_recording', label: '聽錄音', icon: '🎧', internalPath: '/recording' },
-  { key: 'ig_story', label: 'IG 限動', icon: '📸', url: 'https://www.instagram.com' },
-  { key: 'daily_3_contacts', label: '每日3互動', icon: '👥', special: true, toContacts: true },
+  { key: 'goal_declaration', label: '目標宣言', Icon: IconTarget },
+  { key: 'backend_announcement', label: '後台公告/管理報告', Icon: IconSpeakerphone, url: 'https://tw.unfranchise.com' },
+  { key: 'respond_social', label: '回應臉書IDEA/LINE', Icon: IconMessageCircle, social: true },
+  { key: 'daily_practice', label: '每日練習', Icon: IconBook, internalPath: '/daily-practice' },
+  { key: 'listen_recording', label: '聽錄音', Icon: IconHeadphones, internalPath: '/recording' },
+  { key: 'ig_story', label: 'IG 限動', Icon: IconCamera, url: 'https://www.instagram.com' },
+  { key: 'daily_3_contacts', label: '每日3互動', Icon: IconUsers, special: true, toContacts: true },
 ]
 
 const STARTER_TASKS = [
-  { id: 'has_contact',      label: '新增第一筆互動名單',     icon: '👥' },
-  { id: 'has_checkin',      label: '完成今天打卡',           icon: '✅' },
-  { id: 'week3_checkin',    label: '一週內累積打卡 3 天',    icon: '🔥' },
-  { id: 'has_log',          label: '新增第一筆互動紀錄',     icon: '📝' },
-  { id: 'has_declaration',  label: '設定你的目標宣言',       icon: '🎯' },
+  { id: 'has_contact',      label: '新增第一筆互動名單',     Icon: IconUsers },
+  { id: 'has_checkin',      label: '完成今天打卡',           Icon: IconTarget },
+  { id: 'week3_checkin',    label: '一週內累積打卡 3 天',    Icon: IconTrendingUp },
+  { id: 'has_log',          label: '新增第一筆互動紀錄',     Icon: IconMessageCircle },
+  { id: 'has_declaration',  label: '設定你的目標宣言',       Icon: IconTarget },
 ]
 
 function toDateStr(d) {
@@ -74,26 +101,29 @@ function Avatar({ name, size=36 }) {
     </div>
   )
 }
-function ProgressBar({ value, max, color }) {
+function ProgressBar({ value, max, color, trackColor }) {
   const pct = max>0 ? Math.min((value/max)*100,100) : 0
   return (
-    <div style={{ background:'#F3F4F6',borderRadius:999,height:8,overflow:'hidden' }}>
+    <div style={{ background:trackColor||'#F3F4F6',borderRadius:999,height:8,overflow:'hidden' }}>
       <div style={{ width:`${pct}%`,height:'100%',borderRadius:999,background:color,
         transition:'width 0.6s cubic-bezier(0.34,1.56,0.64,1)' }} />
     </div>
   )
 }
-function QuickBtn({ icon, label, onClick, color }) {
+function QuickBtn({ Icon, label, onClick, color, bg }) {
   return (
     <button onClick={onClick}
       onMouseDown={e=>e.currentTarget.style.transform='scale(0.96)'}
       onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}
       onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-      style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6,
-        padding:'12px 8px',borderRadius:14,border:`1.5px solid ${color}22`,
-        background:`${color}0D`,cursor:'pointer',transition:'all 0.15s' }}>
-      <span style={{ fontSize:22 }}>{icon}</span>
-      <span style={{ fontSize:12,fontWeight:600,color,whiteSpace:'nowrap' }}>{label}</span>
+      style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:8,
+        padding:'14px 4px',borderRadius:18,border:'none',
+        background:bg,cursor:'pointer',transition:'all 0.15s' }}>
+      <div style={{ width:32,height:32,borderRadius:10,background:'rgba(255,255,255,0.65)',
+        display:'flex',alignItems:'center',justifyContent:'center' }}>
+        <Icon size={16} stroke={1.9} color={color} />
+      </div>
+      <span style={{ fontSize:12,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -327,14 +357,14 @@ export default function Dashboard() {
 
   if(loading) return (
     <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <div style={{ width:36,height:36,borderRadius:'50%',border:'3px solid #E5E7EB',
-        borderTopColor:'#3B82F6',animation:'spin 0.8s linear infinite' }} />
-      <p style={{ color:'#9CA3AF',marginTop:16,fontSize:14 }}>載入中…</p>
+      <div style={{ width:36,height:36,borderRadius:'50%',border:'3px solid #F0F1F4',
+        borderTopColor:PRIMARY,animation:'spin 0.8s linear infinite' }} />
+      <p style={{ color:TEXT_MUTED,marginTop:16,fontSize:14 }}>載入中…</p>
     </div>
   )
 
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
+    <div style={{ background:PAGE_BG,minHeight:'100vh' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -342,79 +372,80 @@ export default function Dashboard() {
         }
       `}</style>
 
-      <div style={{ background:'linear-gradient(135deg,#1E3A5F 0%,#2563EB 100%)' }}>
-        <div className="dash-container" style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',
-          padding:'52px 20px 20px' }}>
+      <div className="dash-container" style={{ padding:'20px 16px 0' }}>
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start' }}>
           <div>
-            <p style={{ fontSize:22,fontWeight:800,color:'#fff',margin:0 }}>嗨，{displayName} 👋</p>
-            <p style={{ fontSize:13,color:'#93C5FD',margin:'4px 0 0' }}>{todayStr}</p>
+            <p style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>嗨，{displayName} 👋</p>
+            <p style={{ fontSize:12,color:TEXT_MUTED,margin:'5px 0 0' }}>{todayStr}</p>
           </div>
           <div style={{ display:'flex',gap:8 }}>
             <NotificationBell userId={user?.id} />
             <button onClick={()=>navigate('/settings')}
-              style={{ background:'rgba(255,255,255,0.15)',border:'none',borderRadius:'50%',
-              width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
-              <span style={{ fontSize:20 }}>⚙️</span>
+              style={{ background:PRIMARY_SOFT,border:'none',borderRadius:'50%',
+              width:38,height:38,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
+              <IconSettings size={17} stroke={1.9} color={PRIMARY} />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="dash-container">
+      <div className="dash-container" style={{ padding:'14px 16px 0' }}>
 
         {showStarterCard && (
-          <section style={{ margin:'12px 16px 0',borderRadius:16,overflow:'hidden',
-            border:'1.5px solid #BFDBFE',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+          <section style={{ borderRadius:18,overflow:'hidden',marginBottom:10,
+            border:'1px solid #F0F1F4' }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
-                style={{ width:'100%',background:'#EFF6FF',border:'none',cursor:'pointer',
+                style={{ width:'100%',background:PRIMARY_SOFT,border:'none',cursor:'pointer',
                   padding:'10px 14px',display:'flex',alignItems:'center',gap:10 }}>
-                <span style={{ fontSize:14 }}>🚀</span>
-                <div style={{ flex:1,height:6,background:'#DBEAFE',borderRadius:99,overflow:'hidden' }}>
-                  <div style={{ height:'100%',borderRadius:99,background:'#2563EB',
+                <IconRocket size={15} stroke={1.9} color={PRIMARY} />
+                <div style={{ flex:1,height:6,background:'rgba(22,104,227,0.15)',borderRadius:99,overflow:'hidden' }}>
+                  <div style={{ height:'100%',borderRadius:99,background:PRIMARY,
                     width:`${Math.round((starterDoneCount/STARTER_TASKS.length)*100)}%`,
                     transition:'width 0.5s ease' }} />
                 </div>
-                <span style={{ fontSize:12,fontWeight:700,color:'#2563EB',whiteSpace:'nowrap' }}>
+                <span style={{ fontSize:12,fontWeight:700,color:PRIMARY,whiteSpace:'nowrap' }}>
                   {starterDoneCount} / {STARTER_TASKS.length}
                 </span>
-                <span style={{ fontSize:12,color:'#93C5FD' }}>▼</span>
+                <span style={{ fontSize:12,color:PRIMARY }}>▼</span>
               </button>
             )}
             {starterExpanded && (
               <div style={{ background:'#fff' }}>
-                <div style={{ background:'#EFF6FF',padding:'12px 14px',
+                <div style={{ background:PRIMARY_SOFT,padding:'14px',
                   display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                   <div>
-                    <p style={{ fontSize:14,fontWeight:700,color:'#1D4ED8',margin:0 }}>🚀 新手起步任務</p>
-                    <p style={{ fontSize:11,color:'#60A5FA',margin:'2px 0 0' }}>完成這 5 件事，讓你的事業正式起步！</p>
+                    <p style={{ fontSize:14,fontWeight:700,color:PRIMARY,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+                      <IconRocket size={15} stroke={1.9} color={PRIMARY} /> 新手起步任務
+                    </p>
+                    <p style={{ fontSize:11,color:'#5B8FE0',margin:'4px 0 0' }}>完成這 5 件事，讓你的事業正式起步！</p>
                   </div>
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    <span style={{ fontSize:12,fontWeight:700,background:'#2563EB',color:'#fff',
+                    <span style={{ fontSize:12,fontWeight:700,background:PRIMARY,color:'#fff',
                       padding:'3px 10px',borderRadius:99 }}>
                       {starterDoneCount}/{STARTER_TASKS.length}
                     </span>
                     <button onClick={() => setStarterExpanded(false)}
-                      style={{ background:'none',border:'none',color:'#93C5FD',cursor:'pointer',fontSize:14,padding:0 }}>▲</button>
+                      style={{ background:'none',border:'none',color:PRIMARY,cursor:'pointer',fontSize:14,padding:0 }}>▲</button>
                   </div>
                 </div>
-                <div style={{ padding:'8px 14px 12px' }}>
+                <div style={{ padding:'10px 14px 14px' }}>
                   {STARTER_TASKS.map(task => {
                     const done = starterTasks?.[task.id] === true
                     return (
                       <div key={task.id} style={{ display:'flex',alignItems:'center',gap:10,
-                        padding:'9px 0',borderBottom:'1px solid #F3F4F6' }}>
+                        padding:'10px 0',borderBottom:'1px solid #F5F6F8' }}>
                         <div style={{ width:22,height:22,borderRadius:'50%',flexShrink:0,
                           display:'flex',alignItems:'center',justifyContent:'center',
-                          background: done ? '#22C55E' : '#F3F4F6',
-                          border: done ? 'none' : '1.5px solid #D1D5DB' }}>
+                          background: done ? ACCENT_GREEN : '#F0F1F4',
+                          border: done ? 'none' : '1.5px solid #D8DCE8' }}>
                           {done && <span style={{ fontSize:12,color:'#fff' }}>✓</span>}
                         </div>
-                        <span style={{ fontSize:13,color: done?'#9CA3AF':'#374151',
+                        <span style={{ fontSize:13,fontWeight:600,color: done?TEXT_MUTED:TEXT_MAIN,
                           textDecoration: done?'line-through':'none',flex:1 }}>
-                          {task.icon} {task.label}
+                          {task.label}
                         </span>
-                        {done && <span style={{ fontSize:11,color:'#22C55E',fontWeight:600 }}>完成</span>}
+                        {done && <span style={{ fontSize:11,color:ACCENT_GREEN_TEXT,fontWeight:700 }}>完成</span>}
                       </div>
                     )
                   })}
@@ -424,68 +455,69 @@ export default function Dashboard() {
           </section>
         )}
 
-        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
-          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-            <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>本季業績進度</span>
-            <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
-              onClick={()=>navigate('/transactions')}>查看詳情 →</button>
+        <section style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',borderRadius:20,marginBottom:10,
+          padding:'18px 18px',boxShadow:'0 12px 28px rgba(22,104,227,0.2)' }}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
+            <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>本季業績進度</span>
+            <button style={{ fontSize:12,color:'rgba(255,255,255,0.85)',background:'none',border:'none',cursor:'pointer',fontWeight:600,display:'flex',alignItems:'center',gap:2 }}
+              onClick={()=>navigate('/transactions')}>查看詳情 <IconChevronRight size={13} stroke={2} /></button>
           </div>
-          <div style={{ display:'flex',gap:16,marginBottom:16 }}>
+          <div style={{ display:'flex',gap:16,marginBottom:14 }}>
             <div style={{ flex:1 }}>
               <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                <span style={{ fontSize:13,fontWeight:800,color:'#F97316' }}>BV</span>
-                <span style={{ fontSize:16,fontWeight:700 }}>{bvTotal.toFixed(0)} <span style={{ color:'#9CA3AF',fontSize:13 }}>/ {BV_GOAL}</span></span>
+                <span style={{ fontSize:12,fontWeight:700,color:ACCENT_YELLOW }}>BV</span>
+                <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>{bvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
               </div>
-              <ProgressBar value={bvTotal} max={BV_GOAL} color="#F97316" />
+              <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="rgba(255,255,255,0.22)" />
             </div>
             <div style={{ flex:1 }}>
               <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                <span style={{ fontSize:13,fontWeight:800,color:'#3B82F6' }}>IBV</span>
-                <span style={{ fontSize:16,fontWeight:700 }}>{ibvTotal.toFixed(0)} <span style={{ color:'#9CA3AF',fontSize:13 }}>/ {IBV_GOAL}</span></span>
+                <span style={{ fontSize:12,fontWeight:700,color:'#fff' }}>IBV</span>
+                <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>{ibvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
               </div>
-              <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#3B82F6" />
+              <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#fff" trackColor="rgba(255,255,255,0.22)" />
             </div>
           </div>
-          <div style={{ display:'flex',justifyContent:'space-between',paddingTop:12,borderTop:'1px solid #F3F4F6' }}>
-            <span style={{ color:'#6B7280',fontSize:13 }}>本月獲利</span>
-            <span style={{ color:profit>=0?'#16A34A':'#DC2626',fontWeight:700,fontSize:17 }}>
+          <div style={{ display:'flex',justifyContent:'space-between',paddingTop:12,borderTop:'1px solid rgba(255,255,255,0.18)' }}>
+            <span style={{ color:'rgba(255,255,255,0.75)',fontSize:12 }}>本月獲利</span>
+            <span style={{ color:'#fff',fontWeight:700,fontSize:16 }}>
               NT${profit.toLocaleString()}
             </span>
           </div>
         </section>
 
-        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+        <section style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-            <span style={{ fontSize:15,fontWeight:700,color:'#111827',display:'flex',alignItems:'center',gap:8 }}>
+            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:8 }}>
               待跟進
-              {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:99,background:'#FEF2F2',color:'#DC2626' }}>{allDue.length} 人今天</span>}
+              {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:99,background:DANGER_SOFT,color:DANGER }}>{allDue.length} 人今天</span>}
             </span>
-            <button style={{ fontSize:12,color:'#3B82F6',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}
+            <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}
               onClick={()=>navigate('/contacts?filter=due')}>全部 →</button>
           </div>
           {allDue.length===0
-            ? <p style={{ fontSize:14,color:'#9CA3AF',textAlign:'center',padding:'16px 0',margin:0 }}>今天沒有待跟進的聯絡人 🎉</p>
+            ? <p style={{ fontSize:14,color:TEXT_MUTED,textAlign:'center',padding:'16px 0',margin:0 }}>今天沒有待跟進的聯絡人 🎉</p>
             : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
                 {allDue.slice(0,5).map(c=>{
                   const ov=isOverdue(c.next_contact_date)
                   return (
                     <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
-                      style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:12,width:'100%',
-                        background:ov?'#FFF5F5':'#F9FAFB',border:`1px solid ${ov?'#FECACA':'#F3F4F6'}`,
+                      style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:14,width:'100%',
+                        background:ov?DANGER_SOFT:SUBCARD_BG,border:'none',
                         cursor:'pointer',textAlign:'left' }}>
                       <Avatar name={c.name} size={38} />
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                          <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>{c.name}</span>
+                          <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{c.name}</span>
                           <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
                             background:getEggBg(c.egg_type),color:getEggColor(c.egg_type) }}>{c.egg_type}</span>
                         </div>
-                        <div style={{ fontSize:12,color:'#9CA3AF',marginTop:2,display:'flex',gap:4 }}>
+                        <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2,display:'flex',gap:4 }}>
                           {c.occupation&&<span>{c.occupation}</span>}{c.occupation&&<span>·</span>}
                           <span>{c.action_type}</span>
                         </div>
                       </div>
-                      <span style={{ fontSize:12,fontWeight:600,whiteSpace:'nowrap',color:ov?'#DC2626':'#F97316' }}>
+                      <span style={{ fontSize:12,fontWeight:700,whiteSpace:'nowrap',color:ov?DANGER:ACCENT_YELLOW_TEXT }}>
                         {formatFollowDate(c.next_contact_date)}
                       </span>
                     </button>
@@ -495,60 +527,60 @@ export default function Dashboard() {
           }
         </section>
 
-        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:'14px 16px',boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+        <section style={{ marginBottom:10 }}>
           <div style={{ display:'flex',gap:10 }}>
-            <QuickBtn icon="👥" label="+互動" color="#3B82F6" onClick={()=>navigate('/contacts/new')} />
-            <QuickBtn icon="📊" label="+業績" color="#F97316" onClick={()=>navigate('/transactions/new')} />
-            <QuickBtn icon="🔍" label="查顧客" color="#22C55E" onClick={()=>navigate('/customers')} />
+            <QuickBtn Icon={IconUsers} label="+互動" color={ACCENT_YELLOW_TEXT} bg={ACCENT_YELLOW_SOFT} onClick={()=>navigate('/contacts/new')} />
+            <QuickBtn Icon={IconChartBar} label="+業績" color={ACCENT_GREEN_TEXT} bg={ACCENT_GREEN_SOFT} onClick={()=>navigate('/transactions/new')} />
+            <QuickBtn Icon={IconSearch} label="查顧客" color={ACCENT_PINK_TEXT} bg={ACCENT_PINK_SOFT} onClick={()=>navigate('/customers')} />
           </div>
         </section>
 
-        <section style={{ background:'#fff',borderRadius:16,margin:'12px 16px 0',padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+        <section style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
-            <span style={{ fontSize:15,fontWeight:700,color:'#111827' }}>
+            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
               {isToday ? '今日打卡' : '打卡紀錄'}
             </span>
-            <span style={{ fontSize:13,color:'#6B7280' }}>{checkTotal}/{DAILY_TASKS.length}</span>
+            <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{checkTotal}/{DAILY_TASKS.length}</span>
           </div>
 
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
-            marginBottom:10,background:'#F8FAFC',borderRadius:10,padding:'6px 10px' }}>
+            marginBottom:10,background:SUBCARD_BG,borderRadius:12,padding:'6px 10px' }}>
             <button onClick={() => changeDate(-1)}
-              style={{ background:'none',border:'none',color:'#6B7280',
+              style={{ background:'none',border:'none',color:TEXT_SECONDARY,
                 fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
             <div style={{ textAlign:'center' }}>
-              <span style={{ fontSize:13,fontWeight:600,color: isToday?'#2563EB':'#F59E0B' }}>
+              <span style={{ fontSize:13,fontWeight:700,color: isToday?PRIMARY:'#C9902E' }}>
                 {isToday ? '今天' : formatDateLabel(viewDate)}
               </span>
               {!isToday && (
                 <button onClick={() => setViewDate(today())}
-                  style={{ marginLeft:8,fontSize:11,color:'#2563EB',background:'none',
-                    border:'none',cursor:'pointer',fontWeight:600 }}>回今天</button>
+                  style={{ marginLeft:8,fontSize:11,color:PRIMARY,background:'none',
+                    border:'none',cursor:'pointer',fontWeight:700 }}>回今天</button>
               )}
             </div>
             <button onClick={() => changeDate(1)}
               style={{ background:'none',border:'none',
-                color: isToday?'#D1D5DB':'#6B7280',
+                color: isToday?'#D8DCE8':TEXT_SECONDARY,
                 fontSize:18,cursor: isToday?'default':'pointer',
                 padding:'0 4px',lineHeight:1 }}>›</button>
           </div>
 
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
-            background:'#F8FAFC',borderRadius:10,marginBottom:8 }}>
+            background:SUBCARD_BG,borderRadius:12,marginBottom:8 }}>
             {weekStatus.map((w,i)=>{
               const isSelected = w.date === viewDate
               const isT = w.date === today()
-              const dc=w.status==='full'?'#22C55E':w.status==='partial'?'#F97316':'#E5E7EB'
+              const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
               return (
                 <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                     cursor: w.date<=today()?'pointer':'default' }}>
-                  <span style={{ fontSize:11,color: isSelected?'#2563EB':isT?'#3B82F6':'#9CA3AF',
-                    fontWeight: isSelected||isT?700:400 }}>
+                  <span style={{ fontSize:11,color: isSelected?PRIMARY:isT?PRIMARY:TEXT_MUTED,
+                    fontWeight: isSelected||isT?700:600 }}>
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
                   <div style={{ width:10,height:10,borderRadius:'50%',background:dc,
-                    outline: isSelected?'2px solid #2563EB':isT?'2px solid #3B82F6':'none',
+                    outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
                     outlineOffset:2 }} />
                 </div>
               )
@@ -559,39 +591,41 @@ export default function Dashboard() {
             {DAILY_TASKS.map(task=>{
               const done=!!checkins[task.key]
               const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
+              const TaskIcon = task.Icon
               return (
-                <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'8px 0',
-                  borderBottom:'1px solid #F9FAFB' }}>
+                <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
+                  borderBottom:'1px solid #F5F6F8' }}>
                   <button onClick={()=>toggleCheckin(task.key)}
-                    style={{ width:20,height:20,borderRadius:6,flexShrink:0,
-                      border:done?'none':'2px solid #D1D5DB',background:done?'#22C55E':'#fff',
+                    style={{ width:20,height:20,borderRadius:7,flexShrink:0,
+                      border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
                       display:'flex',alignItems:'center',justifyContent:'center',
                       transition:'all 0.15s',cursor:'pointer' }}>
                     {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
                   </button>
+                  <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
                   <button onClick={()=> hasAction && handleTaskAction(task)}
                     style={{ flex:1,background:'none',border:'none',textAlign:'left',
                       cursor: hasAction?'pointer':'default',padding:0,
                       display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-                    <span style={{ fontSize:14,color:done?'#9CA3AF':'#374151',
+                    <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
                       textDecoration:done?'line-through':'none' }}>
-                      {task.icon} {task.label}
+                      {task.label}
                       {task.special&&viewContacted.length>0&&(
                         <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
                           {viewContacted.map((c,i) => (
                             <span key={c.id}
                               onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
-                              style={{ color:'#22C55E',fontWeight:600,cursor:'pointer',
+                              style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
                                 textDecoration:'underline' }}>
                               {c.name}{i<viewContacted.length-1?'、':''}
                             </span>
                           ))}
-                          <span style={{ color:'#22C55E',fontWeight:600 }}>✓</span>
+                          <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
                         </span>
                       )}
                     </span>
                     {hasAction&&(
-                      <span style={{ fontSize:12,color:'#9CA3AF',marginLeft:8,flexShrink:0 }}>›</span>
+                      <span style={{ fontSize:12,color:TEXT_MUTED,marginLeft:8,flexShrink:0 }}>›</span>
                     )}
                   </button>
                 </div>
@@ -604,24 +638,26 @@ export default function Dashboard() {
       </div>
 
       {goalModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e=>{ if(e.target===e.currentTarget) setGoalModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,
+          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>🎯 我的目標宣言</h3>
+              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+                <IconTarget size={17} stroke={1.9} color={PRIMARY} /> 我的目標宣言
+              </h3>
               <button onClick={()=>setGoalModal(false)}
-                style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
+                style={{ background:'none',border:'none',fontSize:20,color:TEXT_MUTED,cursor:'pointer' }}>✕</button>
             </div>
             <textarea ref={goalTextareaRef} value={goalText}
               onChange={e=>{ setGoalText(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
               placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..." rows={4}
-              style={{ width:'100%',padding:'12px',borderRadius:10,border:'1px solid #D1D5DB',
+              style={{ width:'100%',padding:'12px',borderRadius:12,border:'1px solid #E1E5EE',
                 fontSize:15,boxSizing:'border-box',outline:'none',resize:'none',lineHeight:1.8,display:'block' }} />
             <button onClick={saveGoalText} disabled={goalSaving}
-              style={{ width:'100%',padding:'13px',borderRadius:12,border:'none',
-                background: goalSaved?'#22C55E':goalSaving?'#93C5FD':'#2563EB',
+              style={{ width:'100%',padding:'13px',borderRadius:14,border:'none',
+                background: goalSaved?ACCENT_GREEN:goalSaving?'#9BBBF2':PRIMARY,
                 color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer',marginTop:12 }}>
               {goalSaved ? '✓ 已儲存' : goalSaving ? '儲存中…' : '儲存'}
             </button>
@@ -630,23 +666,25 @@ export default function Dashboard() {
       )}
 
       {socialModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e=>{ if(e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'20px 20px 0 0',padding:24,width:'100%',maxWidth:430 }}>
+          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>💬 前往回應</h3>
+              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+                <IconMessageCircle size={17} stroke={1.9} color={PRIMARY} /> 前往回應
+              </h3>
               <button onClick={()=>setSocialModal(false)}
-                style={{ background:'none',border:'none',fontSize:20,color:'#9CA3AF',cursor:'pointer' }}>✕</button>
+                style={{ background:'none',border:'none',fontSize:20,color:TEXT_MUTED,cursor:'pointer' }}>✕</button>
             </div>
             <div style={{ display:'flex',gap:12,marginBottom:8 }}>
               <button onClick={()=>{ window.open('https://www.facebook.com/groups/710836659091767/','_blank'); setSocialModal(false) }}
-                style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
+                style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
                   background:'#1877F2',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 📘 臉書 IDEA
               </button>
               <button onClick={()=>{ window.open('https://line.me','_blank'); setSocialModal(false) }}
-                style={{ flex:1,padding:'16px 8px',borderRadius:14,border:'none',
+                style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
                   background:'#06C755',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 💚 LINE
               </button>
