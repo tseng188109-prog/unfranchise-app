@@ -96,8 +96,16 @@ export default function Samples() {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
+
       {/* Header */}
-      <div style={{ background:'#fff',padding:'52px 16px 0',borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff',padding:'52px 0 0',borderBottom:'1px solid #F3F4F6' }}>
+      <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>試用品追蹤</h1>
           <button onClick={() => setShowNew(true)}
@@ -115,7 +123,9 @@ export default function Samples() {
           ))}
         </div>
       </div>
+      </div>
 
+      <div className="dash-container">
       {/* 新增表單 */}
       {showNew && (
         <div style={{ margin:'12px 16px',background:'#fff',borderRadius:16,
@@ -249,6 +259,7 @@ export default function Samples() {
           })}
         </div>
       )}
+      </div>
     </div>
   )
 }

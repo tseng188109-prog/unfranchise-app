@@ -254,15 +254,23 @@ export default function Partners() {
 
   return (
     <div style={{ background:'#F8FAFC', minHeight:'100vh', paddingBottom:80 }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',
-        padding:'52px 20px 20px' }}>
-        <h1 style={{ fontSize:20, fontWeight:800, color:'#fff', margin:0 }}>我的夥伴</h1>
-        <p style={{ fontSize:13, color:'#93C5FD', margin:'4px 0 0' }}>直屬 {partners.length} 人</p>
+        padding:'52px 0 20px' }}>
+        <div className="dash-container" style={{ padding:'0 20px' }}>
+          <h1 style={{ fontSize:20, fontWeight:800, color:'#fff', margin:0 }}>我的夥伴</h1>
+          <p style={{ fontSize:13, color:'#93C5FD', margin:'4px 0 0' }}>直屬 {partners.length} 人</p>
+        </div>
       </div>
 
-      <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="dash-container" style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
 
         {/* 公告板 */}
         <div style={{ background:'#fff', borderRadius:14, padding:14,

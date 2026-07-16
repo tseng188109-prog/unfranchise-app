@@ -91,16 +91,25 @@ export default function ContactNew() {
 
   return (
     <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
+
       {/* Header */}
-      <div style={{ background:'#fff',padding:'52px 16px 16px',
-        borderBottom:'1px solid #F3F4F6',
-        display:'flex',alignItems:'center',gap:12 }}>
-        <button onClick={() => navigate(-1)}
-          style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
-        <h1 style={{ fontSize:18,fontWeight:800,color:'#111827',margin:0 }}>新增聯絡人</h1>
+      <div style={{ background:'#fff',padding:'52px 0 16px',
+        borderBottom:'1px solid #F3F4F6' }}>
+        <div className="dash-container" style={{ padding:'0 16px',
+          display:'flex',alignItems:'center',gap:12 }}>
+          <button onClick={() => navigate(-1)}
+            style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
+          <h1 style={{ fontSize:18,fontWeight:800,color:'#111827',margin:0 }}>新增聯絡人</h1>
+        </div>
       </div>
 
-      <div style={{ padding:'16px 16px 100px' }}>
+      <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
         {/* 姓名 */}
         <div style={styles.fieldWrap}>

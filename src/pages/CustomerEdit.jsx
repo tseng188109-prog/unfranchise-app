@@ -103,8 +103,16 @@ export default function CustomerEdit() {
 
   return (
     <div style={{ background:'#F8FAFC', minHeight:'100vh' }}>
-      <div style={{ background:'#fff', padding:'52px 16px 16px',
-        borderBottom:'1px solid #F3F4F6', display:'flex', alignItems:'center',
+      <style>{`
+        .dash-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .dash-container { max-width: 720px; }
+        }
+      `}</style>
+
+      <div style={{ background:'#fff', padding:'52px 0 16px',
+        borderBottom:'1px solid #F3F4F6' }}>
+      <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center',
         justifyContent:'space-between' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => navigate(-1)}
@@ -115,8 +123,9 @@ export default function CustomerEdit() {
           style={{ background:'none',border:'1px solid #FCA5A5',borderRadius:8,
             padding:'6px 12px',fontSize:13,cursor:'pointer',color:'#DC2626' }}>刪除</button>
       </div>
+      </div>
 
-      <div style={{ padding:'16px 16px 100px' }}>
+      <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
         {/* 參照提示 */}
         <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px',
