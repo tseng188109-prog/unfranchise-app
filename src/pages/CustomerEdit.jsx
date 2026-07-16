@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
+import { IconArrowLeft } from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
 
 function BirthdayPicker({ value, onChange }) {
   const months = Array.from({length:12}, (_,i) => String(i+1).padStart(2,'0'))
@@ -17,16 +31,16 @@ function BirthdayPicker({ value, onChange }) {
   return (
     <div style={{ display:'flex', gap:8 }}>
       <select value={mm} onChange={e => handleChange(e.target.value, dd)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
-          color:mm?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+          color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>月份</option>
         {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
       </select>
       <select value={dd} onChange={e => handleChange(mm, e.target.value)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
-          color:dd?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+          color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>日期</option>
         {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
       </select>
@@ -95,14 +109,12 @@ export default function CustomerEdit() {
 
   if (!form) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <p style={{ color:'#9CA3AF' }}>載入中…</p>
+      <p style={{ color:TEXT_MUTED }}>載入中…</p>
     </div>
   )
 
-  const hasRef = form.phone.trim() || form.birthday.trim() || form.occupation.trim()
-
   return (
-    <div style={{ background:'#F8FAFC', minHeight:'100vh' }}>
+    <div style={{ background:'#fff', minHeight:'100vh' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -111,36 +123,36 @@ export default function CustomerEdit() {
       `}</style>
 
       <div style={{ background:'#fff', padding:'52px 0 16px',
-        borderBottom:'1px solid #F3F4F6' }}>
+        borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center',
         justifyContent:'space-between' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => navigate(-1)}
-            style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
-          <h1 style={{ fontSize:18,fontWeight:800,color:'#111827',margin:0 }}>編輯顧客</h1>
+            style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
+          <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯顧客</h1>
         </div>
         <button onClick={() => setShowDelete(true)}
-          style={{ background:'none',border:'1px solid #FCA5A5',borderRadius:8,
-            padding:'6px 12px',fontSize:13,cursor:'pointer',color:'#DC2626' }}>刪除</button>
+          style={{ background:DANGER_SOFT,border:'none',borderRadius:10,
+            padding:'6px 12px',fontSize:13,cursor:'pointer',color:DANGER,fontWeight:600 }}>刪除</button>
       </div>
       </div>
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
         {/* 參照提示 */}
-        <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px',
-          marginBottom:16, border:'1px solid #BFDBFE' }}>
-          <p style={{ fontSize:12, color:'#1D4ED8', margin:0, lineHeight:1.6 }}>
-            📌 除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
+        <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px',
+          marginBottom:16 }}>
+          <p style={{ fontSize:12, color:PRIMARY, margin:0, lineHeight:1.6 }}>
+            除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
           </p>
         </div>
 
         {/* 姓名 */}
         <div style={fw}>
-          <label style={lb}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
+          <label style={lb}>姓名 <span style={{ color:DANGER }}>*</span></label>
           <input value={form.name} onChange={e => set('name', e.target.value)}
             placeholder="輸入姓名..."
-            style={{ ...inp, borderColor: errors.name ? '#EF4444' : '#E5E7EB' }} />
+            style={{ ...inp, borderColor: errors.name ? DANGER : BORDER }} />
           {errors.name && <p style={err}>{errors.name}</p>}
         </div>
 
@@ -149,8 +161,8 @@ export default function CustomerEdit() {
           <label style={lb}>
             手機
             <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
-              background: form.phone.trim() ? '#DCFCE7' : '#FEF9C3',
-              color: form.phone.trim() ? '#16A34A' : '#CA8A04', fontWeight:600 }}>識別用</span>
+              background: form.phone.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
+              color: form.phone.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
           <input value={form.phone} onChange={e => set('phone', e.target.value)}
             placeholder="輸入手機（選填）..." style={inp} />
@@ -161,11 +173,11 @@ export default function CustomerEdit() {
           <label style={lb}>
             生日
             <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
-              background: form.birthday.trim() ? '#DCFCE7' : '#FEF9C3',
-              color: form.birthday.trim() ? '#16A34A' : '#CA8A04', fontWeight:600 }}>識別用</span>
+              background: form.birthday.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
+              color: form.birthday.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
           <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
-          <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
+          <p style={{ fontSize:11,color:TEXT_MUTED,margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
         </div>
 
         {/* 職業 */}
@@ -173,8 +185,8 @@ export default function CustomerEdit() {
           <label style={lb}>
             職業
             <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
-              background: form.occupation.trim() ? '#DCFCE7' : '#FEF9C3',
-              color: form.occupation.trim() ? '#16A34A' : '#CA8A04', fontWeight:600 }}>識別用</span>
+              background: form.occupation.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
+              color: form.occupation.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
           <input value={form.occupation} onChange={e => set('occupation', e.target.value)}
             placeholder="輸入職業（選填）..." style={inp} />
@@ -182,9 +194,9 @@ export default function CustomerEdit() {
 
         {/* 參照錯誤 */}
         {errors._ref && (
-          <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px',
-            marginBottom:16, border:'1px solid #FECACA' }}>
-            <p style={{ fontSize:13, color:'#DC2626', margin:0 }}>⚠️ {errors._ref}</p>
+          <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px',
+            marginBottom:16 }}>
+            <p style={{ fontSize:13, color:DANGER, margin:0 }}>{errors._ref}</p>
           </div>
         )}
 
@@ -210,28 +222,28 @@ export default function CustomerEdit() {
         </div>
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-            background:saving?'#93C5FD':'#2563EB',color:'#fff',
+          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+            background:saving?'#9BBBF2':PRIMARY,color:'#fff',
             fontSize:16,fontWeight:700,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
       </div>
 
       {showDelete && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:20 }}>
-          <div style={{ background:'#fff',borderRadius:16,padding:24,width:'100%',maxWidth:340 }}>
-            <p style={{ fontSize:16,fontWeight:700,color:'#111827',margin:'0 0 8px' }}>確定要刪除嗎？</p>
-            <p style={{ fontSize:13,color:'#6B7280',margin:'0 0 20px' }}>
+          <div style={{ background:'#fff',borderRadius:18,padding:24,width:'100%',maxWidth:340 }}>
+            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>確定要刪除嗎？</p>
+            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>
               刪除後無法復原，但相關業績紀錄仍會保留。
             </p>
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setShowDelete(false)}
-                style={{ flex:1,padding:'12px',borderRadius:10,border:'1px solid #E5E7EB',
-                  background:'#fff',fontSize:14,cursor:'pointer' }}>取消</button>
+                style={{ flex:1,padding:'12px',borderRadius:12,border:`1px solid ${BORDER}`,
+                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete} disabled={deleting}
-                style={{ flex:1,padding:'12px',borderRadius:10,border:'none',
-                  background:'#DC2626',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                style={{ flex:1,padding:'12px',borderRadius:12,border:'none',
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 {deleting?'刪除中…':'確定刪除'}
               </button>
             </div>
@@ -243,7 +255,7 @@ export default function CustomerEdit() {
 }
 
 const fw = { marginBottom:16 }
-const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'flex',alignItems:'center',gap:4,marginBottom:6 }
-const inp = { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
-  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' }
-const err = { fontSize:12,color:'#EF4444',margin:'4px 0 0' }
+const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:4,marginBottom:6 }
+const inp = { width:'100%',padding:'11px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
+const err = { fontSize:12,color:DANGER,margin:'4px 0 0' }

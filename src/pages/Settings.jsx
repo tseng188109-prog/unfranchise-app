@@ -1,6 +1,22 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import {
+  IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
+  IconFlag, IconChevronRight, IconCheck,
+} from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_GREEN = '#3ECF8E'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -92,8 +108,17 @@ export default function Settings() {
     await supabase.auth.signOut()
   }
 
+  const FUNCTION_ITEMS = [
+    { label:'互動名單', path:'/contacts', Icon: IconClipboardList },
+    { label:'業績紀錄', path:'/transactions', Icon: IconChartBar },
+    { label:'顧客檔案', path:'/customers', Icon: IconUsers },
+    { label:'試用品追蹤', path:'/samples', Icon: IconFlask },
+    { label:'我的夥伴', path:'/partners', Icon: IconUsersGroup },
+    { label:'戰隊', path:'/team', Icon: IconFlag },
+  ]
+
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -101,10 +126,10 @@ export default function Settings() {
         }
       `}</style>
 
-      <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',
+      <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',
         padding:'52px 0 24px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
-          <h1 style={{ fontSize:20,fontWeight:800,color:'#fff',margin:0 }}>設定</h1>
+          <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0 }}>設定</h1>
         </div>
       </div>
 
@@ -113,14 +138,14 @@ export default function Settings() {
         {/* 帳號資訊 */}
         <div style={card}>
           <div style={{ display:'flex',alignItems:'center',gap:14,marginBottom:16 }}>
-            <div style={{ width:52,height:52,borderRadius:'50%',background:'#2563EB',
+            <div style={{ width:52,height:52,borderRadius:'50%',background:PRIMARY,
               display:'flex',alignItems:'center',justifyContent:'center',
-              color:'#fff',fontWeight:800,fontSize:20 }}>
+              color:'#fff',fontWeight:700,fontSize:20 }}>
               {name?name[0]:user?.email?.[0]?.toUpperCase()||'U'}
             </div>
             <div>
-              <p style={{ fontSize:16,fontWeight:700,color:'#111827',margin:0 }}>{name||'未設定名稱'}</p>
-              <p style={{ fontSize:13,color:'#9CA3AF',margin:'2px 0 0' }}>{user?.email}</p>
+              <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{name||'未設定名稱'}</p>
+              <p style={{ fontSize:13,color:TEXT_MUTED,margin:'2px 0 0' }}>{user?.email}</p>
             </div>
           </div>
 
@@ -128,13 +153,13 @@ export default function Settings() {
           <div style={{ display:'flex',gap:8 }}>
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="輸入名稱..."
-              style={{ flex:1,padding:'10px 12px',borderRadius:10,border:'1px solid #E5E7EB',
-                fontSize:14,outline:'none',color:'#111827' }} />
+              style={{ flex:1,padding:'10px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+                fontSize:14,outline:'none',color:TEXT_MAIN }} />
             <button onClick={handleSaveName} disabled={saving}
-              style={{ padding:'10px 16px',borderRadius:10,border:'none',
-                background:saved?'#22C55E':'#2563EB',color:'#fff',
+              style={{ display:'flex',alignItems:'center',gap:4,padding:'10px 16px',borderRadius:12,border:'none',
+                background:saved?ACCENT_GREEN:PRIMARY,color:'#fff',
                 fontWeight:700,fontSize:13,cursor:'pointer' }}>
-              {saved?'✓ 已存':'儲存'}
+              {saved && <IconCheck size={14} stroke={2.4} />} {saved?'已存':'儲存'}
             </button>
           </div>
         </div>
@@ -142,9 +167,9 @@ export default function Settings() {
         {/* 密碼修改 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom: editingPassword?12:0 }}>
-            <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:0 }}>帳號安全</p>
+            <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:0 }}>帳號安全</p>
             <button onClick={() => { setEditingPassword(!editingPassword); setPasswordMsg(''); setNewPassword(''); setConfirmPassword('') }}
-              style={{ fontSize:13,color:'#2563EB',background:'none',border:'none',cursor:'pointer',fontWeight:600 }}>
+              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}>
               {editingPassword ? '取消' : '修改密碼'}
             </button>
           </div>
@@ -172,11 +197,11 @@ export default function Settings() {
                 />
               </div>
               {passwordMsg && (
-                <p style={{ fontSize:12,color:'#EF4444',margin:'0 0 8px' }}>{passwordMsg}</p>
+                <p style={{ fontSize:12,color:DANGER,margin:'0 0 8px' }}>{passwordMsg}</p>
               )}
               <button onClick={handleSavePassword} disabled={passwordSaving}
-                style={{ width:'100%',padding:'11px',borderRadius:10,border:'none',
-                  background: passwordSaved?'#22C55E':passwordSaving?'#93C5FD':'#2563EB',
+                style={{ width:'100%',padding:'11px',borderRadius:12,border:'none',
+                  background: passwordSaved?ACCENT_GREEN:passwordSaving?'#9BBBF2':PRIMARY,
                   color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 {passwordSaved ? '✓ 密碼已更新' : passwordSaving ? '更新中…' : '確認修改'}
               </button>
@@ -186,17 +211,17 @@ export default function Settings() {
 
         {/* 推薦關係 */}
         <div style={card}>
-          <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:'0 0 12px' }}>推薦關係</p>
+          <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 12px' }}>推薦關係</p>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
-            <span style={{ fontSize:14,color:'#374151' }}>推薦人</span>
+            <span style={{ fontSize:14,color:TEXT_MAIN }}>推薦人</span>
             <button onClick={() => { setEditingReferrer(!editingReferrer); setReferrerMsg('') }}
-              style={{ fontSize:13,color:'#2563EB',background:'none',border:'none',
-                cursor:'pointer',fontWeight:600 }}>
+              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',
+                cursor:'pointer',fontWeight:700 }}>
               {editingReferrer ? '取消' : '修改'}
             </button>
           </div>
           {!editingReferrer ? (
-            <p style={{ fontSize:14,color: referrerName?'#111827':referrerPending?'#F59E0B':'#9CA3AF',
+            <p style={{ fontSize:14,color: referrerName?TEXT_MAIN:referrerPending?ACCENT_YELLOW_TEXT:TEXT_MUTED,
               margin:'4px 0 0',fontWeight: referrerName?600:400 }}>
               {referrerName || (referrerPending ? `待確認：${referrerPending}` : '尚未設定')}
             </p>
@@ -205,13 +230,13 @@ export default function Settings() {
               <input type="email" placeholder="輸入推薦人 Email..."
                 value={newReferrerEmail} onChange={e => setNewReferrerEmail(e.target.value)}
                 style={{ ...inputStyle, marginBottom:8 }} />
-              {referrerMsg && <p style={{ fontSize:12,color:'#EF4444',margin:'0 0 8px' }}>{referrerMsg}</p>}
-              <p style={{ fontSize:11,color:'#9CA3AF',margin:'0 0 8px' }}>
+              {referrerMsg && <p style={{ fontSize:12,color:DANGER,margin:'0 0 8px' }}>{referrerMsg}</p>}
+              <p style={{ fontSize:11,color:TEXT_MUTED,margin:'0 0 8px' }}>
                 推薦人尚未註冊也沒關係，對方日後建立帳號後會自動串聯
               </p>
               <button onClick={handleSaveReferrer}
-                style={{ width:'100%',padding:'10px',borderRadius:10,border:'none',
-                  background:'#2563EB',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                style={{ width:'100%',padding:'10px',borderRadius:12,border:'none',
+                  background:PRIMARY,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 儲存推薦人
               </button>
             </div>
@@ -220,29 +245,23 @@ export default function Settings() {
 
         {/* 其他功能入口 */}
         <div style={card}>
-          <p style={{ fontSize:13,fontWeight:700,color:'#6B7280',margin:'0 0 8px' }}>功能</p>
-          {[
-            { label:'📋 互動名單', path:'/contacts' },
-            { label:'📊 業績紀錄', path:'/transactions' },
-            { label:'👥 顧客檔案', path:'/customers' },
-            { label:'🧪 試用品追蹤', path:'/samples' },
-            { label:'🤝 我的夥伴', path:'/partners' },
-            { label:'🚀 戰隊', path:'/team' },
-          ].map(item => (
+          <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 8px' }}>功能</p>
+          {FUNCTION_ITEMS.map(item => (
             <button key={item.path} onClick={() => navigate(item.path)}
-              style={{ width:'100%',display:'flex',justifyContent:'space-between',
-                alignItems:'center',padding:'12px 0',background:'none',border:'none',
-                borderBottom:'1px solid #F3F4F6',cursor:'pointer',textAlign:'left' }}>
-              <span style={{ fontSize:14,color:'#374151' }}>{item.label}</span>
-              <span style={{ color:'#9CA3AF' }}>›</span>
+              style={{ width:'100%',display:'flex',alignItems:'center',gap:10,
+                padding:'12px 0',background:'none',border:'none',
+                borderBottom:`1px solid ${BORDER}`,cursor:'pointer',textAlign:'left' }}>
+              <item.Icon size={17} stroke={1.9} color={PRIMARY} />
+              <span style={{ fontSize:14,color:TEXT_MAIN,flex:1 }}>{item.label}</span>
+              <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
             </button>
           ))}
         </div>
 
         {/* 登出 */}
         <button onClick={handleSignOut}
-          style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-            background:'#FEF2F2',color:'#DC2626',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+            background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:700,cursor:'pointer' }}>
           登出
         </button>
 
@@ -251,10 +270,10 @@ export default function Settings() {
   )
 }
 
-const card = { background:'#fff',borderRadius:16,padding:16,boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }
-const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }
+const card = { background:'#fff',borderRadius:18,padding:16,border:`1px solid ${BORDER}` }
+const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
 const inputStyle = {
-  width:'100%',padding:'10px 12px',borderRadius:10,
-  border:'1px solid #D1D5DB',fontSize:14,boxSizing:'border-box',
-  outline:'none',color:'#111827',
+  width:'100%',padding:'10px 12px',borderRadius:12,
+  border:`1px solid ${BORDER}`,fontSize:14,boxSizing:'border-box',
+  outline:'none',color:TEXT_MAIN,
 }

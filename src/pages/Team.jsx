@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import {
+  IconArrowLeft, IconFlag, IconRefresh, IconFlame, IconCheck,
+} from '@tabler/icons-react'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
 
@@ -305,12 +308,13 @@ export default function Team() {
     </div>
   )
 
-  // ── 深色主題樣式常數 ──
+  // ── 深色主題樣式常數（統一改用設計系統藍/綠，提高亮度維持深色底可讀性） ──
   const darkBg = '#0A0F1E'
   const cardBg = 'rgba(255,255,255,0.04)'
   const cardBorder = '0.5px solid rgba(255,255,255,0.08)'
-  const accentBlue = '#00C4FF'
-  const accentGreen = '#00E598'
+  const accentBlue = '#4A9EFF'
+  const accentYellow = '#FFD166'
+  const accentGreen = '#3ECF8E'
   const textPrimary = '#E8F4FF'
   const textMuted = 'rgba(255,255,255,0.35)'
 
@@ -329,8 +333,12 @@ export default function Team() {
         <div className="dash-container" style={{ padding:'0 20px' }}>
           <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:4 }}>
             <button onClick={() => navigate('/settings')}
-              style={{ background:'none',border:'none',fontSize:22,color:textPrimary,cursor:'pointer',padding:0 }}>←</button>
-            <h1 style={{ fontSize:20,fontWeight:700,color:textPrimary,margin:0 }}>🚀 戰隊</h1>
+              style={{ background:'none',border:'none',color:textPrimary,cursor:'pointer',padding:0,display:'flex' }}>
+              <IconArrowLeft size={22} stroke={1.9} />
+            </button>
+            <h1 style={{ fontSize:20,fontWeight:700,color:textPrimary,margin:0,display:'flex',alignItems:'center',gap:8 }}>
+              <IconFlag size={19} stroke={1.9} color={accentBlue} /> 戰隊
+            </h1>
           </div>
           {team && <p style={{ fontSize:12,color:textMuted,margin:'0 0 0 34px' }}>{team.name} · {members.length} 位成員</p>}
         </div>
@@ -347,15 +355,15 @@ export default function Team() {
                 </p>
                 <button onClick={() => { setMode('create'); setActionMsg('') }}
                   style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-                    background:accentBlue,color:'#001824',fontSize:15,fontWeight:700,
+                    background:accentBlue,color:'#001A38',fontSize:15,fontWeight:700,
                     cursor:'pointer',marginBottom:10 }}>
-                  🚀 建立新戰隊
+                  建立新戰隊
                 </button>
                 <button onClick={() => { setMode('join'); setActionMsg('') }}
                   style={{ width:'100%',padding:'14px',borderRadius:12,
                     border:`1.5px solid ${accentBlue}`,background:'transparent',color:accentBlue,
                     fontSize:15,fontWeight:700,cursor:'pointer' }}>
-                  🔑 輸入邀請碼加入
+                  輸入邀請碼加入
                 </button>
               </div>
             )}
@@ -377,7 +385,7 @@ export default function Team() {
                       color:textMuted,fontSize:14,cursor:'pointer' }}>取消</button>
                   <button onClick={handleCreate} disabled={actionLoading}
                     style={{ flex:1,padding:'12px',borderRadius:10,border:'none',
-                      background:accentBlue,color:'#001824',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                      background:accentBlue,color:'#001A38',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                     {actionLoading ? '建立中…' : '確認建立'}
                   </button>
                 </div>
@@ -402,7 +410,7 @@ export default function Team() {
                       color:textMuted,fontSize:14,cursor:'pointer' }}>取消</button>
                   <button onClick={handleJoin} disabled={actionLoading}
                     style={{ flex:1,padding:'12px',borderRadius:10,border:'none',
-                      background:accentBlue,color:'#001824',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                      background:accentBlue,color:'#001A38',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                     {actionLoading ? '加入中…' : '確認加入'}
                   </button>
                 </div>
@@ -420,16 +428,16 @@ export default function Team() {
                 </span>
                 {isCreator && (
                   <button onClick={handleRegenCode} disabled={actionLoading}
-                    style={{ fontSize:11,color:textMuted,background:'none',border:'none',cursor:'pointer',marginRight:4 }}>
-                    🔄
+                    style={{ color:textMuted,background:'none',border:'none',cursor:'pointer',marginRight:4,display:'flex' }}>
+                    <IconRefresh size={15} stroke={1.9} />
                   </button>
                 )}
                 <button onClick={copyInviteCode}
                   style={{ padding:'5px 12px',borderRadius:8,border:`0.5px solid ${accentBlue}`,
                     background: copied?accentBlue:'transparent',
-                    color: copied?'#001824':accentBlue,
+                    color: copied?'#001A38':accentBlue,
                     fontSize:12,fontWeight:700,cursor:'pointer' }}>
-                  {copied ? '✓ 已複製' : '複製'}
+                  {copied ? '已複製' : '複製'}
                 </button>
               </div>
             </div>
@@ -441,8 +449,8 @@ export default function Team() {
                 const isTopCard = idx === 0
                 return (
                   <div key={m.user_id}
-                    style={{ background: isTopCard ? 'rgba(0,196,255,0.06)' : cardBg,
-                      border: isTopCard ? `0.5px solid rgba(0,196,255,0.25)` : cardBorder,
+                    style={{ background: isTopCard ? 'rgba(74,158,255,0.06)' : cardBg,
+                      border: isTopCard ? `0.5px solid rgba(74,158,255,0.25)` : cardBorder,
                       borderRadius:14, overflow:'hidden' }}>
 
                     {/* 成員主列 */}
@@ -463,16 +471,20 @@ export default function Team() {
                                 border:`0.5px solid ${accentBlue}`,borderRadius:4,padding:'1px 5px' }}>我</span>
                             )}
                           </div>
-                          <div style={{ fontSize:11,color:textMuted,marginTop:1 }}>
+                          <div style={{ fontSize:11,color:textMuted,marginTop:1,display:'flex',alignItems:'center',gap:4 }}>
                             本週 {m.weekCheckinDays}/7 天
-                            {m.streak >= 2 && <span style={{ color:'#FF8C42',marginLeft:6 }}>🔥 連續 {m.streak} 天</span>}
+                            {m.streak >= 2 && (
+                              <span style={{ color:'#FF8C42',display:'flex',alignItems:'center',gap:2 }}>
+                                <IconFlame size={11} stroke={2} /> 連續 {m.streak} 天
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div style={{ display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0 }}>
                           <span style={{ fontSize:11,padding:'3px 8px',borderRadius:6,fontWeight:600,
-                            background: m.todayChecked ? 'rgba(0,229,152,0.12)' : 'rgba(255,255,255,0.05)',
+                            background: m.todayChecked ? 'rgba(62,207,142,0.14)' : 'rgba(255,255,255,0.05)',
                             color: m.todayChecked ? accentGreen : textMuted }}>
-                            {m.todayChecked ? '✓ 今天打了' : '今天未打'}
+                            {m.todayChecked ? '今天打了' : '今天未打'}
                           </span>
                           {isCreator && m.user_id !== user.id && (
                             <button onClick={e => { e.stopPropagation(); setKickTarget(m) }}
@@ -510,7 +522,7 @@ export default function Team() {
                       {/* BV/IBV 進度條 */}
                       <div style={{ display:'flex',gap:8,marginTop:10,paddingLeft:32 }}>
                         {[
-                          { label:'BV', val:m.bv, max:1500, color:'#FF8C42' },
+                          { label:'BV', val:m.bv, max:1500, color:accentYellow },
                           { label:'IBV', val:m.ibv, max:300, color:accentBlue },
                         ].map(({ label, val, max, color }) => (
                           <div key={label} style={{ flex:1 }}>
@@ -557,13 +569,11 @@ export default function Team() {
                                     return (
                                       <div key={t.key} style={{ display:'flex',alignItems:'center',gap:8,padding:'4px 0',
                                         borderBottom:'0.5px solid rgba(255,255,255,0.04)' }}>
+                                        {done
+                                          ? <IconCheck size={13} stroke={2.4} color={accentGreen} />
+                                          : <span style={{ width:13,height:13,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.2)',display:'inline-block' }} />}
                                         <span style={{ fontSize:12,
-                                          color: done ? accentGreen : 'rgba(255,255,255,0.2)' }}>
-                                          {done ? '✓' : '○'}
-                                        </span>
-                                        <span style={{ fontSize:12,
-                                          color: done ? textPrimary : 'rgba(255,255,255,0.25)',
-                                          textDecoration: done ? 'none' : 'none' }}>
+                                          color: done ? textPrimary : 'rgba(255,255,255,0.25)' }}>
                                           {t.label}
                                         </span>
                                       </div>
@@ -578,7 +588,7 @@ export default function Team() {
                                     <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
                                       {WEEKLY_COUNTERS.filter(c => dayDetail.counterSummary[c.key]).map(c => (
                                         <span key={c.key} style={{ fontSize:11,padding:'3px 8px',borderRadius:6,
-                                          background:'rgba(0,196,255,0.1)',color:accentBlue }}>
+                                          background:'rgba(74,158,255,0.12)',color:accentBlue }}>
                                           {c.label} ×{dayDetail.counterSummary[c.key]}
                                         </span>
                                       ))}

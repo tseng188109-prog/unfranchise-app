@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import { IconPlus, IconFlask } from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const BORDER = '#F0F1F4'
 
 function today() { return new Date().toISOString().split('T')[0] }
 function formatDate(d) {
@@ -95,7 +106,7 @@ export default function Samples() {
   )
 
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh',paddingBottom:80 }}>
+    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -104,21 +115,21 @@ export default function Samples() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff',padding:'52px 0 0',borderBottom:'1px solid #F3F4F6' }}>
+      <div style={{ background:'#fff',padding:'52px 0 0',borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <h1 style={{ fontSize:20,fontWeight:800,color:'#111827',margin:0 }}>試用品追蹤</h1>
+          <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>試用品追蹤</h1>
           <button onClick={() => setShowNew(true)}
-            style={{ width:36,height:36,borderRadius:'50%',background:'#2563EB',
-              border:'none',color:'#fff',fontSize:22,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center' }}>+</button>
+            style={{ width:36,height:36,borderRadius:12,background:PRIMARY,
+              border:'none',color:'#fff',cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
         </div>
         <div style={{ display:'flex',gap:8,paddingBottom:12,overflowX:'auto' }}>
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)}
               style={{ padding:'5px 14px',borderRadius:99,border:'none',whiteSpace:'nowrap',
-                background:filter===f?'#2563EB':'#F3F4F6',
-                color:filter===f?'#fff':'#6B7280',
+                background:filter===f?PRIMARY:'#F5F8FC',
+                color:filter===f?'#fff':TEXT_SECONDARY,
                 fontSize:13,fontWeight:600,cursor:'pointer' }}>{f}</button>
           ))}
         </div>
@@ -128,9 +139,9 @@ export default function Samples() {
       <div className="dash-container">
       {/* 新增表單 */}
       {showNew && (
-        <div style={{ margin:'12px 16px',background:'#fff',borderRadius:16,
-          padding:16,boxShadow:'0 2px 8px rgba(0,0,0,0.1)' }}>
-          <p style={{ fontSize:15,fontWeight:700,color:'#111827',margin:'0 0 12px' }}>新增試用品</p>
+        <div style={{ margin:'12px 16px',background:'#fff',borderRadius:18,
+          padding:16,border:`1px solid ${BORDER}` }}>
+          <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 12px' }}>新增試用品</p>
 
           {/* 選聯絡人 */}
           <div style={{ marginBottom:12,position:'relative' }}>
@@ -140,14 +151,14 @@ export default function Samples() {
               style={inp} />
             {contactSearch && !newForm.contact_id && (
               <div style={{ position:'absolute',top:'100%',left:0,right:0,background:'#fff',
-                border:'1px solid #E5E7EB',borderRadius:10,zIndex:50,maxHeight:160,overflowY:'auto',
-                boxShadow:'0 4px 12px rgba(0,0,0,0.1)' }}>
+                border:`1px solid ${BORDER}`,borderRadius:12,zIndex:50,maxHeight:160,overflowY:'auto',
+                boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
                 {filteredContacts.map(c => (
                   <button key={c.id} onClick={() => {
                     setNewForm(p=>({...p,contact_id:c.id,contact_name:c.name}))
                     setContactSearch(c.name)
                   }} style={{ width:'100%',padding:'10px 12px',background:'none',border:'none',
-                    borderBottom:'1px solid #F3F4F6',textAlign:'left',cursor:'pointer',fontSize:14,color:'#111827' }}>
+                    borderBottom:`1px solid ${BORDER}`,textAlign:'left',cursor:'pointer',fontSize:14,color:TEXT_MAIN }}>
                     {c.name}
                   </button>
                 ))}
@@ -170,23 +181,23 @@ export default function Samples() {
 
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={handleCreate} disabled={saving}
-              style={{ flex:1,padding:'11px',borderRadius:10,border:'none',
-                background:'#2563EB',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:14 }}>
+              style={{ flex:1,padding:'11px',borderRadius:12,border:'none',
+                background:PRIMARY,color:'#fff',fontWeight:700,cursor:'pointer',fontSize:14 }}>
               {saving?'儲存中…':'儲存'}
             </button>
             <button onClick={() => { setShowNew(false); setContactSearch('') }}
-              style={{ flex:1,padding:'11px',borderRadius:10,border:'1px solid #E5E7EB',
-                background:'#fff',cursor:'pointer',fontSize:14 }}>取消</button>
+              style={{ flex:1,padding:'11px',borderRadius:12,border:`1px solid ${BORDER}`,
+                background:'#fff',cursor:'pointer',fontSize:14,color:TEXT_SECONDARY }}>取消</button>
           </div>
         </div>
       )}
 
       {/* 列表 */}
       {loading ? (
-        <div style={{ textAlign:'center',padding:40,color:'#9CA3AF' }}>載入中…</div>
+        <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>
-          <p style={{ fontSize:36,margin:'0 0 12px' }}>🧪</p>
+        <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED }}>
+          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconFlask size={36} stroke={1.5} /></div>
           <p style={{ fontSize:15 }}>還沒有試用品紀錄，點 + 開始追蹤！</p>
         </div>
       ) : (
@@ -195,10 +206,9 @@ export default function Samples() {
             const name = s.contacts?.name || '未知'
             const isActive = !s.result
             return (
-              <div key={s.id} style={{ background:'#fff',borderRadius:14,padding:14,
-                boxShadow:'0 1px 3px rgba(0,0,0,0.07)',
+              <div key={s.id} style={{ background:'#fff',borderRadius:16,padding:14,
                 border: isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)
-                  ? '1.5px solid #FED7AA' : '1px solid transparent' }}>
+                  ? `1.5px solid #FFDF9E` : `1px solid ${BORDER}` }}>
 
                 {/* 頂部 */}
                 <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
@@ -206,15 +216,15 @@ export default function Samples() {
                     display:'flex',alignItems:'center',justifyContent:'center',
                     color:'#fff',fontWeight:700,fontSize:14,flexShrink:0 }}>{name[0]}</div>
                   <div style={{ flex:1 }}>
-                    <p style={{ fontSize:14,fontWeight:700,color:'#111827',margin:0 }}>{name}</p>
-                    <p style={{ fontSize:12,color:'#9CA3AF',margin:'2px 0 0' }}>
+                    <p style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{name}</p>
+                    <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
                       {s.product_name} · {s.portions}天份 · {formatDate(s.share_date)}
                     </p>
                   </div>
                   {s.result && (
                     <span style={{ fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:99,
-                      background:s.result==='成交'?'#DCFCE7':s.result==='考慮中'?'#FEF9C3':'#F3F4F6',
-                      color:s.result==='成交'?'#16A34A':s.result==='考慮中'?'#CA8A04':'#6B7280' }}>
+                      background:s.result==='成交'?ACCENT_GREEN_SOFT:s.result==='考慮中'?ACCENT_YELLOW_SOFT:'#F0F1F4',
+                      color:s.result==='成交'?ACCENT_GREEN_TEXT:s.result==='考慮中'?ACCENT_YELLOW_TEXT:TEXT_SECONDARY }}>
                       {s.result}
                     </span>
                   )}
@@ -231,10 +241,10 @@ export default function Samples() {
                       ].map(step => (
                         <button key={step.field}
                           onClick={() => toggleFollowup(s.id, step.field, s[step.field])}
-                          style={{ flex:1,padding:'6px 4px',borderRadius:8,border:'none',
+                          style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
                             fontSize:11,fontWeight:600,cursor:'pointer',
-                            background:s[step.field]?'#DCFCE7':'#F3F4F6',
-                            color:s[step.field]?'#16A34A':'#6B7280' }}>
+                            background:s[step.field]?ACCENT_GREEN_SOFT:'#F5F8FC',
+                            color:s[step.field]?ACCENT_GREEN_TEXT:TEXT_SECONDARY }}>
                           {s[step.field]?'✓ ':''}{step.label}
                         </button>
                       ))}
@@ -245,10 +255,10 @@ export default function Samples() {
                       <div style={{ display:'flex',gap:6 }}>
                         {RESULTS.map(r => (
                           <button key={r} onClick={() => setResult(s.id, r)}
-                            style={{ flex:1,padding:'6px 4px',borderRadius:8,border:'none',
+                            style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
                               fontSize:11,fontWeight:600,cursor:'pointer',
-                              background:s.result===r?'#2563EB':'#F3F4F6',
-                              color:s.result===r?'#fff':'#6B7280' }}>{r}</button>
+                              background:s.result===r?PRIMARY:'#F5F8FC',
+                              color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
                         ))}
                       </div>
                     )}
@@ -264,5 +274,5 @@ export default function Samples() {
   )
 }
 
-const inp = { width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #E5E7EB',
-  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' }
+const inp = { width:'100%',padding:'10px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }

@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
+import { IconArrowLeft } from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const DANGER = '#E0454A'
+const BORDER = '#F0F1F4'
 
 const EGG_TYPES = ['茶葉蛋', '荷包蛋', '生雞蛋']
 const NEED_LEVELS = ['大一', '大二', '大三', '大四']
@@ -29,16 +37,16 @@ function BirthdayPicker({ value, onChange }) {
   return (
     <div style={{ display:'flex', gap:8 }}>
       <select value={mm} onChange={e => handleChange(e.target.value, dd)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
-          color:mm?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+          color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>月份</option>
         {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
       </select>
       <select value={dd} onChange={e => handleChange(mm, e.target.value)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:10,border:'1px solid #E5E7EB',
+        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
-          color:dd?'#111827':'#9CA3AF',appearance:'none',WebkitAppearance:'none' }}>
+          color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>日期</option>
         {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
       </select>
@@ -124,12 +132,12 @@ export default function ContactEdit() {
 
   if (!form) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <p style={{ color:'#9CA3AF' }}>載入中…</p>
+      <p style={{ color:TEXT_MUTED }}>載入中…</p>
     </div>
   )
 
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
+    <div style={{ background:'#fff',minHeight:'100vh' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -138,18 +146,18 @@ export default function ContactEdit() {
       `}</style>
 
       <div style={{ background:'#fff',padding:'52px 0 16px',
-        borderBottom:'1px solid #F3F4F6' }}>
+        borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px',display:'flex',alignItems:'center',gap:12 }}>
         <button onClick={() => navigate(-1)}
-          style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
-        <h1 style={{ fontSize:18,fontWeight:800,color:'#111827',margin:0 }}>編輯聯絡人</h1>
+          style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
+        <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯聯絡人</h1>
       </div>
       </div>
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
         <div style={fw}>
-          <label style={lb}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
+          <label style={lb}>姓名 <span style={{ color:DANGER }}>*</span></label>
           <input value={form.name} onChange={e=>set('name',e.target.value)} style={inp} />
         </div>
 
@@ -158,8 +166,8 @@ export default function ContactEdit() {
           <div style={{ display:'flex',gap:8,flexWrap:'wrap' }}>
             {PLATFORMS.map(p => (
               <button key={p} onClick={() => set('platform', form.platform===p?'':p)}
-                style={{ ...chip, background:form.platform===p?'#2563EB':'#F3F4F6',
-                  color:form.platform===p?'#fff':'#374151' }}>{p}</button>
+                style={{ ...chip, background:form.platform===p?PRIMARY:'#F5F8FC',
+                  color:form.platform===p?'#fff':TEXT_SECONDARY }}>{p}</button>
             ))}
           </div>
           {form.platform && (
@@ -174,8 +182,8 @@ export default function ContactEdit() {
             {EGG_TYPES.map(e => (
               <button key={e} onClick={() => set('egg_type', form.egg_type===e?'':e)}
                 style={{ ...chip, flex:1,
-                  background:form.egg_type===e?'#2563EB':'#F3F4F6',
-                  color:form.egg_type===e?'#fff':'#374151' }}>{e}</button>
+                  background:form.egg_type===e?PRIMARY:'#F5F8FC',
+                  color:form.egg_type===e?'#fff':TEXT_SECONDARY }}>{e}</button>
             ))}
           </div>
         </div>
@@ -186,8 +194,8 @@ export default function ContactEdit() {
             {NEED_LEVELS.map(n => (
               <button key={n} onClick={() => set('need_level', form.need_level===n?'':n)}
                 style={{ ...chip, flex:1,
-                  background:form.need_level===n?'#2563EB':'#F3F4F6',
-                  color:form.need_level===n?'#fff':'#374151' }}>{n}</button>
+                  background:form.need_level===n?PRIMARY:'#F5F8FC',
+                  color:form.need_level===n?'#fff':TEXT_SECONDARY }}>{n}</button>
             ))}
           </div>
         </div>
@@ -198,15 +206,15 @@ export default function ContactEdit() {
             {ACTION_TYPES.map(a => (
               <button key={a} onClick={() => set('action_type', a)}
                 style={{ ...chip,
-                  background:form.action_type===a?'#2563EB':'#F3F4F6',
-                  color:form.action_type===a?'#fff':'#374151' }}>{a}</button>
+                  background:form.action_type===a?PRIMARY:'#F5F8FC',
+                  color:form.action_type===a?'#fff':TEXT_SECONDARY }}>{a}</button>
             ))}
           </div>
         </div>
 
         <button onClick={() => setShowMore(v=>!v)}
-          style={{ width:'100%',padding:'10px',background:'none',border:'1px dashed #D1D5DB',
-            borderRadius:10,color:'#6B7280',fontSize:13,cursor:'pointer',marginBottom:16 }}>
+          style={{ width:'100%',padding:'10px',background:'none',border:`1px dashed ${BORDER}`,
+            borderRadius:12,color:TEXT_SECONDARY,fontSize:13,cursor:'pointer',marginBottom:16 }}>
           {showMore ? '收起 ▲' : '展開更多 ▼'}
         </button>
 
@@ -229,14 +237,14 @@ export default function ContactEdit() {
             <div style={fw}>
               <label style={lb}>生日</label>
               <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
-              <p style={{ fontSize:11,color:'#9CA3AF',margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
+              <p style={{ fontSize:11,color:TEXT_MUTED,margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
             </div>
           </>
         )}
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-            background:saving?'#93C5FD':'#2563EB',color:'#fff',
+          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+            background:saving?'#9BBBF2':PRIMARY,color:'#fff',
             fontSize:16,fontWeight:700,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
@@ -246,7 +254,7 @@ export default function ContactEdit() {
 }
 
 const fw = { marginBottom: 16 }
-const lb = { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 }
-const inp = { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
-  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' }
-const chip = { padding:'7px 14px',borderRadius:8,border:'none',fontSize:13,fontWeight:600,cursor:'pointer' }
+const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
+const inp = { width:'100%',padding:'11px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
+const chip = { padding:'7px 14px',borderRadius:10,border:'none',fontSize:13,fontWeight:600,cursor:'pointer' }

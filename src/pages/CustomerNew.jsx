@@ -1,6 +1,20 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import { IconArrowLeft } from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
 
 export default function CustomerNew() {
   const navigate = useNavigate()
@@ -56,7 +70,7 @@ export default function CustomerNew() {
   const hasRef = form.phone.trim() || form.birthday.trim() || form.occupation.trim()
 
   return (
-    <div style={{ background:'#F8FAFC', minHeight:'100vh' }}>
+    <div style={{ background:'#fff', minHeight:'100vh' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -65,30 +79,30 @@ export default function CustomerNew() {
       `}</style>
 
       <div style={{ background:'#fff', padding:'52px 0 16px',
-        borderBottom:'1px solid #F3F4F6' }}>
+        borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate(-1)}
-          style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#374151' }}>←</button>
-        <h1 style={{ fontSize:18, fontWeight:800, color:'#111827', margin:0 }}>新增顧客</h1>
+          style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_SECONDARY, display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
+        <h1 style={{ fontSize:18, fontWeight:700, color:TEXT_MAIN, margin:0 }}>新增顧客</h1>
       </div>
       </div>
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
         {/* 參照欄位提示 */}
-        <div style={{ background:'#EFF6FF', borderRadius:10, padding:'10px 14px',
-          marginBottom:16, border:'1px solid #BFDBFE' }}>
-          <p style={{ fontSize:12, color:'#1D4ED8', margin:0, lineHeight:1.6 }}>
-            📌 除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
+        <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px',
+          marginBottom:16 }}>
+          <p style={{ fontSize:12, color:PRIMARY, margin:0, lineHeight:1.6 }}>
+            除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
           </p>
         </div>
 
         {fields.map(f => (
           <div key={f.key} style={{ marginBottom:16 }}>
-            <label style={{ fontSize:13, fontWeight:600, color:'#374151',
+            <label style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN,
               display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
               {f.label}
-              {f.req && <span style={{ color:'#EF4444' }}>*</span>}
+              {f.req && <span style={{ color:DANGER }}>*</span>}
               {f.ref && (
                 <span style={{
                   fontSize:10, padding:'1px 6px', borderRadius:99,
@@ -96,12 +110,12 @@ export default function CustomerNew() {
                     (f.key==='phone' && form.phone.trim()) ||
                     (f.key==='birthday' && form.birthday.trim()) ||
                     (f.key==='occupation' && form.occupation.trim())
-                  ) ? '#DCFCE7' : '#FEF9C3',
+                  ) ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
                   color: hasRef && (
                     (f.key==='phone' && form.phone.trim()) ||
                     (f.key==='birthday' && form.birthday.trim()) ||
                     (f.key==='occupation' && form.occupation.trim())
-                  ) ? '#16A34A' : '#CA8A04',
+                  ) ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT,
                   fontWeight:600,
                 }}>識別用</span>
               )}
@@ -111,28 +125,28 @@ export default function CustomerNew() {
               value={form[f.key]}
               onChange={e => set(f.key, e.target.value)}
               placeholder={f.placeholder || ''}
-              style={{ width:'100%', padding:'11px 12px', borderRadius:10,
-                border:`1px solid ${errors[f.key] ? '#EF4444' : '#E5E7EB'}`,
+              style={{ width:'100%', padding:'11px 12px', borderRadius:12,
+                border:`1px solid ${errors[f.key] ? DANGER : BORDER}`,
                 fontSize:14, background:'#fff', boxSizing:'border-box',
-                outline:'none', color:'#111827' }}
+                outline:'none', color:TEXT_MAIN }}
             />
             {errors[f.key] && (
-              <p style={{ fontSize:12, color:'#EF4444', margin:'4px 0 0' }}>{errors[f.key]}</p>
+              <p style={{ fontSize:12, color:DANGER, margin:'4px 0 0' }}>{errors[f.key]}</p>
             )}
           </div>
         ))}
 
         {/* 參照欄位錯誤提示 */}
         {errors._ref && (
-          <div style={{ background:'#FEF2F2', borderRadius:10, padding:'10px 14px',
-            marginBottom:16, border:'1px solid #FECACA' }}>
-            <p style={{ fontSize:13, color:'#DC2626', margin:0 }}>⚠️ {errors._ref}</p>
+          <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px',
+            marginBottom:16 }}>
+            <p style={{ fontSize:13, color:DANGER, margin:0 }}>{errors._ref}</p>
           </div>
         )}
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%', padding:'14px', borderRadius:12, border:'none',
-            background:saving ? '#93C5FD' : '#2563EB', color:'#fff',
+          style={{ width:'100%', padding:'14px', borderRadius:14, border:'none',
+            background:saving ? '#9BBBF2' : PRIMARY, color:'#fff',
             fontSize:16, fontWeight:700, cursor:'pointer', marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>

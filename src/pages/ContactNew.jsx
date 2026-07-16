@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import { IconArrowLeft } from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const DANGER = '#E0454A'
+const BORDER = '#F0F1F4'
 
 const EGG_TYPES = [
   { value:'生雞蛋', desc:'不熟' },
@@ -90,7 +99,7 @@ export default function ContactNew() {
   }
 
   return (
-    <div style={{ background:'#F8FAFC',minHeight:'100vh' }}>
+    <div style={{ background:'#fff',minHeight:'100vh' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -100,12 +109,12 @@ export default function ContactNew() {
 
       {/* Header */}
       <div style={{ background:'#fff',padding:'52px 0 16px',
-        borderBottom:'1px solid #F3F4F6' }}>
+        borderBottom:`1px solid ${BORDER}` }}>
         <div className="dash-container" style={{ padding:'0 16px',
           display:'flex',alignItems:'center',gap:12 }}>
           <button onClick={() => navigate(-1)}
-            style={{ background:'none',border:'none',fontSize:22,cursor:'pointer',color:'#374151' }}>←</button>
-          <h1 style={{ fontSize:18,fontWeight:800,color:'#111827',margin:0 }}>新增聯絡人</h1>
+            style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
+          <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>新增聯絡人</h1>
         </div>
       </div>
 
@@ -113,10 +122,10 @@ export default function ContactNew() {
 
         {/* 姓名 */}
         <div style={styles.fieldWrap}>
-          <label style={styles.label}>姓名 <span style={{ color:'#EF4444' }}>*</span></label>
+          <label style={styles.label}>姓名 <span style={{ color:DANGER }}>*</span></label>
           <input value={form.name} onChange={e=>set('name',e.target.value)}
             placeholder="輸入姓名..."
-            style={{ ...styles.input, borderColor: errors.name ? '#EF4444' : '#E5E7EB' }} />
+            style={{ ...styles.input, borderColor: errors.name ? DANGER : BORDER }} />
           {errors.name && <p style={styles.errorMsg}>{errors.name}</p>}
         </div>
 
@@ -126,8 +135,8 @@ export default function ContactNew() {
           <div style={{ display:'flex',gap:8 }}>
             {PLATFORMS.map(p => (
               <button key={p} onClick={() => set('platform', form.platform===p?'':p)}
-                style={{ ...styles.chipBtn, background:form.platform===p?'#2563EB':'#F3F4F6',
-                  color:form.platform===p?'#fff':'#374151' }}>{p}</button>
+                style={{ ...styles.chipBtn, background:form.platform===p?PRIMARY:'#F5F8FC',
+                  color:form.platform===p?'#fff':TEXT_SECONDARY }}>{p}</button>
             ))}
           </div>
           {form.platform && (
@@ -147,11 +156,11 @@ export default function ContactNew() {
               const bg = EGG_BG[e.value]
               return (
                 <button key={e.value} onClick={() => set('egg_type', selected ? '' : e.value)}
-                  style={{ flex:1,padding:'10px 8px',borderRadius:10,border:`2px solid ${selected?color:'#E5E7EB'}`,
-                    background: selected ? bg : '#F9FAFB',
+                  style={{ flex:1,padding:'10px 8px',borderRadius:12,border:`2px solid ${selected?color:BORDER}`,
+                    background: selected ? bg : '#F5F8FC',
                     cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
-                  <div style={{ fontSize:13,fontWeight:700,color: selected?color:'#374151' }}>{e.value}</div>
-                  <div style={{ fontSize:11,color: selected?color:'#9CA3AF',marginTop:2 }}>{e.desc}</div>
+                  <div style={{ fontSize:13,fontWeight:700,color: selected?color:TEXT_MAIN }}>{e.value}</div>
+                  <div style={{ fontSize:11,color: selected?color:TEXT_MUTED,marginTop:2 }}>{e.desc}</div>
                 </button>
               )
             })}
@@ -166,12 +175,12 @@ export default function ContactNew() {
               const selected = form.need_level === n.value
               return (
                 <button key={n.value} onClick={() => set('need_level', selected ? '' : n.value)}
-                  style={{ flex:1,padding:'10px 8px',borderRadius:10,
-                    border:`2px solid ${selected?'#2563EB':'#E5E7EB'}`,
-                    background: selected?'#EFF6FF':'#F9FAFB',
+                  style={{ flex:1,padding:'10px 8px',borderRadius:12,
+                    border:`2px solid ${selected?PRIMARY:BORDER}`,
+                    background: selected?PRIMARY_SOFT:'#F5F8FC',
                     cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
-                  <div style={{ fontSize:13,fontWeight:700,color: selected?'#2563EB':'#374151' }}>{n.value}</div>
-                  <div style={{ fontSize:11,color: selected?'#2563EB':'#9CA3AF',marginTop:2 }}>{n.desc}</div>
+                  <div style={{ fontSize:13,fontWeight:700,color: selected?PRIMARY:TEXT_MAIN }}>{n.value}</div>
+                  <div style={{ fontSize:11,color: selected?PRIMARY:TEXT_MUTED,marginTop:2 }}>{n.desc}</div>
                 </button>
               )
             })}
@@ -180,8 +189,8 @@ export default function ContactNew() {
 
         {/* 建議行動（自動帶入） */}
         {form.action_type && (
-          <div style={{ ...styles.fieldWrap, background:'#EFF6FF',borderRadius:10,padding:12 }}>
-            <p style={{ margin:0,fontSize:13,color:'#2563EB',fontWeight:600 }}>
+          <div style={{ ...styles.fieldWrap, background:PRIMARY_SOFT,borderRadius:12,padding:12 }}>
+            <p style={{ margin:0,fontSize:13,color:PRIMARY,fontWeight:700 }}>
               建議行動：{form.action_type}
             </p>
           </div>
@@ -189,8 +198,8 @@ export default function ContactNew() {
 
         {/* 展開更多 */}
         <button onClick={() => setShowMore(v=>!v)}
-          style={{ width:'100%',padding:'10px',background:'none',border:'1px dashed #D1D5DB',
-            borderRadius:10,color:'#6B7280',fontSize:13,cursor:'pointer',marginTop:4 }}>
+          style={{ width:'100%',padding:'10px',background:'none',border:`1px dashed ${BORDER}`,
+            borderRadius:12,color:TEXT_SECONDARY,fontSize:13,cursor:'pointer',marginTop:4 }}>
           {showMore ? '收起 ▲' : '展開更多（職業、地區、備註）▼'}
         </button>
 
@@ -226,8 +235,8 @@ export default function ContactNew() {
 
         {/* 儲存 */}
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
-            background:saving?'#93C5FD':'#2563EB',color:'#fff',
+          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+            background:saving?'#9BBBF2':PRIMARY,color:'#fff',
             fontSize:16,fontWeight:700,cursor:'pointer',marginTop:16 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
@@ -238,11 +247,11 @@ export default function ContactNew() {
 
 const styles = {
   fieldWrap: { marginBottom: 16 },
-  label: { fontSize:13,fontWeight:600,color:'#374151',display:'block',marginBottom:6 },
-  suggest: { fontSize:11,color:'#3B82F6',fontWeight:500,marginLeft:4 },
-  input: { width:'100%',padding:'11px 12px',borderRadius:10,border:'1px solid #E5E7EB',
-    fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:'#111827' },
-  chipBtn: { padding:'7px 14px',borderRadius:8,border:'none',fontSize:13,
+  label: { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 },
+  suggest: { fontSize:11,color:PRIMARY,fontWeight:500,marginLeft:4 },
+  input: { width:'100%',padding:'11px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+    fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN },
+  chipBtn: { padding:'7px 14px',borderRadius:10,border:'none',fontSize:13,
     fontWeight:600,cursor:'pointer' },
-  errorMsg: { fontSize:12,color:'#EF4444',margin:'4px 0 0' },
+  errorMsg: { fontSize:12,color:DANGER,margin:'4px 0 0' },
 }

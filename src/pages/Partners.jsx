@@ -1,5 +1,25 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import {
+  IconSpeakerphone, IconX, IconUsersGroup, IconChevronRight,
+  IconCheck, IconCalendar,
+} from '@tabler/icons-react'
+
+const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
+const TEXT_MAIN = '#132A4D'
+const TEXT_MUTED = '#9FAEC2'
+const TEXT_SECONDARY = '#7C8CA3'
+const ACCENT_YELLOW = '#FFD166'
+const ACCENT_YELLOW_SOFT = '#FFF7E6'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_GREEN = '#3ECF8E'
+const ACCENT_GREEN_SOFT = '#E8F9F1'
+const ACCENT_GREEN_TEXT = '#2C9C6A'
+const DANGER = '#E0454A'
+const DANGER_SOFT = '#FDE2E2'
+const BORDER = '#F0F1F4'
+const SUBCARD_BG = '#F5F8FC'
 
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
@@ -247,13 +267,13 @@ export default function Partners() {
 
   // 本週進度條顏色
   function weekBarColor(days) {
-    if (days >= 5) return '#22C55E'
-    if (days >= 3) return '#F59E0B'
-    return '#EF4444'
+    if (days >= 5) return ACCENT_GREEN_TEXT
+    if (days >= 3) return ACCENT_YELLOW_TEXT
+    return DANGER
   }
 
   return (
-    <div style={{ background:'#F8FAFC', minHeight:'100vh', paddingBottom:80 }}>
+    <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -262,29 +282,28 @@ export default function Partners() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'linear-gradient(135deg,#1E3A5F,#2563EB)',
+      <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',
         padding:'52px 0 20px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
-          <h1 style={{ fontSize:20, fontWeight:800, color:'#fff', margin:0 }}>我的夥伴</h1>
-          <p style={{ fontSize:13, color:'#93C5FD', margin:'4px 0 0' }}>直屬 {partners.length} 人</p>
+          <h1 style={{ fontSize:20, fontWeight:700, color:'#fff', margin:0 }}>我的夥伴</h1>
+          <p style={{ fontSize:13, color:'rgba(255,255,255,0.75)', margin:'4px 0 0' }}>直屬 {partners.length} 人</p>
         </div>
       </div>
 
       <div className="dash-container" style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
 
         {/* 公告板 */}
-        <div style={{ background:'#fff', borderRadius:14, padding:14,
-          boxShadow:'0 1px 3px rgba(0,0,0,0.07)' }}>
+        <div style={{ background:'#fff', borderRadius:18, padding:14, border:`1px solid ${BORDER}` }}>
           <div style={{ display:'flex', alignItems:'center',
             justifyContent:'space-between', marginBottom:10 }}>
             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{ fontSize:16 }}>📢</span>
-              <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>團隊公告</span>
+              <IconSpeakerphone size={16} stroke={1.9} color={PRIMARY} />
+              <span style={{ fontSize:14, fontWeight:700, color:TEXT_MAIN }}>團隊公告</span>
             </div>
             {isAdmin && (
               <button onClick={() => setShowAnnForm(!showAnnForm)}
-                style={{ padding:'5px 12px', borderRadius:8, border:'none',
-                  background:'#2563EB', color:'#fff', fontWeight:700,
+                style={{ padding:'5px 12px', borderRadius:10, border:'none',
+                  background:PRIMARY, color:'#fff', fontWeight:700,
                   fontSize:12, cursor:'pointer' }}>
                 {showAnnForm ? '取消' : '+ 發公告'}
               </button>
@@ -292,26 +311,26 @@ export default function Partners() {
           </div>
 
           {isAdmin && showAnnForm && (
-            <div style={{ background:'#F0F7FF', borderRadius:10, padding:12,
+            <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:12,
               marginBottom:10, display:'flex', flexDirection:'column', gap:8 }}>
               <input value={annTitle} onChange={e => setAnnTitle(e.target.value)}
                 placeholder="公告標題"
-                style={{ padding:'8px 10px', borderRadius:8, border:'1px solid #BFDBFE',
+                style={{ padding:'8px 10px', borderRadius:10, border:`1px solid ${BORDER}`,
                   fontSize:14, outline:'none', width:'100%', boxSizing:'border-box' }} />
               <textarea value={annContent} onChange={e => setAnnContent(e.target.value)}
                 placeholder="公告內容…" rows={3}
-                style={{ padding:'8px 10px', borderRadius:8, border:'1px solid #BFDBFE',
+                style={{ padding:'8px 10px', borderRadius:10, border:`1px solid ${BORDER}`,
                   fontSize:14, outline:'none', width:'100%', boxSizing:'border-box',
                   resize:'none', fontFamily:'inherit' }} />
               <label style={{ display:'flex', alignItems:'center', gap:6,
-                fontSize:13, color:'#374151', cursor:'pointer' }}>
+                fontSize:13, color:TEXT_MAIN, cursor:'pointer' }}>
                 <input type="checkbox" checked={annPinned}
                   onChange={e => setAnnPinned(e.target.checked)} />
                 置頂
               </label>
               <button onClick={postAnnouncement} disabled={annSaving}
-                style={{ padding:'8px', borderRadius:8, border:'none',
-                  background:'#2563EB', color:'#fff', fontWeight:700,
+                style={{ padding:'8px', borderRadius:10, border:'none',
+                  background:PRIMARY, color:'#fff', fontWeight:700,
                   fontSize:13, cursor:'pointer' }}>
                 {annSaving ? '發布中…' : '發布'}
               </button>
@@ -319,37 +338,35 @@ export default function Partners() {
           )}
 
           {announcements.length === 0 ? (
-            <p style={{ fontSize:13, color:'#9CA3AF', textAlign:'center',
+            <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center',
               padding:'12px 0', margin:0 }}>尚無公告</p>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {announcements.map(a => (
-                <div key={a.id} style={{ background: a.is_pinned ? '#FFF7ED' : '#F8FAFC',
-                  borderRadius:10, padding:'10px 12px',
-                  border: a.is_pinned ? '1px solid #FED7AA' : '1px solid #F1F5F9' }}>
+                <div key={a.id} style={{ background: a.is_pinned ? ACCENT_YELLOW_SOFT : SUBCARD_BG,
+                  borderRadius:12, padding:'10px 12px' }}>
                   <div style={{ display:'flex', alignItems:'flex-start',
                     justifyContent:'space-between', gap:8 }}>
                     <div style={{ flex:1 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:4, marginBottom:3 }}>
                         {a.is_pinned && (
-                          <span style={{ fontSize:10, background:'#F97316', color:'#fff',
+                          <span style={{ fontSize:10, background:ACCENT_YELLOW, color:'#5B3200',
                             padding:'1px 5px', borderRadius:99, fontWeight:700 }}>置頂</span>
                         )}
-                        <span style={{ fontSize:13, fontWeight:700, color:'#111827' }}>{a.title}</span>
+                        <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{a.title}</span>
                       </div>
-                      <p style={{ fontSize:12, color:'#6B7280', margin:'0 0 3px', lineHeight:1.5 }}>
+                      <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 3px', lineHeight:1.5 }}>
                         {a.content}
                       </p>
-                      <p style={{ fontSize:11, color:'#9CA3AF', margin:0 }}>
+                      <p style={{ fontSize:11, color:TEXT_MUTED, margin:0 }}>
                         {new Date(a.created_at).toLocaleDateString('zh-TW',
                           { timeZone:'Asia/Taipei', month:'numeric', day:'numeric' })}
                       </p>
                     </div>
                     {isAdmin && (
                       <button onClick={() => deleteAnnouncement(a.id)}
-                        style={{ background:'none', border:'none', color:'#9CA3AF',
-                          cursor:'pointer', fontSize:16, padding:'0 2px',
-                          lineHeight:1, flexShrink:0 }}>✕</button>
+                        style={{ background:'none', border:'none', color:TEXT_MUTED,
+                          cursor:'pointer', padding:'0 2px', display:'flex', flexShrink:0 }}><IconX size={16} stroke={1.9} /></button>
                     )}
                   </div>
                 </div>
@@ -360,20 +377,18 @@ export default function Partners() {
 
         {/* 夥伴列表 */}
         {loading ? (
-          <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>載入中…</div>
+          <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
         ) : partners.length === 0 && pending.length === 0 ? (
-          <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
-            <p style={{ fontSize:36, margin:'0 0 12px' }}>👥</p>
+          <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconUsersGroup size={36} stroke={1.5} /></div>
             <p style={{ fontSize:15 }}>還沒有直屬夥伴，邀請夥伴加入並填寫你的 Email</p>
           </div>
         ) : (
           <>
             {partners.map(p => (
               <div key={p.id} onClick={() => openPanel(p)}
-                style={{ background:'#fff', borderRadius:14, padding:14,
-                  boxShadow:'0 1px 3px rgba(0,0,0,0.07)', cursor:'pointer' }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.07)'}>
+                style={{ background:'#fff', borderRadius:18, padding:14,
+                  border:`1px solid ${BORDER}`, cursor:'pointer' }}>
 
                 {/* 名字列 */}
                 <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
@@ -385,35 +400,35 @@ export default function Partners() {
                   </div>
                   <div style={{ flex:1 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      <span style={{ fontSize:15, fontWeight:700, color:'#111827' }}>
+                      <span style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN }}>
                         {p.name||'未命名'}
                       </span>
                       <span style={{ fontSize:11, fontWeight:700, padding:'2px 7px',
                         borderRadius:99,
-                        background:p.isActive?'#DCFCE7':'#FEF9C3',
-                        color:p.isActive?'#16A34A':'#CA8A04' }}>
+                        background:p.isActive?ACCENT_GREEN_SOFT:ACCENT_YELLOW_SOFT,
+                        color:p.isActive?ACCENT_GREEN_TEXT:ACCENT_YELLOW_TEXT }}>
                         {p.isActive?'活躍':'待關注'}
                       </span>
                     </div>
-                    <p style={{ fontSize:12, color:'#9CA3AF', margin:'2px 0 0' }}>
+                    <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>
                       加入 {formatDate(p.created_at)} · 直屬 {p.directCount} 人
                     </p>
                   </div>
-                  <span style={{ fontSize:18, color:'#D1D5DB' }}>›</span>
+                  <IconChevronRight size={18} stroke={1.9} color={TEXT_MUTED} />
                 </div>
 
                 {/* BV / IBV */}
                 <div style={{ display:'flex', gap:8, marginBottom:10 }}>
                   {[
-                    { label:'BV達成', value:p.bvRate, color:'#F97316' },
-                    { label:'IBV達成', value:p.ibvRate, color:'#3B82F6' },
+                    { label:'BV達成', value:p.bvRate, color:ACCENT_YELLOW_TEXT, bg:ACCENT_YELLOW_SOFT },
+                    { label:'IBV達成', value:p.ibvRate, color:PRIMARY, bg:PRIMARY_SOFT },
                   ].map(m => (
-                    <div key={m.label} style={{ flex:1, background:'#F8FAFC',
-                      borderRadius:10, padding:'8px', textAlign:'center' }}>
-                      <p style={{ fontSize:11, color:'#9CA3AF', margin:'0 0 4px', fontWeight:600 }}>
+                    <div key={m.label} style={{ flex:1, background:m.bg,
+                      borderRadius:12, padding:'8px', textAlign:'center' }}>
+                      <p style={{ fontSize:11, color:m.color, margin:'0 0 4px', fontWeight:600 }}>
                         {m.label}
                       </p>
-                      <p style={{ fontSize:16, fontWeight:800, color:m.color, margin:0 }}>
+                      <p style={{ fontSize:16, fontWeight:700, color:m.color, margin:0 }}>
                         {m.value}%
                       </p>
                     </div>
@@ -421,16 +436,16 @@ export default function Partners() {
                 </div>
 
                 {/* 本週打卡進度條 */}
-                <div style={{ background:'#F8FAFC', borderRadius:10, padding:'8px 10px' }}>
+                <div style={{ background:SUBCARD_BG, borderRadius:12, padding:'8px 10px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between',
                     alignItems:'center', marginBottom:5 }}>
-                    <span style={{ fontSize:11, color:'#9CA3AF', fontWeight:600 }}>本週打卡</span>
-                    <span style={{ fontSize:12, fontWeight:800,
+                    <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>本週打卡</span>
+                    <span style={{ fontSize:12, fontWeight:700,
                       color: weekBarColor(p.weekDays) }}>
                       {p.weekDays} / 7 天
                     </span>
                   </div>
-                  <div style={{ height:5, background:'#E5E7EB', borderRadius:99 }}>
+                  <div style={{ height:5, background:BORDER, borderRadius:99 }}>
                     <div style={{
                       height:'100%',
                       width:`${Math.round((p.weekDays / 7) * 100)}%`,
@@ -444,26 +459,25 @@ export default function Partners() {
             ))}
 
             {pending.length > 0 && (
-              <div style={{ background:'#FFF7ED', borderRadius:14, padding:14,
-                border:'1px solid #FED7AA' }}>
-                <p style={{ fontSize:13, fontWeight:700, color:'#F97316', margin:'0 0 10px' }}>
+              <div style={{ background:ACCENT_YELLOW_SOFT, borderRadius:18, padding:14 }}>
+                <p style={{ fontSize:13, fontWeight:700, color:ACCENT_YELLOW_TEXT, margin:'0 0 10px' }}>
                   待確認串聯
                 </p>
                 {pending.map(p => (
                   <div key={p.id} style={{ display:'flex', alignItems:'center',
                     justifyContent:'space-between', padding:'8px 0',
-                    borderBottom:'1px solid #FED7AA' }}>
+                    borderBottom:'1px solid #FFDF9E' }}>
                     <div>
-                      <p style={{ fontSize:14, color:'#374151', margin:0, fontWeight:600 }}>
+                      <p style={{ fontSize:14, color:TEXT_MAIN, margin:0, fontWeight:600 }}>
                         {p.name || '未命名'}
                       </p>
-                      <p style={{ fontSize:12, color:'#9CA3AF', margin:'2px 0 0' }}>
+                      <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>
                         填了你的 email 申請加入
                       </p>
                     </div>
                     <button onClick={() => confirmPartner(p.id)}
-                      style={{ padding:'7px 14px', borderRadius:9, border:'none',
-                        background:'#F97316', color:'#fff', fontWeight:700,
+                      style={{ padding:'7px 14px', borderRadius:10, border:'none',
+                        background:ACCENT_YELLOW, color:'#5B3200', fontWeight:700,
                         fontSize:13, cursor:'pointer' }}>確認</button>
                   </div>
                 ))}
@@ -477,11 +491,11 @@ export default function Partners() {
       {selectedPartner && (
         <>
           <div onClick={() => { setSelectedPartner(null); setDayDetail(null) }}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:100 }} />
+            style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)', zIndex:100 }} />
           <div style={{ position:'fixed', top:0, right:0, bottom:0, width:'90%',
             maxWidth:400, background:'#fff', zIndex:101,
             display:'flex', flexDirection:'column',
-            boxShadow:'-4px 0 20px rgba(0,0,0,0.15)',
+            boxShadow:'-4px 0 20px rgba(19,42,77,0.15)',
             animation:'slideIn 0.25s ease' }}>
 
             {/* 面板 Header */}
@@ -500,7 +514,7 @@ export default function Partners() {
                   {(selectedPartner.name||'?')[0]}
                 </div>
                 <div>
-                  <p style={{ fontSize:17, fontWeight:800, color:'#fff', margin:0 }}>
+                  <p style={{ fontSize:17, fontWeight:700, color:'#fff', margin:0 }}>
                     {selectedPartner.name||'未命名'}
                   </p>
                   <p style={{ fontSize:12, color:'rgba(255,255,255,0.8)', margin:'2px 0 0' }}>
@@ -514,18 +528,17 @@ export default function Partners() {
             <div style={{ flex:1, overflowY:'auto', padding:16,
               display:'flex', flexDirection:'column', gap:12 }}>
               {panelLoading ? (
-                <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>載入中…</div>
+                <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
               ) : panelDetail && (
                 <>
                   {/* 今日任務快照 */}
-                  <div style={{ background:'#F0FDF4', borderRadius:12, padding:14,
-                    border:'1px solid #BBF7D0' }}>
+                  <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:14, padding:14 }}>
                     <div style={{ display:'flex', alignItems:'center',
                       justifyContent:'space-between', marginBottom:8 }}>
-                      <p style={{ fontSize:13, fontWeight:700, color:'#15803D', margin:0 }}>
-                        ✅ 今日任務
+                      <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0, display:'flex', alignItems:'center', gap:5 }}>
+                        <IconCheck size={14} stroke={2.4} /> 今日任務
                       </p>
-                      <span style={{ fontSize:13, fontWeight:800, color:'#15803D' }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT }}>
                         {panelDetail.todayDoneCount} / {DAILY_TASKS.length}
                       </span>
                     </div>
@@ -536,38 +549,38 @@ export default function Partners() {
                           title={t.label}
                           style={{
                             padding:'3px 8px', borderRadius:99, fontSize:11, fontWeight:600,
-                            background: t.is_done ? '#22C55E' : '#E5E7EB',
-                            color: t.is_done ? '#fff' : '#9CA3AF',
+                            background: t.is_done ? ACCENT_GREEN : BORDER,
+                            color: t.is_done ? '#fff' : TEXT_MUTED,
                           }}>
                           {t.label}
                         </div>
                       ))}
                     </div>
                     {panelDetail.todayDoneCount === 0 && (
-                      <p style={{ fontSize:12, color:'#6B7280', margin:'8px 0 0' }}>
+                      <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'8px 0 0' }}>
                         今天還沒有任何打卡記錄
                       </p>
                     )}
                   </div>
 
                   {/* 本月數據 */}
-                  <div style={{ background:'#F8FAFC', borderRadius:12, padding:14 }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 10px' }}>
-                      📊 本月數據
+                  <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 10px' }}>
+                      本月數據
                     </p>
                     <div style={{ display:'flex', gap:8 }}>
                       {[
-                        { label:'BV', value:panelDetail.bv, color:'#F97316' },
-                        { label:'IBV', value:panelDetail.ibv, color:'#3B82F6' },
-                        { label:'互動名單', value:panelDetail.contactCount, color:'#22C55E', unit:'人' },
+                        { label:'BV', value:panelDetail.bv, color:ACCENT_YELLOW_TEXT },
+                        { label:'IBV', value:panelDetail.ibv, color:PRIMARY },
+                        { label:'互動名單', value:panelDetail.contactCount, color:ACCENT_GREEN_TEXT, unit:'人' },
                       ].map(m => (
                         <div key={m.label} style={{ flex:1, background:'#fff',
-                          borderRadius:10, padding:'10px 8px', textAlign:'center',
-                          boxShadow:'0 1px 3px rgba(0,0,0,0.06)' }}>
-                          <p style={{ fontSize:11, color:'#9CA3AF', margin:'0 0 4px', fontWeight:600 }}>
+                          borderRadius:12, padding:'10px 8px', textAlign:'center',
+                          border:`1px solid ${BORDER}` }}>
+                          <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 4px', fontWeight:600 }}>
                             {m.label}
                           </p>
-                          <p style={{ fontSize:17, fontWeight:800, color:m.color, margin:0 }}>
+                          <p style={{ fontSize:17, fontWeight:700, color:m.color, margin:0 }}>
                             {m.value}{m.unit||''}
                           </p>
                         </div>
@@ -576,23 +589,23 @@ export default function Partners() {
                   </div>
 
                   {/* 達成率進度條 */}
-                  <div style={{ background:'#F8FAFC', borderRadius:12, padding:14 }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 10px' }}>
-                      🎯 本月達成率
+                  <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 10px' }}>
+                      本月達成率
                     </p>
                     {[
-                      { label:'BV（目標1500）', value:selectedPartner.bvRate, color:'#F97316' },
-                      { label:'IBV（目標300）', value:selectedPartner.ibvRate, color:'#3B82F6' },
+                      { label:'BV（目標1500）', value:selectedPartner.bvRate, color:ACCENT_YELLOW_TEXT },
+                      { label:'IBV（目標300）', value:selectedPartner.ibvRate, color:PRIMARY },
                       { label:`本週打卡（${selectedPartner.weekDays}/7天）`,
                         value: Math.round((selectedPartner.weekDays / 7) * 100),
                         color: weekBarColor(selectedPartner.weekDays) },
                     ].map(m => (
                       <div key={m.label} style={{ marginBottom:10 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                          <span style={{ fontSize:12, color:'#6B7280' }}>{m.label}</span>
+                          <span style={{ fontSize:12, color:TEXT_SECONDARY }}>{m.label}</span>
                           <span style={{ fontSize:12, fontWeight:700, color:m.color }}>{m.value}%</span>
                         </div>
-                        <div style={{ height:6, background:'#E5E7EB', borderRadius:99 }}>
+                        <div style={{ height:6, background:BORDER, borderRadius:99 }}>
                           <div style={{ height:'100%', width:`${m.value}%`,
                             background:m.color, borderRadius:99, transition:'width 0.5s ease' }} />
                         </div>
@@ -601,18 +614,18 @@ export default function Partners() {
                   </div>
 
                   {/* 每日打卡月曆 */}
-                  <div style={{ background:'#F8FAFC', borderRadius:12, padding:14 }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'#374151', margin:'0 0 2px' }}>
-                      📅 本月每日打卡
+                  <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 2px' }}>
+                      本月每日打卡
                     </p>
-                    <p style={{ fontSize:11, color:'#9CA3AF', margin:'0 0 10px' }}>
+                    <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 10px' }}>
                       點格子可查看當天完成項目
                     </p>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)',
                       gap:3, marginBottom:4 }}>
                       {DAYS_ZH.map(d => (
                         <div key={d} style={{ textAlign:'center', fontSize:10,
-                          color:'#9CA3AF', fontWeight:600, padding:'2px 0' }}>{d}</div>
+                          color:TEXT_MUTED, fontWeight:600, padding:'2px 0' }}>{d}</div>
                       ))}
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3 }}>
@@ -621,25 +634,22 @@ export default function Partners() {
                       ))}
                       {panelDetail.calDays.map(day => {
                         const bg =
-                          day.status === 'full'    ? '#22C55E' :
-                          day.status === 'partial' ? '#F59E0B' :
-                          day.status === 'future'  ? 'transparent' : '#E5E7EB'
+                          day.status === 'full'    ? ACCENT_GREEN :
+                          day.status === 'partial' ? ACCENT_YELLOW :
+                          day.status === 'future'  ? 'transparent' : BORDER
                         const color =
-                          day.status === 'full' || day.status === 'partial' ? '#fff' : '#9CA3AF'
+                          day.status === 'full' ? '#fff' : day.status === 'partial' ? '#5B3200' : TEXT_MUTED
                         const isToday = day.dateStr === todayTW()
                         const clickable = day.status === 'full' || day.status === 'partial'
                         return (
                           <div key={day.dateStr}
                             onClick={() => clickable && handleDayClick(day)}
-                            style={{ aspectRatio:'1', borderRadius:6, background:bg,
-                              border: isToday ? '2px solid #2563EB' : '2px solid transparent',
+                            style={{ aspectRatio:'1', borderRadius:8, background:bg,
+                              border: isToday ? `2px solid ${PRIMARY}` : '2px solid transparent',
                               display:'flex', alignItems:'center', justifyContent:'center',
                               cursor: clickable ? 'pointer' : 'default',
-                              transition:'transform 0.1s',
                               fontSize:11, fontWeight:600, color,
-                            }}
-                            onMouseEnter={e => { if (clickable) e.currentTarget.style.transform='scale(1.15)' }}
-                            onMouseLeave={e => { e.currentTarget.style.transform='scale(1)' }}>
+                            }}>
                             {day.d}
                           </div>
                         )
@@ -647,13 +657,13 @@ export default function Partners() {
                     </div>
                     <div style={{ display:'flex', gap:12, marginTop:10, flexWrap:'wrap' }}>
                       {[
-                        { color:'#22C55E', label:'全部完成' },
-                        { color:'#F59E0B', label:'部分完成' },
-                        { color:'#E5E7EB', label:'未打卡' },
+                        { color:ACCENT_GREEN, label:'全部完成' },
+                        { color:ACCENT_YELLOW, label:'部分完成' },
+                        { color:BORDER, label:'未打卡' },
                       ].map(l => (
                         <div key={l.label} style={{ display:'flex', alignItems:'center', gap:4 }}>
                           <div style={{ width:10, height:10, borderRadius:3, background:l.color }} />
-                          <span style={{ fontSize:11, color:'#6B7280' }}>{l.label}</span>
+                          <span style={{ fontSize:11, color:TEXT_SECONDARY }}>{l.label}</span>
                         </div>
                       ))}
                     </div>
@@ -670,34 +680,36 @@ export default function Partners() {
               onClick={e => { if (e.target === e.currentTarget) setDayDetail(null) }}>
               <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
                 padding:20, width:'100%', maxWidth:400,
-                boxShadow:'0 -4px 20px rgba(0,0,0,0.15)',
+                boxShadow:'0 -4px 20px rgba(19,42,77,0.15)',
                 animation:'slideUp 0.2s ease' }}>
                 <div style={{ display:'flex', justifyContent:'space-between',
                   alignItems:'center', marginBottom:14 }}>
-                  <p style={{ fontSize:15, fontWeight:700, color:'#111827', margin:0 }}>
+                  <p style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN, margin:0 }}>
                     {dayDetail.d} 日打卡明細
                   </p>
                   <button onClick={() => setDayDetail(null)}
-                    style={{ background:'none', border:'none', fontSize:20,
-                      color:'#9CA3AF', cursor:'pointer' }}>✕</button>
+                    style={{ background:'none', border:'none',
+                      color:TEXT_MUTED, cursor:'pointer', display:'flex' }}><IconX size={20} /></button>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {dayDetail.tasks.map(t => (
                     <div key={t.key} style={{ display:'flex', alignItems:'center', gap:10,
-                      padding:'8px 10px', borderRadius:8,
-                      background: t.is_done ? '#F0FDF4' : '#F9FAFB' }}>
-                      <span style={{ fontSize:16 }}>{t.is_done ? '✅' : '⬜'}</span>
+                      padding:'8px 10px', borderRadius:10,
+                      background: t.is_done ? ACCENT_GREEN_SOFT : SUBCARD_BG }}>
+                      {t.is_done
+                        ? <IconCheck size={15} stroke={2.4} color={ACCENT_GREEN_TEXT} />
+                        : <IconCalendar size={15} stroke={1.9} color={TEXT_MUTED} />}
                       <span style={{ fontSize:14,
-                        color: t.is_done ? '#15803D' : '#9CA3AF',
+                        color: t.is_done ? ACCENT_GREEN_TEXT : TEXT_MUTED,
                         fontWeight: t.is_done ? 600 : 400 }}>
                         {t.label}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop:12, padding:'8px 10px', borderRadius:8,
-                  background:'#F8FAFC', textAlign:'center' }}>
-                  <span style={{ fontSize:13, color:'#6B7280', fontWeight:600 }}>
+                <div style={{ marginTop:12, padding:'8px 10px', borderRadius:10,
+                  background:SUBCARD_BG, textAlign:'center' }}>
+                  <span style={{ fontSize:13, color:TEXT_SECONDARY, fontWeight:600 }}>
                     完成 {dayDetail.tasks.filter(t => t.is_done).length} / {dayDetail.tasks.length} 項
                   </span>
                 </div>
