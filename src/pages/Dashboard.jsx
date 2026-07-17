@@ -45,7 +45,7 @@ const DAILY_TASKS = [
 
 const STARTER_TASKS = [
   { id: 'has_contact',      label: '新增第一筆互動名單',     Icon: IconUsers },
-  { id: 'has_checkin',      label: '完成今天打卡',           Icon: IconTarget },
+  { id: 'has_checkin',      label: '完成一次打卡',           Icon: IconTarget },
   { id: 'week3_checkin',    label: '一週內累積打卡 3 天',    Icon: IconTrendingUp },
   { id: 'has_log',          label: '新增第一筆互動紀錄',     Icon: IconMessageCircle },
   { id: 'has_declaration',  label: '設定你的目標宣言',       Icon: IconTarget },
@@ -208,9 +208,11 @@ export default function Dashboard() {
     const todayStr = today()
     const { count: contactCount } = await supabase
       .from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-    const { data: todayCheckin } = await supabase
+    // 「完成一次打卡」是一次性成就，只要史上曾經打過卡就算完成，不限定「今天」
+    // （原本寫成查「今天」，會導致隔天沒打卡任務又重新變成未完成，永遠卡住）
+    const { data: everCheckin } = await supabase
       .from('daily_checkins').select('id')
-      .eq('user_id', user.id).eq('date', todayStr).eq('is_done', true).limit(1)
+      .eq('user_id', user.id).eq('is_done', true).limit(1)
     const sevenDaysAgo = toDateStr(new Date(Date.now() - 6 * 86400000))
     const { data: weekCheckins } = await supabase
       .from('daily_checkins').select('date')
@@ -223,7 +225,7 @@ export default function Dashboard() {
       .from('users').select('goal_declaration, onboarding_done').eq('id', user.id).single()
     const tasks = {
       has_contact:     (contactCount || 0) > 0,
-      has_checkin:     (todayCheckin || []).length > 0,
+      has_checkin:     (everCheckin || []).length > 0,
       week3_checkin:   uniqueDays >= 3,
       has_log:         (logCount || 0) > 0,
       has_declaration: !!(userData?.goal_declaration?.trim()),
