@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
-  IconPin, IconArchive, IconRefresh, IconUsers, IconX,
+  IconPin, IconArchive, IconRefresh, IconUsers, IconX, IconTrash,
 } from '@tabler/icons-react'
 import ContactPanel from './ContactPanel'
 
@@ -146,6 +146,8 @@ export default function Contacts() {
   const [menuTarget, setMenuTarget] = useState(null)
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [restoreTarget, setRestoreTarget] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
   const [selectedId, setSelectedId] = useState(null)
@@ -223,6 +225,19 @@ export default function Contacts() {
     if (!restoreTarget) return
     await supabase.from('contacts').update({ is_archived: false }).eq('id', restoreTarget.id)
     setRestoreTarget(null); setMenuTarget(null); fetchContacts()
+  }
+
+  // 永久刪除：連同底下的互動紀錄、試用品追蹤紀錄一起清掉，避免留下孤兒資料或觸發外鍵限制
+  async function handleDeletePermanent() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await supabase.from('contact_logs').delete().eq('contact_id', deleteTarget.id)
+    await supabase.from('sample_tracking').delete().eq('contact_id', deleteTarget.id)
+    const { error } = await supabase.from('contacts').delete().eq('id', deleteTarget.id)
+    setDeleting(false)
+    if (error) { alert('刪除失敗：' + error.message); return }
+    if (selectedId === deleteTarget.id) setSelectedId(null)
+    setDeleteTarget(null); setMenuTarget(null); fetchContacts()
   }
 
   function openContact(c) {
@@ -794,13 +809,22 @@ async function handleImport() {
             <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN,
               margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
             {showArchived ? (
-              <button onClick={() => setRestoreTarget(menuTarget)}
-                style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                  padding:'14px 16px', borderRadius:14, border:'none',
-                  background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
-                <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
-                <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
-              </button>
+              <>
+                <button onClick={() => setRestoreTarget(menuTarget)}
+                  style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
+                  <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
+                  <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
+                </button>
+                <button onClick={() => setDeleteTarget(menuTarget)}
+                  style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
+                  <IconTrash size={19} stroke={1.9} color={DANGER} />
+                  <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>永久刪除</span>
+                </button>
+              </>
             ) : (
               <>
                 <button onClick={() => handlePin(menuTarget)}
@@ -870,6 +894,33 @@ async function handleImport() {
               <button onClick={handleRestore}
                 style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
                   background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
+          <div style={{ background:'#fff', borderRadius:18, padding:24, width:300, textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconTrash size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+              確定永久刪除「{deleteTarget.name}」？
+            </p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
+              會一併刪除他的互動紀錄與試用品追蹤紀錄，此動作無法復原
+            </p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setDeleteTarget(null)}
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+              <button onClick={handleDeletePermanent} disabled={deleting}
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+                {deleting ? '刪除中…' : '永久刪除'}
+              </button>
             </div>
           </div>
         </div>
