@@ -36,6 +36,17 @@ function formatDue(dateStr) {
   return `${Math.abs(diff)}天後`
 }
 
+// ── 排序/篩選狀態持久化（同分頁內：離開聯絡人詳情頁再回來，排序方式/方向/蛋型篩選會保留）──
+function getStoredSortBy() {
+  try { return sessionStorage.getItem('contacts_sortBy') || 'default' } catch { return 'default' }
+}
+function getStoredSortDir() {
+  try { return sessionStorage.getItem('contacts_sortDir') || 'desc' } catch { return 'desc' }
+}
+function getStoredEggFilter() {
+  try { return sessionStorage.getItem('contacts_eggFilter') || '全部' } catch { return '全部' }
+}
+
 function Avatar({ name, size=40 }) {
   return (
     <div style={{ width:size,height:size,borderRadius:'50%',background:avatarBg(name||''),
@@ -120,9 +131,9 @@ export default function Contacts() {
   const [user, setUser] = useState(null)
   const [contacts, setContacts] = useState([])
   const [search, setSearch] = useState('')
-  const [eggFilter, setEggFilter] = useState('全部')
-  const [sortBy, setSortBy] = useState('default') // default | name | last_contact | due
-  const [sortDir, setSortDir] = useState('desc') // desc | asc
+  const [eggFilter, setEggFilter] = useState(getStoredEggFilter)
+  const [sortBy, setSortBy] = useState(getStoredSortBy) // default | name | last_contact | due
+  const [sortDir, setSortDir] = useState(getStoredSortDir) // desc | asc
   const [realLastContact, setRealLastContact] = useState({}) // { contact_id: 'YYYY-MM-DD' }
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -144,6 +155,11 @@ export default function Contacts() {
 
   useEffect(() => { if (user) fetchContacts() }, [user, showArchived])
   useEffect(() => { if (user && sortBy === 'last_contact') fetchRealLastContact() }, [user, sortBy])
+
+  // 排序/篩選變動時寫回 sessionStorage，離開頁面再回來會維持原設定
+  useEffect(() => { try { sessionStorage.setItem('contacts_sortBy', sortBy) } catch {} }, [sortBy])
+  useEffect(() => { try { sessionStorage.setItem('contacts_sortDir', sortDir) } catch {} }, [sortDir])
+  useEffect(() => { try { sessionStorage.setItem('contacts_eggFilter', eggFilter) } catch {} }, [eggFilter])
 
   async function fetchContacts() {
     setLoading(true)
