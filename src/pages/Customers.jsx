@@ -5,6 +5,7 @@ import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
   IconPin, IconTrash, IconX, IconMail, IconBell,
 } from '@tabler/icons-react'
+import CustomerPanel from './CustomerPanel'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -12,7 +13,6 @@ const PRIMARY_SOFT = '#EEF3FB'
 const TEXT_MAIN = '#132A4D'
 const TEXT_MUTED = '#9FAEC2'
 const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_GREEN = '#3ECF8E'
 const ACCENT_GREEN_SOFT = '#E8F9F1'
 const ACCENT_GREEN_TEXT = '#2C9C6A'
 const ACCENT_PINK = '#F45DA8'
@@ -30,6 +30,11 @@ function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
   return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
+}
+
+// 判斷目前是否為桌面寬度（≥1024px）：桌面點列表 → 右側面板顯示；手機點列表 → 照舊跳轉整頁
+function isDesktopViewport() {
+  try { return window.matchMedia('(min-width: 1024px)').matches } catch { return false }
 }
 
 // ── CSV 工具 ──────────────────────────────────────────
@@ -105,6 +110,9 @@ export default function Customers() {
   const [menuTarget, setMenuTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
+  // 桌面版右側面板：選中的顧客 id（手機版不使用，點擊會直接跳轉整頁）
+  const [selectedId, setSelectedId] = useState(null)
+
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
   const [importErrors, setImportErrors] = useState([])
@@ -152,7 +160,16 @@ export default function Customers() {
   async function handleDelete() {
     if (!deleteTarget) return
     await supabase.from('customers').delete().eq('id', deleteTarget.id)
+    if (selectedId === deleteTarget.id) setSelectedId(null)
     setDeleteTarget(null); setMenuTarget(null); fetchCustomers()
+  }
+
+  function openCustomer(c) {
+    if (isDesktopViewport()) {
+      setSelectedId(c.id)
+    } else {
+      navigate(`/customers/${c.id}`)
+    }
   }
 
   // ── CSV 匯入邏輯 ──────────────────────────────────
@@ -245,6 +262,7 @@ export default function Customers() {
   const today = new Date().toISOString().split('T')[0]
 
   function CustomerCard({ c }) {
+    const isSelected = selectedId === c.id
     const longPressTimer = useRef(null)
     function onPressStart() { longPressTimer.current = setTimeout(() => setMenuTarget(c), 500) }
     function onPressEnd() { clearTimeout(longPressTimer.current) }
@@ -253,9 +271,9 @@ export default function Customers() {
       <div
         onMouseDown={onPressStart} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
         onTouchStart={onPressStart} onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
-        onClick={() => navigate(`/customers/${c.id}`)}
+        onClick={() => openCustomer(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-          background: menuTarget?.id === c.id ? SUBCARD_BG : '#fff',
+          background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
           borderBottom:`1px solid ${BORDER}`, cursor:'pointer', userSelect:'none' }}>
         <div style={{ width:44, height:44, borderRadius:'50%', background:avatarBg(c.name),
           display:'flex', alignItems:'center', justifyContent:'center',
@@ -297,6 +315,35 @@ export default function Customers() {
         @media (min-width: 1024px) {
           .dash-container { max-width: 720px; }
         }
+        .customers-panel-col { display: none; }
+        @media (min-width: 1024px) {
+          .customers-body {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            max-width: 1600px;
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+          }
+          .customers-list-col {
+            width: 360px;
+            flex-shrink: 0;
+            border: 1px solid ${BORDER};
+            border-radius: 14px;
+            overflow-y: auto;
+            max-height: calc(100vh - 180px);
+          }
+          .customers-panel-col {
+            display: block;
+            flex: 1;
+            min-width: 0;
+            border: 1px solid ${BORDER};
+            border-radius: 14px;
+            overflow-y: auto;
+            max-height: calc(100vh - 180px);
+          }
+        }
       `}</style>
 
       <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:`1px solid ${BORDER}` }}>
@@ -327,19 +374,37 @@ export default function Customers() {
       </div>
       </div>
 
-      <div className="dash-container">
-      {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
-          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconMail size={36} stroke={1.5} /></div>
-          <p style={{ fontSize:15 }}>還沒有顧客，從業績新增或點 + 建立顧客檔案</p>
+      <div className="customers-body">
+        <div className="customers-list-col">
+          {loading ? (
+            <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
+              <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconMail size={36} stroke={1.5} /></div>
+              <p style={{ fontSize:15 }}>還沒有顧客，從業績新增或點 + 建立顧客檔案</p>
+            </div>
+          ) : (
+            <div style={{ background:'#fff' }}>
+              {filtered.map(c => <CustomerCard key={c.id} c={c} />)}
+            </div>
+          )}
         </div>
-      ) : (
-        <div style={{ background:'#fff', marginTop:8 }}>
-          {filtered.map(c => <CustomerCard key={c.id} c={c} />)}
+
+        {/* 桌面版右側面板（CSS 控制只在 ≥1024px 顯示） */}
+        <div className="customers-panel-col">
+          {selectedId ? (
+            <CustomerPanel
+              id={selectedId}
+              embedded
+              onChanged={fetchCustomers}
+            />
+          ) : (
+            <div style={{ height:400, display:'flex', alignItems:'center', justifyContent:'center',
+              color:TEXT_MUTED, fontSize:13 }}>
+              選擇左側顧客查看詳情
+            </div>
+          )}
         </div>
-      )}
       </div>
 
       {showImport && (
@@ -359,7 +424,7 @@ export default function Customers() {
 
             <button onClick={downloadTemplate}
               style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
-                padding:'12px 16px', borderRadius:14, border:`1px dashed ${ACCENT_GREEN}`,
+                padding:'12px 16px', borderRadius:14, border:`1px dashed ${ACCENT_GREEN_TEXT}`,
                 background:ACCENT_GREEN_SOFT, marginBottom:16, cursor:'pointer' }}>
               <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
