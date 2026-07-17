@@ -29,6 +29,16 @@ const DAILY_ITEMS = [
   { Icon: IconUsers, key: 'daily_3_contacts',     label: '每日3互動', desc: '每天主動聯繫名單中的人，這是業績的根本' },
 ]
 
+// 這份清單必須跟 Dashboard.jsx 的 STARTER_TASKS 完全一致，
+// 不然新用戶在引導流程看到一份任務，進首頁又看到另一份，會搞不清楚狀況
+const STARTER_TASK_LABELS = [
+  '新增第一筆互動名單',
+  '完成一次打卡',
+  '一週內累積打卡 3 天',
+  '新增第一筆互動紀錄',
+  '設定你的目標宣言',
+]
+
 export default function Onboarding({ user, onComplete }) {
   const [step, setStep] = useState(0)
   const [name, setName] = useState(user?.user_metadata?.name || '')
@@ -305,15 +315,9 @@ export default function Onboarding({ user, onComplete }) {
               borderRadius: 14, padding: 14,
             }}>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: '0 0 8px', fontWeight: 700 }}>
-                你的新手任務
+                你的新手起步任務
               </p>
-              {[
-                '新增 5 筆互動名單',
-                '完成今天的打卡',
-                '新增第一筆業績紀錄',
-                '新增第一位優惠顧客',
-                '完成一次完整打卡（4項以上）',
-              ].map((t, i) => (
+              {STARTER_TASK_LABELS.map((t, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '5px 0',

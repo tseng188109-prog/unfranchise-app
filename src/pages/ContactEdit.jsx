@@ -60,6 +60,9 @@ export default function ContactEdit() {
   const [saving, setSaving] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [form, setForm] = useState(null)
+  // 記住剛載入時的 action_type，存檔時只有「真的被改過」才重算跟進日，
+  // 不然單純改職業/地區這種無關欄位也會意外把跟進日往後推
+  const [originalActionType, setOriginalActionType] = useState(null)
 
   useEffect(() => { fetchContact() }, [id])
 
@@ -80,6 +83,7 @@ export default function ContactEdit() {
         asked_products: data.asked_products || '',
         birthday: data.birthday || '',
       })
+      setOriginalActionType(data.action_type || '')
       if (data.occupation || data.region || data.note || data.pain_point || data.asked_products || data.birthday) {
         setShowMore(true)
       }
@@ -102,8 +106,10 @@ export default function ContactEdit() {
     if (!form.name.trim()) return
     setSaving(true)
 
+    // 只有 action_type 真的跟原本不一樣時，才重新計算跟進日；
+    // 單純編輯其他欄位不應該動到跟進倒數
     let next_contact_date = undefined
-    if (form.action_type) {
+    if (form.action_type && form.action_type !== originalActionType) {
       const d = new Date()
       d.setDate(d.getDate() + (DAYS_MAP[form.action_type] || 30))
       next_contact_date = d.toISOString().split('T')[0]
@@ -210,6 +216,11 @@ export default function ContactEdit() {
                   color:form.action_type===a?'#fff':TEXT_SECONDARY }}>{a}</button>
             ))}
           </div>
+          {form.action_type !== originalActionType && (
+            <p style={{ fontSize:11,color:PRIMARY,margin:'6px 0 0' }}>
+              行動類型已變更，儲存後會依新類型重新計算下次跟進日
+            </p>
+          )}
         </div>
 
         <button onClick={() => setShowMore(v=>!v)}
