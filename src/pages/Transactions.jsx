@@ -104,6 +104,8 @@ const TRANSACTIONS_TEMPLATE = `date,customer_name,customer_phone,product_name,ty
 2025-06-03,張大偉,,試用組合,BV,0,0,500,true`
 // ─────────────────────────────────────────────────────
 
+const TYPE_FILTERS = ['全部', 'BV', 'IBV']
+
 export default function Transactions() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
@@ -120,12 +122,15 @@ export default function Transactions() {
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
 
-  // 搜尋
+  // 搜尋（手機版透過 searchMode 切換輸入框顯示；桌面版輸入框常駐，直接綁 searchQuery）
   const [searchMode, setSearchMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const searchInputRef = useRef(null)
+
+  // 類型篩選（桌面版常駐篩選列使用；手機版目前不顯示，不影響手機行為）
+  const [typeFilter, setTypeFilter] = useState('全部')
 
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
@@ -182,13 +187,13 @@ export default function Transactions() {
     setChartData(days)
   }
 
-  // 搜尋：打字後即時查詢
+  // 搜尋：打字後即時查詢（不再綁 searchMode，桌面版常駐輸入框可以直接觸發）
   useEffect(() => {
-    if (!searchMode || !user) return
+    if (!user) return
     if (!searchQuery.trim()) { setSearchResults([]); return }
     const timer = setTimeout(() => doSearch(searchQuery.trim()), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, searchMode, user])
+  }, [searchQuery, user])
 
   async function doSearch(q) {
     setSearching(true)
@@ -246,7 +251,7 @@ export default function Transactions() {
     await supabase.from('transactions').delete().eq('id', deleteTarget)
     setDeleteTarget(null)
     fetchData()
-    if (searchMode && searchQuery.trim()) doSearch(searchQuery.trim())
+    if (searchQuery.trim()) doSearch(searchQuery.trim())
   }
 
   function openEdit(t) {
@@ -268,7 +273,7 @@ export default function Transactions() {
     }).eq('id', editTarget.id)
     setSaving(false); setEditTarget(null)
     fetchData()
-    if (searchMode && searchQuery.trim()) doSearch(searchQuery.trim())
+    if (searchQuery.trim()) doSearch(searchQuery.trim())
   }
 
   // ── CSV 匯入邏輯 ──────────────────────────────────
@@ -353,7 +358,94 @@ export default function Transactions() {
 
   const maxVal = Math.max(...chartData.map(d => Math.max(d.bv, d.ibv)), 1)
   const chartHeight = 80
-  const displayList = searchMode ? searchResults : transactions
+  const desktopChartHeight = 130
+  const isSearching = searchQuery.trim().length > 0
+  const displayList = searchMode ? searchResults : transactions // 手機版沿用原本邏輯
+  const desktopBaseList = isSearching ? searchResults : transactions
+  const desktopList = desktopBaseList.filter(t => typeFilter === '全部' || t.type === typeFilter)
+
+  function TxRow({ t, dense }) {
+    const name = t.customers?.name || t.customer_name || '未知顧客'
+    const margin = (t.amount||0) - (t.cost||0)
+    return (
+      <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,
+        padding:'12px 16px',borderBottom:`1px solid ${BORDER}`,position:'relative' }}>
+        <div style={{ width:40,height:40,borderRadius:'50%',
+          background: t.is_gift ? '#F0F1F4' : avatarBg(name),
+          display:'flex',alignItems:'center',justifyContent:'center',
+          color: t.is_gift ? TEXT_SECONDARY : '#fff',fontWeight:700,fontSize:15,flexShrink:0 }}>
+          {t.is_gift ? <IconGift size={17} stroke={1.9} /> : name[0]}
+        </div>
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
+            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{name}</span>
+            <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
+              background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
+              color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
+          </div>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
+            {t.product_name} · {dense ? formatDate(t.date) : formatShortDate(t.date)}
+          </p>
+        </div>
+        <div style={{ textAlign:'right',flexShrink:0 }}>
+          <p style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
+            {Number(t.points).toFixed(0)} 點
+          </p>
+          <p style={{ fontSize:12,margin:'2px 0 0',
+            color: t.is_gift ? TEXT_SECONDARY : margin >= 0 ? ACCENT_GREEN_TEXT : DANGER }}>
+            {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
+          </p>
+        </div>
+        <button onClick={e => { e.stopPropagation(); setMenuId(menuId === t.id ? null : t.id) }}
+          style={{ background:'none',border:'none',cursor:'pointer',
+            color:TEXT_MUTED,padding:'4px 6px',marginLeft:4,flexShrink:0 }}><IconDotsVertical size={17} stroke={1.9} /></button>
+        {menuId === t.id && (
+          <div onClick={e => e.stopPropagation()}
+            style={{ position:'absolute',right:12,top:44,background:'#fff',
+              borderRadius:12,boxShadow:'0 4px 20px rgba(19,42,77,0.13)',
+              zIndex:100,overflow:'hidden',minWidth:110 }}>
+            <button onClick={() => openEdit(t)}
+              style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
+                background:'none',border:'none',textAlign:'left',
+                fontSize:14,color:TEXT_MAIN,cursor:'pointer' }}><IconPencil size={15} stroke={1.9} /> 編輯</button>
+            <button onClick={() => { setMenuId(null); setDeleteTarget(t.id) }}
+              style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
+                background:'none',border:'none',textAlign:'left',
+                fontSize:14,color:DANGER,cursor:'pointer' }}><IconTrash size={15} stroke={1.9} /> 刪除</button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function DesktopChart({ height }) {
+    return (
+      <div style={{ display:'flex',alignItems:'flex-end',gap:2,height,overflowX:'auto' }}>
+        {chartData.map(d => (
+          <div key={d.day} style={{ display:'flex',flexDirection:'column',alignItems:'center',
+            gap:1,minWidth:10,flex:1 }}>
+            <div style={{ width:'100%',display:'flex',flexDirection:'column',
+              alignItems:'center',justifyContent:'flex-end',height:height-18 }}>
+              {d.bv > 0 && (
+                <div style={{ width:'100%',background:ACCENT_YELLOW,borderRadius:'2px 2px 0 0',
+                  height:`${Math.max(2,(d.bv/maxVal)*(height-18))}px` }} />
+              )}
+              {d.ibv > 0 && (
+                <div style={{ width:'100%',background:PRIMARY,borderRadius:'2px 2px 0 0',
+                  height:`${Math.max(2,(d.ibv/maxVal)*(height-18))}px`,marginTop:1 }} />
+              )}
+              {d.bv === 0 && d.ibv === 0 && (
+                <div style={{ width:'100%',height:2,background:BORDER,borderRadius:2 }} />
+              )}
+            </div>
+            <span style={{ fontSize:10,color:TEXT_MUTED,lineHeight:1 }}>
+              {d.day % 5 === 1 ? d.day : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}
@@ -363,12 +455,33 @@ export default function Transactions() {
         @media (min-width: 1024px) {
           .dash-container { max-width: 720px; }
         }
+        .tx-desktop-wrap { display: none; }
+        .tx-mobile-list { display: block; }
+        .tx-desktop-table-wrap { display: none; }
+        @media (min-width: 1024px) {
+          .tx-mobile-header { display: none; }
+          .tx-mobile-list { display: none; }
+          .tx-desktop-wrap {
+            display: block;
+            max-width: 1600px;
+            margin: 0;
+            padding: 24px 24px 0;
+            box-sizing: border-box;
+          }
+          .tx-desktop-table-wrap {
+            display: block;
+            max-width: 1600px;
+            margin: 0;
+            padding: 0 24px;
+            box-sizing: border-box;
+          }
+        }
       `}</style>
 
-      <div style={{ background:'#fff',padding:'52px 0 16px',borderBottom:`1px solid ${BORDER}` }}>
+      {/* ── 手機版 Header（維持原邏輯不變，桌面版隱藏） ── */}
+      <div className="tx-mobile-header" style={{ background:'#fff',padding:'52px 0 16px',borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
 
-        {/* Title row */}
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
           <div style={{ display:'flex',gap:8 }}>
@@ -392,7 +505,6 @@ export default function Transactions() {
           </div>
         </div>
 
-        {/* 搜尋列 */}
         {searchMode && (
           <div style={{ display:'flex',gap:8,marginBottom:12 }}>
             <input
@@ -414,7 +526,6 @@ export default function Transactions() {
           </div>
         )}
 
-        {/* 月份切換（非搜尋模式） */}
         {!searchMode && (
           <>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginBottom:12 }}>
@@ -458,36 +569,12 @@ export default function Transactions() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display:'flex',alignItems:'flex-end',gap:1,height:chartHeight,overflowX:'auto' }}>
-                  {chartData.map(d => (
-                    <div key={d.day} style={{ display:'flex',flexDirection:'column',alignItems:'center',
-                      gap:1,minWidth:9,flex:1 }}>
-                      <div style={{ width:'100%',display:'flex',flexDirection:'column',
-                        alignItems:'center',justifyContent:'flex-end',height:chartHeight-16 }}>
-                        {d.bv > 0 && (
-                          <div style={{ width:'100%',background:ACCENT_YELLOW,borderRadius:'2px 2px 0 0',
-                            height:`${Math.max(2,(d.bv/maxVal)*(chartHeight-16))}px` }} />
-                        )}
-                        {d.ibv > 0 && (
-                          <div style={{ width:'100%',background:PRIMARY,borderRadius:'2px 2px 0 0',
-                            height:`${Math.max(2,(d.ibv/maxVal)*(chartHeight-16))}px`,marginTop:1 }} />
-                        )}
-                        {d.bv === 0 && d.ibv === 0 && (
-                          <div style={{ width:'100%',height:2,background:BORDER,borderRadius:2 }} />
-                        )}
-                      </div>
-                      <span style={{ fontSize:9,color:TEXT_MUTED,lineHeight:1 }}>
-                        {d.day % 5 === 1 ? d.day : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <DesktopChart height={chartHeight} />
               </div>
             )}
           </>
         )}
 
-        {/* 搜尋模式狀態列 */}
         {searchMode && (
           <div style={{ fontSize:13,color:TEXT_SECONDARY,padding:'4px 0' }}>
             {searching ? '搜尋中…' :
@@ -498,8 +585,89 @@ export default function Transactions() {
       </div>
       </div>
 
-      <div className="dash-container">
-      {/* 列表 */}
+      {/* ── 桌面版常駐 Header：篩選列 + 4 張 KPI 卡 + 放大版圖表 ── */}
+      <div className="tx-desktop-wrap">
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:10 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:14 }}>
+            <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
+            <div style={{ display:'flex',alignItems:'center',gap:8,background:SUBCARD_BG,borderRadius:10,padding:'4px 10px' }}>
+              <button onClick={prevMonth}
+                style={{ background:'none',border:'none',fontSize:16,cursor:'pointer',color:TEXT_SECONDARY }}>‹</button>
+              <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
+              <button onClick={nextMonth}
+                style={{ background:'none',border:'none',fontSize:16,cursor:'pointer',color:TEXT_SECONDARY }}>›</button>
+            </div>
+          </div>
+          <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+            <div style={{ position:'relative' }}>
+              <IconSearch size={14} stroke={1.9} color={TEXT_MUTED}
+                style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)' }} />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                placeholder="搜尋顧客或品項"
+                style={{ padding:'8px 12px 8px 30px',borderRadius:10,border:`1px solid ${BORDER}`,
+                  fontSize:13,background:SUBCARD_BG,color:TEXT_MAIN,outline:'none',width:180,boxSizing:'border-box' }} />
+            </div>
+            {TYPE_FILTERS.map(f => (
+              <button key={f} onClick={() => setTypeFilter(f)}
+                style={{ padding:'7px 14px',borderRadius:99,border:'none',fontSize:12,fontWeight:700,cursor:'pointer',
+                  background: typeFilter===f ? (f==='BV'?ACCENT_YELLOW_SOFT:f==='IBV'?PRIMARY_SOFT:PRIMARY) : SUBCARD_BG,
+                  color: typeFilter===f ? (f==='BV'?ACCENT_YELLOW_TEXT:f==='IBV'?PRIMARY:'#fff') : TEXT_SECONDARY }}>
+                {f}
+              </button>
+            ))}
+            <button onClick={() => { setShowImport(true); resetImport() }}
+              style={{ padding:'8px 14px',borderRadius:10,border:'none',background:ACCENT_GREEN_SOFT,
+                color:ACCENT_GREEN_TEXT,fontSize:12,fontWeight:700,cursor:'pointer',
+                display:'flex',alignItems:'center',gap:6 }}>
+              <IconDownload size={14} stroke={1.9} /> 匯入
+            </button>
+            <button onClick={() => navigate('/transactions/new')}
+              style={{ padding:'8px 16px',borderRadius:10,border:'none',background:PRIMARY,
+                color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer' }}>
+              + 新增
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16 }}>
+          <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:12,padding:'12px 14px' }}>
+            <p style={{ fontSize:11,fontWeight:700,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
+            <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
+          </div>
+          <div style={{ background:PRIMARY_SOFT,borderRadius:12,padding:'12px 14px' }}>
+            <p style={{ fontSize:11,fontWeight:700,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
+            <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
+          </div>
+          <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:12,padding:'12px 14px' }}>
+            <p style={{ fontSize:11,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
+            <p style={{ fontSize:20,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
+          </div>
+          <div style={{ background:SUBCARD_BG,borderRadius:12,padding:'12px 14px' }}>
+            <p style={{ fontSize:11,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 4px' }}>贈品成本</p>
+            <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>-NT${giftCost.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
+          <div style={{ background:SUBCARD_BG,borderRadius:14,padding:'14px 14px 10px',marginBottom:16 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
+              <span style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY }}>每日點數趨勢</span>
+              <div style={{ display:'flex',gap:12 }}>
+                <span style={{ fontSize:12,color:ACCENT_YELLOW_TEXT,display:'flex',alignItems:'center',gap:4 }}>
+                  <span style={{ width:9,height:9,borderRadius:2,background:ACCENT_YELLOW,display:'inline-block' }}/>BV
+                </span>
+                <span style={{ fontSize:12,color:PRIMARY,display:'flex',alignItems:'center',gap:4 }}>
+                  <span style={{ width:9,height:9,borderRadius:2,background:PRIMARY,display:'inline-block' }}/>IBV
+                </span>
+              </div>
+            </div>
+            <DesktopChart height={desktopChartHeight} />
+          </div>
+        )}
+      </div>
+
+      {/* ── 手機版清單（維持原邏輯不變，桌面版隱藏） ── */}
+      <div className="dash-container tx-mobile-list">
       {!searchMode && loading ? (
         <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
       ) : !searchMode && transactions.length === 0 ? (
@@ -520,61 +688,72 @@ export default function Transactions() {
         </div>
       ) : (
         <div style={{ margin:'8px 0',background:'#fff' }}>
-          {displayList.map(t => {
-            const name = t.customers?.name || t.customer_name || '未知顧客'
-            const margin = (t.amount||0) - (t.cost||0)
-            return (
-              <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,
-                padding:'12px 16px',borderBottom:`1px solid ${BORDER}`,position:'relative' }}>
-                <div style={{ width:40,height:40,borderRadius:'50%',
-                  background: t.is_gift ? '#F0F1F4' : avatarBg(name),
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  color: t.is_gift ? TEXT_SECONDARY : '#fff',fontWeight:700,fontSize:15,flexShrink:0 }}>
-                  {t.is_gift ? <IconGift size={17} stroke={1.9} /> : name[0]}
-                </div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
-                    <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{name}</span>
-                    <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
-                      background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
-                      color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
-                  </div>
-                  <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
-                    {t.product_name} · {searchMode ? formatDate(t.date) : formatShortDate(t.date)}
-                  </p>
-                </div>
-                <div style={{ textAlign:'right',flexShrink:0 }}>
-                  <p style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
-                    {Number(t.points).toFixed(0)} 點
-                  </p>
-                  <p style={{ fontSize:12,margin:'2px 0 0',
-                    color: t.is_gift ? TEXT_SECONDARY : margin >= 0 ? ACCENT_GREEN_TEXT : DANGER }}>
-                    {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
-                  </p>
-                </div>
-                <button onClick={e => { e.stopPropagation(); setMenuId(menuId === t.id ? null : t.id) }}
-                  style={{ background:'none',border:'none',cursor:'pointer',
-                    color:TEXT_MUTED,padding:'4px 6px',marginLeft:4,flexShrink:0 }}><IconDotsVertical size={17} stroke={1.9} /></button>
-                {menuId === t.id && (
-                  <div onClick={e => e.stopPropagation()}
-                    style={{ position:'absolute',right:12,top:44,background:'#fff',
-                      borderRadius:12,boxShadow:'0 4px 20px rgba(19,42,77,0.13)',
-                      zIndex:100,overflow:'hidden',minWidth:110 }}>
-                    <button onClick={() => openEdit(t)}
-                      style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
-                        background:'none',border:'none',textAlign:'left',
-                        fontSize:14,color:TEXT_MAIN,cursor:'pointer' }}><IconPencil size={15} stroke={1.9} /> 編輯</button>
-                    <button onClick={() => { setMenuId(null); setDeleteTarget(t.id) }}
-                      style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
-                        background:'none',border:'none',textAlign:'left',
-                        fontSize:14,color:DANGER,cursor:'pointer' }}><IconTrash size={15} stroke={1.9} /> 刪除</button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {displayList.map(t => <TxRow key={t.id} t={t} dense={searchMode} />)}
         </div>
       )}
+      </div>
+
+      {/* ── 桌面版表格 ── */}
+      <div className="tx-desktop-table-wrap">
+        {loading && !isSearching ? (
+          <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
+        ) : desktopList.length === 0 ? (
+          <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED,border:`1px solid ${BORDER}`,borderRadius:14 }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconChartBar size={36} stroke={1.5} /></div>
+            <p style={{ fontSize:15 }}>{isSearching ? `找不到「${searchQuery}」的紀錄` : '這個月還沒有業績紀錄，點「+ 新增」開始記錄！'}</p>
+          </div>
+        ) : (
+          <table style={{ width:'100%',borderCollapse:'collapse',border:`1px solid ${BORDER}`,borderRadius:14,overflow:'hidden' }}>
+            <thead>
+              <tr style={{ borderBottom:`1px solid ${BORDER}`,background:SUBCARD_BG }}>
+                <th style={thStyle}>日期</th>
+                <th style={thStyle}>顧客</th>
+                <th style={thStyle}>品項</th>
+                <th style={thStyle}>類型</th>
+                <th style={{ ...thStyle, textAlign:'right' }}>點數</th>
+                <th style={{ ...thStyle, textAlign:'right' }}>獲利</th>
+                <th style={{ ...thStyle, textAlign:'center' }}>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {desktopList.map((t, i) => {
+                const name = t.customers?.name || t.customer_name || '未知顧客'
+                const margin = (t.amount||0) - (t.cost||0)
+                return (
+                  <tr key={t.id} style={{ borderBottom:`1px solid ${BORDER}`, background: i%2===1 ? '#FAFBFD' : '#fff' }}>
+                    <td style={tdStyle}>{formatDate(t.date)}</td>
+                    <td style={{ ...tdStyle, fontWeight:600, color:TEXT_MAIN }}>{name}</td>
+                    <td style={tdStyle}>
+                      {t.product_name}
+                      {t.is_gift && <span style={{ marginLeft:6,fontSize:11,color:TEXT_MUTED }}>🎁贈品</span>}
+                    </td>
+                    <td style={tdStyle}>
+                      <span style={{ fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:6,
+                        background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
+                        color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
+                    </td>
+                    <td style={{ ...tdStyle, textAlign:'right' }}>{Number(t.points).toFixed(0)}</td>
+                    <td style={{ ...tdStyle, textAlign:'right',
+                      color: t.is_gift ? TEXT_MUTED : margin >= 0 ? ACCENT_GREEN_TEXT : DANGER, fontWeight:600 }}>
+                      {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign:'center' }}>
+                      <button onClick={() => openEdit(t)}
+                        style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,marginRight:10,display:'inline-flex' }}>
+                        <IconPencil size={15} stroke={1.9} />
+                      </button>
+                      <button onClick={() => setDeleteTarget(t.id)}
+                        style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'inline-flex' }}>
+                        <IconTrash size={15} stroke={1.9} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+        <div style={{ height:40 }} />
       </div>
 
       {/* CSV 匯入 Modal */}
@@ -782,4 +961,10 @@ const labelStyle = {
 const inputStyle = {
   width:'100%', padding:'10px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
   fontSize:14, color:TEXT_MAIN, marginBottom:14, boxSizing:'border-box', outline:'none'
+}
+const thStyle = {
+  textAlign:'left', padding:'10px 12px', fontSize:11, fontWeight:700, color:TEXT_SECONDARY,
+}
+const tdStyle = {
+  padding:'10px 12px', fontSize:13, color:TEXT_MAIN,
 }
