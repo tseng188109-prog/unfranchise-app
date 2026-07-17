@@ -546,6 +546,41 @@ export default function Daily() {
             })}
           </div>
 
+          {(() => {
+            const meetupLogs = weekLogs.filter(l => l.counter_key === 'meetup')
+            const meetupDone = meetupLogs.filter(l => l.is_done).length
+            const meetupPlanned = meetupLogs.filter(l => !l.is_done).length
+            const hitTarget = meetupDone >= 2
+            return (
+              <div style={{ marginBottom:12, background: hitTarget ? ACCENT_GREEN_SOFT : SUBCARD_BG,
+                borderRadius:12, padding:'10px 12px' }}>
+                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6 }}>
+                  <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>每週2訪</span>
+                  <button onClick={() => openAddModal('week', today(), 'meetup')}
+                    style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
+                      background:PRIMARY,color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer' }}>
+                    <IconPlus size={12} stroke={2.2} /> 記錄見面
+                  </button>
+                </div>
+                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                  <div style={{ flex:1,height:6,background:BORDER,borderRadius:99,overflow:'hidden' }}>
+                    <div style={{ height:'100%',borderRadius:99,
+                      width:`${Math.min((meetupDone/2)*100,100)}%`,
+                      background: hitTarget ? ACCENT_GREEN : ACCENT_YELLOW,
+                      transition:'width 0.4s ease' }} />
+                  </div>
+                  <span style={{ fontSize:12,fontWeight:700,
+                    color: hitTarget ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT }}>{meetupDone}/2</span>
+                </div>
+                {meetupPlanned > 0 && (
+                  <p style={{ fontSize:11,color:TEXT_MUTED,margin:'6px 0 0' }}>
+                    另有 {meetupPlanned} 筆已預排待完成
+                  </p>
+                )}
+              </div>
+            )
+          })()}
+
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:4 }}>
             {weekDays.map((d,i) => {
               const isT = d === today()
