@@ -5,6 +5,7 @@ import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
   IconPin, IconArchive, IconRefresh, IconUsers, IconX,
 } from '@tabler/icons-react'
+import ContactPanel from './ContactPanel'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -45,6 +46,11 @@ function getStoredSortDir() {
 }
 function getStoredEggFilter() {
   try { return sessionStorage.getItem('contacts_eggFilter') || '全部' } catch { return '全部' }
+}
+
+// 判斷目前是否為桌面寬度（≥1024px）：桌面點列表 → 右側面板顯示；手機點列表 → 照舊跳轉整頁
+function isDesktopViewport() {
+  try { return window.matchMedia('(min-width: 1024px)').matches } catch { return false }
 }
 
 function Avatar({ name, size=40 }) {
@@ -141,6 +147,9 @@ export default function Contacts() {
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [restoreTarget, setRestoreTarget] = useState(null)
 
+  // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
+  const [selectedId, setSelectedId] = useState(null)
+
   // CSV 匯入狀態
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
@@ -206,6 +215,7 @@ export default function Contacts() {
   async function handleArchive() {
     if (!archiveTarget) return
     await supabase.from('contacts').update({ is_archived: true }).eq('id', archiveTarget.id)
+    if (selectedId === archiveTarget.id) setSelectedId(null)
     setArchiveTarget(null); setMenuTarget(null); fetchContacts()
   }
 
@@ -213,6 +223,15 @@ export default function Contacts() {
     if (!restoreTarget) return
     await supabase.from('contacts').update({ is_archived: false }).eq('id', restoreTarget.id)
     setRestoreTarget(null); setMenuTarget(null); fetchContacts()
+  }
+
+  function openContact(c) {
+    if (showArchived) return
+    if (isDesktopViewport()) {
+      setSelectedId(c.id)
+    } else {
+      navigate(`/contacts/${c.id}`)
+    }
   }
 
   // ── CSV 匯入邏輯 ──────────────────────────────────
@@ -387,6 +406,7 @@ async function handleImport() {
   function ContactCard({ c }) {
     const isOv = c.next_contact_date && c.next_contact_date < today()
     const isToday = c.next_contact_date === today()
+    const isSelected = selectedId === c.id
     const longPressTimer = useRef(null)
 
     function onPressStart() {
@@ -399,9 +419,9 @@ async function handleImport() {
         onMouseDown={onPressStart} onMouseUp={onPressEnd}
         onMouseLeave={onPressEnd} onTouchStart={onPressStart}
         onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
-        onClick={() => !showArchived && navigate(`/contacts/${c.id}`)}
+        onClick={() => openContact(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-          background: menuTarget?.id === c.id ? SUBCARD_BG : '#fff',
+          background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
           borderBottom:`1px solid ${BORDER}`,
           cursor: showArchived ? 'default' : 'pointer', userSelect:'none' }}>
         <Avatar name={c.name} size={42} />
@@ -462,6 +482,35 @@ async function handleImport() {
         @media (min-width: 1024px) {
           .dash-container { max-width: 720px; }
         }
+        .contacts-panel-col { display: none; }
+        @media (min-width: 1024px) {
+          .contacts-body {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            max-width: 1600px;
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+          }
+          .contacts-list-col {
+            width: 360px;
+            flex-shrink: 0;
+            border: 1px solid ${BORDER};
+            border-radius: 14px;
+            overflow-y: auto;
+            max-height: calc(100vh - 230px);
+          }
+          .contacts-panel-col {
+            display: block;
+            flex: 1;
+            min-width: 0;
+            border: 1px solid ${BORDER};
+            border-radius: 14px;
+            overflow-y: auto;
+            max-height: calc(100vh - 230px);
+          }
+        }
       `}</style>
 
       {/* Header */}
@@ -495,7 +544,7 @@ async function handleImport() {
         </div>
 
         <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
-          <button onClick={() => { setShowArchived(!showArchived); setEggFilter('全部'); setSearch('') }}
+          <button onClick={() => { setShowArchived(!showArchived); setEggFilter('全部'); setSearch(''); setSelectedId(null) }}
             style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:99, border:'none',
               background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
               color: showArchived ? '#fff' : TEXT_SECONDARY,
@@ -545,48 +594,67 @@ async function handleImport() {
       </div>
       </div>
 
-      <div className="dash-container">
-      {showArchived && (
-        <div style={{ background:'#FFF9E9', padding:'10px 16px',
-          fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
-          <IconArchive size={15} stroke={1.9} />
-          <span>封存名單 · 長按可復原聯絡人</span>
-        </div>
-      )}
+      <div className="contacts-body">
+        <div className="contacts-list-col">
+          {showArchived && (
+            <div style={{ background:'#FFF9E9', padding:'10px 16px',
+              fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
+              <IconArchive size={15} stroke={1.9} />
+              <span>封存名單 · 長按可復原聯絡人</span>
+            </div>
+          )}
 
-      {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
-          <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>
-            {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconUsers size={36} stroke={1.5} />}
-          </div>
-          <p style={{ fontSize:15 }}>
-            {showArchived ? '沒有封存的聯絡人' : '還沒有聯絡人，點 + 新增第一位吧！'}
-          </p>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
+              <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>
+                {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconUsers size={36} stroke={1.5} />}
+              </div>
+              <p style={{ fontSize:15 }}>
+                {showArchived ? '沒有封存的聯絡人' : '還沒有聯絡人，點 + 新增第一位吧！'}
+              </p>
+            </div>
+          ) : showArchived ? (
+            <div style={{ background:'#fff' }}>
+              <Section title="封存中" count={filtered.length} items={filtered} />
+            </div>
+          ) : isFlatSort ? (
+            <div style={{ background:'#fff' }}>
+              <Section title="釘選" count={pinned.length} items={pinned} />
+              <Section
+                title={sortBy === 'last_contact' ? '依最近互動排序' : '依建議互動排序'}
+                count={flatUnpinned.length}
+                items={flatUnpinned}
+              />
+            </div>
+          ) : (
+            <div style={{ background:'#fff' }}>
+              <Section title="釘選" count={pinned.length} items={pinned} />
+              <Section title="逾期" count={overdue.length} items={overdue} />
+              <Section title="今天到期" count={dueToday.length} items={dueToday} />
+              <Section title="本週到期" count={thisWeek.length} items={thisWeek} />
+              <Section title="其他" count={others.length} items={others} />
+            </div>
+          )}
         </div>
-      ) : showArchived ? (
-        <div style={{ background:'#fff', margin:'8px 0' }}>
-          <Section title="封存中" count={filtered.length} items={filtered} />
+
+        {/* 桌面版右側面板（CSS 控制只在 ≥1024px 顯示） */}
+        <div className="contacts-panel-col">
+          {selectedId ? (
+            <ContactPanel
+              id={selectedId}
+              embedded
+              onChanged={fetchContacts}
+              onArchived={() => { setSelectedId(null); fetchContacts() }}
+            />
+          ) : (
+            <div style={{ height:400, display:'flex', alignItems:'center', justifyContent:'center',
+              color:TEXT_MUTED, fontSize:13 }}>
+              選擇左側聯絡人查看詳情
+            </div>
+          )}
         </div>
-      ) : isFlatSort ? (
-        <div style={{ background:'#fff', margin:'8px 0' }}>
-          <Section title="釘選" count={pinned.length} items={pinned} />
-          <Section
-            title={sortBy === 'last_contact' ? '依最近互動排序' : '依建議互動排序'}
-            count={flatUnpinned.length}
-            items={flatUnpinned}
-          />
-        </div>
-      ) : (
-        <div style={{ background:'#fff', margin:'8px 0' }}>
-          <Section title="釘選" count={pinned.length} items={pinned} />
-          <Section title="逾期" count={overdue.length} items={overdue} />
-          <Section title="今天到期" count={dueToday.length} items={dueToday} />
-          <Section title="本週到期" count={thisWeek.length} items={thisWeek} />
-          <Section title="其他" count={others.length} items={others} />
-        </div>
-      )}
       </div>
 
       {/* ── CSV 匯入 Modal ───────────────────────────── */}
