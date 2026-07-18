@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconPlus, IconFlask } from '@tabler/icons-react'
+import LoadingSpinner from './LoadingSpinner'
 
 const PRIMARY = '#1668E3'
 const TEXT_MAIN = '#132A4D'
 const TEXT_MUTED = '#9FAEC2'
 const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_YELLOW_SOFT = '#FFF7E6'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
 const ACCENT_GREEN_SOFT = '#E8F9F1'
 const ACCENT_GREEN_TEXT = '#2C9C6A'
 const BORDER = '#F0F1F4'
@@ -27,6 +26,13 @@ function avatarBg(name) {
 
 const FILTERS = ['全部','進行中','成交','考慮中','轉介/其他需求']
 const RESULTS = ['成交','考慮中','轉介/其他需求']
+
+// 結果標籤色：只有「成交」用綠色標示正向結果，「考慮中」「轉介/其他需求」都用灰階，
+// 不用黃色（黃色在全站是保留給「待處理/警示」語意，考慮中不算警示，用灰階才符合設計系統規則）
+function resultBadgeColor(result) {
+  if (result === '成交') return { bg: ACCENT_GREEN_SOFT, text: ACCENT_GREEN_TEXT }
+  return { bg: '#F0F1F4', text: TEXT_SECONDARY }
+}
 
 export default function Samples() {
   const navigate = useNavigate()
@@ -194,7 +200,7 @@ export default function Samples() {
 
       {/* 列表 */}
       {loading ? (
-        <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
+        <LoadingSpinner fullPage={false} />
       ) : filtered.length === 0 ? (
         <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED }}>
           <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconFlask size={36} stroke={1.5} /></div>
@@ -205,6 +211,7 @@ export default function Samples() {
           {filtered.map(s => {
             const name = s.contacts?.name || '未知'
             const isActive = !s.result
+            const badgeColor = resultBadgeColor(s.result)
             return (
               <div key={s.id} style={{ background:'#fff',borderRadius:16,padding:14,
                 border: isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)
@@ -223,8 +230,7 @@ export default function Samples() {
                   </div>
                   {s.result && (
                     <span style={{ fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:99,
-                      background:s.result==='成交'?ACCENT_GREEN_SOFT:s.result==='考慮中'?ACCENT_YELLOW_SOFT:'#F0F1F4',
-                      color:s.result==='成交'?ACCENT_GREEN_TEXT:s.result==='考慮中'?ACCENT_YELLOW_TEXT:TEXT_SECONDARY }}>
+                      background:badgeColor.bg, color:badgeColor.text }}>
                       {s.result}
                     </span>
                   )}
