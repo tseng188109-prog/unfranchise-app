@@ -6,6 +6,7 @@ import {
   IconPin, IconTrash, IconX, IconMail, IconBell, IconArchive, IconRefresh,
 } from '@tabler/icons-react'
 import CustomerPanel from './CustomerPanel'
+import LoadingSpinner from './LoadingSpinner'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -420,7 +421,7 @@ export default function Customers() {
             </div>
           )}
           {loading ? (
-            <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
+            <LoadingSpinner fullPage={false} />
           ) : filtered.length === 0 ? (
             <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
               <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>

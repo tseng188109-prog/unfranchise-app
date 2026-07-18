@@ -6,6 +6,7 @@ import {
   IconHeadphones, IconCamera, IconUsers, IconX, IconCalendar,
   IconCheck, IconPlus, IconPencil, IconTrash,
 } from '@tabler/icons-react'
+import LoadingSpinner from './LoadingSpinner'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -395,11 +396,7 @@ export default function Daily() {
     calDays.push({ d, dateStr, logs, hasDone, hasPlan, hasProduct, hasGmtss })
   }
 
-  if (loading) return (
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <p style={{ color:TEXT_MUTED }}>載入中…</p>
-    </div>
-  )
+  if (loading) return <LoadingSpinner />
 
   return (
     <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}>

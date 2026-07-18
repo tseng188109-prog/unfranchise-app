@@ -5,6 +5,7 @@ import {
   IconArrowLeft, IconPencil, IconX, IconGift, IconPhone, IconMail,
   IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive,
 } from '@tabler/icons-react'
+import LoadingSpinner from './LoadingSpinner'
 
 const PRIMARY = '#1668E3'
 const TEXT_MAIN = '#132A4D'
@@ -141,7 +142,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const canSave = form.product_name.trim() && form.points !== ''
 
   if (loading) {
-    return <div style={{ padding:60, textAlign:'center', color:TEXT_MUTED, fontSize:14 }}>載入中…</div>
+    return <LoadingSpinner fullPage={false} />
   }
   if (!customer) return null
 

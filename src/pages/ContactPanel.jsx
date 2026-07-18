@@ -5,6 +5,7 @@ import {
   IconArrowLeft, IconPencil, IconArchive, IconCheck, IconX, IconTrash,
   IconBriefcase, IconMapPin, IconMessageCircle, IconAlertCircle, IconShoppingBag,
 } from '@tabler/icons-react'
+import LoadingSpinner from './LoadingSpinner'
 
 const PRIMARY = '#1668E3'
 const TEXT_MAIN = '#132A4D'
@@ -132,7 +133,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   }
 
   if (loading) {
-    return <div style={{ padding:60, textAlign:'center', color:TEXT_MUTED, fontSize:14 }}>載入中…</div>
+    return <LoadingSpinner fullPage={false} />
   }
   if (!contact) return null
 

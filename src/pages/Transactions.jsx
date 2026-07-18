@@ -5,6 +5,7 @@ import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
   IconDotsVertical, IconPencil, IconTrash, IconX, IconGift, IconChartBar,
 } from '@tabler/icons-react'
+import LoadingSpinner from './LoadingSpinner'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -669,7 +670,7 @@ export default function Transactions() {
       {/* ── 手機版清單（維持原邏輯不變，桌面版隱藏） ── */}
       <div className="dash-container tx-mobile-list">
       {!searchMode && loading ? (
-        <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
+        <LoadingSpinner fullPage={false} />
       ) : !searchMode && transactions.length === 0 ? (
         <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED }}>
           <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconChartBar size={36} stroke={1.5} /></div>
@@ -696,7 +697,7 @@ export default function Transactions() {
       {/* ── 桌面版表格 ── */}
       <div className="tx-desktop-table-wrap">
         {loading && !isSearching ? (
-          <div style={{ textAlign:'center',padding:40,color:TEXT_MUTED }}>載入中…</div>
+          <LoadingSpinner fullPage={false} />
         ) : desktopList.length === 0 ? (
           <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED,border:`1px solid ${BORDER}`,borderRadius:14 }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconChartBar size={36} stroke={1.5} /></div>

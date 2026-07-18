@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconFlag, IconRefresh, IconFlame, IconCheck,
 } from '@tabler/icons-react'
+import LoadingSpinner from './LoadingSpinner'
 
 // 設計系統色碼（與全站一致）
 const PRIMARY = '#1668E3'
@@ -332,11 +333,7 @@ export default function Team() {
 
   const rankEmoji = (i) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i+1)
 
-  if (loading) return (
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'#fff' }}>
-      <p style={{ color:TEXT_MUTED,fontSize:14 }}>載入中…</p>
-    </div>
-  )
+  if (loading) return <LoadingSpinner />
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
