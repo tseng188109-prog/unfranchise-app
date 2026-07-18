@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
+import LoadingSpinner from './LoadingSpinner'
 import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
@@ -357,13 +358,7 @@ export default function Dashboard() {
   const starterAllDone = starterDoneCount === STARTER_TASKS.length
   const showStarterCard = onboardingDone && starterTasks !== null && !starterAllDone
 
-  if(loading) return (
-    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <div style={{ width:36,height:36,borderRadius:'50%',border:'3px solid #F0F1F4',
-        borderTopColor:PRIMARY,animation:'spin 0.8s linear infinite' }} />
-      <p style={{ color:TEXT_MUTED,marginTop:16,fontSize:14 }}>載入中…</p>
-    </div>
-  )
+  if(loading) return <LoadingSpinner />
 
   return (
     <div style={{ background:PAGE_BG,minHeight:'100vh' }}>
@@ -717,10 +712,4 @@ export default function Dashboard() {
       )}
     </div>
   )
-}
-
-if(typeof document!=='undefined'&&!document.getElementById('dash-anim')){
-  const s=document.createElement('style'); s.id='dash-anim'
-  s.textContent='@keyframes spin{to{transform:rotate(360deg)}}'
-  document.head.appendChild(s)
 }
