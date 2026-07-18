@@ -710,7 +710,7 @@ export default function Daily() {
             ))}
           </div>
 
-          <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:3 }}>
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:5,marginBottom:3 }}>
             {DAYS_ZH.map(d => (
               <div key={d} style={{ textAlign:'center',fontSize:10,color:TEXT_MUTED,padding:'2px 0' }}>{d}</div>
             ))}
@@ -729,9 +729,9 @@ export default function Daily() {
               return (
                 <div key={day.dateStr}
                   onClick={() => setSelectedMonthDay(isSelected ? null : day.dateStr)}
-                  style={{ aspectRatio:'1',minHeight:38,borderRadius:9,background:bg,
+                  style={{ aspectRatio:'1',minWidth:0,width:'100%',borderRadius:9,background:bg,
                     border:`1.5px solid ${isT&&!isSelected?PRIMARY:border}`,
-                    boxSizing:'border-box', width:'100%',
+                    boxSizing:'border-box',
                     display:'flex',flexDirection:'column',alignItems:'center',
                     justifyContent:'center',cursor:'pointer',gap:2,
                     outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:-2 }}>
