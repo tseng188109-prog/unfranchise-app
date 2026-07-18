@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPencil, IconX, IconGift, IconPhone, IconMail,
-  IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck,
+  IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive,
 } from '@tabler/icons-react'
 
 const PRIMARY = '#1668E3'
@@ -51,7 +51,7 @@ const formInput = {
 // embedded  — true when rendered inside the desktop right-side panel
 // onBack    — called when back arrow pressed (mobile/full-page mode only); defaults to navigate(-1)
 // onChanged — called after any data change (transaction added/edited/deleted, reminder saved) so a parent list can refetch
-export default function CustomerPanel({ id, embedded=false, onBack, onChanged }) {
+export default function CustomerPanel({ id, embedded=false, onBack, onChanged, onArchived }) {
   const navigate = useNavigate()
   const [customer, setCustomer] = useState(null)
   const [transactions, setTransactions] = useState([])
@@ -86,6 +86,14 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged })
     setCustomer(p => ({ ...p, repurchase_reminder: reminderDate }))
     setEditReminder(false)
     onChanged?.()
+  }
+
+  async function handleArchive() {
+    if (!confirm(`確定要封存「${customer.name}」嗎？封存後可以在顧客檔案的「封存名單」找到並復原。`)) return
+    await supabase.from('customers').update({ is_archived: true }).eq('id', id)
+    onChanged?.()
+    if (onArchived) onArchived()
+    else navigate('/customers')
   }
 
   function openAdd() {
@@ -160,11 +168,18 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged })
               style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_SECONDARY, display:'flex' }}>
               <IconArrowLeft size={22} stroke={1.9} />
             </button>
-            <button onClick={() => navigate(`/customers/${id}/edit`)}
-              style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:`1px solid ${BORDER}`, borderRadius:10,
-                padding:'6px 12px', fontSize:13, cursor:'pointer', color:TEXT_SECONDARY }}>
-              <IconPencil size={14} stroke={1.9} /> 編輯
-            </button>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => navigate(`/customers/${id}/edit`)}
+                style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:`1px solid ${BORDER}`, borderRadius:10,
+                  padding:'6px 12px', fontSize:13, cursor:'pointer', color:TEXT_SECONDARY }}>
+                <IconPencil size={14} stroke={1.9} /> 編輯
+              </button>
+              <button onClick={handleArchive}
+                style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:`1px solid ${BORDER}`, borderRadius:10,
+                  padding:'6px 12px', fontSize:13, cursor:'pointer', color:TEXT_MUTED }}>
+                <IconArchive size={14} stroke={1.9} /> 封存
+              </button>
+            </div>
           </div>
         )}
         <div style={{ display:'flex', alignItems:'center', gap:14, paddingBottom:16, flexWrap:'wrap' }}>
@@ -180,11 +195,18 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged })
             </p>
           </div>
           {embedded && (
-            <button onClick={() => navigate(`/customers/${id}/edit`)}
-              style={{ width:32, height:32, borderRadius:9, border:`1px solid ${BORDER}`, background:'#fff',
-                display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_SECONDARY, flexShrink:0 }}>
-              <IconPencil size={15} stroke={1.9} />
-            </button>
+            <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+              <button onClick={() => navigate(`/customers/${id}/edit`)}
+                style={{ width:32, height:32, borderRadius:9, border:`1px solid ${BORDER}`, background:'#fff',
+                  display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_SECONDARY }}>
+                <IconPencil size={15} stroke={1.9} />
+              </button>
+              <button onClick={handleArchive}
+                style={{ width:32, height:32, borderRadius:9, border:`1px solid ${BORDER}`, background:'#fff',
+                  display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_MUTED }}>
+                <IconArchive size={15} stroke={1.9} />
+              </button>
+            </div>
           )}
         </div>
         <div style={{ display:'flex', gap:20 }}>

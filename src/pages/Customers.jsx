@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
-  IconPin, IconTrash, IconX, IconMail, IconBell,
+  IconPin, IconTrash, IconX, IconMail, IconBell, IconArchive, IconRefresh,
 } from '@tabler/icons-react'
 import CustomerPanel from './CustomerPanel'
 
@@ -108,7 +108,10 @@ export default function Customers() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [menuTarget, setMenuTarget] = useState(null)
+  const [archiveTarget, setArchiveTarget] = useState(null)
+  const [restoreTarget, setRestoreTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   // 桌面版右側面板：選中的顧客 id（手機版不使用，點擊會直接跳轉整頁）
   const [selectedId, setSelectedId] = useState(null)
@@ -124,7 +127,7 @@ export default function Customers() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
-  useEffect(() => { if (user) fetchCustomers() }, [user])
+  useEffect(() => { if (user) fetchCustomers() }, [user, showArchived])
 
   async function fetchCustomers() {
     setLoading(true)
@@ -132,6 +135,7 @@ export default function Customers() {
       .from('customers')
       .select('id,name,phone,occupation,repurchase_reminder,is_pinned')
       .eq('user_id', user.id)
+      .eq('is_archived', showArchived)
       .order('is_pinned', { ascending: false })
       .order('name')
 
@@ -157,14 +161,31 @@ export default function Customers() {
     setMenuTarget(null); fetchCustomers()
   }
 
-  async function handleDelete() {
+  async function handleArchive() {
+    if (!archiveTarget) return
+    await supabase.from('customers').update({ is_archived: true }).eq('id', archiveTarget.id)
+    if (selectedId === archiveTarget.id) setSelectedId(null)
+    setArchiveTarget(null); setMenuTarget(null); fetchCustomers()
+  }
+
+  async function handleRestore() {
+    if (!restoreTarget) return
+    await supabase.from('customers').update({ is_archived: false }).eq('id', restoreTarget.id)
+    setRestoreTarget(null); setMenuTarget(null); fetchCustomers()
+  }
+
+  // 永久刪除：業績交易紀錄不刪除（保留完整財務紀錄），只把交易上的 customer_id 解除關聯
+  async function handleDeletePermanent() {
     if (!deleteTarget) return
-    await supabase.from('customers').delete().eq('id', deleteTarget.id)
+    await supabase.from('transactions').update({ customer_id: null }).eq('customer_id', deleteTarget.id)
+    const { error } = await supabase.from('customers').delete().eq('id', deleteTarget.id)
+    if (error) { alert('刪除失敗：' + error.message); return }
     if (selectedId === deleteTarget.id) setSelectedId(null)
     setDeleteTarget(null); setMenuTarget(null); fetchCustomers()
   }
 
   function openCustomer(c) {
+    if (showArchived) return
     if (isDesktopViewport()) {
       setSelectedId(c.id)
     } else {
@@ -274,7 +295,7 @@ export default function Customers() {
         onClick={() => openCustomer(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
           background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
-          borderBottom:`1px solid ${BORDER}`, cursor:'pointer', userSelect:'none' }}>
+          borderBottom:`1px solid ${BORDER}`, cursor: showArchived ? 'default' : 'pointer', userSelect:'none' }}>
         <div style={{ width:44, height:44, borderRadius:'50%', background:avatarBg(c.name),
           display:'flex', alignItems:'center', justifyContent:'center',
           color:'#fff', fontWeight:700, fontSize:17, flexShrink:0 }}>
@@ -283,7 +304,7 @@ export default function Customers() {
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             {c.is_pinned && <IconPin size={12} stroke={2} color={TEXT_MUTED} />}
-            <span style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN }}>{c.name}</span>
+            <span style={{ fontSize:15, fontWeight:700, color: showArchived ? TEXT_MUTED : TEXT_MAIN }}>{c.name}</span>
             {c.repurchase_reminder && c.repurchase_reminder >= today && (
               <IconBell size={14} stroke={1.9} color={ACCENT_PINK} />
             )}
@@ -293,16 +314,20 @@ export default function Customers() {
             {c.occupation && c.phone ? ' · ' : ''}{c.phone||''}
           </p>
         </div>
-        <div style={{ textAlign:'right' }}>
-          <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:0 }}>
-            {c.totalBV.toFixed(0)} BV
-          </p>
-          {c.lastDate && (
-            <p style={{ fontSize:11, color:TEXT_MUTED, margin:'2px 0 0' }}>
-              {formatDate(c.lastDate)}
+        {showArchived ? (
+          <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>封存中</span>
+        ) : (
+          <div style={{ textAlign:'right' }}>
+            <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:0 }}>
+              {c.totalBV.toFixed(0)} BV
             </p>
-          )}
-        </div>
+            {c.lastDate && (
+              <p style={{ fontSize:11, color:TEXT_MUTED, margin:'2px 0 0' }}>
+                {formatDate(c.lastDate)}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     )
   }
@@ -350,17 +375,19 @@ export default function Customers() {
       <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
           <h1 style={{ fontSize:20, fontWeight:700, color:TEXT_MAIN, margin:0 }}>顧客檔案</h1>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-              style={{ width:36, height:36, borderRadius:12, background:ACCENT_GREEN_SOFT,
-                border:'none', color:ACCENT_GREEN_TEXT, cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'center' }}
-              title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
-            <button onClick={e => { e.stopPropagation(); navigate('/customers/new') }}
-              style={{ width:36, height:36, borderRadius:12, background:PRIMARY,
-                border:'none', color:'#fff', cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
-          </div>
+          {!showArchived && (
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
+                style={{ width:36, height:36, borderRadius:12, background:ACCENT_GREEN_SOFT,
+                  border:'none', color:ACCENT_GREEN_TEXT, cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}
+                title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
+              <button onClick={e => { e.stopPropagation(); navigate('/customers/new') }}
+                style={{ width:36, height:36, borderRadius:12, background:PRIMARY,
+                  border:'none', color:'#fff', cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
+            </div>
+          )}
         </div>
         <div style={{ position:'relative', marginBottom:12 }}>
           <IconSearch size={16} stroke={1.9} color={TEXT_MUTED}
@@ -371,17 +398,37 @@ export default function Customers() {
               border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG,
               boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
         </div>
+        <div style={{ display:'flex', gap:8, paddingBottom:4 }}>
+          <button onClick={() => { setShowArchived(!showArchived); setSearch(''); setSelectedId(null) }}
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:99, border:'none',
+              background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
+              color: showArchived ? '#fff' : TEXT_SECONDARY,
+              fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+            <IconArchive size={13} stroke={2} /> {showArchived ? '查看一般' : '封存名單'}
+          </button>
+        </div>
       </div>
       </div>
 
       <div className="customers-body">
         <div className="customers-list-col">
+          {showArchived && (
+            <div style={{ background:'#FFF9E9', padding:'10px 16px',
+              fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
+              <IconArchive size={15} stroke={1.9} />
+              <span>封存名單 · 長按可復原顧客或永久刪除</span>
+            </div>
+          )}
           {loading ? (
             <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED }}>載入中…</div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
-              <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconMail size={36} stroke={1.5} /></div>
-              <p style={{ fontSize:15 }}>還沒有顧客，從業績新增或點 + 建立顧客檔案</p>
+              <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>
+                {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconMail size={36} stroke={1.5} />}
+              </div>
+              <p style={{ fontSize:15 }}>
+                {showArchived ? '沒有封存的顧客' : '還沒有顧客，從業績新增或點 + 建立顧客檔案'}
+              </p>
             </div>
           ) : (
             <div style={{ background:'#fff' }}>
@@ -397,6 +444,7 @@ export default function Customers() {
               id={selectedId}
               embedded
               onChanged={fetchCustomers}
+              onArchived={() => { setSelectedId(null); fetchCustomers() }}
             />
           ) : (
             <div style={{ height:400, display:'flex', alignItems:'center', justifyContent:'center',
@@ -534,26 +582,93 @@ export default function Customers() {
             onClick={e => e.stopPropagation()}>
             <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN,
               margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
-            <button onClick={() => handlePin(menuTarget)}
-              style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                padding:'14px 16px', borderRadius:14, border:'none',
-                background:SUBCARD_BG, marginBottom:10, cursor:'pointer' }}>
-              <IconPin size={19} stroke={1.9} color={TEXT_MAIN} />
-              <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
-                {menuTarget.is_pinned ? '取消釘選' : '釘選到最上面'}
-              </span>
-            </button>
-            <button onClick={() => setDeleteTarget(menuTarget)}
-              style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                padding:'14px 16px', borderRadius:14, border:'none',
-                background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
-              <IconTrash size={19} stroke={1.9} color={DANGER} />
-              <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>刪除顧客</span>
-            </button>
+            {showArchived ? (
+              <>
+                <button onClick={() => setRestoreTarget(menuTarget)}
+                  style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
+                  <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
+                  <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
+                </button>
+                <button onClick={() => setDeleteTarget(menuTarget)}
+                  style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
+                  <IconTrash size={19} stroke={1.9} color={DANGER} />
+                  <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>永久刪除</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => handlePin(menuTarget)}
+                  style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:SUBCARD_BG, marginBottom:10, cursor:'pointer' }}>
+                  <IconPin size={19} stroke={1.9} color={TEXT_MAIN} />
+                  <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
+                    {menuTarget.is_pinned ? '取消釘選' : '釘選到最上面'}
+                  </span>
+                </button>
+                <button onClick={() => setArchiveTarget(menuTarget)}
+                  style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
+                    padding:'14px 16px', borderRadius:14, border:'none',
+                    background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
+                  <IconArchive size={19} stroke={1.9} color={DANGER} />
+                  <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>封存</span>
+                </button>
+              </>
+            )}
             <button onClick={() => setMenuTarget(null)}
               style={{ width:'100%', padding:'13px 0', borderRadius:14,
                 border:`1px solid ${BORDER}`, background:'#fff',
                 fontSize:15, color:TEXT_SECONDARY, cursor:'pointer' }}>取消</button>
+          </div>
+        </div>
+      )}
+
+      {archiveTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
+          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconArchive size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+              確定封存「{archiveTarget.name}」？
+            </p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setArchiveTarget(null)}
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+              <button onClick={handleArchive}
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {restoreTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
+          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+              復原「{restoreTarget.name}」？
+            </p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>將移回一般顧客檔案</p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setRestoreTarget(null)}
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+              <button onClick={handleRestore}
+                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                  background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
+            </div>
           </div>
         </div>
       )}
@@ -566,16 +681,18 @@ export default function Customers() {
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
             <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
-              確定刪除「{deleteTarget.name}」？
+              確定永久刪除「{deleteTarget.name}」？
             </p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>刪除後無法復原</p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
+              業績交易紀錄會保留，但會解除跟這位顧客的關聯，此動作無法復原
+            </p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
                 style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDelete}
+              <button onClick={handleDeletePermanent}
                 style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>刪除</button>
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>永久刪除</button>
             </div>
           </div>
         </div>
