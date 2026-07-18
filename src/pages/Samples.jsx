@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
-import { IconPlus, IconFlask } from '@tabler/icons-react'
+import { IconPlus, IconFlask, IconCalendarEvent } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 
 const PRIMARY = '#1668E3'
@@ -10,13 +10,23 @@ const TEXT_MUTED = '#9FAEC2'
 const TEXT_SECONDARY = '#7C8CA3'
 const ACCENT_GREEN_SOFT = '#E8F9F1'
 const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_YELLOW_TEXT = '#9A6A16'
+const DANGER = '#E0454A'
 const BORDER = '#F0F1F4'
+const SUBCARD_BG = '#F5F8FC'
 
 function today() { return new Date().toISOString().split('T')[0] }
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
+}
+function formatDue(dateStr) {
+  if (!dateStr) return ''
+  const diff = Math.floor((new Date(today()) - new Date(dateStr)) / 86400000)
+  if (diff === 0) return '今天追蹤'
+  if (diff > 0) return `逾期${diff}天`
+  return `${Math.abs(diff)}天後`
 }
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
@@ -27,8 +37,7 @@ function avatarBg(name) {
 const FILTERS = ['全部','進行中','成交','考慮中','轉介/其他需求']
 const RESULTS = ['成交','考慮中','轉介/其他需求']
 
-// 結果標籤色：只有「成交」用綠色標示正向結果，「考慮中」「轉介/其他需求」都用灰階，
-// 不用黃色（黃色在全站是保留給「待處理/警示」語意，考慮中不算警示，用灰階才符合設計系統規則）
+// 結果標籤色：只有「成交」用綠色標示正向結果，「考慮中」「轉介/其他需求」都用灰階，不用黃色
 function resultBadgeColor(result) {
   if (result === '成交') return { bg: ACCENT_GREEN_SOFT, text: ACCENT_GREEN_TEXT }
   return { bg: '#F0F1F4', text: TEXT_SECONDARY }
@@ -50,6 +59,13 @@ export default function Samples() {
     product_name: '', portions: '', share_date: today(),
   })
   const [saving, setSaving] = useState(false)
+
+  // 考慮中的追蹤紀錄時間軸（點開才載入，同時只展開一筆）
+  const [expandedId, setExpandedId] = useState(null)
+  const [followupLogsMap, setFollowupLogsMap] = useState({})
+  const [logDate, setLogDate] = useState(today())
+  const [logNote, setLogNote] = useState('')
+  const [logSaving, setLogSaving] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -101,9 +117,40 @@ export default function Samples() {
     setSamples(p => p.map(s => s.id === id ? { ...s, result } : s))
   }
 
+  async function updateNextFollowup(id, date) {
+    await supabase.from('sample_tracking').update({ next_followup_date: date || null }).eq('id', id)
+    setSamples(p => p.map(s => s.id === id ? { ...s, next_followup_date: date || null } : s))
+  }
+
+  async function fetchFollowupLogs(sampleId) {
+    const { data } = await supabase.from('sample_followup_logs')
+      .select('*').eq('sample_id', sampleId).order('date', { ascending: false })
+    setFollowupLogsMap(p => ({ ...p, [sampleId]: data || [] }))
+  }
+
+  function toggleExpand(id) {
+    if (expandedId === id) { setExpandedId(null); return }
+    setExpandedId(id)
+    setLogDate(today()); setLogNote('')
+    if (!followupLogsMap[id]) fetchFollowupLogs(id)
+  }
+
+  async function addFollowupLog(sampleId) {
+    setLogSaving(true)
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    await supabase.from('sample_followup_logs').insert({
+      sample_id: sampleId, user_id: authUser.id, date: logDate, note: logNote.trim() || null,
+    })
+    setLogSaving(false)
+    setLogNote('')
+    setLogDate(today())
+    fetchFollowupLogs(sampleId)
+  }
+
+  // 「進行中」涵蓋：還沒設結果的（3步驟階段）、以及「考慮中」（還在追蹤，不是終點）
   const filtered = samples.filter(s => {
     if (filter === '全部') return true
-    if (filter === '進行中') return !s.result
+    if (filter === '進行中') return !s.result || s.result === '考慮中'
     return s.result === filter
   })
 
@@ -211,11 +258,14 @@ export default function Samples() {
           {filtered.map(s => {
             const name = s.contacts?.name || '未知'
             const isActive = !s.result
+            const isConsidering = s.result === '考慮中'
+            const isOverdueFollowup = isConsidering && s.next_followup_date && s.next_followup_date < today()
             const badgeColor = resultBadgeColor(s.result)
+            const needsAttention =
+              (isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)) || isOverdueFollowup
             return (
               <div key={s.id} style={{ background:'#fff',borderRadius:16,padding:14,
-                border: isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)
-                  ? `1.5px solid #FFDF9E` : `1px solid ${BORDER}` }}>
+                border: needsAttention ? `1.5px solid #FFDF9E` : `1px solid ${BORDER}` }}>
 
                 {/* 頂部 */}
                 <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
@@ -236,7 +286,7 @@ export default function Samples() {
                   )}
                 </div>
 
-                {/* 三步驟進度 */}
+                {/* 三步驟進度（還沒設結果前） */}
                 {isActive && (
                   <>
                     <div style={{ display:'flex',gap:6,marginBottom:10 }}>
@@ -256,7 +306,6 @@ export default function Samples() {
                       ))}
                     </div>
 
-                    {/* 結果選擇 */}
                     {s.followup_3_done && (
                       <div style={{ display:'flex',gap:6 }}>
                         {RESULTS.map(r => (
@@ -269,6 +318,78 @@ export default function Samples() {
                       </div>
                     )}
                   </>
+                )}
+
+                {/* 考慮中：持續追蹤區塊，不再是死路 */}
+                {isConsidering && (
+                  <div style={{ marginTop:2, borderTop:`1px solid ${BORDER}`, paddingTop:10 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
+                      <IconCalendarEvent size={14} stroke={1.9} color={TEXT_MUTED} />
+                      <span style={{ fontSize:12, color:TEXT_MUTED }}>下次追蹤</span>
+                      <input type="date" value={s.next_followup_date || ''}
+                        onChange={e => updateNextFollowup(s.id, e.target.value)}
+                        style={{ padding:'5px 8px', borderRadius:8, border:`1px solid ${BORDER}`,
+                          fontSize:12, outline:'none', color:TEXT_MAIN }} />
+                      {s.next_followup_date && (
+                        <span style={{ fontSize:11, fontWeight:700,
+                          color: isOverdueFollowup ? DANGER : ACCENT_YELLOW_TEXT }}>
+                          {formatDue(s.next_followup_date)}
+                        </span>
+                      )}
+                    </div>
+
+                    <button onClick={() => toggleExpand(s.id)}
+                      style={{ width:'100%', padding:'7px', background:'none', border:`1px dashed ${BORDER}`,
+                        borderRadius:10, color:TEXT_SECONDARY, fontSize:12, cursor:'pointer', marginBottom:8 }}>
+                      {expandedId === s.id ? '收起追蹤紀錄 ▲' : `追蹤紀錄${followupLogsMap[s.id] ? ` (${followupLogsMap[s.id].length})` : ''} ▼`}
+                    </button>
+
+                    {expandedId === s.id && (
+                      <div style={{ marginBottom:10 }}>
+                        <div style={{ display:'flex', gap:6, marginBottom:8, flexWrap:'wrap' }}>
+                          <input type="date" value={logDate} max={today()}
+                            onChange={e => setLogDate(e.target.value)}
+                            style={{ padding:'7px 8px', borderRadius:8, border:`1px solid ${BORDER}`,
+                              fontSize:12, outline:'none', color:TEXT_MAIN, width:120 }} />
+                          <input value={logNote} onChange={e => setLogNote(e.target.value)}
+                            placeholder="記錄這次追蹤說了什麼…"
+                            style={{ flex:1, minWidth:120, padding:'7px 10px', borderRadius:8,
+                              border:`1px solid ${BORDER}`, fontSize:12, outline:'none', color:TEXT_MAIN }} />
+                          <button onClick={() => addFollowupLog(s.id)} disabled={logSaving}
+                            style={{ padding:'7px 14px', borderRadius:8, border:'none',
+                              background:PRIMARY, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                            {logSaving ? '新增中…' : '新增'}
+                          </button>
+                        </div>
+                        {(followupLogsMap[s.id]||[]).length === 0 ? (
+                          <p style={{ fontSize:12, color:TEXT_MUTED, textAlign:'center', padding:'8px 0', margin:0 }}>
+                            還沒有追蹤紀錄
+                          </p>
+                        ) : (
+                          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                            {followupLogsMap[s.id].map(log => (
+                              <div key={log.id} style={{ background:SUBCARD_BG, borderRadius:8, padding:'7px 10px' }}>
+                                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                                  <span style={{ fontSize:11, fontWeight:700, color:TEXT_SECONDARY }}>{formatDate(log.date)}</span>
+                                </div>
+                                {log.note && <p style={{ fontSize:12, color:TEXT_MAIN, margin:'2px 0 0' }}>{log.note}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ display:'flex',gap:6 }}>
+                      {RESULTS.map(r => (
+                        <button key={r} onClick={() => setResult(s.id, r)}
+                          style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
+                            fontSize:11,fontWeight:600,cursor:'pointer',
+                            background:s.result===r?PRIMARY:'#F5F8FC',
+                            color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )
