@@ -716,25 +716,25 @@ export default function Daily() {
             ))}
           </div>
 
-          <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:8 }}>
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:5,marginBottom:8 }}>
             {Array.from({ length: firstDow }).map((_,i) => <div key={`e${i}`} />)}
             {calDays.map(day => {
               const isFut = day.dateStr > today()
               const isT = day.dateStr === today()
               const isSelected = selectedMonthDay === day.dateStr
-              let bg = 'transparent', border = 'transparent'
+              let bg = SUBCARD_BG, border = BORDER
               if (day.hasDone) { bg = ACCENT_GREEN_SOFT; border = '#B7EBD3' }
               else if (day.hasPlan) { bg = '#FFF3D6'; border = '#FFDF9E' }
               if (isSelected) border = PRIMARY
               return (
                 <div key={day.dateStr}
                   onClick={() => setSelectedMonthDay(isSelected ? null : day.dateStr)}
-                  style={{ aspectRatio:'1',borderRadius:8,background:bg,
+                  style={{ aspectRatio:'1',minHeight:38,borderRadius:9,background:bg,
                     border:`1.5px solid ${isT&&!isSelected?PRIMARY:border}`,
                     display:'flex',flexDirection:'column',alignItems:'center',
                     justifyContent:'center',cursor:'pointer',gap:2,
                     outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:1 }}>
-                  <span style={{ fontSize:11,fontWeight: isT?700:600,
+                  <span style={{ fontSize:12,fontWeight: isT?700:600,
                     color: day.hasDone?ACCENT_GREEN_TEXT:day.hasPlan?ACCENT_YELLOW_TEXT:isFut?TEXT_MUTED:TEXT_MAIN }}>
                     {day.d}
                   </span>
