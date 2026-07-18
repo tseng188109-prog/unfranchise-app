@@ -731,9 +731,10 @@ export default function Daily() {
                   onClick={() => setSelectedMonthDay(isSelected ? null : day.dateStr)}
                   style={{ aspectRatio:'1',minHeight:38,borderRadius:9,background:bg,
                     border:`1.5px solid ${isT&&!isSelected?PRIMARY:border}`,
+                    boxSizing:'border-box', width:'100%',
                     display:'flex',flexDirection:'column',alignItems:'center',
                     justifyContent:'center',cursor:'pointer',gap:2,
-                    outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:1 }}>
+                    outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:-2 }}>
                   <span style={{ fontSize:12,fontWeight: isT?700:600,
                     color: day.hasDone?ACCENT_GREEN_TEXT:day.hasPlan?ACCENT_YELLOW_TEXT:isFut?TEXT_MUTED:TEXT_MAIN }}>
                     {day.d}
