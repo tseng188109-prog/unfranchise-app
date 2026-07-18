@@ -57,19 +57,55 @@ export default function CustomerEdit() {
   const [form, setForm] = useState(null)
   const [errors, setErrors] = useState({})
 
+  // 連結互動名單（選填）
+  const [contacts, setContacts] = useState([])
+  const [contactSearch, setContactSearch] = useState('')
+  const [linkedContactId, setLinkedContactId] = useState(null)
+  const [linkedContactName, setLinkedContactName] = useState('')
+
   useEffect(() => { fetchCustomer() }, [id])
+
+  useEffect(() => {
+    async function fetchContacts() {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data } = await supabase.from('contacts')
+        .select('id,name,occupation').eq('user_id', user.id).eq('is_archived', false).order('name')
+      setContacts(data || [])
+    }
+    fetchContacts()
+  }, [])
 
   async function fetchCustomer() {
     const { data } = await supabase.from('customers').select('*').eq('id', id).single()
-    if (data) setForm({
-      name: data.name || '',
-      phone: data.phone || '',
-      occupation: data.occupation || '',
-      birthday: data.birthday || '',
-      carrier: data.carrier || '',
-      address: data.address || '',
-      email: data.email || '',
-    })
+    if (data) {
+      setForm({
+        name: data.name || '',
+        phone: data.phone || '',
+        occupation: data.occupation || '',
+        birthday: data.birthday || '',
+        carrier: data.carrier || '',
+        address: data.address || '',
+        email: data.email || '',
+      })
+      if (data.contact_id) {
+        setLinkedContactId(data.contact_id)
+        const { data: linkedContact } = await supabase.from('contacts')
+          .select('name').eq('id', data.contact_id).single()
+        if (linkedContact) setLinkedContactName(linkedContact.name)
+      }
+    }
+  }
+
+  function selectContact(c) {
+    setLinkedContactId(c.id)
+    setLinkedContactName(c.name)
+    setContactSearch(c.name)
+  }
+
+  function clearLinkedContact() {
+    setLinkedContactId(null)
+    setLinkedContactName('')
+    setContactSearch('')
   }
 
   function set(key, val) {
@@ -94,6 +130,7 @@ export default function CustomerEdit() {
       carrier: form.carrier.trim() || null,
       address: form.address.trim() || null,
       email: form.email.trim() || null,
+      contact_id: linkedContactId || null,
     }).eq('id', id)
     setSaving(false)
     if (!error) navigate(`/customers/${id}`)
@@ -148,6 +185,44 @@ export default function CustomerEdit() {
           <p style={{ fontSize:12, color:PRIMARY, margin:0, lineHeight:1.6 }}>
             除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
           </p>
+        </div>
+
+        {/* 連結互動名單（選填） */}
+        <div style={{ marginBottom:16, position:'relative' }}>
+          <label style={lb}>
+            連結互動名單 <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:400 }}>選填</span>
+          </label>
+          {linkedContactId ? (
+            <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
+              borderRadius:12, padding:'10px 12px' }}>
+              <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1 }}>
+                ✓ 已連結：{linkedContactName}
+              </span>
+              <button onClick={clearLinkedContact}
+                style={{ fontSize:12, color:TEXT_SECONDARY, background:'none', border:'none', cursor:'pointer' }}>
+                取消連結
+              </button>
+            </div>
+          ) : (
+            <input value={contactSearch}
+              onChange={e => setContactSearch(e.target.value)}
+              placeholder="搜尋互動名單裡的聯絡人姓名..." style={inp} />
+          )}
+          {contactSearch && !linkedContactId && (
+            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff',
+              border:`1px solid ${BORDER}`, borderRadius:12, zIndex:50, maxHeight:160, overflowY:'auto',
+              boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
+              {contacts.filter(c => c.name.includes(contactSearch)).map(c => (
+                <button key={c.id} onClick={() => selectContact(c)}
+                  style={{ display:'flex', justifyContent:'space-between', width:'100%', padding:'10px 12px',
+                    background:'none', border:'none', borderBottom:`1px solid ${BORDER}`,
+                    textAlign:'left', cursor:'pointer', fontSize:14, color:TEXT_MAIN }}>
+                  <span>{c.name}</span>
+                  {c.occupation && <span style={{ fontSize:12, color:TEXT_MUTED }}>{c.occupation}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 姓名 */}

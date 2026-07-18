@@ -8,6 +8,7 @@ import {
 import LoadingSpinner from './LoadingSpinner'
 
 const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
 const TEXT_MAIN = '#132A4D'
 const TEXT_MUTED = '#9FAEC2'
 const TEXT_SECONDARY = '#7C8CA3'
@@ -24,6 +25,8 @@ function avatarBg(name) {
   let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
   return colors[n % colors.length]
 }
+function getEggColor(t) { return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B82F6':t==='生雞蛋'?'#22C55E':'#9CA3AF' }
+function getEggBg(t) { return t==='茶葉蛋'?'#FFF7ED':t==='荷包蛋'?'#EFF6FF':t==='生雞蛋'?'#F0FDF4':'#F9FAFB' }
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
@@ -67,6 +70,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [linkedContact, setLinkedContact] = useState(null)
 
   useEffect(() => { if (id) fetchData() }, [id])
 
@@ -74,8 +78,18 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     setLoading(true)
     setTab('tx')
     setShowForm(false)
+    setLinkedContact(null)
     const { data: c } = await supabase.from('customers').select('*').eq('id', id).single()
-    if (c) { setCustomer(c); setReminderDate(c.repurchase_reminder || '') }
+    if (c) {
+      setCustomer(c)
+      setReminderDate(c.repurchase_reminder || '')
+      if (c.contact_id) {
+        const { data: ct } = await supabase.from('contacts')
+          .select('id,name,egg_type,need_level,action_type,occupation')
+          .eq('id', c.contact_id).single()
+        if (ct) setLinkedContact(ct)
+      }
+    }
     const { data: tx } = await supabase.from('transactions')
       .select('*').eq('customer_id', id).order('date', { ascending: false })
     if (tx) setTransactions(tx)
@@ -340,6 +354,34 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
 
         {tab === 'info' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {linkedContact && (
+              <div style={{ display:'flex', alignItems:'center', gap:10,
+                background:PRIMARY_SOFT, borderRadius:10, padding:'10px 12px' }}>
+                <div style={{ flex:1 }}>
+                  <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:'0 0 4px', fontWeight:600 }}>互動名單關係</p>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                    {linkedContact.egg_type && (
+                      <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:8,
+                        background:getEggBg(linkedContact.egg_type), color:getEggColor(linkedContact.egg_type) }}>
+                        {linkedContact.egg_type}
+                      </span>
+                    )}
+                    {linkedContact.need_level && (
+                      <span style={{ fontSize:12, color:TEXT_MAIN }}>{linkedContact.need_level}</span>
+                    )}
+                    {linkedContact.action_type && (
+                      <span style={{ fontSize:12, color:TEXT_MUTED }}>· {linkedContact.action_type}</span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => navigate(`/contacts/${linkedContact.id}`)}
+                  style={{ fontSize:12, color:PRIMARY, background:'#fff', border:`1px solid ${BORDER}`,
+                    borderRadius:8, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
+                  查看互動名單
+                </button>
+              </div>
+            )}
+
             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between',
               background:SUBCARD_BG, borderRadius:10, padding:'10px 12px', gap:8 }}>
               <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>

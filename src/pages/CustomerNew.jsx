@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
@@ -15,6 +15,7 @@ const ACCENT_YELLOW_TEXT = '#9A6A16'
 const DANGER = '#E0454A'
 const DANGER_SOFT = '#FDE2E2'
 const BORDER = '#F0F1F4'
+const SUBCARD_BG = '#F5F8FC'
 
 export default function CustomerNew() {
   const navigate = useNavigate()
@@ -25,9 +26,39 @@ export default function CustomerNew() {
   })
   const [errors, setErrors] = useState({})
 
+  // 連結互動名單（選填）
+  const [contacts, setContacts] = useState([])
+  const [contactSearch, setContactSearch] = useState('')
+  const [linkedContactId, setLinkedContactId] = useState(null)
+  const [linkedContactName, setLinkedContactName] = useState('')
+
+  useEffect(() => {
+    async function fetchContacts() {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data } = await supabase.from('contacts')
+        .select('id,name,occupation').eq('user_id', user.id).eq('is_archived', false).order('name')
+      setContacts(data || [])
+    }
+    fetchContacts()
+  }, [])
+
   function set(key, val) {
     setForm(p => ({ ...p, [key]: val }))
     setErrors(e => ({ ...e, [key]: '', _ref: '' }))
+  }
+
+  function selectContact(c) {
+    setLinkedContactId(c.id)
+    setLinkedContactName(c.name)
+    setContactSearch(c.name)
+    // 如果姓名還沒填，順便帶入
+    if (!form.name.trim()) set('name', c.name)
+  }
+
+  function clearLinkedContact() {
+    setLinkedContactId(null)
+    setLinkedContactName('')
+    setContactSearch('')
   }
 
   async function handleSave() {
@@ -52,6 +83,7 @@ export default function CustomerNew() {
       carrier: form.carrier.trim() || null,
       address: form.address.trim() || null,
       email: form.email.trim() || null,
+      contact_id: linkedContactId || null,
     })
     setSaving(false)
     if (!error) navigate('/customers')
@@ -68,6 +100,10 @@ export default function CustomerNew() {
   ]
 
   const hasRef = form.phone.trim() || form.birthday.trim() || form.occupation.trim()
+
+  const filteredContacts = contacts.filter(c =>
+    contactSearch && !linkedContactId && c.name.includes(contactSearch)
+  )
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
@@ -88,6 +124,47 @@ export default function CustomerNew() {
       </div>
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
+
+        {/* 連結互動名單（選填） */}
+        <div style={{ marginBottom:16, position:'relative' }}>
+          <label style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN,
+            display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
+            連結互動名單 <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:400 }}>選填，這位顧客本來就在互動名單裡的話可以連起來</span>
+          </label>
+          {linkedContactId ? (
+            <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
+              borderRadius:12, padding:'10px 12px' }}>
+              <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1 }}>
+                ✓ 已連結：{linkedContactName}
+              </span>
+              <button onClick={clearLinkedContact}
+                style={{ fontSize:12, color:TEXT_SECONDARY, background:'none', border:'none', cursor:'pointer' }}>
+                取消連結
+              </button>
+            </div>
+          ) : (
+            <input value={contactSearch}
+              onChange={e => setContactSearch(e.target.value)}
+              placeholder="搜尋互動名單裡的聯絡人姓名..."
+              style={{ width:'100%', padding:'11px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
+                fontSize:14, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+          )}
+          {filteredContacts.length > 0 && (
+            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff',
+              border:`1px solid ${BORDER}`, borderRadius:12, zIndex:50, maxHeight:160, overflowY:'auto',
+              boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
+              {filteredContacts.map(c => (
+                <button key={c.id} onClick={() => selectContact(c)}
+                  style={{ display:'flex', justifyContent:'space-between', width:'100%', padding:'10px 12px',
+                    background:'none', border:'none', borderBottom:`1px solid ${BORDER}`,
+                    textAlign:'left', cursor:'pointer', fontSize:14, color:TEXT_MAIN }}>
+                  <span>{c.name}</span>
+                  {c.occupation && <span style={{ fontSize:12, color:TEXT_MUTED }}>{c.occupation}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* 參照欄位提示 */}
         <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px',

@@ -8,6 +8,7 @@ import {
 import LoadingSpinner from './LoadingSpinner'
 
 const PRIMARY = '#1668E3'
+const PRIMARY_SOFT = '#EEF3FB'
 const TEXT_MAIN = '#132A4D'
 const TEXT_MUTED = '#9FAEC2'
 const TEXT_SECONDARY = '#7C8CA3'
@@ -63,17 +64,30 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
 
   const [editingLogId, setEditingLogId] = useState(null)
   const [editNote, setEditNote] = useState('')
+  const [linkedCustomer, setLinkedCustomer] = useState(null)
 
   useEffect(() => { if (id) fetchContact() }, [id])
 
   async function fetchContact() {
     setLoading(true)
     setTab('logs')
+    setLinkedCustomer(null)
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single()
     if (data) setContact(data)
     const { data: logData } = await supabase.from('contact_logs')
       .select('*').eq('contact_id', id).order('date', { ascending: false })
     if (logData) setLogs(logData)
+
+    // 反查：這位聯絡人有沒有對應的顧客檔案（有消費紀錄）
+    const { data: custData } = await supabase.from('customers')
+      .select('id').eq('contact_id', id).maybeSingle()
+    if (custData) {
+      const { data: txData } = await supabase.from('transactions')
+        .select('type,points,amount,cost').eq('customer_id', custData.id)
+      const totalBV = (txData||[]).filter(t=>t.type==='BV').reduce((s,t)=>s+Number(t.points),0)
+      const totalProfit = (txData||[]).reduce((s,t)=>s+((t.amount||0)-(t.cost||0)),0)
+      setLinkedCustomer({ id: custData.id, totalBV, totalProfit })
+    }
     setLoading(false)
   }
 
@@ -291,6 +305,23 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
 
         {tab === 'info' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {linkedCustomer && (
+              <div style={{ display:'flex', alignItems:'center', gap:10,
+                background:PRIMARY_SOFT, borderRadius:10, padding:'10px 12px' }}>
+                <div style={{ flex:1 }}>
+                  <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:'0 0 4px', fontWeight:600 }}>顧客消費紀錄</p>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:13, color:TEXT_MAIN, fontWeight:700 }}>{linkedCustomer.totalBV.toFixed(0)} BV</span>
+                    <span style={{ fontSize:12, color:ACCENT_GREEN_TEXT }}>NT${linkedCustomer.totalProfit.toLocaleString()} 獲利</span>
+                  </div>
+                </div>
+                <button onClick={() => navigate(`/customers/${linkedCustomer.id}`)}
+                  style={{ fontSize:12, color:PRIMARY, background:'#fff', border:`1px solid ${BORDER}`,
+                    borderRadius:8, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
+                  查看顧客檔案
+                </button>
+              </div>
+            )}
             {infoRows.length === 0 ? (
               <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>還沒有補充資料</p>
             ) : infoRows.map(r => (
