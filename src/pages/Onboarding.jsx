@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { STARTER_TASKS } from './taskDefinitions'
 import {
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconUsers, IconRobot,
@@ -27,16 +28,6 @@ const DAILY_ITEMS = [
   { Icon: IconHeadphones, key: 'listen_recording',     label: '聽錄音',     desc: '每天至少聽一份錄音，建立正確心態' },
   { Icon: IconCamera, key: 'ig_story',             label: 'IG 限動',    desc: '透過社群媒體讓更多人認識你的事業' },
   { Icon: IconUsers, key: 'daily_3_contacts',     label: '每日3互動', desc: '每天主動聯繫名單中的人，這是業績的根本' },
-]
-
-// 這份清單必須跟 Dashboard.jsx 的 STARTER_TASKS 完全一致，
-// 不然新用戶在引導流程看到一份任務，進首頁又看到另一份，會搞不清楚狀況
-const STARTER_TASK_LABELS = [
-  '新增第一筆互動名單',
-  '完成一次打卡',
-  '一週內累積打卡 3 天',
-  '新增第一筆互動紀錄',
-  '設定你的目標宣言',
 ]
 
 export default function Onboarding({ user, onComplete }) {
@@ -317,8 +308,8 @@ export default function Onboarding({ user, onComplete }) {
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: '0 0 8px', fontWeight: 700 }}>
                 你的新手起步任務
               </p>
-              {STARTER_TASK_LABELS.map((t, i) => (
-                <div key={i} style={{
+              {STARTER_TASKS.map((t) => (
+                <div key={t.id} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '5px 0',
                 }}>
@@ -327,7 +318,7 @@ export default function Onboarding({ user, onComplete }) {
                     border: '1.5px solid rgba(255,255,255,0.5)',
                     flexShrink: 0,
                   }} />
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>{t}</span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>{t.label}</span>
                 </div>
               ))}
             </div>

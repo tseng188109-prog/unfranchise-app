@@ -5,6 +5,7 @@ import {
   IconCheck, IconCalendar,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { DAILY_TASKS } from './taskDefinitions'
 
 const PRIMARY = '#1668E3'
 const PRIMARY_SOFT = '#EEF3FB'
@@ -46,16 +47,6 @@ function getWeekMonday() {
   monday.setDate(today.getDate() + diff)
   return monday.toLocaleDateString('sv-SE')
 }
-
-const DAILY_TASKS = [
-  { key: 'goal_declaration',     label: '目標宣言' },
-  { key: 'backend_announcement', label: '後台公告' },
-  { key: 'respond_social',       label: '回應社群' },
-  { key: 'daily_practice',       label: '每日練習' },
-  { key: 'listen_recording',     label: '聽錄音' },
-  { key: 'ig_story',             label: 'IG 限動' },
-  { key: 'daily_3_contacts',     label: '每日3互動' },
-]
 
 const MY_ID = '2a59a0ae-9877-45dd-b26b-66f8ed6dff74'
 

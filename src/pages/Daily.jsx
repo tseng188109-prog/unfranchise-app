@@ -7,6 +7,7 @@ import {
   IconCheck, IconPlus, IconPencil, IconTrash,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { DAILY_TASKS, WEEKLY_TASKS, WEEKLY_COUNTERS, MONTH_ITEMS, COUNTER_COLORS } from './taskDefinitions'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -28,41 +29,6 @@ function toDateStr(d) {
   return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 }
 function today() { return toDateStr(new Date()) }
-
-const DAILY_TASKS = [
-  { key: 'goal_declaration', label: '目標宣言', Icon: IconTarget },
-  { key: 'backend_announcement', label: '後台公告/管理報告', Icon: IconSpeakerphone, url: 'https://tw.unfranchise.com' },
-  { key: 'respond_social', label: '回應臉書IDEA/LINE', Icon: IconMessageCircle, social: true },
-  { key: 'daily_practice', label: '每日練習', Icon: IconBook, internalPath: '/daily-practice' },
-  { key: 'listen_recording', label: '聽錄音', Icon: IconHeadphones, internalPath: '/recording' },
-  { key: 'ig_story', label: 'IG 限動', Icon: IconCamera, url: 'https://www.instagram.com' },
-  { key: 'daily_3_contacts', label: '每日3互動', Icon: IconUsers, special: true, toContacts: true },
-]
-
-const WEEKLY_COUNTERS = [
-  { key: 'bv_share',      label: 'BV 分享',     mode: 'product' },
-  { key: 'ibv_share',     label: 'IBV 分享',    mode: 'product' },
-  { key: 'meetup',        label: '見面',         mode: 'contact' },
-  { key: 'show_business', label: '展示生意',     mode: 'contact' },
-  { key: 'sell_ticket',   label: '賣票',         mode: 'contact' },
-  { key: 'stranger',      label: '與陌生人互動', mode: 'stranger' },
-]
-
-const WEEKLY_TASKS = [
-  { key: 'contact_referrer', label: '與推薦人聯絡' },
-  { key: 'coring', label: 'Coring 培訓' },
-]
-
-const MONTH_ITEMS = [
-  { key: 'new_product', label: '認識新產品', placeholder: '產品名稱' },
-  { key: 'gmtss',       label: 'GMTSS 課程', placeholder: '課程名稱' },
-]
-
-const COUNTER_COLORS = {
-  bv_share:      '#1668E3', ibv_share: '#2C9C6A',
-  meetup:        '#D23E8C', show_business: '#9A6A16',
-  sell_ticket:   '#7C5CD6', stranger: '#17A2A2',
-}
 
 function getWeekStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')

@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
 import LoadingSpinner from './LoadingSpinner'
+import { DAILY_TASKS, STARTER_TASKS } from './taskDefinitions'
 import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
@@ -34,23 +35,6 @@ const CARD_BG = '#fff'
 const PAGE_BG = '#fff'
 const SUBCARD_BG = '#F5F8FC'
 
-const DAILY_TASKS = [
-  { key: 'goal_declaration', label: '目標宣言', Icon: IconTarget },
-  { key: 'backend_announcement', label: '後台公告/管理報告', Icon: IconSpeakerphone, url: 'https://tw.unfranchise.com' },
-  { key: 'respond_social', label: '回應臉書IDEA/LINE', Icon: IconMessageCircle, social: true },
-  { key: 'daily_practice', label: '每日練習', Icon: IconBook, internalPath: '/daily-practice' },
-  { key: 'listen_recording', label: '聽錄音', Icon: IconHeadphones, internalPath: '/recording' },
-  { key: 'ig_story', label: 'IG 限動', Icon: IconCamera, url: 'https://www.instagram.com' },
-  { key: 'daily_3_contacts', label: '每日3互動', Icon: IconUsers, special: true, toContacts: true },
-]
-
-const STARTER_TASKS = [
-  { id: 'has_contact',      label: '新增第一筆互動名單',     Icon: IconUsers },
-  { id: 'has_checkin',      label: '完成一次打卡',           Icon: IconTarget },
-  { id: 'week3_checkin',    label: '一週內累積打卡 3 天',    Icon: IconTrendingUp },
-  { id: 'has_log',          label: '新增第一筆互動紀錄',     Icon: IconMessageCircle },
-  { id: 'has_declaration',  label: '設定你的目標宣言',       Icon: IconTarget },
-]
 
 function toDateStr(d) {
   return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
