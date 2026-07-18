@@ -342,6 +342,19 @@ export default function Team() {
         @media (min-width: 1024px) {
           .dash-container { max-width: 720px; }
         }
+        .team-body-container { max-width: 430px; margin: 0 auto; }
+        @media (min-width: 1024px) {
+          .team-body-container { max-width: 1200px; margin: 0; padding-left: 24px; padding-right: 24px; }
+          .team-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-areas: "main sidebar";
+            gap: 20px;
+            align-items: start;
+          }
+          .team-main { grid-area: main; }
+          .team-sidebar { grid-area: sidebar; }
+        }
       `}</style>
 
       {/* Header：跟 Partners 同一套漸層語言，但用不同色相做出「這是戰隊」的區隔 */}
@@ -361,7 +374,7 @@ export default function Team() {
         </div>
       </div>
 
-      <div className="dash-container" style={{ padding:'16px',display:'flex',flexDirection:'column',gap:10 }}>
+      <div className="team-body-container" style={{ padding:'16px',display:'flex',flexDirection:'column',gap:10 }}>
 
         {!team ? (
           <>
@@ -435,30 +448,80 @@ export default function Team() {
             )}
           </>
         ) : (
-          <>
-            {/* 邀請碼卡片 */}
-            <div style={{ background:SUBCARD_BG,border:`1px solid ${BORDER}`,borderRadius:14,padding:'12px 16px' }}>
-              <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                <span style={{ fontSize:12,color:TEXT_MUTED }}>邀請碼</span>
-                <span style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,letterSpacing:3,flex:1 }}>
-                  {team.invite_code}
-                </span>
-                {isCreator && (
-                  <button onClick={handleRegenCode} disabled={actionLoading}
-                    style={{ color:TEXT_MUTED,background:'none',border:'none',cursor:'pointer',marginRight:4,display:'flex' }}>
-                    <IconRefresh size={15} stroke={1.9} />
+          <div className="team-grid">
+            <div className="team-sidebar" style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:10 }}>
+              {/* 邀請碼卡片 */}
+              <div style={{ background:SUBCARD_BG,border:`1px solid ${BORDER}`,borderRadius:14,padding:'12px 16px' }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                  <span style={{ fontSize:12,color:TEXT_MUTED }}>邀請碼</span>
+                  <span style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,letterSpacing:3,flex:1 }}>
+                    {team.invite_code}
+                  </span>
+                  {isCreator && (
+                    <button onClick={handleRegenCode} disabled={actionLoading}
+                      style={{ color:TEXT_MUTED,background:'none',border:'none',cursor:'pointer',marginRight:4,display:'flex' }}>
+                      <IconRefresh size={15} stroke={1.9} />
+                    </button>
+                  )}
+                  <button onClick={copyInviteCode}
+                    style={{ padding:'5px 12px',borderRadius:8,border:`1px solid ${PRIMARY}`,
+                      background: copied?PRIMARY:'#fff',
+                      color: copied?'#fff':PRIMARY,
+                      fontSize:12,fontWeight:700,cursor:'pointer' }}>
+                    {copied ? '已複製' : '複製'}
                   </button>
-                )}
-                <button onClick={copyInviteCode}
-                  style={{ padding:'5px 12px',borderRadius:8,border:`1px solid ${PRIMARY}`,
-                    background: copied?PRIMARY:'#fff',
-                    color: copied?'#fff':PRIMARY,
-                    fontSize:12,fontWeight:700,cursor:'pointer' }}>
-                  {copied ? '已複製' : '複製'}
-                </button>
+                </div>
               </div>
+
+              {/* 我的名次 */}
+              {(() => {
+                const selfIdx = members.findIndex(m => m.user_id === user.id)
+                const selfMember = selfIdx >= 0 ? members[selfIdx] : null
+                if (!selfMember) return null
+                const selfRankStyle = RANK_STYLE[selfIdx]
+                return (
+                  <div style={{ background: selfRankStyle ? selfRankStyle.bg : PRIMARY_SOFT,
+                    border:`1.5px solid ${PRIMARY}`, borderRadius:14, padding:'14px 16px' }}>
+                    <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'0 0 8px',fontWeight:600 }}>我的名次</p>
+                    <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:8 }}>
+                      <span style={{ fontSize:26 }}>{rankEmoji(selfIdx)}</span>
+                      <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>
+                        本週 {selfMember.weekCheckinDays}/7 天打卡
+                      </span>
+                    </div>
+                    {selfMember.streak >= 2 && (
+                      <span style={{ fontSize:11,color:'#fff',background:STREAK_COLOR,fontWeight:700,
+                        borderRadius:99,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:3 }}>
+                        <IconFlame size={11} stroke={2} /> 連續 {selfMember.streak} 天
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* 戰隊整體本週打卡率 */}
+              {(() => {
+                const teamAvgRate = members.length > 0
+                  ? Math.round(members.reduce((s,m) => s + (m.weekCheckinDays/7), 0) / members.length * 100)
+                  : 0
+                const rateColor = teamAvgRate >= 70 ? ACCENT_GREEN : teamAvgRate >= 40 ? ACCENT_YELLOW : DANGER
+                return (
+                  <div style={{ background:'#fff',border:`1px solid ${BORDER}`,borderRadius:14,padding:'14px 16px' }}>
+                    <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'0 0 10px',fontWeight:600 }}>戰隊本週打卡率</p>
+                    <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                      <div style={{ flex:1,height:8,background:BORDER,borderRadius:99,overflow:'hidden' }}>
+                        <div style={{ height:'100%',borderRadius:99,width:`${teamAvgRate}%`,background:rateColor,
+                          transition:'width 0.5s ease' }} />
+                      </div>
+                      <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{teamAvgRate}%</span>
+                    </div>
+                    <p style={{ fontSize:11,color:TEXT_MUTED,margin:'8px 0 0' }}>全體成員本週打卡完成度平均</p>
+                  </div>
+                )
+              })()}
             </div>
 
+            <div className="team-main">
             {/* 排行榜 */}
             <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
               {members.map((m, idx) => {
@@ -659,7 +722,8 @@ export default function Team() {
                 </button>
               )}
             </div>
-          </>
+            </div>
+          </div>
         )}
       </div>
 
