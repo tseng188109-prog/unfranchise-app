@@ -161,16 +161,19 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     setShowSampleForm(false)
     setSampleForm({ product_name:'', portions:'', share_date: today() })
     fetchContact()
+    onChanged?.()
   }
 
   async function toggleSampleFollowup(sampleId, field, current) {
     await supabase.from('sample_tracking').update({ [field]: !current }).eq('id', sampleId)
     setSamples(p => p.map(s => s.id === sampleId ? { ...s, [field]: !current } : s))
+    onChanged?.()
   }
 
   async function setSampleResult(sampleId, result) {
     await supabase.from('sample_tracking').update({ result }).eq('id', sampleId)
     setSamples(p => p.map(s => s.id === sampleId ? { ...s, result } : s))
+    onChanged?.()
   }
 
   function openEditSample(s) {
@@ -189,6 +192,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     setEditSampleSaving(false)
     setEditSampleTarget(null)
     fetchContact()
+    onChanged?.()
   }
 
   async function handleDeleteSample() {
@@ -198,6 +202,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     setDeleteSampleLoading(false)
     setDeleteSampleTarget(null)
     fetchContact()
+    onChanged?.()
   }
 
   async function handleArchive() {

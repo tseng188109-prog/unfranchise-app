@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
-  IconPin, IconArchive, IconRefresh, IconUsers, IconX, IconTrash,
+  IconPin, IconArchive, IconRefresh, IconUsers, IconX, IconTrash, IconFlask,
 } from '@tabler/icons-react'
 import ContactPanel from './ContactPanel'
 import LoadingSpinner from './LoadingSpinner'
@@ -84,6 +84,9 @@ export default function Contacts() {
   // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
   const [selectedId, setSelectedId] = useState(null)
 
+  // 哪些聯絡人目前有「進行中」的試用品（還沒設結果，或是「考慮中」）：列表小圖示用
+  const [activeSampleContactIds, setActiveSampleContactIds] = useState(new Set())
+
   // CSV 匯入狀態
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])
@@ -98,6 +101,7 @@ export default function Contacts() {
 
   useEffect(() => { if (user) fetchContacts() }, [user, showArchived])
   useEffect(() => { if (user && sortBy === 'last_contact') fetchRealLastContact() }, [user, sortBy])
+  useEffect(() => { if (user) fetchActiveSamples() }, [user])
 
   // 排序/篩選變動時寫回 sessionStorage，離開頁面再回來會維持原設定
   useEffect(() => { try { sessionStorage.setItem('contacts_sortBy', sortBy) } catch {} }, [sortBy])
@@ -123,6 +127,17 @@ export default function Contacts() {
     const { data } = await query
     if (data) setContacts(data)
     setLoading(false)
+  }
+
+  // 哪些聯絡人有「進行中」的試用品（result 是 null 或「考慮中」），列表小圖示用
+  async function fetchActiveSamples() {
+    const { data } = await supabase
+      .from('sample_tracking').select('contact_id,result').eq('user_id', user.id)
+    if (!data) return
+    const ids = new Set(
+      data.filter(s => !s.result || s.result === '考慮中').map(s => s.contact_id)
+    )
+    setActiveSampleContactIds(ids)
   }
 
   // 「最近互動」排序：直接查 contact_logs 表，取每位聯絡人最新一筆互動紀錄的日期
@@ -382,6 +397,13 @@ async function handleImport() {
                 {c.egg_type}
               </span>
             )}
+            {!showArchived && activeSampleContactIds.has(c.id) && (
+              <span onClick={e => { e.stopPropagation(); navigate('/samples') }}
+                title="有進行中的試用品，點擊前往試用品頁"
+                style={{ display:'flex', alignItems:'center', cursor:'pointer', color:ACCENT_GREEN_TEXT }}>
+                <IconFlask size={13} stroke={1.9} />
+              </span>
+            )}
           </div>
           <div style={{ fontSize:12, color:TEXT_SECONDARY, display:'flex', gap:4 }}>
             {c.occupation && <span>{c.occupation}</span>}
@@ -592,7 +614,7 @@ async function handleImport() {
             <ContactPanel
               id={selectedId}
               embedded
-              onChanged={fetchContacts}
+              onChanged={() => { fetchContacts(); fetchActiveSamples() }}
               onArchived={() => { setSelectedId(null); fetchContacts() }}
             />
           ) : (
