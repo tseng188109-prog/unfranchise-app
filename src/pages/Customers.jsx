@@ -280,10 +280,10 @@ export default function Customers() {
       <div
         onMouseDown={onPressStart} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
         onTouchStart={onPressStart} onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
-        onClick={() => openCustomer(c)}
+        onClick={() => showArchived ? setMenuTarget(c) : openCustomer(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
           background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
-          borderBottom:`1px solid ${BORDER}`, cursor: showArchived ? 'default' : 'pointer', userSelect:'none' }}>
+          borderBottom:`1px solid ${BORDER}`, cursor:'pointer', userSelect:'none' }}>
         <div style={{ width:44, height:44, borderRadius:RADIUS.circle, background:avatarBg(c.name),
           display:'flex', alignItems:'center', justifyContent:'center',
           color:'#fff', fontWeight:700, fontSize:17, flexShrink:0 }}>
@@ -404,7 +404,7 @@ export default function Customers() {
             <div style={{ background:'#FFF9E9', padding:'10px 16px',
               fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
               <IconArchive size={15} stroke={1.9} />
-              <span>封存名單 · 長按可復原顧客或永久刪除</span>
+              <span>封存名單 · 點擊可復原顧客或永久刪除</span>
             </div>
           )}
           {loading ? (

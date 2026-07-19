@@ -421,11 +421,11 @@ async function handleImport() {
         onMouseDown={onPressStart} onMouseUp={onPressEnd}
         onMouseLeave={onPressEnd} onTouchStart={onPressStart}
         onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
-        onClick={() => openContact(c)}
+        onClick={() => showArchived ? setMenuTarget(c) : openContact(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
           background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
           borderBottom:`1px solid ${BORDER}`,
-          cursor: showArchived ? 'default' : 'pointer', userSelect:'none' }}>
+          cursor:'pointer', userSelect:'none' }}>
         <Avatar name={c.name} size={42} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
@@ -602,7 +602,7 @@ async function handleImport() {
             <div style={{ background:'#FFF9E9', padding:'10px 16px',
               fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
               <IconArchive size={15} stroke={1.9} />
-              <span>封存名單 · 長按可復原聯絡人</span>
+              <span>封存名單 · 點擊可復原聯絡人</span>
             </div>
           )}
 
