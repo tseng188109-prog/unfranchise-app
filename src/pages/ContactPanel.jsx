@@ -396,11 +396,24 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                         )}
 
                         {isConsidering && s.next_followup_date && (
-                          <p style={{ fontSize:11, color:TEXT_MUTED, margin:0 }}>
+                          <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 6px' }}>
                             下次追蹤：{formatSampleDue(s.next_followup_date, today())}
                             <span style={{ color:PRIMARY, marginLeft:6, cursor:'pointer' }}
                               onClick={() => navigate('/samples')}>去試用品頁追蹤 →</span>
                           </p>
+                        )}
+
+                        {/* 更改狀態：只要已經有結果（成交／考慮中／轉介），隨時都能改成別的，不會卡死 */}
+                        {!isActive && (
+                          <div style={{ display:'flex', gap:6 }}>
+                            {SAMPLE_RESULTS.map(r => (
+                              <button key={r} onClick={() => setSampleResult(s.id, r)}
+                                style={{ flex:1, padding:'5px 4px', borderRadius:RADIUS.xs, border:'none',
+                                  fontSize:10, fontWeight:600, cursor:'pointer',
+                                  background: s.result===r ? PRIMARY : '#fff',
+                                  color: s.result===r ? '#fff' : TEXT_SECONDARY }}>{r}</button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     )

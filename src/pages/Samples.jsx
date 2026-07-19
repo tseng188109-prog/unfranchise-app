@@ -434,7 +434,13 @@ export default function Samples() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
 
+                {/* 更改狀態：只要已經有結果（成交／考慮中／轉介），隨時都能改成別的，不會卡死 */}
+                {!isActive && (
+                  <div style={{ marginTop: isConsidering ? 10 : 0 }}>
+                    <p style={{ fontSize:10, color:TEXT_MUTED, margin:'0 0 6px' }}>更改狀態</p>
                     <div style={{ display:'flex',gap:6 }}>
                       {SAMPLE_RESULTS.map(r => (
                         <button key={r} onClick={() => setResult(s.id, r)}
