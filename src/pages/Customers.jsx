@@ -25,63 +25,8 @@ function isDesktopViewport() {
   try { return window.matchMedia('(min-width: 1024px)').matches } catch { return false }
 }
 
-// ── CSV 工具 ──────────────────────────────────────────
-function parseCSV(text) {
-  text = text.replace(/^\uFEFF/, '')
-  const lines = text.trim().split(/\r?\n/)
-  if (lines.length < 2) return []
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
-  return lines.slice(1).map(line => {
-    const vals = line.split(',')
-    const row = {}
-    headers.forEach((h, i) => {
-      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'').replace(/\r$/, '')
-    })
-    return row
-  }).filter(r => r.name && r.name.trim())
-}
-
-function parseDate(val) {
-  if (!val) return ''
-  val = val.trim()
-  if (!val) return ''
-  if (/\/00|-00|^1900/.test(val)) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
-  const m1 = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-  if (m1) {
-    const [, y, mo, d] = m1
-    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
-    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  const m2 = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
-  if (m2) {
-    const [, ry, mo, d] = m2
-    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
-    return `${parseInt(ry)+1911}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  const m3 = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (m3) {
-    const [, y, mo, d] = m3
-    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
-    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  return ''
-}
-
-function parseBirthday(val) {
-  if (!val) return ''
-  val = val.trim()
-  if (!val) return ''
-  if (/^\d{2}-\d{2}$/.test(val)) return val
-  const match = val.match(/^(\d{1,2})[-\/](\d{1,2})$/)
-  if (match) {
-    const [, m, d] = match
-    return `${m.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  const fullDate = parseDate(val)
-  if (fullDate) return fullDate.slice(5)
-  return ''
-}
+// ── CSV 工具：統一從共用檔案 import ──────────────────
+import { parseCSV, parseDate, parseBirthday, normalizePhone } from './csvUtils'
 
 const CUSTOMERS_TEMPLATE = `name,phone,occupation,birthday,repurchase_reminder
 王小明,0912-345678,上班族,06-15,2025-08-01
@@ -187,11 +132,15 @@ export default function Customers() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const rawRows = parseCSV(ev.target.result)
+      const rawRows = parseCSV(ev.target.result).filter(r => r.name && r.name.trim())
       const errors = []
 
       const rows = rawRows.map((r, i) => {
         const parsed = { ...r }
+
+        if (r.phone) {
+          parsed.phone = normalizePhone(r.phone) || r.phone
+        }
 
         if (r.repurchase_reminder) {
           parsed.repurchase_reminder = parseDate(r.repurchase_reminder) || null
@@ -474,6 +423,7 @@ export default function Customers() {
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 回購日期：2025-08-01 或 2025/8/1 都可以</p>
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 生日：06-15 或 6/15 都可以</p>
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• Excel 空白日期會自動忽略</p>
+              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 電話開頭的 0 被 Excel 吃掉沒關係，系統會自動補回</p>
             </div>
 
             <input ref={fileInputRef} type="file" accept=".csv"

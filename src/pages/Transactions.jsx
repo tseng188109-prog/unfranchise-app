@@ -40,64 +40,7 @@ function formatShortDate(d) {
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
 
-// ── CSV 工具 ──────────────────────────────────────────
-function parseCSV(text) {
-  text = text.replace(/^\uFEFF/, '')
-  const lines = text.trim().split(/\r?\n/)
-  if (lines.length < 2) return []
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
-  return lines.slice(1).map(line => {
-    const vals = []
-    let cur = '', inQuote = false
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (ch === '"') { inQuote = !inQuote }
-      else if (ch === ',' && !inQuote) { vals.push(cur.trim()); cur = '' }
-      else { cur += ch }
-    }
-    vals.push(cur.trim())
-    const row = {}
-    headers.forEach((h, i) => {
-      row[h] = (vals[i] || '').replace(/^"|"$/g,'').replace(/\r$/, '')
-    })
-    return row
-  }).filter(r => r.date && r.product_name && r.type && r.points)
-}
-
-function parseDate(val) {
-  if (!val) return ''
-  val = val.trim()
-  if (!val) return ''
-  if (/\/00|-00|^1900/.test(val)) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
-  const m1 = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-  if (m1) {
-    const [, y, mo, d] = m1
-    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
-    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  const m2 = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
-  if (m2) {
-    const [, ry, mo, d] = m2
-    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
-    return `${parseInt(ry)+1911}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  const m3 = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (m3) {
-    const [, y, mo, d] = m3
-    if (mo==='0'||d==='0'||mo==='00'||d==='00') return ''
-    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-  return ''
-}
-
-function normalizePhone(val) {
-  if (!val) return ''
-  let p = String(val).trim().replace(/[-\s()]/g, '')
-  if (!p) return ''
-  if (/^\d{9}$/.test(p)) p = '0' + p
-  return p
-}
+import { parseCSV, parseDate, normalizePhone } from './csvUtils'
 
 const TRANSACTIONS_TEMPLATE = `date,customer_name,customer_phone,product_name,type,points,amount,cost,is_gift
 2025-06-01,王小明,0912345678,ISOTONIX OPC-3,BV,100,3200,2800,false
@@ -284,6 +227,7 @@ export default function Transactions() {
     const reader = new FileReader()
     reader.onload = ev => {
       const rawRows = parseCSV(ev.target.result)
+        .filter(r => r.date && r.product_name && r.type && r.points)
       const errors = []
       const rows = rawRows.map((r, i) => {
         const parsed = { ...r }

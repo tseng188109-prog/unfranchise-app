@@ -50,63 +50,8 @@ function Avatar({ name, size=40 }) {
   )
 }
 
-// ── CSV 工具 ──────────────────────────────────────────
-function parseCSV(text) {
-  // 移除 BOM
-  text = text.replace(/^\uFEFF/, '')
-  const lines = text.trim().split(/\r?\n/)
-  if (lines.length < 2) return []
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''))
-  return lines.slice(1).map(line => {
-    // 用 split(',') 正確處理空欄位（原本的 regex 會跳過空欄位導致錯位）
-    const vals = line.split(',')
-    const row = {}
-    headers.forEach((h, i) => {
-      row[h] = (vals[i] || '').trim().replace(/^"|"$/g,'').replace(/\r$/, '')
-    })
-    return row
-  }).filter(r => r.name && r.name.trim())
-}
-
-// 解析各種日期格式 → YYYY-MM-DD
-// 支援：2025-07-01 / 2025/7/1 / 2025/07/01 / 114/7/1（民國）
-function parseDate(val) {
-  if (!val) return ''
-  val = val.trim()
-  if (!val) return ''
-
-  // 任何含 /00 或 -00 或 1900 開頭的都直接丟棄
-  if (/\/00|-00|^1900/.test(val)) return ''
-
-  // 已經是 YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
-
-  // YYYY/M/D 或 YYYY/MM/DD
-  const m1 = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-  if (m1) {
-    const [, y, mo, d] = m1
-    if (mo === '0' || d === '0' || mo === '00' || d === '00') return ''
-    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-
-  // 民國 YYY/M/D
-  const m2 = val.match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/)
-  if (m2) {
-    const [, ry, mo, d] = m2
-    if (mo === '0' || d === '0' || mo === '00' || d === '00') return ''
-    return `${parseInt(ry)+1911}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-
-  // YYYY-M-D
-  const m3 = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (m3) {
-    const [, y, mo, d] = m3
-    if (mo === '0' || d === '0' || mo === '00' || d === '00') return ''
-    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
-  }
-
-  return ''
-}
+// ── CSV 工具：統一從共用檔案 import ──────────────────
+import { parseCSV, parseDate, parseBirthday } from './csvUtils'
 
 const CONTACTS_TEMPLATE = `name,occupation,egg_type,need_level,action_type,birthday,next_contact_date
 王小明,上班族,茶葉蛋,大三,直接法,06-15,2025-07-01
@@ -242,7 +187,7 @@ export default function Contacts() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const rawRows = parseCSV(ev.target.result)
+      const rawRows = parseCSV(ev.target.result).filter(r => r.name && r.name.trim())
       const errors = []
 
       // 解析並轉換每一行的日期欄位
