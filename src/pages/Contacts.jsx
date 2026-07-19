@@ -8,28 +8,14 @@ import {
 import ContactPanel from './ContactPanel'
 import LoadingSpinner from './LoadingSpinner'
 
-// 設計系統色碼
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const DANGER_SOFT = '#FDE2E2'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
+// 設計系統色碼：統一從共用檔案 import
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, DANGER_SOFT,
+  BORDER, SUBCARD_BG, RADIUS, getEggColor, getEggBg, avatarBg,
+} from './designTokens'
 
 function today() { return new Date().toISOString().split('T')[0] }
-function getEggColor(t) { return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B82F6':t==='生雞蛋'?'#22C55E':'#9CA3AF' }
-function getEggBg(t) { return t==='茶葉蛋'?'#FFF7ED':t==='荷包蛋'?'#EFF6FF':t==='生雞蛋'?'#F0FDF4':'#F9FAFB' }
-function avatarBg(name) {
-  const colors=['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n=0; for(let i=0;i<name.length;i++) n+=name.charCodeAt(i)
-  return colors[n%colors.length]
-}
 function formatDue(dateStr) {
   if (!dateStr) return ''
   const diff = Math.floor((new Date(today()) - new Date(dateStr)) / 86400000)
@@ -56,7 +42,7 @@ function isDesktopViewport() {
 
 function Avatar({ name, size=40 }) {
   return (
-    <div style={{ width:size,height:size,borderRadius:'50%',background:avatarBg(name||''),
+    <div style={{ width:size,height:size,borderRadius:RADIUS.circle,background:avatarBg(name||''),
       display:'flex',alignItems:'center',justifyContent:'center',
       color:'#fff',fontWeight:700,fontSize:size*0.4,flexShrink:0 }}>
       {name?name[0]:'?'}
@@ -446,7 +432,7 @@ async function handleImport() {
             {c.is_pinned && <IconPin size={12} stroke={2} color={TEXT_MUTED} />}
             <span style={{ fontSize:15, fontWeight:700, color: showArchived ? TEXT_MUTED : TEXT_MAIN }}>{c.name}</span>
             {c.egg_type && (
-              <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
+              <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:RADIUS.xs,
                 background:getEggBg(c.egg_type), color:getEggColor(c.egg_type) }}>
                 {c.egg_type}
               </span>
@@ -537,12 +523,12 @@ async function handleImport() {
           {!showArchived && (
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-                style={{ width:36, height:36, borderRadius:12, background:ACCENT_GREEN_SOFT,
+                style={{ width:36, height:36, borderRadius:RADIUS.md, background:ACCENT_GREEN_SOFT,
                   border:'none', color:ACCENT_GREEN_TEXT, cursor:'pointer',
                   display:'flex', alignItems:'center', justifyContent:'center' }}
                 title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
               <button onClick={e => { e.stopPropagation(); navigate('/contacts/new') }}
-                style={{ width:36, height:36, borderRadius:12, background:PRIMARY,
+                style={{ width:36, height:36, borderRadius:RADIUS.md, background:PRIMARY,
                   border:'none', color:'#fff', cursor:'pointer',
                   display:'flex', alignItems:'center', justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
             </div>
@@ -554,14 +540,14 @@ async function handleImport() {
             style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="搜尋姓名、職業..."
-            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:12,
+            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:RADIUS.md,
               border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG, color:TEXT_MAIN,
               boxSizing:'border-box', outline:'none' }} />
         </div>
 
         <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
           <button onClick={() => { setShowArchived(!showArchived); setEggFilter('全部'); setSearch(''); setSelectedId(null) }}
-            style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:99, border:'none',
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
               background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
               color: showArchived ? '#fff' : TEXT_SECONDARY,
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
@@ -569,7 +555,7 @@ async function handleImport() {
           </button>
           {EGG_FILTERS.map(f => (
             <button key={f} onClick={() => setEggFilter(f)}
-              style={{ padding:'5px 14px', borderRadius:99, border:'none',
+              style={{ padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
                 background: eggFilter===f ? (showArchived ? TEXT_SECONDARY : PRIMARY) : SUBCARD_BG,
                 color: eggFilter===f ? '#fff' : TEXT_SECONDARY,
                 fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
@@ -588,7 +574,7 @@ async function handleImport() {
               { key:'due', label:'建議互動' },
             ].map(s => (
               <button key={s.key} onClick={() => setSortBy(s.key)}
-                style={{ padding:'4px 12px', borderRadius:99, border:'none',
+                style={{ padding:'4px 12px', borderRadius:RADIUS.pill, border:'none',
                   background: sortBy===s.key ? PRIMARY_SOFT : SUBCARD_BG,
                   color: sortBy===s.key ? PRIMARY : TEXT_MUTED,
                   fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
@@ -598,7 +584,7 @@ async function handleImport() {
             {sortBy !== 'default' && (
               <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
                 title={sortDir === 'asc' ? '升冪（點擊切換為降冪）' : '降冪（點擊切換為升冪）'}
-                style={{ width:26, height:26, borderRadius:'50%', border:`1px solid ${BORDER}`,
+                style={{ width:26, height:26, borderRadius:RADIUS.circle, border:`1px solid ${BORDER}`,
                   background:'#fff', color:TEXT_SECONDARY, fontSize:14, fontWeight:700,
                   cursor:'pointer', flexShrink:0,
                   display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -691,7 +677,7 @@ async function handleImport() {
 
             <button onClick={downloadTemplate}
               style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
-                padding:'12px 16px', borderRadius:14, border:`1px dashed ${ACCENT_GREEN}`,
+                padding:'12px 16px', borderRadius:RADIUS.lg, border:`1px dashed ${ACCENT_GREEN}`,
                 background:ACCENT_GREEN_SOFT, marginBottom:16, cursor:'pointer' }}>
               <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
@@ -703,7 +689,7 @@ async function handleImport() {
             </button>
 
             {/* 格式說明 */}
-            <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:14 }}>
+            <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:14 }}>
               <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 跟進日期：2025-07-01 或 2025/7/1 或 114/7/1 都可以</p>
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 生日：06-15 或 6/15 或 06/15 都可以</p>
@@ -714,7 +700,7 @@ async function handleImport() {
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
               style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                width:'100%', padding:'13px 0', borderRadius:14,
+                width:'100%', padding:'13px 0', borderRadius:RADIUS.lg,
                 border:`1px solid ${BORDER}`, background:SUBCARD_BG,
                 fontSize:14, fontWeight:600, color:TEXT_MAIN, cursor:'pointer', marginBottom:16 }}>
               <IconFolder size={17} stroke={1.9} /> 選擇 CSV 檔案
@@ -726,7 +712,7 @@ async function handleImport() {
                   偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
-                  <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:10 }}>
+                  <div style={{ background:DANGER_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:10 }}>
                     <p style={{ fontSize:12, fontWeight:700, color:DANGER, margin:'0 0 4px' }}>
                       發現 {importErrors.length} 個問題，請修正後重新上傳：
                     </p>
@@ -736,12 +722,12 @@ async function handleImport() {
                   </div>
                 )}
                 {importErrors.length === 0 && (
-                  <div style={{ border:`1px solid ${BORDER}`, borderRadius:12, overflow:'hidden', marginBottom:12 }}>
+                  <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, overflow:'hidden', marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
                         padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? `1px solid ${BORDER}` : 'none',
                         background: i%2===0 ? '#fff' : SUBCARD_BG }}>
-                        <div style={{ width:28, height:28, borderRadius:'50%',
+                        <div style={{ width:28, height:28, borderRadius:RADIUS.circle,
                           background:avatarBg(r.name), display:'flex', alignItems:'center',
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
                           {r.name[0]}
@@ -753,7 +739,7 @@ async function handleImport() {
                           {r.birthday && <span style={{ fontSize:11, color:'#A855F7', marginLeft:6 }}>{r.birthday}</span>}
                         </div>
                         {r.egg_type && (
-                          <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6,
+                          <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:RADIUS.xs,
                             background:getEggBg(r.egg_type), color:getEggColor(r.egg_type) }}>
                             {r.egg_type}
                           </span>
@@ -772,7 +758,7 @@ async function handleImport() {
             )}
 
             {importDone && (
-              <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+              <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:RADIUS.md, padding:'12px 16px', marginBottom:16 }}>
                 <p style={{ fontSize:14, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>
                   匯入完成！成功 {importDone.success} 筆
                   {importDone.skip > 0 && `，跳過重複 ${importDone.skip} 筆`}
@@ -782,7 +768,7 @@ async function handleImport() {
 
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
-                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
                   background: importing ? '#9BBBF2' : PRIMARY,
                   color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
@@ -790,7 +776,7 @@ async function handleImport() {
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
                   background:PRIMARY, color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 完成
               </button>
@@ -813,14 +799,14 @@ async function handleImport() {
               <>
                 <button onClick={() => setRestoreTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
                   <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
                   <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
                 </button>
                 <button onClick={() => setDeleteTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
                   <IconTrash size={19} stroke={1.9} color={DANGER} />
                   <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>永久刪除</span>
@@ -830,7 +816,7 @@ async function handleImport() {
               <>
                 <button onClick={() => handlePin(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:SUBCARD_BG, marginBottom:10, cursor:'pointer' }}>
                   <IconPin size={19} stroke={1.9} color={TEXT_MAIN} />
                   <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
@@ -839,7 +825,7 @@ async function handleImport() {
                 </button>
                 <button onClick={() => setArchiveTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
                   <IconArchive size={19} stroke={1.9} color={DANGER} />
                   <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>封存</span>
@@ -847,7 +833,7 @@ async function handleImport() {
               </>
             )}
             <button onClick={() => setMenuTarget(null)}
-              style={{ width:'100%', padding:'13px 0', borderRadius:14,
+              style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg,
                 border:`1px solid ${BORDER}`, background:'#fff',
                 fontSize:15, color:TEXT_SECONDARY, cursor:'pointer' }}>取消</button>
           </div>
@@ -857,7 +843,7 @@ async function handleImport() {
       {archiveTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconArchive size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -867,10 +853,10 @@ async function handleImport() {
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setArchiveTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
             </div>
           </div>
@@ -880,7 +866,7 @@ async function handleImport() {
       {restoreTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
             </div>
@@ -890,10 +876,10 @@ async function handleImport() {
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>將移回一般互動名單</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setRestoreTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleRestore}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
             </div>
           </div>
@@ -903,7 +889,7 @@ async function handleImport() {
       {deleteTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:18, padding:24, width:300, textAlign:'center' }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:300, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -915,10 +901,10 @@ async function handleImport() {
             </p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeletePermanent} disabled={deleting}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
                 {deleting ? '刪除中…' : '永久刪除'}
               </button>

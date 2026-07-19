@@ -8,25 +8,12 @@ import {
 import CustomerPanel from './CustomerPanel'
 import LoadingSpinner from './LoadingSpinner'
 
-// 設計系統色碼
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const ACCENT_PINK = '#F45DA8'
-const DANGER = '#E0454A'
-const DANGER_SOFT = '#FDE2E2'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
-
-function avatarBg(name) {
-  const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
-  return colors[n % colors.length]
-}
+// 設計系統色碼：統一從共用檔案 import
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_PINK, DANGER, DANGER_SOFT,
+  BORDER, SUBCARD_BG, RADIUS, avatarBg,
+} from './designTokens'
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
@@ -297,7 +284,7 @@ export default function Customers() {
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
           background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
           borderBottom:`1px solid ${BORDER}`, cursor: showArchived ? 'default' : 'pointer', userSelect:'none' }}>
-        <div style={{ width:44, height:44, borderRadius:'50%', background:avatarBg(c.name),
+        <div style={{ width:44, height:44, borderRadius:RADIUS.circle, background:avatarBg(c.name),
           display:'flex', alignItems:'center', justifyContent:'center',
           color:'#fff', fontWeight:700, fontSize:17, flexShrink:0 }}>
           {c.name[0]}
@@ -379,12 +366,12 @@ export default function Customers() {
           {!showArchived && (
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-                style={{ width:36, height:36, borderRadius:12, background:ACCENT_GREEN_SOFT,
+                style={{ width:36, height:36, borderRadius:RADIUS.md, background:ACCENT_GREEN_SOFT,
                   border:'none', color:ACCENT_GREEN_TEXT, cursor:'pointer',
                   display:'flex', alignItems:'center', justifyContent:'center' }}
                 title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
               <button onClick={e => { e.stopPropagation(); navigate('/customers/new') }}
-                style={{ width:36, height:36, borderRadius:12, background:PRIMARY,
+                style={{ width:36, height:36, borderRadius:RADIUS.md, background:PRIMARY,
                   border:'none', color:'#fff', cursor:'pointer',
                   display:'flex', alignItems:'center', justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
             </div>
@@ -395,13 +382,13 @@ export default function Customers() {
             style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="搜尋姓名、電話..."
-            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:12,
+            style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:RADIUS.md,
               border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG,
               boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
         </div>
         <div style={{ display:'flex', gap:8, paddingBottom:4 }}>
           <button onClick={() => { setShowArchived(!showArchived); setSearch(''); setSelectedId(null) }}
-            style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:99, border:'none',
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
               background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
               color: showArchived ? '#fff' : TEXT_SECONDARY,
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
@@ -473,7 +460,7 @@ export default function Customers() {
 
             <button onClick={downloadTemplate}
               style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
-                padding:'12px 16px', borderRadius:14, border:`1px dashed ${ACCENT_GREEN_TEXT}`,
+                padding:'12px 16px', borderRadius:RADIUS.lg, border:`1px dashed ${ACCENT_GREEN_TEXT}`,
                 background:ACCENT_GREEN_SOFT, marginBottom:16, cursor:'pointer' }}>
               <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
@@ -482,7 +469,7 @@ export default function Customers() {
               </div>
             </button>
 
-            <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:14 }}>
+            <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:14 }}>
               <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 回購日期：2025-08-01 或 2025/8/1 都可以</p>
               <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 生日：06-15 或 6/15 都可以</p>
@@ -493,7 +480,7 @@ export default function Customers() {
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
               style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                width:'100%', padding:'13px 0', borderRadius:14,
+                width:'100%', padding:'13px 0', borderRadius:RADIUS.lg,
                 border:`1px solid ${BORDER}`, background:SUBCARD_BG,
                 fontSize:14, fontWeight:600, color:TEXT_MAIN, cursor:'pointer', marginBottom:16 }}>
               <IconFolder size={17} stroke={1.9} /> 選擇 CSV 檔案
@@ -505,7 +492,7 @@ export default function Customers() {
                   偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
-                  <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px', marginBottom:10 }}>
+                  <div style={{ background:DANGER_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:10 }}>
                     <p style={{ fontSize:12, fontWeight:700, color:DANGER, margin:'0 0 4px' }}>
                       發現 {importErrors.length} 個問題：
                     </p>
@@ -515,12 +502,12 @@ export default function Customers() {
                   </div>
                 )}
                 {importErrors.length === 0 && (
-                  <div style={{ border:`1px solid ${BORDER}`, borderRadius:12, overflow:'hidden', marginBottom:12 }}>
+                  <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, overflow:'hidden', marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
                         padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? `1px solid ${BORDER}` : 'none',
                         background: i%2===0 ? '#fff' : SUBCARD_BG }}>
-                        <div style={{ width:28, height:28, borderRadius:'50%',
+                        <div style={{ width:28, height:28, borderRadius:RADIUS.circle,
                           background:avatarBg(r.name), display:'flex', alignItems:'center',
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
                           {r.name[0]}
@@ -547,7 +534,7 @@ export default function Customers() {
             )}
 
             {importDone && (
-              <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+              <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:RADIUS.md, padding:'12px 16px', marginBottom:16 }}>
                 <p style={{ fontSize:14, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>
                   匯入完成！成功 {importDone.success} 筆
                   {importDone.skip > 0 && `，跳過重複 ${importDone.skip} 筆`}
@@ -557,7 +544,7 @@ export default function Customers() {
 
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
-                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
                   background: importing ? '#9BBBF2' : PRIMARY,
                   color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
@@ -565,7 +552,7 @@ export default function Customers() {
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ width:'100%', padding:'13px 0', borderRadius:14, border:'none',
+                style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
                   background:PRIMARY, color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 完成
               </button>
@@ -587,14 +574,14 @@ export default function Customers() {
               <>
                 <button onClick={() => setRestoreTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
                   <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
                   <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
                 </button>
                 <button onClick={() => setDeleteTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
                   <IconTrash size={19} stroke={1.9} color={DANGER} />
                   <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>永久刪除</span>
@@ -604,7 +591,7 @@ export default function Customers() {
               <>
                 <button onClick={() => handlePin(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:SUBCARD_BG, marginBottom:10, cursor:'pointer' }}>
                   <IconPin size={19} stroke={1.9} color={TEXT_MAIN} />
                   <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
@@ -613,7 +600,7 @@ export default function Customers() {
                 </button>
                 <button onClick={() => setArchiveTarget(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
-                    padding:'14px 16px', borderRadius:14, border:'none',
+                    padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
                   <IconArchive size={19} stroke={1.9} color={DANGER} />
                   <span style={{ fontSize:15, fontWeight:600, color:DANGER }}>封存</span>
@@ -621,7 +608,7 @@ export default function Customers() {
               </>
             )}
             <button onClick={() => setMenuTarget(null)}
-              style={{ width:'100%', padding:'13px 0', borderRadius:14,
+              style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg,
                 border:`1px solid ${BORDER}`, background:'#fff',
                 fontSize:15, color:TEXT_SECONDARY, cursor:'pointer' }}>取消</button>
           </div>
@@ -631,7 +618,7 @@ export default function Customers() {
       {archiveTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconArchive size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -641,10 +628,10 @@ export default function Customers() {
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setArchiveTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
             </div>
           </div>
@@ -654,7 +641,7 @@ export default function Customers() {
       {restoreTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
             </div>
@@ -664,10 +651,10 @@ export default function Customers() {
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>將移回一般顧客檔案</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setRestoreTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleRestore}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
             </div>
           </div>
@@ -677,7 +664,7 @@ export default function Customers() {
       {deleteTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:18, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -689,10 +676,10 @@ export default function Customers() {
             </p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeletePermanent}
-                style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none',
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>永久刪除</button>
             </div>
           </div>

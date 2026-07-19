@@ -7,16 +7,11 @@ import {
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_GREEN, ACCENT_GREEN_TEXT, DANGER, BORDER, SUBCARD_BG, RADIUS,
+  getEggColor, getEggBg, avatarBg,
+} from './designTokens'
 
 const ACTION_MAP = {
   '茶葉蛋':{'大一':'軟性活動','大二':'商機講座','大三':'直接法','大四':'直接法'},
@@ -24,14 +19,6 @@ const ACTION_MAP = {
   '生雞蛋':{'大一':'輕鬆互動','大二':'輕鬆互動','大三':'軟性活動','大四':'商機講座'},
 }
 const DAYS_MAP = {'輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5}
-
-function getEggColor(t){return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B82F6':t==='生雞蛋'?'#22C55E':'#9CA3AF'}
-function getEggBg(t){return t==='茶葉蛋'?'#FFF7ED':t==='荷包蛋'?'#EFF6FF':t==='生雞蛋'?'#F0FDF4':'#F9FAFB'}
-function avatarBg(name){
-  const colors=['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n=0;for(let i=0;i<name.length;i++)n+=name.charCodeAt(i)
-  return colors[n%colors.length]
-}
 function toDateStr(d){ return d.toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'}) }
 function today(){ return toDateStr(new Date()) }
 function formatDateDisplay(d){
@@ -176,7 +163,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           </div>
         )}
         <div style={{ display:'flex', alignItems:'center', gap:14, paddingBottom:16, flexWrap:'wrap' }}>
-          <div style={{ width: embedded ? 48 : 56, height: embedded ? 48 : 56, borderRadius:'50%',
+          <div style={{ width: embedded ? 48 : 56, height: embedded ? 48 : 56, borderRadius:RADIUS.circle,
             background:avatarBg(contact.name), display:'flex', alignItems:'center', justifyContent:'center',
             color:'#fff', fontWeight:700, fontSize: embedded ? 19 : 22, flexShrink:0 }}>
             {contact.name[0]}
@@ -185,7 +172,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
               <span style={{ fontSize: embedded ? 17 : 20, fontWeight:700, color:TEXT_MAIN }}>{contact.name}</span>
               {contact.egg_type && (
-                <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:8,
+                <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:RADIUS.xs,
                   background:getEggBg(contact.egg_type), color:getEggColor(contact.egg_type) }}>
                   {contact.egg_type}{contact.need_level ? ' · '+contact.need_level : ''}
                 </span>
@@ -195,12 +182,12 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0 }}>
             <button onClick={() => navigate(`/contacts/${id}/edit`)}
-              style={{ width:32, height:32, borderRadius:9, border:`1px solid ${BORDER}`, background:'#fff',
+              style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'#fff',
                 display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_SECONDARY }}>
               <IconPencil size={15} stroke={1.9} />
             </button>
             <button onClick={handleArchive}
-              style={{ width:32, height:32, borderRadius:9, border:`1px solid ${BORDER}`, background:'#fff',
+              style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'#fff',
                 display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_MUTED }}>
               <IconArchive size={15} stroke={1.9} />
             </button>
@@ -223,7 +210,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
         {tab === 'logs' && (
           <>
             {suggestedAction && (
-              <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)', borderRadius:14, padding:'12px 16px', marginBottom:14 }}>
+              <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
                 <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>建議行動</p>
                 <p style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>{suggestedAction}</p>
                 {contact.next_contact_date && (
@@ -237,14 +224,14 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
               <input type="date" value={quickDate} max={today()}
                 onChange={e => setQuickDate(e.target.value)}
-                style={{ width:130, padding:'9px 10px', borderRadius:10, border:`1px solid ${BORDER}`,
+                style={{ width:130, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
                   fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
               <input value={quickNote} onChange={e => setQuickNote(e.target.value)}
                 placeholder="記錄一筆新互動…（選填備註）"
-                style={{ flex:1, minWidth:160, padding:'9px 12px', borderRadius:10, border:`1px solid ${BORDER}`,
+                style={{ flex:1, minWidth:160, padding:'9px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
                   fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
               <button onClick={handleQuickAdd} disabled={quickSaving}
-                style={{ padding:'9px 16px', borderRadius:10, border:'none',
+                style={{ padding:'9px 16px', borderRadius:RADIUS.sm, border:'none',
                   background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
                 {quickSaving ? '新增中…' : '新增'}
               </button>
@@ -257,7 +244,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 <div style={{ position:'absolute', left:5, top:6, bottom:6, width:1, background:BORDER }} />
                 {logs.map((log, i) => (
                   <div key={log.id} style={{ position:'relative', marginBottom: i < logs.length-1 ? 16 : 0 }}>
-                    <div style={{ position:'absolute', left:-20, top:2, width:10, height:10, borderRadius:'50%',
+                    <div style={{ position:'absolute', left:-20, top:2, width:10, height:10, borderRadius:RADIUS.circle,
                       background: i===0 ? ACCENT_GREEN : '#D8DCE8', border:'2px solid #fff' }} />
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                       <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>
@@ -280,7 +267,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                     {editingLogId === log.id ? (
                       <div style={{ display:'flex', gap:6 }}>
                         <input value={editNote} onChange={e => setEditNote(e.target.value)}
-                          style={{ flex:1, padding:'7px 10px', borderRadius:8, border:`1px solid ${BORDER}`,
+                          style={{ flex:1, padding:'7px 10px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
                             fontSize:13, outline:'none', color:TEXT_MAIN }} />
                         <button onClick={() => saveEditLog(log.id)}
                           style={{ background:'none', border:'none', cursor:'pointer', color:ACCENT_GREEN_TEXT, display:'flex' }}>
@@ -307,7 +294,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {linkedCustomer && (
               <div style={{ display:'flex', alignItems:'center', gap:10,
-                background:PRIMARY_SOFT, borderRadius:10, padding:'10px 12px' }}>
+                background:PRIMARY_SOFT, borderRadius:RADIUS.sm, padding:'10px 12px' }}>
                 <div style={{ flex:1 }}>
                   <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:'0 0 4px', fontWeight:600 }}>顧客消費紀錄</p>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -317,7 +304,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 </div>
                 <button onClick={() => navigate(`/customers/${linkedCustomer.id}`)}
                   style={{ fontSize:12, color:PRIMARY, background:'#fff', border:`1px solid ${BORDER}`,
-                    borderRadius:8, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
+                    borderRadius:RADIUS.xs, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
                   查看顧客檔案
                 </button>
               </div>
@@ -326,7 +313,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>還沒有補充資料</p>
             ) : infoRows.map(r => (
               <div key={r.label} style={{ display:'flex', alignItems:'flex-start', gap:10,
-                background:SUBCARD_BG, borderRadius:10, padding:'10px 12px' }}>
+                background:SUBCARD_BG, borderRadius:RADIUS.sm, padding:'10px 12px' }}>
                 <r.icon size={16} stroke={1.8} color={TEXT_SECONDARY} style={{ marginTop:1, flexShrink:0 }} />
                 <div>
                   <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 2px' }}>{r.label}</p>

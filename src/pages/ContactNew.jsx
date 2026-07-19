@@ -3,16 +3,11 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
 
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, BORDER, RADIUS,
+  getEggColor, getEggBg,
+} from './designTokens'
 
 const EGG_TYPES = [
   { value:'生雞蛋', desc:'不熟' },
@@ -33,9 +28,6 @@ const ACTION_MAP = {
   '生雞蛋': { '大一':'輕鬆互動','大二':'輕鬆互動','大三':'軟性活動','大四':'商機講座' },
 }
 const DAYS_MAP = { '輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5 }
-
-const EGG_COLOR = { '茶葉蛋':'#F97316', '荷包蛋':'#3B82F6', '生雞蛋':'#22C55E' }
-const EGG_BG = { '茶葉蛋':'#FFF7ED', '荷包蛋':'#EFF6FF', '生雞蛋':'#F0FDF4' }
 
 const EMPTY_FORM = {
   name: '', platform: '', platform_account: '',
@@ -140,7 +132,7 @@ export default function ContactNew() {
           </div>
           {savedCount > 0 && (
             <span style={{ fontSize:12,color:ACCENT_GREEN_TEXT,fontWeight:700,
-              background:ACCENT_GREEN_SOFT,padding:'4px 10px',borderRadius:99 }}>
+              background:ACCENT_GREEN_SOFT,padding:'4px 10px',borderRadius:RADIUS.pill }}>
               本次已新增 {savedCount} 位
             </span>
           )}
@@ -151,7 +143,7 @@ export default function ContactNew() {
 
         {justSaved && (
           <div style={{ display:'flex',alignItems:'center',gap:8,background:ACCENT_GREEN_SOFT,
-            borderRadius:12,padding:'10px 14px',marginBottom:16 }}>
+            borderRadius:RADIUS.md,padding:'10px 14px',marginBottom:16 }}>
             <IconCheck size={16} stroke={2.4} color={ACCENT_GREEN_TEXT} />
             <span style={{ fontSize:13,color:ACCENT_GREEN_TEXT,fontWeight:600 }}>已新增，可以繼續輸入下一位</span>
           </div>
@@ -191,11 +183,11 @@ export default function ContactNew() {
             <div style={{ display:'flex',gap:8 }}>
               {EGG_TYPES.map(e => {
                 const selected = form.egg_type === e.value
-                const color = EGG_COLOR[e.value]
-                const bg = EGG_BG[e.value]
+                const color = getEggColor(e.value)
+                const bg = getEggBg(e.value)
                 return (
                   <button key={e.value} onClick={() => set('egg_type', selected ? '' : e.value)}
-                    style={{ flex:1,padding:'10px 8px',borderRadius:12,border:`2px solid ${selected?color:BORDER}`,
+                    style={{ flex:1,padding:'10px 8px',borderRadius:RADIUS.md,border:`2px solid ${selected?color:BORDER}`,
                       background: selected ? bg : '#F5F8FC',
                       cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
                     <div style={{ fontSize:13,fontWeight:700,color: selected?color:TEXT_MAIN }}>{e.value}</div>
@@ -214,7 +206,7 @@ export default function ContactNew() {
                 const selected = form.need_level === n.value
                 return (
                   <button key={n.value} onClick={() => set('need_level', selected ? '' : n.value)}
-                    style={{ flex:1,padding:'10px 8px',borderRadius:12,
+                    style={{ flex:1,padding:'10px 8px',borderRadius:RADIUS.md,
                       border:`2px solid ${selected?PRIMARY:BORDER}`,
                       background: selected?PRIMARY_SOFT:'#F5F8FC',
                       cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
@@ -228,7 +220,7 @@ export default function ContactNew() {
 
           {/* 建議行動（自動帶入） */}
           {form.action_type && (
-            <div className="cn-full" style={{ ...styles.fieldWrap, background:PRIMARY_SOFT,borderRadius:12,padding:12 }}>
+            <div className="cn-full" style={{ ...styles.fieldWrap, background:PRIMARY_SOFT,borderRadius:RADIUS.md,padding:12 }}>
               <p style={{ margin:0,fontSize:13,color:PRIMARY,fontWeight:700 }}>
                 建議行動：{form.action_type}
               </p>
@@ -238,7 +230,7 @@ export default function ContactNew() {
           {/* 展開更多 */}
           <button onClick={() => setShowMore(v=>!v)} className="cn-full"
             style={{ width:'100%',padding:'10px',background:'none',border:`1px dashed ${BORDER}`,
-              borderRadius:12,color:TEXT_SECONDARY,fontSize:13,cursor:'pointer',marginTop:4 }}>
+              borderRadius:RADIUS.md,color:TEXT_SECONDARY,fontSize:13,cursor:'pointer',marginTop:4 }}>
             {showMore ? '收起 ▲' : '展開更多（職業、地區、備註）▼'}
           </button>
 
@@ -275,13 +267,13 @@ export default function ContactNew() {
           {/* 儲存按鈕 */}
           <div className="cn-full" style={{ display:'flex',gap:10,marginTop:16 }}>
             <button onClick={() => handleSave(true)} disabled={saving}
-              style={{ flex:1,padding:'14px',borderRadius:14,border:'none',
+              style={{ flex:1,padding:'14px',borderRadius:RADIUS.lg,border:'none',
                 background:saving?'#9BBBF2':PRIMARY,color:'#fff',
                 fontSize:15,fontWeight:700,cursor:'pointer' }}>
               {saving ? '儲存中…' : '儲存並新增下一位'}
             </button>
             <button onClick={() => handleSave(false)} disabled={saving}
-              style={{ flex:1,padding:'14px',borderRadius:14,border:`1.5px solid ${PRIMARY}`,
+              style={{ flex:1,padding:'14px',borderRadius:RADIUS.lg,border:`1.5px solid ${PRIMARY}`,
                 background:'#fff',color:PRIMARY,
                 fontSize:15,fontWeight:700,cursor:'pointer' }}>
               儲存並返回列表
@@ -298,9 +290,9 @@ const styles = {
   fieldWrap: { marginBottom: 16 },
   label: { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 },
   suggest: { fontSize:11,color:PRIMARY,fontWeight:500,marginLeft:4 },
-  input: { width:'100%',padding:'11px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+  input: { width:'100%',padding:'11px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
     fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN },
-  chipBtn: { padding:'7px 14px',borderRadius:10,border:'none',fontSize:13,
+  chipBtn: { padding:'7px 14px',borderRadius:RADIUS.sm,border:'none',fontSize:13,
     fontWeight:600,cursor:'pointer' },
   errorMsg: { fontSize:12,color:DANGER,margin:'4px 0 0' },
 }

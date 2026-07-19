@@ -14,26 +14,15 @@ const BV_GOAL = 1500
 const IBV_GOAL = 300
 const DAYS_ZH = ['日', '一', '二', '三', '四', '五', '六']
 
-// 設計系統色碼
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_SOFT = '#FFF7E6'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
-const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const ACCENT_PINK = '#F45DA8'
-const ACCENT_PINK_SOFT = '#FDE8F3'
-const ACCENT_PINK_TEXT = '#D23E8C'
-const DANGER = '#E0454A'
-const DANGER_SOFT = '#FDE2E2'
-const CARD_BG = '#fff'
-const PAGE_BG = '#fff'
-const SUBCARD_BG = '#F5F8FC'
+// 設計系統色碼：統一從共用檔案 import
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
+  ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
+  ACCENT_PINK, ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
+  DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS,
+  getEggColor, getEggBg, avatarBg,
+} from './designTokens'
 
 
 function toDateStr(d) {
@@ -65,13 +54,6 @@ function formatFollowDate(dateStr) {
 }
 function isOverdue(d) { return d && d < today() }
 function isDueToday(d) { return d === today() }
-function getEggColor(t) { return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B82F6':t==='生雞蛋'?'#22C55E':'#9CA3AF' }
-function getEggBg(t) { return t==='茶葉蛋'?'#FFF7ED':t==='荷包蛋'?'#EFF6FF':t==='生雞蛋'?'#F0FDF4':'#F9FAFB' }
-function avatarBg(name) {
-  const colors=['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n=0; for(let i=0;i<(name||'').length;i++) n+=name.charCodeAt(i)
-  return colors[n%colors.length]
-}
 function formatDateLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' })
@@ -79,7 +61,7 @@ function formatDateLabel(dateStr) {
 
 function Avatar({ name, size=36 }) {
   return (
-    <div style={{ width:size,height:size,borderRadius:'50%',background:avatarBg(name||''),
+    <div style={{ width:size,height:size,borderRadius:RADIUS.circle,background:avatarBg(name||''),
       display:'flex',alignItems:'center',justifyContent:'center',
       color:'#fff',fontWeight:700,fontSize:size*0.42,flexShrink:0 }}>
       {name?name[0]:'?'}
@@ -89,8 +71,8 @@ function Avatar({ name, size=36 }) {
 function ProgressBar({ value, max, color, trackColor }) {
   const pct = max>0 ? Math.min((value/max)*100,100) : 0
   return (
-    <div style={{ background:trackColor||'#F3F4F6',borderRadius:999,height:8,overflow:'hidden' }}>
-      <div style={{ width:`${pct}%`,height:'100%',borderRadius:999,background:color,
+    <div style={{ background:trackColor||'#F3F4F6',borderRadius:RADIUS.pill,height:8,overflow:'hidden' }}>
+      <div style={{ width:`${pct}%`,height:'100%',borderRadius:RADIUS.pill,background:color,
         transition:'width 0.6s cubic-bezier(0.34,1.56,0.64,1)' }} />
     </div>
   )
@@ -102,9 +84,9 @@ function QuickBtn({ Icon, label, onClick, color, bg }) {
       onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}
       onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
       style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:8,
-        padding:'14px 4px',borderRadius:18,border:'none',
+        padding:'14px 4px',borderRadius:RADIUS.xl,border:'none',
         background:bg,cursor:'pointer',transition:'all 0.15s' }}>
-      <div style={{ width:32,height:32,borderRadius:10,background:'rgba(255,255,255,0.65)',
+      <div style={{ width:32,height:32,borderRadius:RADIUS.sm,background:'rgba(255,255,255,0.65)',
         display:'flex',alignItems:'center',justifyContent:'center' }}>
         <Icon size={16} stroke={1.9} color={color} />
       </div>
@@ -381,7 +363,7 @@ export default function Dashboard() {
           <div style={{ display:'flex',gap:8 }}>
             <NotificationBell userId={user?.id} />
             <button onClick={()=>navigate('/settings')}
-              style={{ background:PRIMARY_SOFT,border:'none',borderRadius:'50%',
+              style={{ background:PRIMARY_SOFT,border:'none',borderRadius:RADIUS.circle,
               width:38,height:38,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
               <IconSettings size={17} stroke={1.9} color={PRIMARY} />
             </button>
@@ -393,15 +375,15 @@ export default function Dashboard() {
         <div className="dash-grid">
 
         {showStarterCard && (
-          <section className="area-starter" style={{ borderRadius:18,overflow:'hidden',marginBottom:10,
+          <section className="area-starter" style={{ borderRadius:RADIUS.xl,overflow:'hidden',marginBottom:10,
             border:'1px solid #F0F1F4' }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
                 style={{ width:'100%',background:PRIMARY_SOFT,border:'none',cursor:'pointer',
                   padding:'10px 14px',display:'flex',alignItems:'center',gap:10 }}>
                 <IconRocket size={15} stroke={1.9} color={PRIMARY} />
-                <div style={{ flex:1,height:6,background:'rgba(22,104,227,0.15)',borderRadius:99,overflow:'hidden' }}>
-                  <div style={{ height:'100%',borderRadius:99,background:PRIMARY,
+                <div style={{ flex:1,height:6,background:'rgba(22,104,227,0.15)',borderRadius:RADIUS.pill,overflow:'hidden' }}>
+                  <div style={{ height:'100%',borderRadius:RADIUS.pill,background:PRIMARY,
                     width:`${Math.round((starterDoneCount/STARTER_TASKS.length)*100)}%`,
                     transition:'width 0.5s ease' }} />
                 </div>
@@ -423,7 +405,7 @@ export default function Dashboard() {
                   </div>
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
                     <span style={{ fontSize:12,fontWeight:700,background:PRIMARY,color:'#fff',
-                      padding:'3px 10px',borderRadius:99 }}>
+                      padding:'3px 10px',borderRadius:RADIUS.pill }}>
                       {starterDoneCount}/{STARTER_TASKS.length}
                     </span>
                     <button onClick={() => setStarterExpanded(false)}
@@ -436,7 +418,7 @@ export default function Dashboard() {
                     return (
                       <div key={task.id} style={{ display:'flex',alignItems:'center',gap:10,
                         padding:'10px 0',borderBottom:'1px solid #F5F6F8' }}>
-                        <div style={{ width:22,height:22,borderRadius:'50%',flexShrink:0,
+                        <div style={{ width:22,height:22,borderRadius:RADIUS.circle,flexShrink:0,
                           display:'flex',alignItems:'center',justifyContent:'center',
                           background: done ? ACCENT_GREEN : '#F0F1F4',
                           border: done ? 'none' : '1.5px solid #D8DCE8' }}>
@@ -487,11 +469,11 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="area-followup" style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
+        <section className="area-followup" style={{ background:CARD_BG,borderRadius:RADIUS.xl,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:8 }}>
               待跟進
-              {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:99,background:DANGER_SOFT,color:DANGER }}>{allDue.length} 人今天</span>}
+              {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:RADIUS.pill,background:DANGER_SOFT,color:DANGER }}>{allDue.length} 人今天</span>}
             </span>
             <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}
               onClick={()=>navigate('/contacts?filter=due')}>全部 →</button>
@@ -503,14 +485,14 @@ export default function Dashboard() {
                   const ov=isOverdue(c.next_contact_date)
                   return (
                     <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
-                      style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:14,width:'100%',
+                      style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:RADIUS.lg,width:'100%',
                         background:ov?DANGER_SOFT:SUBCARD_BG,border:'none',
                         cursor:'pointer',textAlign:'left' }}>
                       <Avatar name={c.name} size={38} />
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
                           <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{c.name}</span>
-                          <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
+                          <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:RADIUS.xs,
                             background:getEggBg(c.egg_type),color:getEggColor(c.egg_type) }}>{c.egg_type}</span>
                         </div>
                         <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2,display:'flex',gap:4 }}>
@@ -536,7 +518,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="area-checkin" style={{ background:CARD_BG,borderRadius:18,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
+        <section className="area-checkin" style={{ background:CARD_BG,borderRadius:RADIUS.xl,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
             <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
               {isToday ? '今日打卡' : '打卡紀錄'}
@@ -545,7 +527,7 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
-            marginBottom:10,background:SUBCARD_BG,borderRadius:12,padding:'6px 10px' }}>
+            marginBottom:10,background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'6px 10px' }}>
             <button onClick={() => changeDate(-1)}
               style={{ background:'none',border:'none',color:TEXT_SECONDARY,
                 fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
@@ -567,7 +549,7 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
-            background:SUBCARD_BG,borderRadius:12,marginBottom:8 }}>
+            background:SUBCARD_BG,borderRadius:RADIUS.md,marginBottom:8 }}>
             {weekStatus.map((w,i)=>{
               const isSelected = w.date === viewDate
               const isT = w.date === today()
@@ -580,7 +562,7 @@ export default function Dashboard() {
                     fontWeight: isSelected||isT?700:600 }}>
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
-                  <div style={{ width:10,height:10,borderRadius:'50%',background:dc,
+                  <div style={{ width:10,height:10,borderRadius:RADIUS.circle,background:dc,
                     outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
                     outlineOffset:2 }} />
                 </div>
@@ -655,10 +637,10 @@ export default function Dashboard() {
             <textarea ref={goalTextareaRef} value={goalText}
               onChange={e=>{ setGoalText(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
               placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..." rows={4}
-              style={{ width:'100%',padding:'12px',borderRadius:12,border:'1px solid #E1E5EE',
+              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.md,border:'1px solid #E1E5EE',
                 fontSize:15,boxSizing:'border-box',outline:'none',resize:'none',lineHeight:1.8,display:'block' }} />
             <button onClick={saveGoalText} disabled={goalSaving}
-              style={{ width:'100%',padding:'13px',borderRadius:14,border:'none',
+              style={{ width:'100%',padding:'13px',borderRadius:RADIUS.lg,border:'none',
                 background: goalSaved?ACCENT_GREEN:goalSaving?'#9BBBF2':PRIMARY,
                 color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer',marginTop:12 }}>
               {goalSaved ? '✓ 已儲存' : goalSaving ? '儲存中…' : '儲存'}

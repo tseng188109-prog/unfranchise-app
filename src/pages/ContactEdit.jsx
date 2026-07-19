@@ -3,12 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 
-const PRIMARY = '#1668E3'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
+import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
 
 const EGG_TYPES = ['茶葉蛋', '荷包蛋', '生雞蛋']
 const NEED_LEVELS = ['大一', '大二', '大三', '大四']
@@ -37,14 +32,14 @@ function BirthdayPicker({ value, onChange }) {
   return (
     <div style={{ display:'flex', gap:8 }}>
       <select value={mm} onChange={e => handleChange(e.target.value, dd)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
+        style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
           color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>月份</option>
         {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
       </select>
       <select value={dd} onChange={e => handleChange(mm, e.target.value)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
+        style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
           color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>日期</option>
@@ -225,7 +220,7 @@ export default function ContactEdit() {
 
         <button onClick={() => setShowMore(v=>!v)}
           style={{ width:'100%',padding:'10px',background:'none',border:`1px dashed ${BORDER}`,
-            borderRadius:12,color:TEXT_SECONDARY,fontSize:13,cursor:'pointer',marginBottom:16 }}>
+            borderRadius:RADIUS.md,color:TEXT_SECONDARY,fontSize:13,cursor:'pointer',marginBottom:16 }}>
           {showMore ? '收起 ▲' : '展開更多 ▼'}
         </button>
 
@@ -254,7 +249,7 @@ export default function ContactEdit() {
         )}
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+          style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
             background:saving?'#9BBBF2':PRIMARY,color:'#fff',
             fontSize:16,fontWeight:700,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
@@ -266,6 +261,6 @@ export default function ContactEdit() {
 
 const fw = { marginBottom: 16 }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
-const inp = { width:'100%',padding:'11px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+const inp = { width:'100%',padding:'11px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
   fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
-const chip = { padding:'7px 14px',borderRadius:10,border:'none',fontSize:13,fontWeight:600,cursor:'pointer' }
+const chip = { padding:'7px 14px',borderRadius:RADIUS.sm,border:'none',fontSize:13,fontWeight:600,cursor:'pointer' }
