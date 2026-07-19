@@ -165,11 +165,34 @@ export default function Samples() {
         @media (min-width: 1024px) {
           .dash-container { max-width: 720px; }
         }
+        /* 桌面版：卡片內容不拆，改成多欄網格排列，方便一次掃過多筆快速點擊操作 */
+        .samples-list {
+          padding: 8px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .samples-new-form-wrap {
+          margin: 12px 16px;
+        }
+        @media (min-width: 1024px) {
+          .dash-container.samples-wide { max-width: 1200px; }
+          .samples-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            align-items: start;
+            gap: 14px;
+          }
+          .samples-new-form-wrap {
+            max-width: 480px;
+            margin: 12px auto;
+          }
+        }
       `}</style>
 
       {/* Header */}
       <div style={{ background:'#fff',padding:'52px 0 0',borderBottom:`1px solid ${BORDER}` }}>
-      <div className="dash-container" style={{ padding:'0 16px' }}>
+      <div className="dash-container samples-wide" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>試用品追蹤</h1>
           <button onClick={() => setShowNew(true)}
@@ -189,10 +212,10 @@ export default function Samples() {
       </div>
       </div>
 
-      <div className="dash-container">
+      <div className="dash-container samples-wide">
       {/* 新增表單 */}
       {showNew && (
-        <div style={{ margin:'12px 16px',background:'#fff',borderRadius:18,
+        <div className="samples-new-form-wrap" style={{ background:'#fff',borderRadius:18,
           padding:16,border:`1px solid ${BORDER}` }}>
           <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 12px' }}>新增試用品</p>
 
@@ -245,7 +268,7 @@ export default function Samples() {
         </div>
       )}
 
-      {/* 列表 */}
+      {/* 列表：手機版單欄卡片；桌面版改用 CSS Grid 多欄排列（見上方 <style>），卡片內容完全不拆 */}
       {loading ? (
         <LoadingSpinner fullPage={false} />
       ) : filtered.length === 0 ? (
@@ -254,7 +277,7 @@ export default function Samples() {
           <p style={{ fontSize:15 }}>還沒有試用品紀錄，點 + 開始追蹤！</p>
         </div>
       ) : (
-        <div style={{ padding:'8px 16px',display:'flex',flexDirection:'column',gap:10 }}>
+        <div className="samples-list">
           {filtered.map(s => {
             const name = s.contacts?.name || '未知'
             const isActive = !s.result
