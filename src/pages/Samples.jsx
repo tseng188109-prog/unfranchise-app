@@ -21,13 +21,7 @@ function formatDate(d) {
   const dt = new Date(d + 'T00:00:00')
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
-function formatDue(dateStr) {
-  if (!dateStr) return ''
-  const diff = Math.floor((new Date(today()) - new Date(dateStr)) / 86400000)
-  if (diff === 0) return '今天追蹤'
-  if (diff > 0) return `逾期${diff}天`
-  return `${Math.abs(diff)}天後`
-}
+import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
   let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
@@ -35,13 +29,6 @@ function avatarBg(name) {
 }
 
 const FILTERS = ['全部','進行中','成交','考慮中','轉介/其他需求']
-const RESULTS = ['成交','考慮中','轉介/其他需求']
-
-// 結果標籤色：只有「成交」用綠色標示正向結果，「考慮中」「轉介/其他需求」都用灰階，不用黃色
-function resultBadgeColor(result) {
-  if (result === '成交') return { bg: ACCENT_GREEN_SOFT, text: ACCENT_GREEN_TEXT }
-  return { bg: '#F0F1F4', text: TEXT_SECONDARY }
-}
 
 export default function Samples() {
   const navigate = useNavigate()
@@ -283,7 +270,7 @@ export default function Samples() {
             const isActive = !s.result
             const isConsidering = s.result === '考慮中'
             const isOverdueFollowup = isConsidering && s.next_followup_date && s.next_followup_date < today()
-            const badgeColor = resultBadgeColor(s.result)
+            const badgeColor = sampleResultBadgeColor(s.result)
             const needsAttention =
               (isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)) || isOverdueFollowup
             return (
@@ -313,11 +300,7 @@ export default function Samples() {
                 {isActive && (
                   <>
                     <div style={{ display:'flex',gap:6,marginBottom:10 }}>
-                      {[
-                        { field:'followup_1_done', label:'確認使用' },
-                        { field:'followup_2_done', label:'傳送資料' },
-                        { field:'followup_3_done', label:'詢問感受' },
-                      ].map(step => (
+                      {SAMPLE_STEPS.map(step => (
                         <button key={step.field}
                           onClick={() => toggleFollowup(s.id, step.field, s[step.field])}
                           style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
@@ -331,7 +314,7 @@ export default function Samples() {
 
                     {s.followup_3_done && (
                       <div style={{ display:'flex',gap:6 }}>
-                        {RESULTS.map(r => (
+                        {SAMPLE_RESULTS.map(r => (
                           <button key={r} onClick={() => setResult(s.id, r)}
                             style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
                               fontSize:11,fontWeight:600,cursor:'pointer',
@@ -356,7 +339,7 @@ export default function Samples() {
                       {s.next_followup_date && (
                         <span style={{ fontSize:11, fontWeight:700,
                           color: isOverdueFollowup ? DANGER : ACCENT_YELLOW_TEXT }}>
-                          {formatDue(s.next_followup_date)}
+                          {formatSampleDue(s.next_followup_date, today())}
                         </span>
                       )}
                     </div>
@@ -404,7 +387,7 @@ export default function Samples() {
                     )}
 
                     <div style={{ display:'flex',gap:6 }}>
-                      {RESULTS.map(r => (
+                      {SAMPLE_RESULTS.map(r => (
                         <button key={r} onClick={() => setResult(s.id, r)}
                           style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
                             fontSize:11,fontWeight:600,cursor:'pointer',
