@@ -59,6 +59,11 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   const [showSampleForm, setShowSampleForm] = useState(false)
   const [sampleForm, setSampleForm] = useState({ product_name:'', portions:'', share_date: today() })
   const [sampleSaving, setSampleSaving] = useState(false)
+  const [editSampleTarget, setEditSampleTarget] = useState(null)
+  const [editSampleForm, setEditSampleForm] = useState({ product_name:'', portions:'', share_date:'' })
+  const [editSampleSaving, setEditSampleSaving] = useState(false)
+  const [deleteSampleTarget, setDeleteSampleTarget] = useState(null)
+  const [deleteSampleLoading, setDeleteSampleLoading] = useState(false)
 
   useEffect(() => { if (id) fetchContact() }, [id])
 
@@ -166,6 +171,33 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   async function setSampleResult(sampleId, result) {
     await supabase.from('sample_tracking').update({ result }).eq('id', sampleId)
     setSamples(p => p.map(s => s.id === sampleId ? { ...s, result } : s))
+  }
+
+  function openEditSample(s) {
+    setEditSampleTarget(s)
+    setEditSampleForm({ product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today() })
+  }
+
+  async function saveEditSample() {
+    if (!editSampleForm.product_name.trim() || !editSampleForm.portions) return
+    setEditSampleSaving(true)
+    await supabase.from('sample_tracking').update({
+      product_name: editSampleForm.product_name.trim(),
+      portions: Number(editSampleForm.portions),
+      share_date: editSampleForm.share_date,
+    }).eq('id', editSampleTarget.id)
+    setEditSampleSaving(false)
+    setEditSampleTarget(null)
+    fetchContact()
+  }
+
+  async function handleDeleteSample() {
+    if (!deleteSampleTarget) return
+    setDeleteSampleLoading(true)
+    await supabase.from('sample_tracking').delete().eq('id', deleteSampleTarget)
+    setDeleteSampleLoading(false)
+    setDeleteSampleTarget(null)
+    fetchContact()
   }
 
   async function handleArchive() {
@@ -318,12 +350,22 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                           <span style={{ fontSize:12, fontWeight:600, color:TEXT_MAIN }}>
                             {s.product_name} · {s.portions}天份
                           </span>
-                          {s.result && (
-                            <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:RADIUS.pill,
-                              background:badgeColor.bg, color:badgeColor.text }}>
-                              {s.result}
-                            </span>
-                          )}
+                          <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                            {s.result && (
+                              <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:RADIUS.pill,
+                                background:badgeColor.bg, color:badgeColor.text }}>
+                                {s.result}
+                              </span>
+                            )}
+                            <button onClick={() => openEditSample(s)}
+                              style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, padding:2, display:'flex' }}>
+                              <IconPencil size={13} stroke={1.9} />
+                            </button>
+                            <button onClick={() => setDeleteSampleTarget(s.id)}
+                              style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, padding:2, display:'flex' }}>
+                              <IconTrash size={13} stroke={1.9} />
+                            </button>
+                          </div>
                         </div>
 
                         {isActive && (
@@ -470,6 +512,69 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           </div>
         )}
       </div>
+
+      {/* 編輯試用品紀錄 */}
+      {editSampleTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+          display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:300 }}
+          onClick={() => setEditSampleTarget(null)}>
+          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
+            padding:'24px 20px 36px', width:'100%', maxWidth:480 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <h2 style={{ fontSize:17, fontWeight:700, color:TEXT_MAIN, margin:0 }}>編輯試用品紀錄</h2>
+              <button onClick={() => setEditSampleTarget(null)}
+                style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED }}><IconX size={22} /></button>
+            </div>
+            <input value={editSampleForm.product_name}
+              onChange={e => setEditSampleForm(p => ({ ...p, product_name: e.target.value }))}
+              placeholder="體驗產品 *"
+              style={{ width:'100%', padding:'10px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN, marginBottom:8 }} />
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              <input type="number" value={editSampleForm.portions}
+                onChange={e => setEditSampleForm(p => ({ ...p, portions: e.target.value }))}
+                placeholder="幾天份 *"
+                style={{ flex:1, padding:'10px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                  fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+              <input type="date" value={editSampleForm.share_date}
+                onChange={e => setEditSampleForm(p => ({ ...p, share_date: e.target.value }))}
+                style={{ flex:1, padding:'10px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                  fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+            </div>
+            <button onClick={saveEditSample} disabled={editSampleSaving}
+              style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
+                background: editSampleSaving ? '#9BBBF2' : PRIMARY, color:'#fff',
+                fontSize:15, fontWeight:700, cursor:'pointer' }}>
+              {editSampleSaving ? '儲存中…' : '儲存'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 刪除試用品紀錄確認 */}
+      {deleteSampleTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
+          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
+            <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}>
+              <IconTrash size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>確定刪除這筆試用品紀錄？</p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setDeleteSampleTarget(null)}
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
+                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+              <button onClick={handleDeleteSample} disabled={deleteSampleLoading}
+                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+                {deleteSampleLoading ? '刪除中…' : '刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

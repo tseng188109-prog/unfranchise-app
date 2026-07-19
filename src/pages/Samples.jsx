@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
-import { IconPlus, IconFlask, IconCalendarEvent } from '@tabler/icons-react'
+import { IconPlus, IconFlask, IconCalendarEvent, IconPencil, IconTrash, IconX, IconCheck } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
 
 const PRIMARY = '#1668E3'
 const TEXT_MAIN = '#132A4D'
@@ -21,7 +22,6 @@ function formatDate(d) {
   const dt = new Date(d + 'T00:00:00')
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
 }
-import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
   let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
@@ -53,6 +53,13 @@ export default function Samples() {
   const [logDate, setLogDate] = useState(today())
   const [logNote, setLogNote] = useState('')
   const [logSaving, setLogSaving] = useState(false)
+
+  // 編輯／刪除單筆試用品紀錄
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState({ product_name:'', portions:'', share_date:'' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -102,6 +109,33 @@ export default function Samples() {
   async function setResult(id, result) {
     await supabase.from('sample_tracking').update({ result }).eq('id', id)
     setSamples(p => p.map(s => s.id === id ? { ...s, result } : s))
+  }
+
+  function openEditSample(s) {
+    setEditTarget(s)
+    setEditForm({ product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today() })
+  }
+
+  async function saveEditSample() {
+    if (!editForm.product_name.trim() || !editForm.portions) return
+    setEditSaving(true)
+    await supabase.from('sample_tracking').update({
+      product_name: editForm.product_name.trim(),
+      portions: Number(editForm.portions),
+      share_date: editForm.share_date,
+    }).eq('id', editTarget.id)
+    setEditSaving(false)
+    setEditTarget(null)
+    fetchSamples()
+  }
+
+  async function handleDeleteSample() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await supabase.from('sample_tracking').delete().eq('id', deleteTarget)
+    setDeleting(false)
+    setDeleteTarget(null)
+    fetchSamples()
   }
 
   async function updateNextFollowup(id, date) {
@@ -279,21 +313,36 @@ export default function Samples() {
 
                 {/* 頂部 */}
                 <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
-                  <div style={{ width:38,height:38,borderRadius:'50%',background:avatarBg(name),
+                  <div onClick={() => s.contact_id && navigate(`/contacts/${s.contact_id}`)}
+                    style={{ width:38,height:38,borderRadius:'50%',background:avatarBg(name),
                     display:'flex',alignItems:'center',justifyContent:'center',
-                    color:'#fff',fontWeight:700,fontSize:14,flexShrink:0 }}>{name[0]}</div>
-                  <div style={{ flex:1 }}>
-                    <p style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{name}</p>
+                    color:'#fff',fontWeight:700,fontSize:14,flexShrink:0,
+                    cursor: s.contact_id ? 'pointer' : 'default' }}>{name[0]}</div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p onClick={() => s.contact_id && navigate(`/contacts/${s.contact_id}`)}
+                      style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0,
+                        cursor: s.contact_id ? 'pointer' : 'default',
+                        textDecoration: s.contact_id ? 'underline' : 'none',
+                        textDecorationColor: s.contact_id ? BORDER : 'transparent',
+                        display:'inline-block' }}>{name}</p>
                     <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
                       {s.product_name} · {s.portions}天份 · {formatDate(s.share_date)}
                     </p>
                   </div>
                   {s.result && (
                     <span style={{ fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:99,
-                      background:badgeColor.bg, color:badgeColor.text }}>
+                      background:badgeColor.bg, color:badgeColor.text,flexShrink:0 }}>
                       {s.result}
                     </span>
                   )}
+                  <button onClick={() => openEditSample(s)}
+                    style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,padding:2,display:'flex',flexShrink:0 }}>
+                    <IconPencil size={14} stroke={1.9} />
+                  </button>
+                  <button onClick={() => setDeleteTarget(s.id)}
+                    style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,padding:2,display:'flex',flexShrink:0 }}>
+                    <IconTrash size={14} stroke={1.9} />
+                  </button>
                 </div>
 
                 {/* 三步驟進度（還沒設結果前） */}
@@ -403,6 +452,66 @@ export default function Samples() {
         </div>
       )}
       </div>
+
+      {/* 編輯試用品紀錄 */}
+      {editTarget && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:300 }}
+          onClick={() => setEditTarget(null)}>
+          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',
+            padding:'24px 20px 36px',width:'100%',maxWidth:480 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
+              <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯試用品紀錄</h2>
+              <button onClick={() => setEditTarget(null)}
+                style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
+            </div>
+            <input value={editForm.product_name}
+              onChange={e => setEditForm(p => ({ ...p, product_name: e.target.value }))}
+              placeholder="體驗產品 *" style={{ ...inp, marginBottom:8 }} />
+            <div style={{ display:'flex',gap:8,marginBottom:16 }}>
+              <input type="number" value={editForm.portions}
+                onChange={e => setEditForm(p => ({ ...p, portions: e.target.value }))}
+                placeholder="幾天份 *" style={{ ...inp, flex:1, marginBottom:0 }} />
+              <input type="date" value={editForm.share_date}
+                onChange={e => setEditForm(p => ({ ...p, share_date: e.target.value }))}
+                style={{ ...inp, flex:1, marginBottom:0 }} />
+            </div>
+            <button onClick={saveEditSample} disabled={editSaving}
+              style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+                background: editSaving ? '#9BBBF2' : PRIMARY,color:'#fff',
+                fontSize:15,fontWeight:700,cursor:'pointer' }}>
+              {editSaving ? '儲存中…' : '儲存'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 刪除確認 */}
+      {deleteTarget && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+          display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
+          <div style={{ background:'#fff',borderRadius:18,padding:24,width:280,textAlign:'center' }}>
+            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
+              <IconTrash size={30} stroke={1.6} color={DANGER} />
+            </div>
+            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>
+              確定刪除這筆試用品紀錄？
+            </p>
+            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
+            <div style={{ display:'flex',gap:10 }}>
+              <button onClick={() => setDeleteTarget(null)}
+                style={{ flex:1,padding:'10px 0',borderRadius:12,border:`1px solid ${BORDER}`,
+                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
+              <button onClick={handleDeleteSample} disabled={deleting}
+                style={{ flex:1,padding:'10px 0',borderRadius:12,border:'none',
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                {deleting ? '刪除中…' : '刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
