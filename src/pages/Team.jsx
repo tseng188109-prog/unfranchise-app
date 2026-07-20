@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconFlag, IconRefresh, IconFlame, IconCheck,
+  IconFlag2, IconUsersGroup, IconMountain, IconSparkles,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS, WEEKLY_COUNTERS } from './taskDefinitions'
@@ -24,38 +25,13 @@ const DANGER_SOFT = '#FDE2E2'
 const BORDER = '#F0F1F4'
 const SUBCARD_BG = '#F5F8FC'
 
-// 戰隊專屬漸層（跟 Partners 的純藍漸層做出區隔，帶一點紫調更有競賽感）
+// 戰隊專屬漸層（跟 Partners 的純藍漸層做出區隔，帶一點紫調更有前進感）
 const TEAM_GRADIENT = 'linear-gradient(135deg,#6C4CE0,#1668E3)'
-
-// 前三名強調色（金／銀／銅）
-const RANK_STYLE = [
-  { bg:'#FFF7E6', border:'#FFD166', text:'#9A6A16' }, // 金
-  { bg:'#F1F3F6', border:'#C7CEDA', text:'#5A6472' }, // 銀
-  { bg:'#FDF0E4', border:'#E8A268', text:'#8A4B1E' }, // 銅
-]
 const STREAK_COLOR = '#FF8C42'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
 
-function toDateStr(d) {
-  return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
-}
-function today() { return toDateStr(new Date()) }
-
-function getWeekDays() {
-  const d = new Date()
-  const dow = d.getDay()
-  const diff = (dow + 1) % 7
-  const start = new Date(d)
-  start.setDate(d.getDate() - diff)
-  const days = []
-  for (let i = 0; i < 7; i++) {
-    const day = new Date(start)
-    day.setDate(start.getDate() + i)
-    days.push(toDateStr(day))
-  }
-  return days
-}
+import { toDateStr, today, getWeekDays, fetchMyTeam, fetchTeamRanking } from './teamStats'
 
 function genInviteCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -70,7 +46,7 @@ function avatarColor(name) {
   return colors[n % colors.length]
 }
 
-// 本週打卡進度條：天數多寡動態變色（拚戰感）
+// 本週打卡進度條：天數多寡動態變色
 function weekBarColor(days) {
   if (days >= 5) return ACCENT_GREEN_TEXT
   if (days >= 3) return ACCENT_YELLOW_TEXT
@@ -109,13 +85,8 @@ export default function Team() {
 
   async function fetchTeam() {
     setLoading(true)
-    const { data: membership } = await supabase
-      .from('team_members').select('team_id').eq('user_id', user.id).maybeSingle()
-    if (!membership) { setTeam(null); setMembers([]); setLoading(false); return }
-
-    const { data: teamData } = await supabase
-      .from('teams').select('*').eq('id', membership.team_id).single()
-    if (!teamData) { setTeam(null); setLoading(false); return }
+    const teamData = await fetchMyTeam(user.id)
+    if (!teamData) { setTeam(null); setMembers([]); setLoading(false); return }
     setTeam(teamData)
     setIsCreator(teamData.creator_id === user.id)
     await fetchMembers(teamData.id)
@@ -123,81 +94,22 @@ export default function Team() {
   }
 
   async function fetchMembers(teamId) {
-    const { data: memberRows } = await supabase
-      .from('team_members').select('user_id,joined_at').eq('team_id', teamId)
-      .order('joined_at', { ascending: true })
-    if (!memberRows) return
+    const ranked = await fetchTeamRanking(teamId, weekDays)
+    if (!ranked.length) { setMembers([]); return }
 
-    const userIds = memberRows.map(m => m.user_id)
+    const userIds = ranked.map(m => m.user_id)
 
-    const { data: userProfiles } = await supabase
-      .from('users').select('id,name').in('id', userIds)
-    const nameMap = {}
-    ;(userProfiles||[]).forEach(u => { nameMap[u.id] = u.name })
-
-    // 本週每天有沒有打卡（有任何任務 is_done=true 就算）
-    const { data: checkins } = await supabase
-      .from('daily_checkins').select('user_id,date,is_done')
-      .in('user_id', userIds).in('date', weekDays)
-
-    // 本季 BV/IBV
-    const now = new Date()
-    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
-    const quarterStart = `${now.getFullYear()}-${String(quarterStartMonth+1).padStart(2,'0')}-01`
-    const { data: txs } = await supabase
-      .from('transactions').select('user_id,type,points')
-      .in('user_id', userIds).gte('date', quarterStart)
-
-    // 本週週行動總筆數
+    // 本週週行動總筆數（行為次數，不含業績金額）
     const { data: counterLogs } = await supabase
       .from('counter_logs').select('user_id,counter_key')
       .in('user_id', userIds).in('date', weekDays)
       .not('counter_key', 'in', '("new_product","gmtss")')
 
-    const result = memberRows.map(m => {
-      const myCheckins = (checkins||[]).filter(c => c.user_id === m.user_id)
+    // 依加入時間排序顯示，不依表現排序（表現排序只在 fetchTeamRanking 內部用來算連續天數，不用於呈現順序）
+    const result = ranked
+      .map(m => ({ ...m, weekActions: (counterLogs||[]).filter(l => l.user_id === m.user_id).length }))
+      .sort((a,b) => (a.joined_at||'').localeCompare(b.joined_at||''))
 
-      // 每天有沒有打卡（有任何 is_done=true 就算）
-      const dayMap = {}
-      weekDays.forEach(d => {
-        const dc = myCheckins.filter(c => c.date === d && c.is_done)
-        dayMap[d] = dc.length > 0
-      })
-
-      // 今天有沒有打卡
-      const todayChecked = dayMap[today()] || false
-
-      // 本週打卡天數
-      const weekCheckinDays = Object.values(dayMap).filter(Boolean).length
-
-      // 連續打卡天數（從今天往回算）
-      let streak = 0
-      const todayIdx = weekDays.indexOf(today())
-      for (let i = todayIdx; i >= 0; i--) {
-        if (dayMap[weekDays[i]]) streak++
-        else break
-      }
-
-      const myTxs = (txs||[]).filter(t => t.user_id === m.user_id)
-      const bv = myTxs.filter(t=>t.type==='BV').reduce((s,t)=>s+Number(t.points),0)
-      const ibv = myTxs.filter(t=>t.type==='IBV').reduce((s,t)=>s+Number(t.points),0)
-
-      const weekActions = (counterLogs||[]).filter(l => l.user_id === m.user_id).length
-
-      return {
-        user_id: m.user_id,
-        name: nameMap[m.user_id] || '未命名',
-        joined_at: m.joined_at,
-        dayMap, todayChecked,
-        weekCheckinDays, streak,
-        bv, ibv, weekActions,
-      }
-    })
-
-    result.sort((a,b) => {
-      if (b.weekCheckinDays !== a.weekCheckinDays) return b.weekCheckinDays - a.weekCheckinDays
-      return b.streak - a.streak
-    })
     setMembers(result)
   }
 
@@ -313,9 +225,17 @@ export default function Team() {
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const rankEmoji = (i) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i+1)
-
   if (loading) return <LoadingSpinner />
+
+  // 戰隊本週集體進度：全隊本週打卡天數總和 ÷ 全隊上限（人數×7）
+  const totalPossible = members.length * 7
+  const totalDone = members.reduce((s,m) => s + m.weekCheckinDays, 0)
+  const teamPct = totalPossible > 0 ? Math.min(Math.round(totalDone / totalPossible * 100), 100) : 0
+  const selfMember = members.find(m => m.user_id === user?.id)
+  const myContribPct = selfMember && totalPossible > 0
+    ? Math.round(selfMember.weekCheckinDays / totalPossible * 100) : 0
+  const contribStart = Math.max(teamPct - myContribPct, 0)
+  const reachedSummit = teamPct >= 100
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
@@ -363,7 +283,7 @@ export default function Team() {
             {!mode && (
               <div style={{ background:'#fff', border:`1px solid ${BORDER}`, borderRadius:16, padding:20 }}>
                 <p style={{ fontSize:14,color:TEXT_SECONDARY,margin:'0 0 20px',lineHeight:1.7 }}>
-                  跟夥伴組成戰隊，互相看到彼此的每日打卡和本季業績，互相激勵督促！
+                  跟夥伴組成戰隊，一起看見彼此的行動，一起往你想要的生活前進。
                 </p>
                 <button onClick={() => { setMode('create'); setActionMsg('') }}
                   style={{ width:'100%',padding:'14px',borderRadius:12,border:'none',
@@ -430,6 +350,77 @@ export default function Team() {
             )}
           </>
         ) : (
+          <>
+            {/* 戰隊旅程：集體進度視覺化，取代原本的排行榜。不顯示任何個人名次或排序。 */}
+            <div style={{ background:SUBCARD_BG, borderRadius:18, padding:'20px', marginBottom:4 }}>
+              <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 4px' }}>戰隊本週旅程</p>
+              <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 14px' }}>全隊一起邁向夢想的頂點</p>
+
+              {selfMember && myContribPct > 0 && (
+                <div style={{ display:'flex', alignItems:'center', gap:6, background:ACCENT_GREEN_SOFT,
+                  borderRadius:10, padding:'8px 12px', marginBottom:16 }}>
+                  <IconSparkles size={14} stroke={1.9} color={ACCENT_GREEN_TEXT} />
+                  <span style={{ fontSize:12, color:ACCENT_GREEN_TEXT, fontWeight:600 }}>
+                    你這週的行動，把這條路推進了 {myContribPct}%
+                  </span>
+                </div>
+              )}
+
+              <div style={{ position:'relative', height:56, margin:'0 10px 8px' }}>
+                <div style={{ position:'absolute', top:24, left:0, right:0, height:8,
+                  background:'#F0F1F4', borderRadius:4 }} />
+                <div style={{ position:'absolute', top:24, left:0, width:`${teamPct}%`, height:8,
+                  background:ACCENT_YELLOW, borderRadius:4, transition:'width 0.5s ease' }} />
+                {myContribPct > 0 && (
+                  <div style={{ position:'absolute', top:24, left:`${contribStart}%`,
+                    width:`${teamPct-contribStart}%`, height:8, background:ACCENT_GREEN, borderRadius:4,
+                    transition:'width 0.5s ease' }} />
+                )}
+
+                <div style={{ position:'absolute', top:8, left:'50%', transform:'translateX(-50%)',
+                  width:28, height:28, borderRadius:'50%', background:'#fff', border:'3px solid #FFD166',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <IconFlag2 size={13} stroke={1.9} color={ACCENT_YELLOW_TEXT} />
+                </div>
+
+                <div style={{ position:'absolute', top:0, left:`${teamPct}%`, transform:'translateX(-50%)',
+                  width:34, height:34, borderRadius:'50%', background:'#fff', border:'3px solid #F97316',
+                  display:'flex', alignItems:'center', justifyContent:'center', transition:'left 0.5s ease' }}>
+                  <IconUsersGroup size={15} stroke={1.9} color="#F97316" />
+                </div>
+
+                <div style={{ position:'absolute', top:6, left:'100%', transform:'translateX(-100%)',
+                  width:36, height:36, borderRadius:'50%',
+                  background: reachedSummit ? ACCENT_YELLOW_SOFT : '#F5F8FC',
+                  border:`3px solid ${reachedSummit ? ACCENT_YELLOW : '#D8DCE8'}`,
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <IconMountain size={17} stroke={1.9} color={reachedSummit ? ACCENT_YELLOW_TEXT : TEXT_MUTED} />
+                </div>
+              </div>
+
+              <p style={{ textAlign:'center', fontSize:12, fontWeight:600, color:ACCENT_YELLOW_TEXT, margin:'8px 0 0' }}>
+                {reachedSummit ? '這週登頂了，一起看見夢想的樣子' : `再走 ${100-teamPct}% 登頂，一起看見夢想的樣子`}
+              </p>
+
+              <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap', marginTop:16 }}>
+                {members.map(m => {
+                  const isSelf = m.user_id === user.id
+                  const active = m.weekCheckinDays > 0
+                  return (
+                    <div key={m.user_id} title={m.name}
+                      style={{ width:32, height:32, borderRadius:'50%',
+                        background:avatarColor(m.name), opacity: active ? 1 : 0.35,
+                        border: isSelf ? `2px solid ${ACCENT_GREEN}` : 'none',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        color:'#fff', fontSize:12, fontWeight:700 }}>
+                      {m.name[0]}
+                    </div>
+                  )
+                })}
+              </div>
+              <p style={{ textAlign:'center', fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>頭像亮起來的人這週已經動了</p>
+            </div>
+
           <div className="team-grid">
             <div className="team-sidebar" style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:10 }}>
               {/* 邀請碼卡片 */}
@@ -454,75 +445,23 @@ export default function Team() {
                   </button>
                 </div>
               </div>
-
-              {/* 我的名次 */}
-              {(() => {
-                const selfIdx = members.findIndex(m => m.user_id === user.id)
-                const selfMember = selfIdx >= 0 ? members[selfIdx] : null
-                if (!selfMember) return null
-                const selfRankStyle = RANK_STYLE[selfIdx]
-                return (
-                  <div style={{ background: selfRankStyle ? selfRankStyle.bg : PRIMARY_SOFT,
-                    border:`1.5px solid ${PRIMARY}`, borderRadius:14, padding:'14px 16px' }}>
-                    <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'0 0 8px',fontWeight:600 }}>我的名次</p>
-                    <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:8 }}>
-                      <span style={{ fontSize:26 }}>{rankEmoji(selfIdx)}</span>
-                      <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>
-                        本週 {selfMember.weekCheckinDays}/7 天打卡
-                      </span>
-                    </div>
-                    {selfMember.streak >= 2 && (
-                      <span style={{ fontSize:11,color:'#fff',background:STREAK_COLOR,fontWeight:700,
-                        borderRadius:99,padding:'3px 9px',display:'inline-flex',alignItems:'center',gap:3 }}>
-                        <IconFlame size={11} stroke={2} /> 連續 {selfMember.streak} 天
-                      </span>
-                    )}
-                  </div>
-                )
-              })()}
-
-              {/* 戰隊整體本週打卡率 */}
-              {(() => {
-                const teamAvgRate = members.length > 0
-                  ? Math.round(members.reduce((s,m) => s + (m.weekCheckinDays/7), 0) / members.length * 100)
-                  : 0
-                const rateColor = teamAvgRate >= 70 ? ACCENT_GREEN : teamAvgRate >= 40 ? ACCENT_YELLOW : DANGER
-                return (
-                  <div style={{ background:'#fff',border:`1px solid ${BORDER}`,borderRadius:14,padding:'14px 16px' }}>
-                    <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'0 0 10px',fontWeight:600 }}>戰隊本週打卡率</p>
-                    <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                      <div style={{ flex:1,height:8,background:BORDER,borderRadius:99,overflow:'hidden' }}>
-                        <div style={{ height:'100%',borderRadius:99,width:`${teamAvgRate}%`,background:rateColor,
-                          transition:'width 0.5s ease' }} />
-                      </div>
-                      <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{teamAvgRate}%</span>
-                    </div>
-                    <p style={{ fontSize:11,color:TEXT_MUTED,margin:'8px 0 0' }}>全體成員本週打卡完成度平均</p>
-                  </div>
-                )
-              })()}
             </div>
 
             <div className="team-main">
-            {/* 排行榜 */}
+            {/* 成員列表：依加入時間排序，不依表現排序，不顯示名次 */}
             <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-              {members.map((m, idx) => {
+              {members.map((m) => {
                 const isExpanded = expandedId === m.user_id
                 const isSelf = m.user_id === user.id
-                const rankStyle = RANK_STYLE[idx] // undefined for idx >= 3
-                const cardBg = rankStyle ? rankStyle.bg : '#fff'
-                const cardBorder = isSelf
-                  ? `1.5px solid ${PRIMARY}`
-                  : rankStyle ? `1px solid ${rankStyle.border}` : `1px solid ${BORDER}`
+                const cardBorder = isSelf ? `1.5px solid ${PRIMARY}` : `1px solid ${BORDER}`
                 return (
                   <div key={m.user_id}
-                    style={{ background:cardBg, border:cardBorder, borderRadius:14, overflow:'hidden' }}>
+                    style={{ background:'#fff', border:cardBorder, borderRadius:14, overflow:'hidden' }}>
 
                     {/* 成員主列 */}
                     <div style={{ padding:'12px 14px',cursor:'pointer' }}
                       onClick={() => toggleExpand(m.user_id)}>
                       <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
-                        <span style={{ fontSize:16,width:24,flexShrink:0,textAlign:'center' }}>{rankEmoji(idx)}</span>
                         <div style={{ width:32,height:32,borderRadius:'50%',background:avatarColor(m.name),
                           display:'flex',alignItems:'center',justifyContent:'center',
                           color:'#fff',fontWeight:700,fontSize:13,flexShrink:0 }}>
@@ -585,24 +524,8 @@ export default function Team() {
                         })}
                       </div>
 
-                      {/* BV/IBV 進度條 + 本週打卡進度條 */}
+                      {/* 本週進度 + 週行動（行為次數，不顯示業績金額） */}
                       <div style={{ display:'flex',gap:8,marginTop:10,paddingLeft:34,alignItems:'flex-end' }}>
-                        {[
-                          { label:'BV', val:m.bv, max:1500, color:ACCENT_YELLOW_TEXT, bar:ACCENT_YELLOW },
-                          { label:'IBV', val:m.ibv, max:300, color:PRIMARY, bar:PRIMARY },
-                        ].map(({ label, val, max, color, bar }) => (
-                          <div key={label} style={{ flex:1 }}>
-                            <div style={{ display:'flex',justifyContent:'space-between',
-                              fontSize:10,color:TEXT_MUTED,marginBottom:3 }}>
-                              <span style={{ color, fontWeight:700 }}>{label}</span>
-                              <span>{val.toFixed(0)} / {max}</span>
-                            </div>
-                            <div style={{ height:4,background:BORDER,borderRadius:2,overflow:'hidden' }}>
-                              <div style={{ height:'100%',borderRadius:2,background:bar,
-                                width:`${Math.min((val/max)*100,100)}%` }} />
-                            </div>
-                          </div>
-                        ))}
                         <div style={{ flex:1 }}>
                           <div style={{ display:'flex',justifyContent:'space-between',
                             fontSize:10,color:TEXT_MUTED,marginBottom:3 }}>
@@ -624,7 +547,7 @@ export default function Team() {
                     {/* 展開：點擊某天看詳情 */}
                     {isExpanded && (
                       <div style={{ borderTop:`1px solid ${BORDER}`,
-                        padding:'12px 14px',background: rankStyle ? 'rgba(255,255,255,0.5)' : SUBCARD_BG }}>
+                        padding:'12px 14px',background:SUBCARD_BG }}>
                         <p style={{ fontSize:11,color:TEXT_MUTED,margin:'0 0 10px' }}>
                           點任一天的點點看當天詳情
                         </p>
@@ -689,7 +612,7 @@ export default function Team() {
             </div>
 
             {/* 管理操作 */}
-            <div style={{ display:'flex',gap:10,marginTop:4 }}>
+            <div style={{ display:'flex',gap:10,marginTop:14 }}>
               <button onClick={() => setShowLeaveConfirm(true)}
                 style={{ flex:1,padding:'12px',borderRadius:12,
                   border:`1px solid ${BORDER}`,background:'#fff',
@@ -706,6 +629,7 @@ export default function Team() {
             </div>
             </div>
           </div>
+          </>
         )}
       </div>
 
