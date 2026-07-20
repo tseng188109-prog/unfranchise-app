@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { IconPlus, IconFlask, IconCalendarEvent, IconPencil, IconTrash, IconX, IconCheck } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 const PRIMARY = '#1668E3'
 const TEXT_MAIN = '#132A4D'
@@ -41,11 +42,14 @@ export default function Samples() {
   // 新增表單
   const [contacts, setContacts] = useState([])
   const [contactSearch, setContactSearch] = useState('')
-  const [newForm, setNewForm] = useState({
+  const [newForm, setNewForm] = useState(() => loadDraft('sampleNew') || {
     contact_id: '', contact_name: '',
     product_name: '', portions: '', share_date: today(),
   })
   const [saving, setSaving] = useState(false)
+
+  // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+  useEffect(() => { saveDraft('sampleNew', newForm) }, [newForm])
 
   // 考慮中的追蹤紀錄時間軸（點開才載入，同時只展開一筆）
   const [expandedId, setExpandedId] = useState(null)
@@ -96,6 +100,7 @@ export default function Samples() {
     })
     setSaving(false)
     setShowNew(false)
+    clearDraft('sampleNew')
     setNewForm({ contact_id:'',contact_name:'',product_name:'',portions:'',share_date:today() })
     setContactSearch('')
     fetchSamples()
@@ -113,8 +118,11 @@ export default function Samples() {
 
   function openEditSample(s) {
     setEditTarget(s)
-    setEditForm({ product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today() })
+    const base = { product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today() }
+    setEditForm(loadDraft(`sampleEdit:${s.id}`) || base)
   }
+
+  useEffect(() => { if (editTarget) saveDraft(`sampleEdit:${editTarget.id}`, editForm) }, [editForm, editTarget])
 
   async function saveEditSample() {
     if (!editForm.product_name.trim() || !editForm.portions) return
@@ -124,6 +132,7 @@ export default function Samples() {
       portions: Number(editForm.portions),
       share_date: editForm.share_date,
     }).eq('id', editTarget.id)
+    clearDraft(`sampleEdit:${editTarget.id}`)
     setEditSaving(false)
     setEditTarget(null)
     fetchSamples()

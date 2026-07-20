@@ -6,6 +6,7 @@ import {
   IconDotsVertical, IconPencil, IconTrash, IconX, IconGift, IconChartBar,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 // 設計系統色碼
 const PRIMARY = '#1668E3'
@@ -200,12 +201,16 @@ export default function Transactions() {
 
   function openEdit(t) {
     setMenuId(null); setEditTarget(t)
-    setEditForm({
+    const base = {
       date: t.date || '', product_name: t.product_name || '',
       type: t.type || 'BV', points: t.points || '',
       amount: t.amount || '', cost: t.cost || '', is_gift: t.is_gift || false,
-    })
+    }
+    // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+    setEditForm(loadDraft(`txEdit:${t.id}`) || base)
   }
+
+  useEffect(() => { if (editTarget) saveDraft(`txEdit:${editTarget.id}`, editForm) }, [editForm, editTarget])
 
   async function handleSave() {
     setSaving(true)
@@ -215,6 +220,7 @@ export default function Transactions() {
       amount: Number(editForm.amount), cost: Number(editForm.cost),
       is_gift: editForm.is_gift,
     }).eq('id', editTarget.id)
+    clearDraft(`txEdit:${editTarget.id}`)
     setSaving(false); setEditTarget(null)
     fetchData()
     if (searchQuery.trim()) doSearch(searchQuery.trim())
