@@ -6,6 +6,7 @@ import {
   IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 const PRIMARY = '#1668E3'
 const PRIMARY_SOFT = '#EEF3FB'
@@ -112,20 +113,27 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   }
 
   function openAdd() {
-    setForm(EMPTY_FORM)
+    setForm(loadDraft(`customerTxNew:${id}`) || EMPTY_FORM)
     setEditId(null)
     setShowForm(true)
   }
   function openEdit(tx) {
-    setForm({
+    const base = {
       date: tx.date || today(), product_name: tx.product_name || '', type: tx.type || 'BV',
       points: tx.points != null ? String(tx.points) : '',
       amount: tx.amount != null ? String(tx.amount) : '',
       cost: tx.cost != null ? String(tx.cost) : '', is_gift: !!tx.is_gift,
-    })
+    }
+    setForm(loadDraft(`customerTxEdit:${tx.id}`) || base)
     setEditId(tx.id)
     setShowForm(true)
   }
+
+  // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+  useEffect(() => {
+    if (!showForm) return
+    saveDraft(editId ? `customerTxEdit:${editId}` : `customerTxNew:${id}`, form)
+  }, [form, showForm, editId, id])
 
   async function saveTx() {
     if (!form.product_name.trim() || !form.points) return
@@ -139,6 +147,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     }
     if (editId) await supabase.from('transactions').update(payload).eq('id', editId)
     else await supabase.from('transactions').insert(payload)
+    clearDraft(editId ? `customerTxEdit:${editId}` : `customerTxNew:${id}`)
     setSaving(false)
     setShowForm(false)
     fetchData()

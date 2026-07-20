@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft, IconArchive } from '@tabler/icons-react'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 const PRIMARY = '#1668E3'
 const PRIMARY_SOFT = '#EEF3FB'
@@ -78,7 +79,7 @@ export default function CustomerEdit() {
   async function fetchCustomer() {
     const { data } = await supabase.from('customers').select('*').eq('id', id).single()
     if (data) {
-      setForm({
+      const base = {
         name: data.name || '',
         phone: data.phone || '',
         occupation: data.occupation || '',
@@ -86,8 +87,15 @@ export default function CustomerEdit() {
         carrier: data.carrier || '',
         address: data.address || '',
         email: data.email || '',
-      })
-      if (data.contact_id) {
+      }
+      // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+      const draft = loadDraft(`customerEdit:${id}`)
+      setForm(draft?.form || base)
+      if (draft) {
+        setContactSearch(draft.contactSearch || '')
+        setLinkedContactId(draft.linkedContactId || null)
+        setLinkedContactName(draft.linkedContactName || '')
+      } else if (data.contact_id) {
         setLinkedContactId(data.contact_id)
         const { data: linkedContact } = await supabase.from('contacts')
           .select('name').eq('id', data.contact_id).single()
@@ -95,6 +103,10 @@ export default function CustomerEdit() {
       }
     }
   }
+
+  useEffect(() => {
+    if (form) saveDraft(`customerEdit:${id}`, { form, contactSearch, linkedContactId, linkedContactName })
+  }, [form, contactSearch, linkedContactId, linkedContactName, id])
 
   function selectContact(c) {
     setLinkedContactId(c.id)
@@ -133,7 +145,7 @@ export default function CustomerEdit() {
       contact_id: linkedContactId || null,
     }).eq('id', id)
     setSaving(false)
-    if (!error) navigate(`/customers/${id}`)
+    if (!error) { clearDraft(`customerEdit:${id}`); navigate(`/customers/${id}`) }
     else console.error('儲存失敗', error)
   }
 
@@ -141,6 +153,7 @@ export default function CustomerEdit() {
   async function handleArchive() {
     setArchiving(true)
     await supabase.from('customers').update({ is_archived: true }).eq('id', id)
+    clearDraft(`customerEdit:${id}`)
     setArchiving(false)
     navigate('/customers')
   }

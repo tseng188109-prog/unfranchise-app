@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 const PRIMARY = '#1668E3'
 const PRIMARY_SOFT = '#EEF3FB'
@@ -20,7 +21,7 @@ const SUBCARD_BG = '#F5F8FC'
 export default function CustomerNew() {
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => loadDraft('customerNew')?.form || {
     name: '', phone: '', occupation: '',
     birthday: '', carrier: '', address: '', email: '',
   })
@@ -28,9 +29,14 @@ export default function CustomerNew() {
 
   // 連結互動名單（選填）
   const [contacts, setContacts] = useState([])
-  const [contactSearch, setContactSearch] = useState('')
-  const [linkedContactId, setLinkedContactId] = useState(null)
-  const [linkedContactName, setLinkedContactName] = useState('')
+  const [contactSearch, setContactSearch] = useState(() => loadDraft('customerNew')?.contactSearch || '')
+  const [linkedContactId, setLinkedContactId] = useState(() => loadDraft('customerNew')?.linkedContactId || null)
+  const [linkedContactName, setLinkedContactName] = useState(() => loadDraft('customerNew')?.linkedContactName || '')
+
+  // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+  useEffect(() => {
+    saveDraft('customerNew', { form, contactSearch, linkedContactId, linkedContactName })
+  }, [form, contactSearch, linkedContactId, linkedContactName])
 
   useEffect(() => {
     async function fetchContacts() {
@@ -86,7 +92,7 @@ export default function CustomerNew() {
       contact_id: linkedContactId || null,
     })
     setSaving(false)
-    if (!error) navigate('/customers')
+    if (!error) { clearDraft('customerNew'); navigate('/customers') }
   }
 
   const fields = [
