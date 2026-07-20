@@ -32,6 +32,14 @@ function toDateStr(d) {
 }
 function today() { return toDateStr(new Date()) }
 
+function getWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const dow = d.getDay()
+  const diff = (dow + 1) % 7
+  d.setDate(d.getDate() - diff)
+  return toDateStr(d)
+}
+
 function getWeekDays(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const dow = d.getDay()
@@ -127,6 +135,12 @@ export default function Dashboard() {
   // 戰隊本週打卡率（沒加入戰隊時是 null，卡片不顯示；「戰隊」「我的夥伴」兩個入口按鈕永遠顯示）
   const [teamCard, setTeamCard] = useState(null)
 
+  // 本週訪談狀態（本週見面次數/2，教練語氣，跟自己比不跟別人比）
+  const [meetupCard, setMeetupCard] = useState(null)
+
+  // 我為什麼留在這裡：首頁安靜預覽一行，沒寫過就不顯示，不主動邀請填寫
+  const [whyHerePreview, setWhyHerePreview] = useState('')
+
   const isToday = viewDate === today()
 
   useEffect(() => {
@@ -156,18 +170,19 @@ export default function Dashboard() {
     await Promise.all([
       fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
       fetchCheckin(), fetchWeekStatus(), fetchViewContacted(),
-      fetchGoalText(), fetchStarterTasks(), fetchTeamCard()
+      fetchGoalText(), fetchStarterTasks(), fetchTeamCard(), fetchMeetupCard()
     ])
     setLoading(false)
   }
 
   async function fetchProfile() {
     const { data } = await supabase.from('users')
-      .select('name, onboarding_done')
+      .select('name, onboarding_done, why_here')
       .eq('id', user.id).single()
     if (data) {
       setProfile(data)
       setOnboardingDone(data.onboarding_done === true)
+      setWhyHerePreview(data.why_here || '')
     }
   }
 
@@ -183,6 +198,37 @@ export default function Dashboard() {
       ranked.reduce((s,m) => s + (m.weekCheckinDays/7), 0) / ranked.length * 100
     )
     setTeamCard({ teamAvgRate })
+  }
+
+  // 本週訪談狀態：本週見面次數（counter_logs, counter_key='meetup', is_done=true）跟連續達標週數
+  // 跟自己比，不跟隊友比——這是 Dashboard 唯一保留的「訪談狀態」教練語氣卡片
+  async function fetchMeetupCard() {
+    const currentWeekStart = getWeekStart(today())
+    // 抓最近 12 週的資料，夠算連續達標週數
+    const twelveWeeksAgo = (() => {
+      const d = new Date(currentWeekStart + 'T00:00:00')
+      d.setDate(d.getDate() - 7 * 11)
+      return toDateStr(d)
+    })()
+    const { data } = await supabase.from('counter_logs')
+      .select('date')
+      .eq('user_id', user.id).eq('counter_key', 'meetup').eq('is_done', true)
+      .gte('date', twelveWeeksAgo)
+    const weeklyCounts = {}
+    ;(data || []).forEach(l => {
+      const wk = getWeekStart(l.date)
+      weeklyCounts[wk] = (weeklyCounts[wk] || 0) + 1
+    })
+    const count = weeklyCounts[currentWeekStart] || 0
+    let streak = 0
+    let cursor = currentWeekStart
+    while ((weeklyCounts[cursor] || 0) >= 2) {
+      streak++
+      const d = new Date(cursor + 'T00:00:00')
+      d.setDate(d.getDate() - 7)
+      cursor = toDateStr(d)
+    }
+    setMeetupCard({ count, streak })
   }
 
   async function fetchGoalText() {
@@ -356,6 +402,7 @@ export default function Dashboard() {
             display: grid;
             grid-template-columns: 1.6fr 1fr;
             grid-template-areas:
+              "meetup meetup"
               "starter starter"
               "kpi followup"
               "team followup"
@@ -364,6 +411,7 @@ export default function Dashboard() {
             gap: 14px;
             align-items: start;
           }
+          .area-meetup { grid-area: meetup; margin-bottom: 0 !important; }
           .area-starter { grid-area: starter; margin-bottom: 0 !important; }
           .area-kpi { grid-area: kpi; margin-bottom: 0 !important; }
           .area-team { grid-area: team; margin-bottom: 0 !important; }
@@ -378,6 +426,12 @@ export default function Dashboard() {
           <div>
             <p style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>嗨，{displayName} 👋</p>
             <p style={{ fontSize:12,color:TEXT_MUTED,margin:'5px 0 0' }}>{todayStr}</p>
+            {whyHerePreview && (
+              <p onClick={() => navigate('/settings')}
+                style={{ fontSize:13,fontStyle:'italic',color:TEXT_SECONDARY,margin:'8px 0 0',cursor:'pointer' }}>
+                「{whyHerePreview}」
+              </p>
+            )}
           </div>
           <div style={{ display:'flex',gap:8 }}>
             <NotificationBell userId={user?.id} />
@@ -392,6 +446,28 @@ export default function Dashboard() {
 
       <div className="dashboard-wrap" style={{ padding:'14px 16px 0' }}>
         <div className="dash-grid">
+
+        {meetupCard && (
+          <section className="area-meetup" style={{ marginBottom:10 }}>
+            <div style={{ background:CARD_BG, border:'1px solid #F0F1F4', borderRadius:RADIUS.xl, padding:'18px' }}>
+              <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 8px', fontWeight:700 }}>本週訪談</p>
+              <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
+                <span style={{ fontSize:34, fontWeight:700, color:TEXT_MAIN, lineHeight:1 }}>
+                  {meetupCard.count}<span style={{ fontSize:17, color:TEXT_MUTED, fontWeight:600 }}>/2</span>
+                </span>
+                <span style={{ fontSize:14, color:TEXT_SECONDARY, fontWeight:600 }}>
+                  {meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
+                </span>
+              </div>
+              {meetupCard.streak >= 2 && (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:ACCENT_YELLOW_SOFT,
+                  borderRadius:RADIUS.pill, padding:'4px 10px', marginTop:10 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:ACCENT_YELLOW_TEXT }}>連續 {meetupCard.streak} 週達標</span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {showStarterCard && (
           <section className="area-starter" style={{ borderRadius:RADIUS.xl,overflow:'hidden',marginBottom:10,
