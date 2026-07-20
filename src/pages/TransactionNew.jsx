@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 const PRIMARY = '#1668E3'
 const TEXT_MAIN = '#132A4D'
@@ -29,7 +30,7 @@ export default function TransactionNew() {
   const [user, setUser] = useState(null)
   const [saving, setSaving] = useState(false)
   const [customers, setCustomers] = useState([])
-  const [customerSearch, setCustomerSearch] = useState('')
+  const [customerSearch, setCustomerSearch] = useState(() => loadDraft('txNew')?.customerSearch || '')
   const [showCustomerList, setShowCustomerList] = useState(false)
   const [showQuickCreate, setShowQuickCreate] = useState(false)
   const [quickName, setQuickName] = useState('')
@@ -38,7 +39,7 @@ export default function TransactionNew() {
   const [quickOccupation, setQuickOccupation] = useState('')
   const [quickError, setQuickError] = useState('')
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => loadDraft('txNew')?.form || {
     date: new Date().toISOString().split('T')[0],
     customer_id: '',
     customer_name: '',
@@ -50,6 +51,9 @@ export default function TransactionNew() {
     is_gift: false,
   })
   const [errors, setErrors] = useState({})
+
+  // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+  useEffect(() => { saveDraft('txNew', { form, customerSearch }) }, [form, customerSearch])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -122,7 +126,7 @@ export default function TransactionNew() {
       is_gift: form.is_gift,
     })
     setSaving(false)
-    if (!error) navigate('/transactions')
+    if (!error) { clearDraft('txNew'); navigate('/transactions') }
   }
 
   return (
