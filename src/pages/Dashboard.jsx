@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS, STARTER_TASKS } from './taskDefinitions'
+import { fetchMyTeam, fetchTeamRanking, getWeekDays as getTeamWeekDays } from './teamStats'
 import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
+  IconFlag, IconUsersGroup,
 } from '@tabler/icons-react'
 
 const BV_GOAL = 1500
@@ -122,6 +124,9 @@ export default function Dashboard() {
   const [starterExpanded, setStarterExpanded] = useState(true)
   const [onboardingDone, setOnboardingDone] = useState(true)
 
+  // 戰隊本週打卡率（沒加入戰隊時是 null，卡片不顯示；「戰隊」「我的夥伴」兩個入口按鈕永遠顯示）
+  const [teamCard, setTeamCard] = useState(null)
+
   const isToday = viewDate === today()
 
   useEffect(() => {
@@ -151,7 +156,7 @@ export default function Dashboard() {
     await Promise.all([
       fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
       fetchCheckin(), fetchWeekStatus(), fetchViewContacted(),
-      fetchGoalText(), fetchStarterTasks()
+      fetchGoalText(), fetchStarterTasks(), fetchTeamCard()
     ])
     setLoading(false)
   }
@@ -166,6 +171,20 @@ export default function Dashboard() {
     }
   }
 
+  // 戰隊本週打卡率：只算全隊平均，不顯示個人名次（排名跟心法文件「永不做業績排名」衝突，
+  // 等 Team.jsx 改成共同完成視覺化再一起處理，這裡先不做排名卡片）
+  async function fetchTeamCard() {
+    const teamData = await fetchMyTeam(user.id)
+    if (!teamData) { setTeamCard(null); return }
+    const teamWeekDays = getTeamWeekDays()
+    const ranked = await fetchTeamRanking(teamData.id, teamWeekDays)
+    if (!ranked.length) { setTeamCard(null); return }
+    const teamAvgRate = Math.round(
+      ranked.reduce((s,m) => s + (m.weekCheckinDays/7), 0) / ranked.length * 100
+    )
+    setTeamCard({ teamAvgRate })
+  }
+
   async function fetchGoalText() {
     const { data } = await supabase.from('users').select('goal_declaration').eq('id', user.id).single()
     if (data?.goal_declaration) setGoalText(data.goal_declaration)
@@ -175,8 +194,6 @@ export default function Dashboard() {
     const todayStr = today()
     const { count: contactCount } = await supabase
       .from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-    // 「完成一次打卡」是一次性成就，只要史上曾經打過卡就算完成，不限定「今天」
-    // （原本寫成查「今天」，會導致隔天沒打卡任務又重新變成未完成，永遠卡住）
     const { data: everCheckin } = await supabase
       .from('daily_checkins').select('id')
       .eq('user_id', user.id).eq('is_done', true).limit(1)
@@ -341,6 +358,7 @@ export default function Dashboard() {
             grid-template-areas:
               "starter starter"
               "kpi followup"
+              "team followup"
               "quick followup"
               "checkin followup";
             gap: 14px;
@@ -348,6 +366,7 @@ export default function Dashboard() {
           }
           .area-starter { grid-area: starter; margin-bottom: 0 !important; }
           .area-kpi { grid-area: kpi; margin-bottom: 0 !important; }
+          .area-team { grid-area: team; margin-bottom: 0 !important; }
           .area-followup { grid-area: followup; margin-bottom: 0 !important; }
           .area-quick { grid-area: quick; margin-bottom: 0 !important; }
           .area-checkin { grid-area: checkin; margin-bottom: 0 !important; }
@@ -466,6 +485,39 @@ export default function Dashboard() {
             <span style={{ color:'#fff',fontWeight:700,fontSize:16 }}>
               NT${profit.toLocaleString()}
             </span>
+          </div>
+        </section>
+
+        {/* 戰隊：只顯示全隊平均打卡率，不顯示個人名次（排名等 Team.jsx 改成共同完成視覺化再一起做）；
+            「戰隊」「我的夥伴」兩個入口按鈕永遠顯示，不管有沒有加入戰隊 */}
+        <section className="area-team" style={{ marginBottom:10 }}>
+          {teamCard && (
+            <div style={{ background:CARD_BG, border:'1px solid #F0F1F4', borderRadius:RADIUS.xl,
+              padding:'14px 16px', marginBottom:10 }}>
+              <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 10px', fontWeight:700 }}>戰隊本週打卡率</p>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ flex:1, height:8, background:'#F0F1F4', borderRadius:RADIUS.pill, overflow:'hidden' }}>
+                  <div style={{ height:'100%', borderRadius:RADIUS.pill, width:`${teamCard.teamAvgRate}%`,
+                    background: teamCard.teamAvgRate>=70?ACCENT_GREEN:teamCard.teamAvgRate>=40?ACCENT_YELLOW:DANGER,
+                    transition:'width 0.5s ease' }} />
+                </div>
+                <span style={{ fontSize:14, fontWeight:700, color:TEXT_MAIN }}>{teamCard.teamAvgRate}%</span>
+              </div>
+            </div>
+          )}
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => navigate('/team')}
+              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                padding:'11px 0', borderRadius:RADIUS.lg, border:'1px solid #F0F1F4',
+                background:SUBCARD_BG, color:TEXT_MAIN, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
+            </button>
+            <button onClick={() => navigate('/partners')}
+              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                padding:'11px 0', borderRadius:RADIUS.lg, border:'1px solid #F0F1F4',
+                background:SUBCARD_BG, color:TEXT_MAIN, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
+            </button>
           </div>
         </section>
 
