@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -47,8 +48,11 @@ export default function ContactNew() {
   const [savedCount, setSavedCount] = useState(0)
   const nameInputRef = useRef(null)
 
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState(() => loadDraft('contactNew') || EMPTY_FORM)
   const [errors, setErrors] = useState({})
+
+  // 填到一半 App 關掉重開，草稿自動補回來；存成功或按取消才清掉
+  useEffect(() => { saveDraft('contactNew', form) }, [form])
 
   function set(key, val) {
     setForm(prev => {
@@ -96,6 +100,7 @@ export default function ContactNew() {
 
     setSaving(false)
     if (error) return
+    clearDraft('contactNew')
 
     if (continueAdding) {
       setSavedCount(c => c + 1)

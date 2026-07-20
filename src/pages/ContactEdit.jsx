@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
+import { saveDraft, loadDraft, clearDraft } from './formDraft'
 
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
 
@@ -64,7 +65,7 @@ export default function ContactEdit() {
   async function fetchContact() {
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single()
     if (data) {
-      setForm({
+      const base = {
         name: data.name || '',
         platform: data.platform || '',
         platform_account: data.platform_account || '',
@@ -77,13 +78,19 @@ export default function ContactEdit() {
         pain_point: data.pain_point || '',
         asked_products: data.asked_products || '',
         birthday: data.birthday || '',
-      })
+      }
+      // 填到一半 App 關掉重開，草稿自動補回來（這是單人 App，不用比對資料有沒被別人改過）
+      const draft = loadDraft(`contactEdit:${id}`)
+      const initial = draft || base
+      setForm(initial)
       setOriginalActionType(data.action_type || '')
-      if (data.occupation || data.region || data.note || data.pain_point || data.asked_products || data.birthday) {
+      if (initial.occupation || initial.region || initial.note || initial.pain_point || initial.asked_products || initial.birthday) {
         setShowMore(true)
       }
     }
   }
+
+  useEffect(() => { if (form) saveDraft(`contactEdit:${id}`, form) }, [form, id])
 
   function set(key, val) {
     setForm(prev => {
@@ -127,6 +134,7 @@ export default function ContactEdit() {
     if (next_contact_date) update.next_contact_date = next_contact_date
 
     await supabase.from('contacts').update(update).eq('id', id)
+    clearDraft(`contactEdit:${id}`)
     setSaving(false)
     navigate(`/contacts/${id}`)
   }
