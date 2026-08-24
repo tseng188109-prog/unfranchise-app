@@ -140,7 +140,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
-      user_id: user.id, customer_id: id, customer_name: customer.name, customer_phone: customer.phone || null,
+      user_id: user.id, customer_id: id,
       date: form.date, product_name: form.product_name.trim(), type: form.type,
       points: parseFloat(form.points) || 0, amount: parseFloat(form.amount) || 0,
       cost: parseFloat(form.cost) || 0, is_gift: form.is_gift,
