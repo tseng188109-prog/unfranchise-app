@@ -143,7 +143,10 @@ export function pickMeetingContact(contacts) {
   return [...pool].sort((a, b) => {
     const ka = sortKey(a), kb = sortKey(b)
     if (ka !== kb) return ka < kb ? -1 : 1
-    return (a.created_at || '') < (b.created_at || '') ? -1 : 1
+    // 同一批 CSV 匯入的聯絡人 created_at 常常完全一樣，這裡再用一次 created_at 比較沒有意義
+    // （比較自己永遠不相等地互相判定對方比較大，排序結果會跟著查詢回來的原始順序亂跳）。
+    // 改用 id 當最後一層比較，id 一定不重複，才能保證「沒換資料就不換人選」。
+    return (a.id || '') < (b.id || '') ? -1 : 1
   })[0]
 }
 
@@ -154,6 +157,7 @@ export function pickInteractionContacts(contacts, excludeId, count = 3) {
   return [...pool].sort((a, b) => {
     const ka = sortKey(a), kb = sortKey(b)
     if (ka !== kb) return ka < kb ? -1 : 1
-    return (a.created_at || '') < (b.created_at || '') ? -1 : 1
+    // 同理：created_at 同批匯入常常完全相同，用 id 收尾才穩定
+    return (a.id || '') < (b.id || '') ? -1 : 1
   }).slice(0, count)
 }
