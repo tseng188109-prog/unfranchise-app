@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import { markDaily312 } from './followUp'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -101,6 +102,7 @@ export default function ContactNew() {
     setSaving(false)
     if (error) return
     clearDraft('contactNew')
+    markDaily312(supabase, user.id)
 
     if (continueAdding) {
       setSavedCount(c => c + 1)

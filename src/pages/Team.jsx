@@ -94,7 +94,8 @@ export default function Team() {
   }
 
   async function fetchMembers(teamId) {
-    const ranked = await fetchTeamRanking(teamId, weekDays)
+    // 戰隊旅程的推進，跟著「今天的3-1-2」走（daily_312），不是算任意打卡
+    const ranked = await fetchTeamRanking(teamId, weekDays, ['daily_312'])
     if (!ranked.length) { setMembers([]); return }
 
     const userIds = ranked.map(m => m.user_id)

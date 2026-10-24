@@ -99,6 +99,21 @@ export async function setStage(supabase, { contactId, userId, track, stage }) {
   return { error }
 }
 
+// ---- 今天的 3-1-2 完成記號 ----
+// 跟戰隊旅程（Team.jsx）共用同一個 task_key，團隊進度才會跟著 3-1-2 走，
+// 不是另外算一套「有沒有打卡」。只要當天在 3-1-2 面板上做了任何一件事
+// （記一下互動／約到會議／新增聯絡人），就算有推進，不要求精確湊滿 3/1/2 三個數字，
+// 跟現有的每日任務系統同一個精神：簡單的 is_done 旗標，不做到微觀計數。
+export const DAILY_312_TASK_KEY = 'daily_312'
+
+export async function markDaily312(supabase, userId, dateStr) {
+  const date = dateStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+  return supabase.from('daily_checkins').upsert({
+    user_id: userId, date, task_key: DAILY_312_TASK_KEY, is_done: true,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,date,task_key' })
+}
+
 // ---- 今天的 3-1-2 ----
 // 排序用的時間戳：沒有 last_interacted_at 就用建立時間，確保一定有東西可排
 function sortKey(c) {

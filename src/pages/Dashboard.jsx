@@ -25,7 +25,7 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { pickMeetingContact, pickInteractionContacts, getSuggestion } from './followUp'
+import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312 } from './followUp'
 
 
 function toDateStr(d) {
@@ -187,13 +187,13 @@ export default function Dashboard() {
     }
   }
 
-  // 戰隊本週打卡率：只算全隊平均，不顯示個人名次（排名跟心法文件「永不做業績排名」衝突，
-  // 等 Team.jsx 改成共同完成視覺化再一起處理，這裡先不做排名卡片）
+  // 戰隊本週 3-1-2 推進率：只算全隊平均，不顯示個人名次。
+  // 跟 Team.jsx「戰隊旅程」同一個 task_key（daily_312），兩邊算的是同一件事。
   async function fetchTeamCard() {
     const teamData = await fetchMyTeam(user.id)
     if (!teamData) { setTeamCard(null); return }
     const teamWeekDays = getTeamWeekDays()
-    const ranked = await fetchTeamRanking(teamData.id, teamWeekDays)
+    const ranked = await fetchTeamRanking(teamData.id, teamWeekDays, ['daily_312'])
     if (!ranked.length) { setTeamCard(null); return }
     const teamAvgRate = Math.round(
       ranked.reduce((s,m) => s + (m.weekCheckinDays/7), 0) / ranked.length * 100
@@ -645,7 +645,7 @@ export default function Dashboard() {
               <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>別漫無目的，挑最接近臨門一腳的人</div>
               {!meetingContact
                 ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>目前沒有準備好約會議的人，先專心做 3 位互動就好</p>
-                : <button onClick={()=>navigate(`/contacts/${meetingContact.id}`)}
+                : <button onClick={()=>{ markDaily312(supabase, user.id); navigate(`/contacts/${meetingContact.id}`) }}
                     style={{ width:'100%',textAlign:'left',background:'none',border:'none',padding:0,cursor:'pointer' }}>
                     <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:8 }}>
                       <Avatar name={meetingContact.name} size={34} />

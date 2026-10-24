@@ -35,10 +35,14 @@ export async function fetchMyTeam(userId) {
 }
 
 // 計算戰隊成員本週打卡排名：只算排名需要的欄位
-// （dayMap / todayChecked / weekCheckinDays / streak），已依打卡天數→連續天數排序。
+// （dayMap / todayChecked / weekCheckinDays / streak），已依打卡天數→連續天數排序
+// （這個排序只在內部用來算連續天數，呈現順序一律依加入時間，絕不呈現名次）。
 // BV/IBV/週行動等展示用欄位不在這裡算，各頁面自己另外查、依 user_id merge 回來，
 // 避免這支共用函式扛不需要的查詢，也讓排名邏輯保持單一事實來源。
-export async function fetchTeamRanking(teamId, weekDays) {
+//
+// taskKeys：只算特定 task_key 的打卡（例如 ['daily_312']，只算有沒有推進今天的3-1-2）。
+// 不傳的話維持舊行為：當天只要有任何一筆 is_done 的打卡就算。
+export async function fetchTeamRanking(teamId, weekDays, taskKeys = null) {
   const { data: memberRows } = await supabase
     .from('team_members').select('user_id,joined_at').eq('team_id', teamId)
     .order('joined_at', { ascending: true })
@@ -51,9 +55,11 @@ export async function fetchTeamRanking(teamId, weekDays) {
   const nameMap = {}
   ;(userProfiles||[]).forEach(u => { nameMap[u.id] = u.name })
 
-  const { data: checkins } = await supabase
-    .from('daily_checkins').select('user_id,date,is_done')
+  let checkinQuery = supabase
+    .from('daily_checkins').select('user_id,date,is_done,task_key')
     .in('user_id', userIds).in('date', weekDays)
+  if (taskKeys) checkinQuery = checkinQuery.in('task_key', taskKeys)
+  const { data: checkins } = await checkinQuery
 
   const todayStr = today()
   const todayIdx = weekDays.indexOf(todayStr)

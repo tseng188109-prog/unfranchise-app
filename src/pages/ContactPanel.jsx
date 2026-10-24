@@ -10,6 +10,7 @@ import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue }
 import {
   RELATIONSHIP_STAGES, REFERRAL_STAGES, getSuggestion,
   muteContact, unmuteContact, addContactNote, setStage, isStale, noteAgeOpacity,
+  markDaily312,
 } from './followUp'
 
 import {
@@ -126,6 +127,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
       task_key: 'daily_3_contacts', is_done: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,date,task_key' })
+    if (quickDate === today()) await markDaily312(supabase, user.id, quickDate)
     const isNewer = !contact.last_contact_date || quickDate >= contact.last_contact_date
     if (isNewer) {
       const days = DAYS_MAP[contact.action_type] || 30
