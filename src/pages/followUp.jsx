@@ -2,7 +2,7 @@
 // 「標注不自動推導」：這個檔案裡的任何函式都只負責「建議」或「挑選」，
 // 真正寫入 relationship_stage / referral_stage 的動作，永遠只能來自使用者自己在畫面上點的那一下。
 
-// ---- 階段清單（零售軌道 / 推薦軌道）----
+// ---- 階段清單（消費狀況 / 合作意願）----
 // 消費狀況：這個人離「成交賺價差」走到哪一步了
 export const RELATIONSHIP_STAGES = [
   '剛認識',
@@ -122,8 +122,8 @@ function sortKey(c) {
 
 // 「1個會議」資格：
 //   (a) action_type 本來就判斷為「直接法」，或
-//   (b) 零售軌道已經「已登記但尚未消費」，或
-//   (c) 推薦軌道「考慮中」
+//   (b) 消費狀況已經「已登記但尚未消費」，或
+//   (c) 合作意願「考慮中」
 // 但排除「剛認識」（避免 action_type 誤判和真實關係熟度矛盾）與靜音的人
 export function isMeetingEligible(c) {
   if (!c || c.is_muted) return false

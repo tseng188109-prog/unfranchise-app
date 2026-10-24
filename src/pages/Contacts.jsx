@@ -852,7 +852,7 @@ async function handleImport() {
               確定永久刪除「{deleteTarget.name}」？
             </p>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
-              會一併刪除他的互動紀錄與試用品追蹤紀錄，此動作無法復原
+              會一併刪除相關的互動紀錄與試用品追蹤紀錄，此動作無法復原
             </p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
