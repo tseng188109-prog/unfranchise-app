@@ -16,11 +16,12 @@ export function sampleResultBadgeColor(result) {
   return { bg: BORDER, text: TEXT_SECONDARY }
 }
 
-// 下次追蹤日期的顯示文字（今天追蹤／逾期N天／N天後）
+// 下次追蹤日期的顯示文字：跟主要跟進系統同一個精神，不用「逾期N天」這種算帳式的催促語言，
+// 晚一點問沒關係，只是提醒「可以找機會問了」
 export function formatSampleDue(dateStr, todayStr) {
   if (!dateStr) return ''
   const diff = Math.floor((new Date(todayStr) - new Date(dateStr)) / 86400000)
-  if (diff === 0) return '今天追蹤'
-  if (diff > 0) return `逾期${diff}天`
+  if (diff === 0) return '今天可以問問看'
+  if (diff > 0) return '可以找機會問一下了'
   return `${Math.abs(diff)}天後`
 }

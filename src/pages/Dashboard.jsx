@@ -56,15 +56,7 @@ function getWeekDays(dateStr) {
   return days
 }
 
-function formatFollowDate(dateStr) {
-  if (!dateStr) return ''
-  const diff = Math.floor((new Date(today()) - new Date(dateStr)) / 86400000)
-  if (diff === 0) return '今天到期'
-  if (diff > 0) return `逾期${diff}天`
-  return `${Math.abs(diff)}天後`
-}
-function isOverdue(d) { return d && d < today() }
-function isDueToday(d) { return d === today() }
+// （舊的「逾期N天」跟進日期系統已經被 3-1-2 取代，不再用天數嚇自己，這裡不留殘留函式）
 function formatDateLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' })

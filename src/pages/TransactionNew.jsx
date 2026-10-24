@@ -3,18 +3,11 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
-
-const PRIMARY = '#1668E3'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_SOFT = '#FFF7E6'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
+import {
+  PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
+  ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, BORDER,
+} from './designTokens'
 
 // 顯示顧客識別資訊（智慧顯示）
 function customerLabel(c) {

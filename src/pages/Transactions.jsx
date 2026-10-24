@@ -7,29 +7,13 @@ import {
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
+  ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
+  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, avatarBg,
+} from './designTokens'
 
-// 設計系統色碼
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_SOFT = '#FFF7E6'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
-const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const DANGER_SOFT = '#FDE2E2'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
-
-function avatarBg(name) {
-  const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
-  return colors[n % colors.length]
-}
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')

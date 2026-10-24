@@ -7,27 +7,12 @@ import {
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_YELLOW, ACCENT_YELLOW_TEXT, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
+  DANGER, BORDER, SUBCARD_BG, RADIUS, getEggColor, getEggBg, avatarBg,
+} from './designTokens'
 
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
-
-function avatarBg(name) {
-  const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
-  return colors[n % colors.length]
-}
-function getEggColor(t) { return t==='茶葉蛋'?'#F97316':t==='荷包蛋'?'#3B82F6':t==='生雞蛋'?'#22C55E':'#9CA3AF' }
-function getEggBg(t) { return t==='茶葉蛋'?'#FFF7ED':t==='荷包蛋'?'#EFF6FF':t==='生雞蛋'?'#F0FDF4':'#F9FAFB' }
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
@@ -61,7 +46,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [customer, setCustomer] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('tx') // tx | info
+  const [tab, setTab] = useState('info') // info | tx — 先看「這個人」，不是先看帳本
 
   const [editReminder, setEditReminder] = useState(false)
   const [reminderDate, setReminderDate] = useState('')
@@ -77,7 +62,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
 
   async function fetchData() {
     setLoading(true)
-    setTab('tx')
+    setTab('info')
     setShowForm(false)
     setLinkedContact(null)
     const { data: c } = await supabase.from('customers').select('*').eq('id', id).single()
@@ -234,7 +219,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           )}
         </div>
         <div style={{ display:'flex', gap:20 }}>
-          {[{ key:'tx', label:'消費紀錄' }, { key:'info', label:'資料' }].map(t => (
+          {[{ key:'info', label:'認識這個人' }, { key:'tx', label:'消費紀錄' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ background:'none', border:'none', cursor:'pointer', padding:'0 0 10px',
                 fontSize:13, fontWeight:600, color: tab===t.key ? PRIMARY : TEXT_MUTED,
@@ -420,7 +405,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
             </div>
 
             {infoRows.length === 0 ? (
-              <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'12px 0' }}>還沒有補充資料</p>
+              <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'12px 0' }}>還不太了解這個人，之後想到什麼可以補在編輯裡</p>
             ) : infoRows.map(r => (
               <div key={r.label} style={{ display:'flex', alignItems:'flex-start', gap:10,
                 background:SUBCARD_BG, borderRadius:10, padding:'10px 12px' }}>

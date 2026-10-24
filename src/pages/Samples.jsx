@@ -5,28 +5,17 @@ import { IconPlus, IconFlask, IconCalendarEvent, IconPencil, IconTrash, IconX, I
 import LoadingSpinner from './LoadingSpinner'
 import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
-
-const PRIMARY = '#1668E3'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
-const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
+import {
+  PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_TEXT,
+  DANGER, BORDER, SUBCARD_BG, avatarBg,
+} from './designTokens'
 
 function today() { return new Date().toISOString().split('T')[0] }
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
   return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`
-}
-function avatarBg(name) {
-  const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
-  let n = 0; for (let i = 0; i < name.length; i++) n += name.charCodeAt(i)
-  return colors[n % colors.length]
 }
 
 const FILTERS = ['全部','進行中','成交','考慮中','轉介/其他需求']
@@ -395,8 +384,7 @@ export default function Samples() {
                         style={{ padding:'5px 8px', borderRadius:8, border:`1px solid ${BORDER}`,
                           fontSize:12, outline:'none', color:TEXT_MAIN }} />
                       {s.next_followup_date && (
-                        <span style={{ fontSize:11, fontWeight:700,
-                          color: isOverdueFollowup ? DANGER : ACCENT_YELLOW_TEXT }}>
+                        <span style={{ fontSize:11, fontWeight:700, color:ACCENT_YELLOW_TEXT }}>
                           {formatSampleDue(s.next_followup_date, today())}
                         </span>
                       )}

@@ -7,23 +7,12 @@ import {
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS, WEEKLY_COUNTERS } from './taskDefinitions'
-
-// 設計系統色碼（與全站一致）
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
-const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_SOFT = '#FFF7E6'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
-const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
-const DANGER = '#E0454A'
-const DANGER_SOFT = '#FDE2E2'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
+import {
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
+  ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
+  ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
+  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG,
+} from './designTokens'
 
 // 戰隊專屬漸層（跟 Partners 的純藍漸層做出區隔，帶一點紫調更有前進感）
 const TEAM_GRADIENT = 'linear-gradient(135deg,#6C4CE0,#1668E3)'

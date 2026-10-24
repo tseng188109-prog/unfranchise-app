@@ -367,33 +367,63 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               </>
             )}
 
-            {/* 消費狀況／合作意願：標注永遠由使用者自己點 */}
+            {/* 消費狀況：路徑視覺，標注永遠由使用者自己點 */}
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
-                {RELATIONSHIP_STAGES.map(s => (
-                  <button key={s} onClick={() => handleSetStage('relationship', s)}
-                    style={{ background: contact.relationship_stage===s ? PRIMARY : SUBCARD_BG,
-                      color: contact.relationship_stage===s ? '#fff' : TEXT_SECONDARY,
-                      border:'none', borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
-                      fontWeight: contact.relationship_stage===s ? 700 : 600, cursor:'pointer' }}>
-                    {s}
-                  </button>
-                ))}
+              <div style={{ display:'flex', alignItems:'center' }}>
+                {RELATIONSHIP_STAGES.map((s, i) => {
+                  const curIdx = RELATIONSHIP_STAGES.indexOf(contact.relationship_stage)
+                  const reached = curIdx >= 0 && i <= curIdx
+                  const isCurrent = i === curIdx
+                  return (
+                    <div key={s} style={{ display:'flex', alignItems:'center', flex: i < RELATIONSHIP_STAGES.length-1 ? 1 : '0 0 auto' }}>
+                      <button onClick={() => handleSetStage('relationship', s)} title={s}
+                        style={{ background:'none', border:'none', cursor:'pointer', padding:4,
+                          display:'flex', flexDirection:'column', alignItems:'center', gap:6, flexShrink:0 }}>
+                        <span style={{ width: isCurrent?16:11, height: isCurrent?16:11, borderRadius:RADIUS.circle,
+                          background: reached ? PRIMARY : '#D7DEE7',
+                          border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
+                          boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
+                        <span style={{ fontSize:9, color: reached ? (isCurrent?PRIMARY:TEXT_MUTED) : '#C3CCDA',
+                          fontWeight: isCurrent?700:400, whiteSpace:'nowrap' }}>{s}</span>
+                      </button>
+                      {i < RELATIONSHIP_STAGES.length-1 && (
+                        <div style={{ height:2, flex:1, background: i < curIdx ? PRIMARY : '#D7DEE7' }} />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10, marginTop:14 }}>合作意願</div>
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                {REFERRAL_STAGES.map(s => (
-                  <button key={s} onClick={() => handleSetStage('referral', s)}
-                    style={{ background: contact.referral_stage===s ? ACCENT_GREEN : SUBCARD_BG,
-                      color: contact.referral_stage===s ? '#fff' : TEXT_SECONDARY,
-                      border:'none', borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
-                      fontWeight: contact.referral_stage===s ? 700 : 600, cursor:'pointer' }}>
-                    {s}
-                  </button>
-                ))}
+              <p style={{ fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>想往前走一步嗎？點一下上面的點就能標注，系統不會自己幫你改</p>
+            </div>
+
+            {/* 合作意願：非線性（「暫時婉拒」不是進度的一部分），用目前狀態＋收合清單呈現 */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                background:SUBCARD_BG, borderRadius:RADIUS.md, padding:'10px 14px' }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                  <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:700 }}>合作意願</span>
+                  <span style={{ fontSize:14, color:TEXT_MAIN, fontWeight:700 }}>{contact.referral_stage || '尚未聊過'}</span>
+                </div>
+                <button onClick={() => setShowReferralOptions(v => !v)}
+                  style={{ background:'none', border:'none', color:PRIMARY, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                  {showReferralOptions ? '收起' : '調整 ›'}
+                </button>
               </div>
-              <p style={{ fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>這一塊永遠由你自己標注，系統只會在旁邊提醒參考，不會自己幫你改</p>
+              {showReferralOptions && (
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }}>
+                  {REFERRAL_STAGES.map(s => (
+                    <button key={s} onClick={() => { handleSetStage('referral', s); setShowReferralOptions(false) }}
+                      style={{ background: contact.referral_stage===s ? ACCENT_GREEN : '#fff',
+                        color: contact.referral_stage===s ? '#fff' : TEXT_SECONDARY,
+                        border: contact.referral_stage===s ? 'none' : `1px solid ${BORDER}`,
+                        borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
+                        fontWeight: contact.referral_stage===s ? 700 : 600, cursor:'pointer' }}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* 一句話日記：主要行動 */}
