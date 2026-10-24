@@ -7,6 +7,10 @@ import {
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
+import {
+  RELATIONSHIP_STAGES, REFERRAL_STAGES, getSuggestion,
+  muteContact, unmuteContact, addContactNote, setStage, isStale, noteAgeOpacity,
+} from './followUp'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -54,6 +58,12 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   const [editNote, setEditNote] = useState('')
   const [linkedCustomer, setLinkedCustomer] = useState(null)
 
+  // 一句話日記（contact_notes）+ 階段標注（annotation only，使用者自己點才會改）
+  const [contactNotes, setContactNotes] = useState([])
+  const [newNoteText, setNewNoteText] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [muteSaving, setMuteSaving] = useState(false)
+
   // 試用品追蹤：這位聯絡人目前進行中/已有結果的試用品，跟快速新增表單
   const [samples, setSamples] = useState([])
   const [showSampleForm, setShowSampleForm] = useState(false)
@@ -78,6 +88,10 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     const { data: logData } = await supabase.from('contact_logs')
       .select('*').eq('contact_id', id).order('date', { ascending: false })
     if (logData) setLogs(logData)
+
+    const { data: noteData } = await supabase.from('contact_notes')
+      .select('*').eq('contact_id', id).order('created_at', { ascending: false })
+    setContactNotes(noteData || [])
 
     // 反查：這位聯絡人有沒有對應的顧客檔案（有消費紀錄）
     const { data: custData } = await supabase.from('customers')
@@ -141,6 +155,38 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   async function deleteLog(logId) {
     if (!confirm('確定刪除這筆互動紀錄？')) return
     await supabase.from('contact_logs').delete().eq('id', logId)
+    fetchContact()
+    onChanged?.()
+  }
+
+  // 一句話日記：有打字就記一句，沒打字按「這次沒特別聊到什麼」也算一次互動
+  async function handleAddNote(text, resolvesNoteId = null) {
+    if (noteSaving) return
+    const note = (text || '').trim() || '這次沒特別聊到什麼'
+    setNoteSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await addContactNote(supabase, { contactId: id, userId: user.id, note, resolvesNoteId })
+    setNewNoteText('')
+    setNoteSaving(false)
+    fetchContact()
+    onChanged?.()
+  }
+
+  async function handleToggleMute() {
+    setMuteSaving(true)
+    if (contact.is_muted) await unmuteContact(supabase, id)
+    else await muteContact(supabase, id)
+    setMuteSaving(false)
+    fetchContact()
+    onChanged?.()
+  }
+
+  // 階段永遠由使用者自己點才會改，這裡只負責寫入使用者的選擇
+  async function handleSetStage(track, stage) {
+    const { data: { user } } = await supabase.auth.getUser()
+    const field = track === 'relationship' ? 'relationship_stage' : 'referral_stage'
+    const next = contact[field] === stage ? null : stage // 再點一次＝取消標注
+    await setStage(supabase, { contactId: id, userId: user.id, track, stage: next })
     fetchContact()
     onChanged?.()
   }
@@ -289,15 +335,110 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
 
         {tab === 'logs' && (
           <>
-            {suggestedAction && (
-              <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
-                <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>建議行動</p>
-                <p style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>{suggestedAction}</p>
-                {contact.next_contact_date && (
-                  <p style={{ margin:'4px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>
-                    下次互動建議：{formatDateDisplay(contact.next_contact_date)}
-                  </p>
+            {/* 靜音狀態：時機未到，從今天的 3-1-2 挑選中完全退出，不重複解釋為什麼 */}
+            {contact.is_muted ? (
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                background:SUBCARD_BG, borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14 }}>
+                <span style={{ fontSize:13, color:TEXT_MUTED, fontWeight:600 }}>時機未到</span>
+                <button onClick={handleToggleMute} disabled={muteSaving}
+                  style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700 }}>
+                  恢復排進今天
+                </button>
+              </div>
+            ) : (
+              <>
+                {suggestedAction && (
+                  <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
+                    <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>現在最適合這樣接觸她</p>
+                    <p style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>{getSuggestion(contact)}</p>
+                    <p style={{ margin:'4px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>
+                      依據：{contact.egg_type}{contact.need_level ? ' · 需求度'+contact.need_level : ''}
+                    </p>
+                  </div>
                 )}
+                <div style={{ textAlign:'right', marginTop:-10, marginBottom:14 }}>
+                  <button onClick={handleToggleMute} disabled={muteSaving}
+                    style={{ fontSize:12, color:TEXT_MUTED, background:'none', border:'none', cursor:'pointer' }}>
+                    時機未到，先不排進今天
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* 零售軌道：旅程視覺，標注永遠由使用者自己點 */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10 }}>零售軌道</div>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
+                {RELATIONSHIP_STAGES.map(s => (
+                  <button key={s} onClick={() => handleSetStage('relationship', s)}
+                    style={{ background: contact.relationship_stage===s ? PRIMARY : SUBCARD_BG,
+                      color: contact.relationship_stage===s ? '#fff' : TEXT_SECONDARY,
+                      border:'none', borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
+                      fontWeight: contact.relationship_stage===s ? 700 : 600, cursor:'pointer' }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10, marginTop:14 }}>推薦軌道</div>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {REFERRAL_STAGES.map(s => (
+                  <button key={s} onClick={() => handleSetStage('referral', s)}
+                    style={{ background: contact.referral_stage===s ? ACCENT_GREEN : SUBCARD_BG,
+                      color: contact.referral_stage===s ? '#fff' : TEXT_SECONDARY,
+                      border:'none', borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
+                      fontWeight: contact.referral_stage===s ? 700 : 600, cursor:'pointer' }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>這一塊永遠由你自己標注，系統只會在旁邊提醒參考，不會自己幫你改</p>
+            </div>
+
+            {/* 一句話日記：主要行動 */}
+            <div style={{ background:'#fff', border:`2px solid ${PRIMARY}`, borderRadius:RADIUS.lg, padding:16, marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:14, fontWeight:700, color:TEXT_MAIN, marginBottom:8 }}>今天知道了什麼新的事？</label>
+              <input value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
+                placeholder="一句話就好，例如：她最近換了新工作"
+                style={{ width:'100%', boxSizing:'border-box', border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
+                  padding:'10px 12px', fontSize:13, color:TEXT_MAIN, background:SUBCARD_BG, marginBottom:10, outline:'none' }} />
+              <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                <button onClick={() => handleAddNote(newNoteText)} disabled={noteSaving || !newNoteText.trim()}
+                  style={{ background: PRIMARY, color:'#fff', border:'none', borderRadius:RADIUS.xs,
+                    padding:'9px 18px', fontSize:13, fontWeight:700, cursor:'pointer' }}>記下來</button>
+                <button onClick={() => handleAddNote('')} disabled={noteSaving}
+                  style={{ background:'none', color:TEXT_MUTED, border:'none', fontSize:12, cursor:'pointer' }}>這次沒特別聊到什麼</button>
+              </div>
+            </div>
+
+            {/* 認識她的故事：舊的自然變淡，過期的可以一鍵確認還是這樣嗎 */}
+            {contactNotes.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, marginBottom:10 }}>
+                  認識{contact.name}的故事 <span style={{ fontSize:12, color:TEXT_MUTED, fontWeight:400 }}>已經累積 {contactNotes.length} 件事</span>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column' }}>
+                  {contactNotes.map((n, i) => (
+                    <div key={n.id} style={{ display:'flex', gap:10, padding:'12px 0',
+                      borderBottom: i < contactNotes.length-1 ? `1px solid ${BORDER}` : 'none', opacity: noteAgeOpacity(n.created_at) }}>
+                      <span style={{ width:8, height:8, borderRadius:RADIUS.circle, background:PRIMARY, marginTop:6, flexShrink:0 }} />
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12, color:TEXT_MUTED }}>{formatDateDisplay(n.created_at?.slice(0,10))}</div>
+                        <div style={{ fontSize:14, color:TEXT_MAIN, lineHeight:1.5, margin:'2px 0' }}>{n.note}</div>
+                        {isStale(n.created_at) && (
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
+                            <span style={{ fontSize:12, color:TEXT_MUTED }}>還是這樣嗎？</span>
+                            <button onClick={() => handleAddNote(n.note, n.id)}
+                              style={{ background:'#fff', color:TEXT_SECONDARY, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
+                                padding:'4px 10px', fontSize:12, cursor:'pointer' }}>還是這樣</button>
+                            <button onClick={() => handleAddNote('', n.id)}
+                              style={{ background:'#fff', color:ACCENT_GREEN_TEXT, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
+                                padding:'4px 10px', fontSize:12, cursor:'pointer' }}>已經不是了</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

@@ -25,6 +25,7 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
+import { pickMeetingContact, pickInteractionContacts, getSuggestion } from './followUp'
 
 
 function toDateStr(d) {
@@ -112,8 +113,8 @@ export default function Dashboard() {
   const [bvTotal, setBvTotal] = useState(0)
   const [ibvTotal, setIbvTotal] = useState(0)
   const [profit, setProfit] = useState(0)
-  const [overdueContacts, setOverdueContacts] = useState([])
-  const [todayDueContacts, setTodayDueContacts] = useState([])
+  const [activeContacts, setActiveContacts] = useState([])
+  const [newContactCount, setNewContactCount] = useState(0)
   const [checkins, setCheckins] = useState({})
   const [viewContacted, setViewContacted] = useState([])
   const [checkTotal, setCheckTotal] = useState(0)
@@ -284,12 +285,15 @@ export default function Dashboard() {
 
   async function fetchFollowUps() {
     const { data } = await supabase.from('contacts')
-      .select('id,name,occupation,egg_type,action_type,next_contact_date')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at')
       .eq('user_id',user.id).eq('is_archived',false)
-      .lte('next_contact_date',today()).order('next_contact_date',{ascending:true}).limit(20)
-    if (!data) return
-    setTodayDueContacts(data.filter(c=>isDueToday(c.next_contact_date)))
-    setOverdueContacts(data.filter(c=>isOverdue(c.next_contact_date)))
+      .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
+    if (data) setActiveContacts(data)
+    const weekAgo = toDateStr(new Date(Date.now()-7*86400000))
+    const { count } = await supabase.from('contacts')
+      .select('id',{count:'exact',head:true})
+      .eq('user_id',user.id).gte('created_at',weekAgo)
+    setNewContactCount(count || 0)
   }
 
   async function fetchCheckin() {
@@ -382,7 +386,8 @@ export default function Dashboard() {
     const d=new Date()
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} 星期${DAYS_ZH[d.getDay()]}`
   })()
-  const allDue = [...overdueContacts,...todayDueContacts]
+  const meetingContact = pickMeetingContact(activeContacts)
+  const interactionContacts = pickInteractionContacts(activeContacts, meetingContact?.id, 3)
   const starterDoneCount = starterTasks ? Object.values(starterTasks).filter(Boolean).length : 0
   const starterAllDone = starterDoneCount === STARTER_TASKS.length
   const showStarterCard = onboardingDone && starterTasks !== null && !starterAllDone
@@ -598,44 +603,88 @@ export default function Dashboard() {
         </section>
 
         <section className="area-followup" style={{ background:CARD_BG,borderRadius:RADIUS.xl,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
-          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:8 }}>
-              待跟進
-              {allDue.length>0 && <span style={{ fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:RADIUS.pill,background:DANGER_SOFT,color:DANGER }}>{allDue.length} 人今天</span>}
-            </span>
-            <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}
-              onClick={()=>navigate('/contacts?filter=due')}>全部 →</button>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN }}>今天的 3-1-2</div>
+            <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>持續擴充名單，建立長期有意義的關係</div>
           </div>
-          {allDue.length===0
-            ? <p style={{ fontSize:14,color:TEXT_MUTED,textAlign:'center',padding:'16px 0',margin:0 }}>今天沒有待跟進的聯絡人 🎉</p>
-            : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-                {allDue.slice(0,5).map(c=>{
-                  const ov=isOverdue(c.next_contact_date)
-                  return (
-                    <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
-                      style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:RADIUS.lg,width:'100%',
-                        background:ov?DANGER_SOFT:SUBCARD_BG,border:'none',
-                        cursor:'pointer',textAlign:'left' }}>
-                      <Avatar name={c.name} size={38} />
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                          <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{c.name}</span>
-                          <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:RADIUS.xs,
-                            background:getEggBg(c.egg_type),color:getEggColor(c.egg_type) }}>{c.egg_type}</span>
-                        </div>
-                        <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2,display:'flex',gap:4 }}>
-                          {c.occupation&&<span>{c.occupation}</span>}{c.occupation&&<span>·</span>}
-                          <span>{c.action_type}</span>
+
+          <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+
+            {/* 3 互動 */}
+            <div style={{ border:'1px solid #F0F1F4',borderRadius:RADIUS.lg,padding:14 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
+                <span style={{ background:PRIMARY,color:'#fff',fontSize:12,fontWeight:700,width:20,height:20,
+                  borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>3</span>
+                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位互動</span>
+              </div>
+              <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>不要老是同樣那幾位</div>
+              {interactionContacts.length===0
+                ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
+                : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                    {interactionContacts.map(c=>(
+                      <div key={c.id} style={{ display:'flex',alignItems:'center',gap:10 }}>
+                        <Avatar name={c.name} size={30} />
+                        <span onClick={()=>navigate(`/contacts/${c.id}`)}
+                          style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,flex:1,cursor:'pointer' }}>{c.name}</span>
+                        <button onClick={()=>navigate(`/contacts/${c.id}`)}
+                          style={{ background:PRIMARY_SOFT,color:PRIMARY,border:'none',borderRadius:RADIUS.xs,
+                            padding:'5px 10px',fontSize:12,fontWeight:600,cursor:'pointer' }}>記一下</button>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+
+            {/* 1 會議 */}
+            <div style={{ border:'1.5px solid #F97316',borderRadius:RADIUS.lg,padding:14 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
+                <span style={{ background:'#F97316',color:'#fff',fontSize:12,fontWeight:700,width:20,height:20,
+                  borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>1</span>
+                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>個會議</span>
+              </div>
+              <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>別漫無目的，挑最接近臨門一腳的人</div>
+              {!meetingContact
+                ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>目前沒有準備好約會議的人，先專心做 3 位互動就好</p>
+                : <button onClick={()=>navigate(`/contacts/${meetingContact.id}`)}
+                    style={{ width:'100%',textAlign:'left',background:'none',border:'none',padding:0,cursor:'pointer' }}>
+                    <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:8 }}>
+                      <Avatar name={meetingContact.name} size={34} />
+                      <div>
+                        <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{meetingContact.name}</div>
+                        <div style={{ fontSize:11,color:TEXT_MUTED }}>
+                          {meetingContact.relationship_stage || meetingContact.referral_stage || meetingContact.action_type}
                         </div>
                       </div>
-                      <span style={{ fontSize:12,fontWeight:700,whiteSpace:'nowrap',color:ov?DANGER:ACCENT_YELLOW_TEXT }}>
-                        {formatFollowDate(c.next_contact_date)}
-                      </span>
-                    </button>
-                  )
-                })}
+                    </div>
+                    <div style={{ fontSize:13,color:TEXT_MAIN,lineHeight:1.5,marginBottom:10 }}>{getSuggestion(meetingContact)}</div>
+                    <div style={{ background:'#F97316',color:'#fff',borderRadius:RADIUS.xs,padding:'9px 14px',
+                      fontSize:13,fontWeight:700,textAlign:'center' }}>約時間碰面</div>
+                  </button>
+              }
+            </div>
+
+            {/* 2 新名單 */}
+            <div style={{ background:ACCENT_GREEN_SOFT,border:'1px solid #E8F9F1',borderRadius:RADIUS.lg,padding:14 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
+                <span style={{ background:ACCENT_GREEN,color:'#fff',fontSize:12,fontWeight:700,width:20,height:20,
+                  borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>2</span>
+                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位新名單</span>
               </div>
-          }
+              <div style={{ fontSize:11,color:ACCENT_GREEN_TEXT,marginBottom:10 }}>去認識新朋友，不是從舊名單湊數</div>
+              <div style={{ fontSize:13,color:TEXT_MAIN,lineHeight:1.6,marginBottom:10 }}>
+                這週已經新增 {newContactCount} 位，今天認識了新朋友嗎？把他加進來，從「剛認識」開始累積關係。
+              </div>
+              <button onClick={()=>navigate('/contacts/new')}
+                style={{ width:'100%',background:'#fff',color:ACCENT_GREEN_TEXT,border:`1.5px solid ${ACCENT_GREEN_TEXT}`,
+                  borderRadius:RADIUS.xs,padding:'9px 14px',fontSize:13,fontWeight:700,cursor:'pointer' }}>+ 新增聯絡人</button>
+            </div>
+
+          </div>
+
+          <div style={{ textAlign:'right',marginTop:10 }}>
+            <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}
+              onClick={()=>navigate('/contacts')}>查看全部聯絡人 →</button>
+          </div>
         </section>
 
         <section className="area-quick" style={{ marginBottom:10 }}>
