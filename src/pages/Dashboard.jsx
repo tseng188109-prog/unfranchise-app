@@ -672,7 +672,7 @@ export default function Dashboard() {
               </div>
               <div style={{ fontSize:11,color:ACCENT_GREEN_TEXT,marginBottom:10 }}>去認識新朋友，不是從舊名單湊數</div>
               <div style={{ fontSize:13,color:TEXT_MAIN,lineHeight:1.6,marginBottom:10 }}>
-                這週已經新增 {newContactCount} 位，今天認識了新朋友嗎？把他加進來，從「剛認識」開始累積關係。
+                這週已經新增 {newContactCount} 位，今天認識了新朋友嗎？加進來，從「剛認識」開始累積關係。
               </div>
               <button onClick={()=>navigate('/contacts/new')}
                 style={{ width:'100%',background:'#fff',color:ACCENT_GREEN_TEXT,border:`1.5px solid ${ACCENT_GREEN_TEXT}`,

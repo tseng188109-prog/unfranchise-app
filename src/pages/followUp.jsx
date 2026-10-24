@@ -3,7 +3,7 @@
 // 真正寫入 relationship_stage / referral_stage 的動作，永遠只能來自使用者自己在畫面上點的那一下。
 
 // ---- 階段清單（零售軌道 / 推薦軌道）----
-// 零售軌道：這個人離「成交賺價差」走到哪一步了
+// 消費狀況：這個人離「成交賺價差」走到哪一步了
 export const RELATIONSHIP_STAGES = [
   '剛認識',
   '了解需求中',
@@ -12,7 +12,7 @@ export const RELATIONSHIP_STAGES = [
   '穩定回購顧客',
 ]
 
-// 推薦軌道：這個人離「加入事業夥伴」走到哪一步了（null = 還沒走上這條軌道）
+// 合作意願：這個人離「加入事業夥伴」走到哪一步了（null = 還沒進到這個話題）
 export const REFERRAL_STAGES = [
   '考慮中',
   '已登記',
@@ -24,16 +24,16 @@ export const REFERRAL_STAGES = [
 const ACTION_SUGGESTION = {
   '輕鬆互動': '找個輕鬆話題聊近況就好，不用談生意',
   '軟性活動': '約一個輕鬆的活動，像聚餐或逛街，自然增加熟悉度',
-  '商機講座': '邀請她參加一場商機講座或分享會',
-  '直接法': '她已經準備好了，可以直接約時間深聊',
+  '商機講座': '邀請參加一場商機講座或分享會',
+  '直接法': '已經準備好了，可以直接約時間深聊',
 }
 
 export function getSuggestion(contact) {
   if (contact.relationship_stage === '已登記但尚未消費') {
-    return '她已經登記了，可以直接約時間協助她完成第一次消費'
+    return '已經登記了，可以直接約時間協助完成第一次消費'
   }
   if (contact.referral_stage === '考慮中') {
-    return '她在考慮加入事業，適合約時間深入說明'
+    return '正在考慮加入事業，適合約時間深入說明'
   }
   return ACTION_SUGGESTION[contact.action_type] || '找時間互動一下，保持關係溫度'
 }

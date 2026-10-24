@@ -349,7 +349,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               <>
                 {suggestedAction && (
                   <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
-                    <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>現在最適合這樣接觸她</p>
+                    <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>現在最適合這樣接觸</p>
                     <p style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>{getSuggestion(contact)}</p>
                     <p style={{ margin:'4px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>
                       依據：{contact.egg_type}{contact.need_level ? ' · 需求度'+contact.need_level : ''}
@@ -365,9 +365,9 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               </>
             )}
 
-            {/* 零售軌道：旅程視覺，標注永遠由使用者自己點 */}
+            {/* 消費狀況／合作意願：標注永遠由使用者自己點 */}
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10 }}>零售軌道</div>
+              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
                 {RELATIONSHIP_STAGES.map(s => (
                   <button key={s} onClick={() => handleSetStage('relationship', s)}
@@ -379,7 +379,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                   </button>
                 ))}
               </div>
-              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10, marginTop:14 }}>推薦軌道</div>
+              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10, marginTop:14 }}>合作意願</div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                 {REFERRAL_STAGES.map(s => (
                   <button key={s} onClick={() => handleSetStage('referral', s)}
@@ -398,7 +398,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             <div style={{ background:'#fff', border:`2px solid ${PRIMARY}`, borderRadius:RADIUS.lg, padding:16, marginBottom:16 }}>
               <label style={{ display:'block', fontSize:14, fontWeight:700, color:TEXT_MAIN, marginBottom:8 }}>今天知道了什麼新的事？</label>
               <input value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
-                placeholder="一句話就好，例如：她最近換了新工作"
+                placeholder="一句話就好，例如：最近換了新工作"
                 style={{ width:'100%', boxSizing:'border-box', border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
                   padding:'10px 12px', fontSize:13, color:TEXT_MAIN, background:SUBCARD_BG, marginBottom:10, outline:'none' }} />
               <div style={{ display:'flex', gap:10, alignItems:'center' }}>
@@ -410,7 +410,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               </div>
             </div>
 
-            {/* 認識她的故事：舊的自然變淡，過期的可以一鍵確認還是這樣嗎 */}
+            {/* 認識故事時間軸：舊的自然變淡，過期的可以一鍵確認還是這樣嗎 */}
             {contactNotes.length > 0 && (
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, marginBottom:10 }}>

@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react'
 import ContactPanel from './ContactPanel'
 import LoadingSpinner from './LoadingSpinner'
+import { RELATIONSHIP_STAGES } from './followUp'
 
 // 設計系統色碼：統一從共用檔案 import
 import {
@@ -16,13 +17,9 @@ import {
 } from './designTokens'
 
 function today() { return new Date().toISOString().split('T')[0] }
-function formatDue(dateStr) {
-  if (!dateStr) return ''
-  const diff = Math.floor((new Date(today()) - new Date(dateStr)) / 86400000)
-  if (diff === 0) return '今天到期'
-  if (diff > 0) return `逾期${diff}天`
-  return `${Math.abs(diff)}天後`
-}
+
+// 依消費狀況分組用的固定順序，「未分類」排最前面方便提醒自己去標注
+const STAGE_GROUPS = ['未分類', ...RELATIONSHIP_STAGES]
 
 // ── 排序/篩選狀態持久化（同分頁內：離開聯絡人詳情頁再回來，排序方式/方向/蛋型篩選會保留）──
 function getStoredSortBy() {
@@ -74,6 +71,7 @@ export default function Contacts() {
   const [sortDir, setSortDir] = useState(getStoredSortDir) // desc | asc
   const [realLastContact, setRealLastContact] = useState({}) // { contact_id: 'YYYY-MM-DD' }
   const [showArchived, setShowArchived] = useState(false)
+  const [showMuted, setShowMuted] = useState(false) // 時機未到：預設隱藏，不佔主列表版面
   const [loading, setLoading] = useState(true)
   const [menuTarget, setMenuTarget] = useState(null)
   const [archiveTarget, setArchiveTarget] = useState(null)
@@ -112,14 +110,14 @@ export default function Contacts() {
     setLoading(true)
     let query = supabase
       .from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,next_contact_date,last_contact_date,is_pinned')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,next_contact_date,last_contact_date,last_interacted_at,is_pinned')
       .eq('user_id', user.id)
       .eq('is_archived', showArchived)
 
     if (!showArchived) {
       query = query
         .order('is_pinned', { ascending: false })
-        .order('next_contact_date', { ascending: true, nullsFirst: false })
+        .order('name', { ascending: true })
     } else {
       query = query.order('name', { ascending: true })
     }
@@ -328,46 +326,26 @@ async function handleImport() {
         return dirMul * -1 * da.localeCompare(db)
       })
     }
-    if (sortBy === 'due') {
-      // 建議互動（next_contact_date），asc=最快到期優先, desc=最晚到期優先
-      return [...arr].sort((a,b) => {
-        if (!a.next_contact_date && !b.next_contact_date) return 0
-        if (!a.next_contact_date) return 1
-        if (!b.next_contact_date) return -1
-        return dirMul * -1 * a.next_contact_date.localeCompare(b.next_contact_date)
-      })
-    }
     return arr // default：保留原始查詢排序
   }
 
-  const isFlatSort = sortBy === 'last_contact' || sortBy === 'due'
+  const isFlatSort = sortBy === 'last_contact'
 
   const pinned = applySort(filtered.filter(c => c.is_pinned))
-  const unpinned = filtered.filter(c => !c.is_pinned)
+  const unpinnedAll = filtered.filter(c => !c.is_pinned)
+  const unpinned = showMuted ? unpinnedAll.filter(c => c.is_muted) : unpinnedAll.filter(c => !c.is_muted)
+  const mutedCount = unpinnedAll.filter(c => c.is_muted).length
 
-  // 「最近互動」「建議互動」：取消逾期/今天/本週分組，整份通盤排序
+  // 「最近互動」：取消消費狀況分組，整份通盤排序
   const flatUnpinned = isFlatSort ? applySort(unpinned) : []
 
-  const overdueRaw = unpinned.filter(c => c.next_contact_date && c.next_contact_date < today())
-  const dueTodayRaw = unpinned.filter(c => c.next_contact_date === today())
-  const thisWeekRaw = unpinned.filter(c => {
-    if (!c.next_contact_date || c.next_contact_date <= today()) return false
-    const diff = Math.floor((new Date(c.next_contact_date) - new Date(today())) / 86400000)
-    return diff <= 7
-  })
-  const othersRaw = unpinned.filter(c => {
-    if (!c.next_contact_date) return true
-    const diff = Math.floor((new Date(c.next_contact_date) - new Date(today())) / 86400000)
-    return diff > 7
-  })
-  const overdue = applySort(overdueRaw)
-  const dueToday = applySort(dueTodayRaw)
-  const thisWeek = applySort(thisWeekRaw)
-  const others = applySort(othersRaw)
+  // 依消費狀況分組（「未分類」排最前面），每組內再套用目前排序方式
+  const stageGroups = STAGE_GROUPS.map(stage => ({
+    stage,
+    items: applySort(unpinned.filter(c => (c.relationship_stage || '未分類') === stage)),
+  })).filter(g => g.items.length > 0)
 
   function ContactCard({ c }) {
-    const isOv = c.next_contact_date && c.next_contact_date < today()
-    const isToday = c.next_contact_date === today()
     const isSelected = selectedId === c.id
     const longPressTimer = useRef(null)
 
@@ -384,7 +362,7 @@ async function handleImport() {
         onClick={() => showArchived ? setMenuTarget(c) : openContact(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
           background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
-          borderBottom:`1px solid ${BORDER}`,
+          borderBottom:`1px solid ${BORDER}`, opacity: c.is_muted ? 0.55 : 1,
           cursor:'pointer', userSelect:'none' }}>
         <Avatar name={c.name} size={42} />
         <div style={{ flex:1, minWidth:0 }}>
@@ -407,19 +385,18 @@ async function handleImport() {
           </div>
           <div style={{ fontSize:12, color:TEXT_SECONDARY, display:'flex', gap:4 }}>
             {c.occupation && <span>{c.occupation}</span>}
-            {c.occupation && c.action_type && <span>·</span>}
-            {c.action_type && <span>{c.action_type}</span>}
+            {c.occupation && (c.relationship_stage || c.action_type) && <span>·</span>}
+            {c.relationship_stage
+              ? <span>{c.relationship_stage}</span>
+              : c.action_type && <span>{c.action_type}</span>}
           </div>
         </div>
-        {!showArchived && sortBy === 'last_contact' && (
+        {!showArchived && c.is_muted && (
+          <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>時機未到</span>
+        )}
+        {!showArchived && !c.is_muted && sortBy === 'last_contact' && (
           <span style={{ fontSize:12, fontWeight:700, whiteSpace:'nowrap', color:ACCENT_GREEN_TEXT }}>
             {realLastContact[c.id] ? `互動於 ${realLastContact[c.id].slice(5).replace('-','/')}` : '尚無互動'}
-          </span>
-        )}
-        {!showArchived && sortBy !== 'last_contact' && c.next_contact_date && (
-          <span style={{ fontSize:12, fontWeight:700, whiteSpace:'nowrap',
-            color:isOv?DANGER:isToday?'#9A6A16':TEXT_MUTED }}>
-            {formatDue(c.next_contact_date)}
           </span>
         )}
         {showArchived && (
@@ -520,6 +497,15 @@ async function handleImport() {
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
             <IconArchive size={13} stroke={2} /> {showArchived ? '查看一般' : '封存名單'}
           </button>
+          {!showArchived && mutedCount > 0 && (
+            <button onClick={() => setShowMuted(v => !v)}
+              style={{ padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
+                background: showMuted ? PRIMARY : SUBCARD_BG,
+                color: showMuted ? '#fff' : TEXT_SECONDARY,
+                fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+              {showMuted ? '返回一般名單' : `時機未到 · ${mutedCount}`}
+            </button>
+          )}
           {EGG_FILTERS.map(f => (
             <button key={f} onClick={() => setEggFilter(f)}
               style={{ padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
@@ -535,10 +521,9 @@ async function handleImport() {
           <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto', alignItems:'center' }}>
             <span style={{ fontSize:12, color:TEXT_MUTED, flexShrink:0 }}>排序：</span>
             {[
-              { key:'default', label:'預設' },
+              { key:'default', label:'依消費狀況' },
               { key:'name', label:'姓名' },
               { key:'last_contact', label:'最近互動' },
-              { key:'due', label:'建議互動' },
             ].map(s => (
               <button key={s.key} onClick={() => setSortBy(s.key)}
                 style={{ padding:'4px 12px', borderRadius:RADIUS.pill, border:'none',
@@ -597,13 +582,16 @@ async function handleImport() {
                 items={flatUnpinned}
               />
             </div>
+          ) : showMuted ? (
+            <div style={{ background:'#fff' }}>
+              <Section title="時機未到" count={applySort(unpinned).length} items={applySort(unpinned)} />
+            </div>
           ) : (
             <div style={{ background:'#fff' }}>
               <Section title="釘選" count={pinned.length} items={pinned} />
-              <Section title="逾期" count={overdue.length} items={overdue} />
-              <Section title="今天到期" count={dueToday.length} items={dueToday} />
-              <Section title="本週到期" count={thisWeek.length} items={thisWeek} />
-              <Section title="其他" count={others.length} items={others} />
+              {stageGroups.map(g => (
+                <Section key={g.stage} title={g.stage} count={g.items.length} items={g.items} />
+              ))}
             </div>
           )}
         </div>
