@@ -50,6 +50,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('logs') // logs | info
+  const [showReferralOptions, setShowReferralOptions] = useState(false) // 合作意願調整清單是否展開
 
   const [quickDate, setQuickDate] = useState(today())
   const [quickNote, setQuickNote] = useState('')
