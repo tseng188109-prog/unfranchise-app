@@ -25,7 +25,7 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312 } from './followUp'
+import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312, isContactWarm } from './followUp'
 
 
 function toDateStr(d) {
@@ -650,7 +650,9 @@ export default function Dashboard() {
                     </div>
                     <div style={{ fontSize:13,color:TEXT_MAIN,lineHeight:1.5,marginBottom:10 }}>{getSuggestion(meetingContact)}</div>
                     <div style={{ background:'#F97316',color:'#fff',borderRadius:RADIUS.xs,padding:'9px 14px',
-                      fontSize:13,fontWeight:700,textAlign:'center' }}>約時間碰面</div>
+                      fontSize:13,fontWeight:700,textAlign:'center' }}>
+                      {isContactWarm(meetingContact) ? '約時間碰面' : '先互動暖身'}
+                    </div>
                   </button>
               }
             </div>

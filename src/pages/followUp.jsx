@@ -31,12 +31,29 @@ const ACTION_SUGGESTION = {
   '直接法': '已經準備好了，可以直接約時間深聊',
 }
 
-export function getSuggestion(contact) {
+// 「熱/冷」判定：是不是最近真的互動過，對應 3-1-2 原意「3→1：跟互動的朋友約碰面」。
+// 超過這個天數沒互動，就不該直接建議約會議，要先暖身。
+const WARM_DAYS = 14
+function daysSince(dateStr, todayStr) {
+  if (!dateStr) return Infinity
+  return (new Date(todayStr) - new Date(dateStr)) / 86400000
+}
+export function isContactWarm(contact, todayStr) {
+  const today = todayStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+  return daysSince(contact.last_interacted_at, today) <= WARM_DAYS
+}
+
+export function getSuggestion(contact, todayStr) {
+  const warm = isContactWarm(contact, todayStr)
   if (contact.relationship_stage === '已登記但尚未消費') {
-    return '已經登記了，可以直接約時間協助完成第一次消費'
+    return warm
+      ? '已經登記了，可以直接約時間協助完成第一次消費'
+      : '已經登記但好一段時間沒聯絡了，先關心一下再約時間完成消費'
   }
   if (contact.referral_stage === '考慮中') {
-    return '正在考慮加入事業，適合約時間深入說明'
+    return warm
+      ? '正在考慮加入事業，適合約時間深入說明'
+      : '正在考慮加入事業，但好一段時間沒聯絡了，先互動暖身再約時間深聊'
   }
   return ACTION_SUGGESTION[contact.action_type] || '找時間互動一下，保持關係溫度'
 }
@@ -135,19 +152,31 @@ export function isMeetingEligible(c) {
 
 // 挑出今天的「1個會議」人選：milestone 類別（b/c）優先於單純 action_type 判斷（a），
 // 同層再用最久沒互動的人排序（最老的優先），用建立時間做穩定排序。
-export function pickMeetingContact(contacts) {
+//
+// 對應 3-1-2 原意「3→1：跟互動的朋友約碰面」——milestone 資格裡，優先挑「最近真的有
+// 跟你互動過」的人，這樣「1」才是從「3」自然長出來的結果，不是另一條只看標注、
+// 脫鉤於實際互動狀況的規則。如果 milestone 裡沒有熱的人，還是會退回挑最久沒互動
+// 的那位（通常就是階段標注已經很久沒更新的重要名單），不會整個藏起來不顯示——
+// 只是 getSuggestion() 這時候會改成提醒「先暖身再約」，不會逼你對一個冷掉的人
+// 直接喊「約時間碰面」。
+export function pickMeetingContact(contacts, todayStr) {
   const eligible = (contacts || []).filter(isMeetingEligible)
   if (eligible.length === 0) return null
   const milestoneOnes = eligible.filter(c => c.relationship_stage === '已登記但尚未消費' || c.referral_stage === '考慮中')
   const pool = milestoneOnes.length > 0 ? milestoneOnes : eligible
-  return [...pool].sort((a, b) => {
+  const sorted = [...pool].sort((a, b) => {
     const ka = sortKey(a), kb = sortKey(b)
     if (ka !== kb) return ka < kb ? -1 : 1
     // 同一批 CSV 匯入的聯絡人 created_at 常常完全一樣，這裡再用一次 created_at 比較沒有意義
     // （比較自己永遠不相等地互相判定對方比較大，排序結果會跟著查詢回來的原始順序亂跳）。
     // 改用 id 當最後一層比較，id 一定不重複，才能保證「沒換資料就不換人選」。
     return (a.id || '') < (b.id || '') ? -1 : 1
-  })[0]
+  })
+  if (milestoneOnes.length > 0) {
+    const warmOnes = sorted.filter(c => isContactWarm(c, todayStr))
+    if (warmOnes.length > 0) return warmOnes[0]
+  }
+  return sorted[0]
 }
 
 // 挑出今天的「3位互動」：排除靜音與今天已經當選「1個會議」的那位，
