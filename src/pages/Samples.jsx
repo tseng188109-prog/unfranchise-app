@@ -30,10 +30,11 @@ export default function Samples() {
 
   // 新增表單
   const [contacts, setContacts] = useState([])
+  const [customers, setCustomers] = useState([])
   const [contactSearch, setContactSearch] = useState('')
   const [newForm, setNewForm] = useState(() => loadDraft('sampleNew') || {
-    contact_id: '', contact_name: '',
-    product_name: '', portions: '', share_date: today(),
+    contact_id: '', customer_id: '', contact_name: '',
+    product_name: '', portions: '', share_date: today(), cost: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -49,7 +50,7 @@ export default function Samples() {
 
   // 編輯／刪除單筆試用品紀錄
   const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({ product_name:'', portions:'', share_date:'' })
+  const [editForm, setEditForm] = useState({ product_name:'', portions:'', share_date:'', cost:'' })
   const [editSaving, setEditSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -58,13 +59,13 @@ export default function Samples() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
-  useEffect(() => { if (user) { fetchSamples(); fetchContacts() } }, [user])
+  useEffect(() => { if (user) { fetchSamples(); fetchContacts(); fetchCustomers() } }, [user])
 
   async function fetchSamples() {
     setLoading(true)
     const { data } = await supabase
       .from('sample_tracking')
-      .select('*,contacts(name)')
+      .select('*,contacts(name),customers(name)')
       .eq('user_id', user.id)
       .order('share_date', { ascending: false })
     if (data) setSamples(data)
@@ -77,20 +78,33 @@ export default function Samples() {
     if (data) setContacts(data)
   }
 
+  async function fetchCustomers() {
+    const { data } = await supabase.from('customers')
+      .select('id,name,contact_id').eq('user_id', user.id).order('name')
+    if (data) setCustomers(data)
+  }
+
+  function costOf(v) {
+    const n = Number(v)
+    return v === '' || v == null || Number.isNaN(n) ? null : n
+  }
+
   async function handleCreate() {
-    if (!newForm.contact_id || !newForm.product_name || !newForm.portions) return
+    if ((!newForm.contact_id && !newForm.customer_id) || !newForm.product_name || !newForm.portions) return
     setSaving(true)
     await supabase.from('sample_tracking').insert({
       user_id: user.id,
-      contact_id: newForm.contact_id,
+      contact_id: newForm.contact_id || null,
+      customer_id: newForm.contact_id ? null : newForm.customer_id,
       product_name: newForm.product_name,
       portions: Number(newForm.portions),
       share_date: newForm.share_date,
+      cost: costOf(newForm.cost),
     })
     setSaving(false)
     setShowNew(false)
     clearDraft('sampleNew')
-    setNewForm({ contact_id:'',contact_name:'',product_name:'',portions:'',share_date:today() })
+    setNewForm({ contact_id:'',customer_id:'',contact_name:'',product_name:'',portions:'',share_date:today(),cost:'' })
     setContactSearch('')
     fetchSamples()
   }
@@ -107,7 +121,7 @@ export default function Samples() {
 
   function openEditSample(s) {
     setEditTarget(s)
-    const base = { product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today() }
+    const base = { product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today(), cost: s.cost == null ? '' : String(s.cost) }
     setEditForm(loadDraft(`sampleEdit:${s.id}`) || base)
   }
 
@@ -120,6 +134,7 @@ export default function Samples() {
       product_name: editForm.product_name.trim(),
       portions: Number(editForm.portions),
       share_date: editForm.share_date,
+      cost: costOf(editForm.cost),
     }).eq('id', editTarget.id)
     clearDraft(`sampleEdit:${editTarget.id}`)
     setEditSaving(false)
@@ -173,7 +188,12 @@ export default function Samples() {
     return s.result === filter
   })
 
-  const filteredContacts = contacts.filter(c =>
+  // 候選人：互動名單 + 顧客。顧客若已連到互動名單就不重複列（以互動名單那位為準，資料才只有一份）
+  const candidates = [
+    ...contacts.map(c => ({ key: 'p' + c.id, name: c.name, contact_id: c.id, customer_id: '', tag: '' })),
+    ...customers.filter(c => !c.contact_id).map(c => ({ key: 'c' + c.id, name: c.name, contact_id: '', customer_id: c.id, tag: '顧客' })),
+  ]
+  const filteredContacts = candidates.filter(c =>
     !contactSearch || c.name.includes(contactSearch)
   )
 
@@ -241,20 +261,20 @@ export default function Samples() {
           {/* 選聯絡人 */}
           <div style={{ marginBottom:12,position:'relative' }}>
             <input value={contactSearch}
-              onChange={e => { setContactSearch(e.target.value); setNewForm(p=>({...p,contact_id:'',contact_name:''})) }}
-              placeholder="從互動名單搜尋聯絡人 *"
+              onChange={e => { setContactSearch(e.target.value); setNewForm(p=>({...p,contact_id:'',customer_id:'',contact_name:''})) }}
+              placeholder="搜尋互動名單或顧客 *"
               style={inp} />
-            {contactSearch && !newForm.contact_id && (
+            {contactSearch && !newForm.contact_id && !newForm.customer_id && (
               <div style={{ position:'absolute',top:'100%',left:0,right:0,background:'#fff',
                 border:`1px solid ${BORDER}`,borderRadius:12,zIndex:50,maxHeight:160,overflowY:'auto',
                 boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
                 {filteredContacts.map(c => (
-                  <button key={c.id} onClick={() => {
-                    setNewForm(p=>({...p,contact_id:c.id,contact_name:c.name}))
+                  <button key={c.key} onClick={() => {
+                    setNewForm(p=>({...p,contact_id:c.contact_id,customer_id:c.customer_id,contact_name:c.name}))
                     setContactSearch(c.name)
                   }} style={{ width:'100%',padding:'10px 12px',background:'none',border:'none',
                     borderBottom:`1px solid ${BORDER}`,textAlign:'left',cursor:'pointer',fontSize:14,color:TEXT_MAIN }}>
-                    {c.name}
+                    {c.name}{c.tag && <span style={{ fontSize:11, color:TEXT_MUTED, marginLeft:6 }}>{c.tag}</span>}
                   </button>
                 ))}
               </div>
@@ -273,6 +293,9 @@ export default function Samples() {
               onChange={e => setNewForm(p=>({...p,share_date:e.target.value}))}
               style={{ ...inp, flex:1 }} />
           </div>
+          <input type="number" value={newForm.cost}
+            onChange={e => setNewForm(p=>({...p,cost:e.target.value}))}
+            placeholder="成本 NT$（選填）" style={{ ...inp, marginBottom:8 }} />
 
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={handleCreate} disabled={saving}
@@ -298,7 +321,8 @@ export default function Samples() {
       ) : (
         <div className="samples-list">
           {filtered.map(s => {
-            const name = s.contacts?.name || '未知'
+            const name = s.contacts?.name || s.customers?.name || '未知'
+            const goPath = s.contact_id ? `/contacts/${s.contact_id}` : s.customer_id ? `/customers/${s.customer_id}` : null
             const isActive = !s.result
             const isConsidering = s.result === '考慮中'
             const isOverdueFollowup = isConsidering && s.next_followup_date && s.next_followup_date < today()
@@ -311,20 +335,20 @@ export default function Samples() {
 
                 {/* 頂部 */}
                 <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
-                  <div onClick={() => s.contact_id && navigate(`/contacts/${s.contact_id}`)}
+                  <div onClick={() => goPath && navigate(goPath)}
                     style={{ width:38,height:38,borderRadius:'50%',background:avatarBg(name),
                     display:'flex',alignItems:'center',justifyContent:'center',
                     color:'#fff',fontWeight:700,fontSize:14,flexShrink:0,
-                    cursor: s.contact_id ? 'pointer' : 'default' }}>{name[0]}</div>
+                    cursor: goPath ? 'pointer' : 'default' }}>{name[0]}</div>
                   <div style={{ flex:1,minWidth:0 }}>
-                    <p onClick={() => s.contact_id && navigate(`/contacts/${s.contact_id}`)}
+                    <p onClick={() => goPath && navigate(goPath)}
                       style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0,
-                        cursor: s.contact_id ? 'pointer' : 'default',
-                        textDecoration: s.contact_id ? 'underline' : 'none',
-                        textDecorationColor: s.contact_id ? BORDER : 'transparent',
+                        cursor: goPath ? 'pointer' : 'default',
+                        textDecoration: goPath ? 'underline' : 'none',
+                        textDecorationColor: goPath ? BORDER : 'transparent',
                         display:'inline-block' }}>{name}</p>
                     <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
-                      {s.product_name} · {s.portions}天份 · {formatDate(s.share_date)}
+                      {s.product_name} · {s.portions}天份 · {formatDate(s.share_date)}{s.cost != null ? ` · 成本 $${Number(s.cost).toLocaleString()}` : ''}
                     </p>
                   </div>
                   {s.result && (
@@ -480,6 +504,9 @@ export default function Samples() {
                 onChange={e => setEditForm(p => ({ ...p, share_date: e.target.value }))}
                 style={{ ...inp, flex:1, marginBottom:0 }} />
             </div>
+            <input type="number" value={editForm.cost}
+              onChange={e => setEditForm(p => ({ ...p, cost: e.target.value }))}
+              placeholder="成本 NT$（選填）" style={{ ...inp, marginTop:-8, marginBottom:16 }} />
             <button onClick={saveEditSample} disabled={editSaving}
               style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
                 background: editSaving ? '#9BBBF2' : PRIMARY,color:'#fff',

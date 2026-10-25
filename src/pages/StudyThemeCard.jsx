@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import { IconBook, IconCheck } from '@tabler/icons-react'
+import { IconBook, IconCheck, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import { fetchMyTeam, toDateStr, today } from './teamStats'
 import { STUDY_THEMES, STUDY_THEME_COUNT, STUDY_LEVEL_COUNT } from './studyThemes'
 import {
@@ -49,6 +49,7 @@ export default function StudyThemeCard({ user }) {
   const [done, setDone] = useState(new Set())
   const [ready, setReady] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [open, setOpen] = useState(false) // 卡片本身收合：預設只露一行，點開才看完整內容
   const [explainerSeen, setExplainerSeen] = useState(readSeen())
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
@@ -75,7 +76,7 @@ export default function StudyThemeCard({ user }) {
   const isLeader = !!team && team.creator_id === user.id
   const pausedThisWeek = !!team && team.study_paused_week === thisMonday
 
-  const rangeText = `${md(thisMonday)} 一 – ${md(addDays(thisMonday, 6))} 日`
+  const rangeText = `${md(thisMonday)} 到 ${md(addDays(thisMonday, 6))}`
   const cardStyle = { background:PRIMARY_SOFT, border:'1px solid #DCE7F7', borderRadius:RADIUS.lg, padding:14 }
 
   async function toggleDone(no) {
@@ -167,15 +168,35 @@ export default function StudyThemeCard({ user }) {
   const iDone = done.has(theme.no)
   const allDone = done.size >= STUDY_THEME_COUNT
 
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)}
+        style={{ width:'100%', display:'flex', alignItems:'center', gap:8, textAlign:'left', cursor:'pointer',
+          background:'#fff', border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:'12px 14px' }}>
+        <IconBook size={16} stroke={1.9} color={PRIMARY} style={{ flexShrink:0 }} />
+        <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, flexShrink:0 }}>共學主題 {theme.no}/{STUDY_THEME_COUNT}</span>
+        <span style={{ fontSize:12, color:TEXT_SECONDARY, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{theme.title}</span>
+        {iDone && <IconCheck size={14} stroke={2.4} color={ACCENT_GREEN_TEXT} style={{ flexShrink:0 }} />}
+        <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} style={{ flexShrink:0 }} />
+      </button>
+    )
+  }
+
   return (
     <div style={cardStyle}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6, gap:8 }}>
-        <span style={{ fontSize:12, fontWeight:700, color:PRIMARY }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6, gap:8 }}>
+        <span style={{ fontSize:12, fontWeight:700, color:PRIMARY, minWidth:0 }}>
           <IconBook size={13} stroke={2} style={{ verticalAlign:'-2px', marginRight:4 }} />
           共學主題 {theme.no} / {STUDY_THEME_COUNT}
           {lap > 1 && <span style={{ fontWeight:400, color:TEXT_SECONDARY }}>　第 {lap} 輪・進階</span>}
         </span>
-        <span style={{ fontSize:11, color:TEXT_SECONDARY, flexShrink:0 }}>{rangeText}</span>
+        <span style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+          <span style={{ fontSize:11, color:TEXT_SECONDARY, whiteSpace:'nowrap' }}>{rangeText}</span>
+          <button onClick={() => setOpen(false)} aria-label="收起"
+            style={{ background:'none', border:'none', padding:0, cursor:'pointer', display:'flex' }}>
+            <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} />
+          </button>
+        </span>
       </div>
 
       <div style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN, marginBottom:4, wordBreak:'break-word', overflowWrap:'anywhere' }}>{theme.title}</div>

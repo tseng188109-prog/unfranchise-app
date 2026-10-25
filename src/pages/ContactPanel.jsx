@@ -6,7 +6,7 @@ import {
   IconBriefcase, IconMapPin, IconMessageCircle, IconAlertCircle, IconShoppingBag, IconFlask,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
-import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
+import SampleSection from './SampleSection'
 import {
   RELATIONSHIP_STAGES, REFERRAL_STAGES, getSuggestion,
   muteContact, unmuteContact, addContactNote, setStage, isStale, noteAgeOpacity,
@@ -66,16 +66,6 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   const [noteSaving, setNoteSaving] = useState(false)
   const [muteSaving, setMuteSaving] = useState(false)
 
-  // 試用品追蹤：這位聯絡人目前進行中/已有結果的試用品，跟快速新增表單
-  const [samples, setSamples] = useState([])
-  const [showSampleForm, setShowSampleForm] = useState(false)
-  const [sampleForm, setSampleForm] = useState({ product_name:'', portions:'', share_date: today() })
-  const [sampleSaving, setSampleSaving] = useState(false)
-  const [editSampleTarget, setEditSampleTarget] = useState(null)
-  const [editSampleForm, setEditSampleForm] = useState({ product_name:'', portions:'', share_date:'' })
-  const [editSampleSaving, setEditSampleSaving] = useState(false)
-  const [deleteSampleTarget, setDeleteSampleTarget] = useState(null)
-  const [deleteSampleLoading, setDeleteSampleLoading] = useState(false)
 
   useEffect(() => { if (id) fetchContact() }, [id])
 
@@ -83,8 +73,6 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     setLoading(true)
     setTab('logs')
     setLinkedCustomer(null)
-    setShowSampleForm(false)
-    setSampleForm({ product_name:'', portions:'', share_date: today() })
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single()
     if (data) setContact(data)
     const { data: logData } = await supabase.from('contact_logs')
@@ -105,11 +93,6 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
       const totalProfit = (txData||[]).reduce((s,t)=>s+((t.amount||0)-(t.cost||0)),0)
       setLinkedCustomer({ id: custData.id, totalBV, totalProfit })
     }
-
-    // 這位聯絡人的試用品紀錄
-    const { data: sampleData } = await supabase.from('sample_tracking')
-      .select('*').eq('contact_id', id).order('share_date', { ascending: false })
-    setSamples(sampleData || [])
 
     setLoading(false)
   }
@@ -209,66 +192,6 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     const field = track === 'relationship' ? 'relationship_stage' : 'referral_stage'
     const next = contact[field] === stage ? null : stage // 再點一次＝取消標注
     await setStage(supabase, { contactId: id, userId: user.id, track, stage: next })
-    fetchContact()
-    onChanged?.()
-  }
-
-  // 發送試用品：帶著這位聯絡人的 id，不用像 Samples.jsx 那樣再搜尋一次
-  async function handleAddSample() {
-    if (!sampleForm.product_name.trim() || !sampleForm.portions) return
-    setSampleSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('sample_tracking').insert({
-      user_id: user.id,
-      contact_id: id,
-      product_name: sampleForm.product_name.trim(),
-      portions: Number(sampleForm.portions),
-      share_date: sampleForm.share_date,
-    })
-    setSampleSaving(false)
-    setShowSampleForm(false)
-    setSampleForm({ product_name:'', portions:'', share_date: today() })
-    fetchContact()
-    onChanged?.()
-  }
-
-  async function toggleSampleFollowup(sampleId, field, current) {
-    await supabase.from('sample_tracking').update({ [field]: !current }).eq('id', sampleId)
-    setSamples(p => p.map(s => s.id === sampleId ? { ...s, [field]: !current } : s))
-    onChanged?.()
-  }
-
-  async function setSampleResult(sampleId, result) {
-    await supabase.from('sample_tracking').update({ result }).eq('id', sampleId)
-    setSamples(p => p.map(s => s.id === sampleId ? { ...s, result } : s))
-    onChanged?.()
-  }
-
-  function openEditSample(s) {
-    setEditSampleTarget(s)
-    setEditSampleForm({ product_name: s.product_name || '', portions: s.portions || '', share_date: s.share_date || today() })
-  }
-
-  async function saveEditSample() {
-    if (!editSampleForm.product_name.trim() || !editSampleForm.portions) return
-    setEditSampleSaving(true)
-    await supabase.from('sample_tracking').update({
-      product_name: editSampleForm.product_name.trim(),
-      portions: Number(editSampleForm.portions),
-      share_date: editSampleForm.share_date,
-    }).eq('id', editSampleTarget.id)
-    setEditSampleSaving(false)
-    setEditSampleTarget(null)
-    fetchContact()
-    onChanged?.()
-  }
-
-  async function handleDeleteSample() {
-    if (!deleteSampleTarget) return
-    setDeleteSampleLoading(true)
-    await supabase.from('sample_tracking').delete().eq('id', deleteSampleTarget)
-    setDeleteSampleLoading(false)
-    setDeleteSampleTarget(null)
     fetchContact()
     onChanged?.()
   }
@@ -480,131 +403,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               </div>
             )}
 
-            {/* 試用品：發送＋這位聯絡人目前進行中/已有結果的試用品，不用切去 Samples.jsx 就能看到 */}
-            <div style={{ marginBottom:16 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, display:'flex', alignItems:'center', gap:6 }}>
-                  <IconFlask size={14} stroke={1.9} color={TEXT_SECONDARY} /> 試用品
-                </span>
-                <button onClick={() => setShowSampleForm(v => !v)}
-                  style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700 }}>
-                  {showSampleForm ? '取消' : '+ 發送試用品'}
-                </button>
-              </div>
-
-              {showSampleForm && (
-                <div style={{ background:SUBCARD_BG, borderRadius:RADIUS.sm, padding:12, marginBottom:10 }}>
-                  <input value={sampleForm.product_name}
-                    onChange={e => setSampleForm(p => ({ ...p, product_name: e.target.value }))}
-                    placeholder="體驗產品 *"
-                    style={{ width:'100%', padding:'8px 10px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
-                      fontSize:13, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN, marginBottom:8 }} />
-                  <div style={{ display:'flex', gap:8 }}>
-                    <input type="number" value={sampleForm.portions}
-                      onChange={e => setSampleForm(p => ({ ...p, portions: e.target.value }))}
-                      placeholder="幾天份 *"
-                      style={{ flex:1, padding:'8px 10px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
-                        fontSize:13, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-                    <input type="date" value={sampleForm.share_date} max={today()}
-                      onChange={e => setSampleForm(p => ({ ...p, share_date: e.target.value }))}
-                      style={{ flex:1, padding:'8px 10px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
-                        fontSize:13, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-                  </div>
-                  <button onClick={handleAddSample} disabled={sampleSaving}
-                    style={{ width:'100%', padding:'9px', borderRadius:RADIUS.xs, border:'none', marginTop:8,
-                      background: sampleSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-                    {sampleSaving ? '儲存中…' : '儲存'}
-                  </button>
-                </div>
-              )}
-
-              {samples.length === 0 ? (
-                !showSampleForm && (
-                  <p style={{ fontSize:12, color:TEXT_MUTED, margin:0 }}>目前沒有試用品紀錄</p>
-                )
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {samples.map(s => {
-                    const isActive = !s.result
-                    const isConsidering = s.result === '考慮中'
-                    const badgeColor = sampleResultBadgeColor(s.result)
-                    return (
-                      <div key={s.id} style={{ background:SUBCARD_BG, borderRadius:RADIUS.sm, padding:10 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: isActive || isConsidering ? 8 : 0 }}>
-                          <span style={{ fontSize:12, fontWeight:600, color:TEXT_MAIN }}>
-                            {s.product_name} · {s.portions}天份
-                          </span>
-                          <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-                            {s.result && (
-                              <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:RADIUS.pill,
-                                background:badgeColor.bg, color:badgeColor.text }}>
-                                {s.result}
-                              </span>
-                            )}
-                            <button onClick={() => openEditSample(s)}
-                              style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, padding:2, display:'flex' }}>
-                              <IconPencil size={13} stroke={1.9} />
-                            </button>
-                            <button onClick={() => setDeleteSampleTarget(s.id)}
-                              style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, padding:2, display:'flex' }}>
-                              <IconTrash size={13} stroke={1.9} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {isActive && (
-                          <>
-                            <div style={{ display:'flex', gap:6 }}>
-                              {SAMPLE_STEPS.map(step => (
-                                <button key={step.field}
-                                  onClick={() => toggleSampleFollowup(s.id, step.field, s[step.field])}
-                                  style={{ flex:1, padding:'5px 4px', borderRadius:RADIUS.xs, border:'none',
-                                    fontSize:10, fontWeight:600, cursor:'pointer',
-                                    background: s[step.field] ? ACCENT_GREEN : '#fff',
-                                    color: s[step.field] ? '#fff' : TEXT_SECONDARY }}>
-                                  {s[step.field] ? '✓ ' : ''}{step.label}
-                                </button>
-                              ))}
-                            </div>
-                            {s.followup_3_done && (
-                              <div style={{ display:'flex', gap:6, marginTop:6 }}>
-                                {SAMPLE_RESULTS.map(r => (
-                                  <button key={r} onClick={() => setSampleResult(s.id, r)}
-                                    style={{ flex:1, padding:'5px 4px', borderRadius:RADIUS.xs, border:'none',
-                                      fontSize:10, fontWeight:600, cursor:'pointer',
-                                      background:'#fff', color:TEXT_SECONDARY }}>{r}</button>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        {isConsidering && s.next_followup_date && (
-                          <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 6px' }}>
-                            下次追蹤：{formatSampleDue(s.next_followup_date, today())}
-                            <span style={{ color:PRIMARY, marginLeft:6, cursor:'pointer' }}
-                              onClick={() => navigate('/samples')}>去試用品頁追蹤 →</span>
-                          </p>
-                        )}
-
-                        {/* 更改狀態：只要已經有結果（成交／考慮中／轉介），隨時都能改成別的，不會卡死 */}
-                        {!isActive && (
-                          <div style={{ display:'flex', gap:6 }}>
-                            {SAMPLE_RESULTS.map(r => (
-                              <button key={r} onClick={() => setSampleResult(s.id, r)}
-                                style={{ flex:1, padding:'5px 4px', borderRadius:RADIUS.xs, border:'none',
-                                  fontSize:10, fontWeight:600, cursor:'pointer',
-                                  background: s.result===r ? PRIMARY : '#fff',
-                                  color: s.result===r ? '#fff' : TEXT_SECONDARY }}>{r}</button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <SampleSection key={id} contactId={id} customerId={linkedCustomer?.id || null} onChanged={onChanged} />
 
             <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:16 }}>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
@@ -718,69 +517,6 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           </div>
         )}
       </div>
-
-      {/* 編輯試用品紀錄 */}
-      {editSampleTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
-          display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:300 }}
-          onClick={() => setEditSampleTarget(null)}>
-          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
-            padding:'24px 20px 36px', width:'100%', maxWidth:480 }}
-            onClick={e => e.stopPropagation()}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <h2 style={{ fontSize:17, fontWeight:700, color:TEXT_MAIN, margin:0 }}>編輯試用品紀錄</h2>
-              <button onClick={() => setEditSampleTarget(null)}
-                style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED }}><IconX size={22} /></button>
-            </div>
-            <input value={editSampleForm.product_name}
-              onChange={e => setEditSampleForm(p => ({ ...p, product_name: e.target.value }))}
-              placeholder="體驗產品 *"
-              style={{ width:'100%', padding:'10px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN, marginBottom:8 }} />
-            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-              <input type="number" value={editSampleForm.portions}
-                onChange={e => setEditSampleForm(p => ({ ...p, portions: e.target.value }))}
-                placeholder="幾天份 *"
-                style={{ flex:1, padding:'10px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                  fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-              <input type="date" value={editSampleForm.share_date}
-                onChange={e => setEditSampleForm(p => ({ ...p, share_date: e.target.value }))}
-                style={{ flex:1, padding:'10px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                  fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-            </div>
-            <button onClick={saveEditSample} disabled={editSampleSaving}
-              style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
-                background: editSampleSaving ? '#9BBBF2' : PRIMARY, color:'#fff',
-                fontSize:15, fontWeight:700, cursor:'pointer' }}>
-              {editSampleSaving ? '儲存中…' : '儲存'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 刪除試用品紀錄確認 */}
-      {deleteSampleTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
-            <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}>
-              <IconTrash size={30} stroke={1.6} color={DANGER} />
-            </div>
-            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>確定刪除這筆試用品紀錄？</p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setDeleteSampleTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDeleteSample} disabled={deleteSampleLoading}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
-                {deleteSampleLoading ? '刪除中…' : '刪除'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

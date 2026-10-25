@@ -6,6 +6,7 @@ import {
   IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive, IconHeart,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import SampleSection from './SampleSection'
 import OrderForm from './OrderForm'
 import OrderCard from './OrderCard'
 import { groupPurchases } from './orderUtils'
@@ -51,7 +52,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [orders, setOrders] = useState([])
   const [showOrder, setShowOrder] = useState(false) // false | { orderId: null | 訂單 id }
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('info') // info | tx — 先看「這個人」，不是先看帳本
+  const [tab, setTab] = useState('info') // info | tx | sample — 先看「這個人」，不是先看帳本
 
   const [editReminder, setEditReminder] = useState(false)
   const [reminderDate, setReminderDate] = useState('')
@@ -279,7 +280,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           )}
         </div>
         <div style={{ display:'flex', gap:20 }}>
-          {[{ key:'info', label:'認識這個人' }, { key:'tx', label:'消費紀錄' }].map(t => (
+          {[{ key:'info', label:'認識這個人' }, { key:'tx', label:'消費紀錄' }, { key:'sample', label:'試用品' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ background:'none', border:'none', cursor:'pointer', padding:'0 0 10px',
                 fontSize:13, fontWeight:600, color: tab===t.key ? PRIMARY : TEXT_MUTED,
@@ -419,6 +420,10 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               </div>
             )}
           </>
+        )}
+
+        {tab === 'sample' && (
+          <SampleSection key={id} contactId={customer?.contact_id || null} customerId={id} onChanged={onChanged} />
         )}
 
         {tab === 'info' && (

@@ -9,7 +9,7 @@ import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
-  IconFlag, IconUsersGroup, IconHeart,
+  IconFlag, IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp,
 } from '@tabler/icons-react'
 
 const BV_GOAL = 1500
@@ -83,20 +83,14 @@ function ProgressBar({ value, max, color, trackColor }) {
     </div>
   )
 }
-function QuickBtn({ Icon, label, onClick, color, bg }) {
+function QuickBtn({ Icon, label, onClick, color }) {
   return (
     <button onClick={onClick}
-      onMouseDown={e=>e.currentTarget.style.transform='scale(0.96)'}
-      onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}
-      onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-      style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:8,
-        padding:'14px 4px',borderRadius:RADIUS.xl,border:'none',
-        background:bg,cursor:'pointer',transition:'all 0.15s' }}>
-      <div style={{ width:32,height:32,borderRadius:RADIUS.sm,background:'rgba(255,255,255,0.65)',
-        display:'flex',alignItems:'center',justifyContent:'center' }}>
-        <Icon size={16} stroke={1.9} color={color} />
-      </div>
-      <span style={{ fontSize:12,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>{label}</span>
+      style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+        padding:'10px 4px',borderRadius:RADIUS.lg,border:'1px solid #F0F1F4',
+        background:'#fff',cursor:'pointer' }}>
+      <Icon size={16} stroke={1.9} color={color} />
+      <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -125,7 +119,7 @@ export default function Dashboard() {
   const goalTextareaRef = useRef(null)
 
   const [starterTasks, setStarterTasks] = useState(null)
-  const [starterExpanded, setStarterExpanded] = useState(true)
+  const [starterExpanded, setStarterExpanded] = useState(false)
   const [onboardingDone, setOnboardingDone] = useState(true)
 
   // 戰隊本週打卡率（沒加入戰隊時是 null，卡片不顯示；「戰隊」「我的夥伴」兩個入口按鈕永遠顯示）
@@ -139,6 +133,13 @@ export default function Dashboard() {
 
   // 老顧客關心卡：最多 3 位，沒有需要關心的人就整張卡不出現
   const [careList, setCareList] = useState([])
+
+  // 首頁收合狀態：預設都收起來，只有「3 位互動」展開（每天最常用）
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [careOpen, setCareOpen] = useState(false)
+  const [checkinOpen, setCheckinOpen] = useState(false)
+  const [interactOpen, setInteractOpen] = useState(true)
+  const checkinRef = useRef(null)
 
   const isToday = viewDate === today()
 
@@ -550,23 +551,19 @@ export default function Dashboard() {
             display: grid;
             grid-template-columns: 1.6fr 1fr;
             grid-template-areas:
-              "meetup meetup"
-              "theme theme"
+              "quick quick"
               "starter starter"
-              "kpi followup"
-              "team followup"
+              "stats followup"
               "care followup"
-              "quick followup"
+              "theme followup"
               "checkin followup";
             gap: 14px;
             align-items: start;
           }
-          .area-meetup { grid-area: meetup; margin-bottom: 0 !important; }
           .area-theme { grid-area: theme; margin-bottom: 0 !important; }
           .area-care { grid-area: care; margin-bottom: 0 !important; }
           .area-starter { grid-area: starter; margin-bottom: 0 !important; }
-          .area-kpi { grid-area: kpi; margin-bottom: 0 !important; }
-          .area-team { grid-area: team; margin-bottom: 0 !important; }
+          .area-stats { grid-area: stats; margin-bottom: 0 !important; }
           .area-followup { grid-area: followup; margin-bottom: 0 !important; }
           .area-quick { grid-area: quick; margin-bottom: 0 !important; }
           .area-checkin { grid-area: checkin; margin-bottom: 0 !important; }
@@ -574,18 +571,19 @@ export default function Dashboard() {
       `}</style>
 
       <div className="dashboard-wrap" style={{ padding:'20px 16px 0' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start' }}>
-          <div>
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10 }}>
+          <div style={{ minWidth:0 }}>
             <p style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>嗨，{displayName} 👋</p>
             <p style={{ fontSize:12,color:TEXT_MUTED,margin:'5px 0 0' }}>{todayStr}</p>
             {whyHerePreview && (
               <p onClick={() => navigate('/settings')}
-                style={{ fontSize:13,fontStyle:'italic',color:TEXT_SECONDARY,margin:'8px 0 0',cursor:'pointer' }}>
+                style={{ fontSize:12,fontStyle:'italic',color:TEXT_SECONDARY,margin:'6px 0 0',cursor:'pointer',
+                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
                 「{whyHerePreview}」
               </p>
             )}
           </div>
-          <div style={{ display:'flex',gap:8 }}>
+          <div style={{ display:'flex',gap:8,flexShrink:0 }}>
             <NotificationBell userId={user?.id} />
             <button onClick={()=>navigate('/settings')}
               style={{ background:PRIMARY_SOFT,border:'none',borderRadius:RADIUS.circle,
@@ -599,83 +597,67 @@ export default function Dashboard() {
       <div className="dashboard-wrap" style={{ padding:'14px 16px 0' }}>
         <div className="dash-grid">
 
-        {meetupCard && (
-          <section className="area-meetup" style={{ marginBottom:10 }}>
-            <div style={{ background:CARD_BG, border:'1px solid #F0F1F4', borderRadius:RADIUS.xl, padding:'18px' }}>
-              <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 8px', fontWeight:700 }}>本週訪談</p>
-              <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
-                <span style={{ fontSize:34, fontWeight:700, color:TEXT_MAIN, lineHeight:1 }}>
-                  {meetupCard.count}<span style={{ fontSize:17, color:TEXT_MUTED, fontWeight:600 }}>/2</span>
-                </span>
-                <span style={{ fontSize:14, color:TEXT_SECONDARY, fontWeight:600 }}>
-                  {meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
-                </span>
-              </div>
-              {meetupCard.streak >= 2 && (
-                <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:ACCENT_YELLOW_SOFT,
-                  borderRadius:RADIUS.pill, padding:'4px 10px', marginTop:10 }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:ACCENT_YELLOW_TEXT }}>連續 {meetupCard.streak} 週達標</span>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+        {/* 常用入口：一排小按鈕，放最上面，拇指最好按 */}
+        <section className="area-quick" style={{ marginBottom:10 }}>
+          <div style={{ display:'flex',gap:8 }}>
+            <QuickBtn Icon={IconUsers} label="+互動" color={ACCENT_YELLOW_TEXT} onClick={()=>navigate('/contacts/new')} />
+            <QuickBtn Icon={IconChartBar} label="+業績" color={ACCENT_GREEN_TEXT} onClick={()=>navigate('/transactions/new')} />
+            <QuickBtn Icon={IconSearch} label="查顧客" color={ACCENT_PINK_TEXT} onClick={()=>navigate('/customers')} />
+          </div>
+        </section>
 
-        {user && onboardingDone && (
-          <section className="area-theme" style={{ marginBottom:10 }}>
-            <StudyThemeCard user={user} />
-          </section>
-        )}
-
+        {/* 新手起步：一條細線，做完就消失 */}
         {showStarterCard && (
-          <section className="area-starter" style={{ borderRadius:RADIUS.xl,overflow:'hidden',marginBottom:10,
-            border:'1px solid #F0F1F4' }}>
+          <section className="area-starter" style={{ borderRadius:RADIUS.lg,overflow:'hidden',marginBottom:10,
+            border:'1px solid #F0F1F4',background:'#fff' }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
-                style={{ width:'100%',background:PRIMARY_SOFT,border:'none',cursor:'pointer',
-                  padding:'10px 14px',display:'flex',alignItems:'center',gap:10 }}>
+                style={{ width:'100%',background:'#fff',border:'none',cursor:'pointer',
+                  padding:'9px 14px',display:'flex',alignItems:'center',gap:10 }}>
                 <IconRocket size={15} stroke={1.9} color={PRIMARY} />
-                <div style={{ flex:1,height:6,background:'rgba(22,104,227,0.15)',borderRadius:RADIUS.pill,overflow:'hidden' }}>
+                <span style={{ fontSize:12,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>新手起步</span>
+                <div style={{ flex:1,height:5,background:PRIMARY_SOFT,borderRadius:RADIUS.pill,overflow:'hidden' }}>
                   <div style={{ height:'100%',borderRadius:RADIUS.pill,background:PRIMARY,
                     width:`${Math.round((starterDoneCount/STARTER_TASKS.length)*100)}%`,
                     transition:'width 0.5s ease' }} />
                 </div>
                 <span style={{ fontSize:12,fontWeight:700,color:PRIMARY,whiteSpace:'nowrap' }}>
-                  {starterDoneCount} / {STARTER_TASKS.length}
+                  {starterDoneCount}/{STARTER_TASKS.length}
                 </span>
-                <span style={{ fontSize:12,color:PRIMARY }}>▼</span>
+                <IconChevronDown size={14} stroke={1.9} color={TEXT_MUTED} />
               </button>
             )}
             {starterExpanded && (
               <div style={{ background:'#fff' }}>
-                <div style={{ background:PRIMARY_SOFT,padding:'14px',
-                  display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                <div style={{ padding:'12px 14px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                   <div>
-                    <p style={{ fontSize:14,fontWeight:700,color:PRIMARY,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+                    <p style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
                       <IconRocket size={15} stroke={1.9} color={PRIMARY} /> 新手起步任務
                     </p>
-                    <p style={{ fontSize:11,color:'#5B8FE0',margin:'4px 0 0' }}>完成這 5 件事，讓你的事業正式起步！</p>
+                    <p style={{ fontSize:11,color:TEXT_MUTED,margin:'4px 0 0' }}>完成這 5 件事，讓你的事業正式起步！</p>
                   </div>
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    <span style={{ fontSize:12,fontWeight:700,background:PRIMARY,color:'#fff',
+                    <span style={{ fontSize:12,fontWeight:700,background:PRIMARY_SOFT,color:PRIMARY,
                       padding:'3px 10px',borderRadius:RADIUS.pill }}>
                       {starterDoneCount}/{STARTER_TASKS.length}
                     </span>
                     <button onClick={() => setStarterExpanded(false)}
-                      style={{ background:'none',border:'none',color:PRIMARY,cursor:'pointer',fontSize:14,padding:0 }}>▲</button>
+                      style={{ background:'none',border:'none',cursor:'pointer',padding:0,display:'flex' }}>
+                      <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} />
+                    </button>
                   </div>
                 </div>
-                <div style={{ padding:'10px 14px 14px' }}>
+                <div style={{ padding:'0 14px 12px' }}>
                   {STARTER_TASKS.map(task => {
                     const done = starterTasks?.[task.id] === true
                     return (
                       <div key={task.id} style={{ display:'flex',alignItems:'center',gap:10,
-                        padding:'10px 0',borderBottom:'1px solid #F5F6F8' }}>
-                        <div style={{ width:22,height:22,borderRadius:RADIUS.circle,flexShrink:0,
+                        padding:'9px 0',borderTop:'1px solid #F5F6F8' }}>
+                        <div style={{ width:20,height:20,borderRadius:RADIUS.circle,flexShrink:0,
                           display:'flex',alignItems:'center',justifyContent:'center',
                           background: done ? ACCENT_GREEN : '#F0F1F4',
                           border: done ? 'none' : '1.5px solid #D8DCE8' }}>
-                          {done && <span style={{ fontSize:12,color:'#fff' }}>✓</span>}
+                          {done && <span style={{ fontSize:11,color:'#fff' }}>✓</span>}
                         </div>
                         <span style={{ fontSize:13,fontWeight:600,color: done?TEXT_MUTED:TEXT_MAIN,
                           textDecoration: done?'line-through':'none',flex:1 }}>
@@ -691,305 +673,377 @@ export default function Dashboard() {
           </section>
         )}
 
-        <section className="area-kpi" style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',borderRadius:20,marginBottom:10,
-          padding:'18px 18px',boxShadow:'0 12px 28px rgba(22,104,227,0.2)' }}>
-          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
-            <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>本季業績進度</span>
-            <button style={{ fontSize:12,color:'rgba(255,255,255,0.85)',background:'none',border:'none',cursor:'pointer',fontWeight:600,display:'flex',alignItems:'center',gap:2 }}
-              onClick={()=>navigate('/transactions')}>查看詳情 <IconChevronRight size={13} stroke={2} /></button>
-          </div>
-          <div style={{ display:'flex',gap:16,marginBottom:14 }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                <span style={{ fontSize:12,fontWeight:700,color:ACCENT_YELLOW }}>BV</span>
-                <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>{bvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
-              </div>
-              <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="rgba(255,255,255,0.22)" />
-            </div>
-            <div style={{ flex:1 }}>
-              <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                <span style={{ fontSize:12,fontWeight:700,color:'#fff' }}>IBV</span>
-                <span style={{ fontSize:14,fontWeight:700,color:'#fff' }}>{ibvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
-              </div>
-              <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#fff" trackColor="rgba(255,255,255,0.22)" />
-            </div>
-          </div>
-          <div style={{ display:'flex',justifyContent:'space-between',paddingTop:12,borderTop:'1px solid rgba(255,255,255,0.18)' }}>
-            <span style={{ color:'rgba(255,255,255,0.75)',fontSize:12 }}>本月獲利</span>
-            <span style={{ color:'#fff',fontWeight:700,fontSize:16 }}>
-              NT${profit.toLocaleString()}
-            </span>
-          </div>
-        </section>
-
-        {/* 戰隊：只顯示全隊平均打卡率，不顯示個人名次（排名等 Team.jsx 改成共同完成視覺化再一起做）；
-            「戰隊」「我的夥伴」兩個入口按鈕永遠顯示，不管有沒有加入戰隊 */}
-        <section className="area-team" style={{ marginBottom:10 }}>
-          {teamCard && (
-            <div style={{ background:CARD_BG, border:'1px solid #F0F1F4', borderRadius:RADIUS.xl,
-              padding:'14px 16px', marginBottom:10 }}>
-              <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 10px', fontWeight:700 }}>戰隊本週打卡率</p>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={{ flex:1, height:8, background:'#F0F1F4', borderRadius:RADIUS.pill, overflow:'hidden' }}>
-                  <div style={{ height:'100%', borderRadius:RADIUS.pill, width:`${teamCard.teamAvgRate}%`,
-                    background: teamCard.teamAvgRate>=70?ACCENT_GREEN:teamCard.teamAvgRate>=40?ACCENT_YELLOW:DANGER,
-                    transition:'width 0.5s ease' }} />
+        {/* 數字列：三個最重要的數字一眼看完，點開才看細節 */}
+        <section className="area-stats" style={{ background:CARD_BG,border:'1px solid #F0F1F4',borderRadius:RADIUS.lg,marginBottom:10 }}>
+          <div style={{ display:'flex',alignItems:'stretch' }}>
+            <button onClick={() => setStatsOpen(v => !v)}
+              style={{ flex:2,display:'flex',background:'none',border:'none',cursor:'pointer',padding:'12px 4px 12px 0',textAlign:'center' }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11,color:TEXT_MUTED,fontWeight:600 }}>本週訪談</div>
+                <div style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,marginTop:2 }}>
+                  {meetupCard ? meetupCard.count : '–'}<span style={{ fontSize:12,color:TEXT_MUTED,fontWeight:600 }}>/2</span>
                 </div>
-                <span style={{ fontSize:14, fontWeight:700, color:TEXT_MAIN }}>{teamCard.teamAvgRate}%</span>
+              </div>
+              <div style={{ flex:1,borderLeft:'1px solid #F0F1F4' }}>
+                <div style={{ fontSize:11,color:TEXT_MUTED,fontWeight:600 }}>本季 BV</div>
+                <div style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,marginTop:2 }}>
+                  {bvTotal.toFixed(0)}<span style={{ fontSize:12,color:TEXT_MUTED,fontWeight:600 }}>/{BV_GOAL}</span>
+                </div>
+              </div>
+            </button>
+            <button onClick={() => { setCheckinOpen(true); setTimeout(() => checkinRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 50) }}
+              style={{ flex:1,background:'none',border:'none',borderLeft:'1px solid #F0F1F4',cursor:'pointer',padding:'12px 0',textAlign:'center' }}>
+              <div style={{ fontSize:11,color:TEXT_MUTED,fontWeight:600 }}>{isToday ? '今日打卡' : '打卡'}</div>
+              <div style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,marginTop:2 }}>
+                {checkTotal}<span style={{ fontSize:12,color:TEXT_MUTED,fontWeight:600 }}>/{DAILY_TASKS.length}</span>
+              </div>
+            </button>
+          </div>
+          <button onClick={() => setStatsOpen(v => !v)}
+            style={{ width:'100%',background:'none',border:'none',borderTop:'1px solid #F0F1F4',cursor:'pointer',
+              padding:'6px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+              fontSize:11,color:TEXT_MUTED }}>
+            {statsOpen ? '收起' : '看細節'}
+            {statsOpen ? <IconChevronUp size={13} stroke={1.9} /> : <IconChevronDown size={13} stroke={1.9} />}
+          </button>
+
+          {statsOpen && (
+            <div style={{ padding:'4px 16px 16px',borderTop:'1px solid #F0F1F4' }}>
+              {meetupCard && (
+                <div style={{ display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',margin:'12px 0 14px' }}>
+                  <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>
+                    本週訪談：{meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
+                  </span>
+                  {meetupCard.streak >= 2 && (
+                    <span style={{ background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.pill,padding:'3px 10px',
+                      fontSize:12,fontWeight:700,color:ACCENT_YELLOW_TEXT }}>連續 {meetupCard.streak} 週達標</span>
+                  )}
+                </div>
+              )}
+              <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
+                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>本季業績進度</span>
+                <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:600,display:'flex',alignItems:'center',gap:2 }}
+                  onClick={()=>navigate('/transactions')}>查看詳情 <IconChevronRight size={13} stroke={2} /></button>
+              </div>
+              <div style={{ display:'flex',gap:16,marginBottom:12 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                    <span style={{ fontSize:12,fontWeight:700,color:ACCENT_YELLOW_TEXT }}>BV</span>
+                    <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{bvTotal.toFixed(0)} <span style={{ color:TEXT_MUTED,fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
+                  </div>
+                  <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="#F0F1F4" />
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                    <span style={{ fontSize:12,fontWeight:700,color:PRIMARY }}>IBV</span>
+                    <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{ibvTotal.toFixed(0)} <span style={{ color:TEXT_MUTED,fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
+                  </div>
+                  <ProgressBar value={ibvTotal} max={IBV_GOAL} color={PRIMARY} trackColor="#F0F1F4" />
+                </div>
+              </div>
+              <div style={{ display:'flex',justifyContent:'space-between',padding:'10px 0',borderTop:'1px solid #F0F1F4' }}>
+                <span style={{ color:TEXT_SECONDARY,fontSize:12 }}>本月獲利</span>
+                <span style={{ color:TEXT_MAIN,fontWeight:700,fontSize:15 }}>NT${profit.toLocaleString()}</span>
+              </div>
+
+              {/* 戰隊：只顯示全隊平均打卡率，不顯示個人名次；「戰隊」「我的夥伴」入口永遠顯示 */}
+              {teamCard && (
+                <div style={{ padding:'10px 0 4px',borderTop:'1px solid #F0F1F4' }}>
+                  <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'0 0 8px',fontWeight:700 }}>戰隊本週打卡率</p>
+                  <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                    <div style={{ flex:1,height:8,background:'#F0F1F4',borderRadius:RADIUS.pill,overflow:'hidden' }}>
+                      <div style={{ height:'100%',borderRadius:RADIUS.pill,width:`${teamCard.teamAvgRate}%`,
+                        background: teamCard.teamAvgRate>=70?ACCENT_GREEN:teamCard.teamAvgRate>=40?ACCENT_YELLOW:DANGER,
+                        transition:'width 0.5s ease' }} />
+                    </div>
+                    <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{teamCard.teamAvgRate}%</span>
+                  </div>
+                </div>
+              )}
+              <div style={{ display:'flex',gap:10,marginTop:12 }}>
+                <button onClick={() => navigate('/team')}
+                  style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                    padding:'10px 0',borderRadius:RADIUS.md,border:'1px solid #F0F1F4',
+                    background:SUBCARD_BG,color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+                  <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
+                </button>
+                <button onClick={() => navigate('/partners')}
+                  style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                    padding:'10px 0',borderRadius:RADIUS.md,border:'1px solid #F0F1F4',
+                    background:SUBCARD_BG,color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+                  <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
+                </button>
               </div>
             </div>
           )}
-          <div style={{ display:'flex', gap:10 }}>
-            <button onClick={() => navigate('/team')}
-              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-                padding:'11px 0', borderRadius:RADIUS.lg, border:'1px solid #F0F1F4',
-                background:SUBCARD_BG, color:TEXT_MAIN, fontSize:13, fontWeight:700, cursor:'pointer' }}>
-              <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
-            </button>
-            <button onClick={() => navigate('/partners')}
-              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-                padding:'11px 0', borderRadius:RADIUS.lg, border:'1px solid #F0F1F4',
-                background:SUBCARD_BG, color:TEXT_MAIN, fontSize:13, fontWeight:700, cursor:'pointer' }}>
-              <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
-            </button>
-          </div>
         </section>
 
-        <section className="area-followup" style={{ background:CARD_BG,borderRadius:RADIUS.xl,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
-          <div style={{ marginBottom:14 }}>
+        {/* 今天的 3-1-2：首頁主角，每一項一行 */}
+        <section className="area-followup" style={{ background:CARD_BG,borderRadius:RADIUS.lg,marginBottom:10,padding:'14px 14px 10px',border:'1px solid #F0F1F4' }}>
+          <div style={{ display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8 }}>
             <div style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN }}>今天的 3-1-2</div>
-            <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>持續擴充名單，建立長期有意義的關係</div>
+            <div style={{ fontSize:11,color:TEXT_MUTED }}>建立長期有意義的關係</div>
           </div>
 
-          <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
-
-            {/* 3 互動 */}
-            <div style={{ border:'1px solid #F0F1F4',borderRadius:RADIUS.lg,padding:14 }}>
-              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
-                <span style={{ background:PRIMARY,color:'#fff',fontSize:12,fontWeight:700,width:20,height:20,
-                  borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>3</span>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位互動</span>
-              </div>
-              <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>不要老是同樣那幾位</div>
-              {interactionContacts.length===0
-                ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
-                : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-                    {interactionContacts.map(c=>(
-                      <div key={c.id} style={{ display:'flex',alignItems:'center',gap:10 }}>
-                        <Avatar name={c.name} size={30} />
-                        <span onClick={()=>navigate(`/contacts/${c.id}`)}
-                          style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,flex:1,cursor:'pointer' }}>{c.name}</span>
-                        <button onClick={()=>navigate(`/contacts/${c.id}`)}
-                          style={{ background:PRIMARY_SOFT,color:PRIMARY,border:'none',borderRadius:RADIUS.xs,
-                            padding:'5px 10px',fontSize:12,fontWeight:600,cursor:'pointer' }}>記一下</button>
-                      </div>
-                    ))}
+          {/* 3 互動 */}
+          <div style={{ borderTop:'1px solid #F5F6F8',padding:'10px 0' }}>
+            <button onClick={() => setInteractOpen(v => !v)}
+              style={{ width:'100%',display:'flex',alignItems:'center',gap:10,background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left' }}>
+              <span style={{ background:PRIMARY,color:'#fff',fontSize:12,fontWeight:700,width:22,height:22,flexShrink:0,
+                borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>3</span>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位互動</div>
+                {!interactOpen && (
+                  <div style={{ fontSize:12,color:TEXT_SECONDARY,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+                    {interactionContacts.length === 0 ? '還沒有可以互動的聯絡人' : interactionContacts.map(c => c.name).join('、')}
                   </div>
-              }
-            </div>
-
-            {/* 1 會議 */}
-            <div style={{ border:'1.5px solid #F97316',borderRadius:RADIUS.lg,padding:14 }}>
-              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
-                <span style={{ background:'#F97316',color:'#fff',fontSize:12,fontWeight:700,width:20,height:20,
-                  borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>1</span>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>個會議</span>
+                )}
               </div>
-              <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>別漫無目的，挑最接近臨門一腳的人</div>
-              {!meetingContact
-                ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>目前沒有準備好約會議的人，先專心做 3 位互動就好</p>
-                : <button onClick={()=>{ markDaily312(supabase, user.id); navigate(`/contacts/${meetingContact.id}`) }}
-                    style={{ width:'100%',textAlign:'left',background:'none',border:'none',padding:0,cursor:'pointer' }}>
-                    <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:8 }}>
-                      <Avatar name={meetingContact.name} size={34} />
-                      <div>
-                        <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{meetingContact.name}</div>
-                        <div style={{ fontSize:11,color:TEXT_MUTED }}>
-                          {meetingContact.relationship_stage || meetingContact.referral_stage || meetingContact.action_type}
+              {interactOpen ? <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} /> : <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} />}
+            </button>
+            {interactOpen && (
+              <div style={{ marginTop:8,paddingLeft:32 }}>
+                <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:8 }}>不要老是同樣那幾位</div>
+                {interactionContacts.length===0
+                  ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
+                  : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                      {interactionContacts.map(c=>(
+                        <div key={c.id} style={{ display:'flex',alignItems:'center',gap:10 }}>
+                          <Avatar name={c.name} size={28} />
+                          <span onClick={()=>navigate(`/contacts/${c.id}`)}
+                            style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,flex:1,cursor:'pointer' }}>{c.name}</span>
+                          <button onClick={()=>navigate(`/contacts/${c.id}`)}
+                            style={{ background:PRIMARY_SOFT,color:PRIMARY,border:'none',borderRadius:RADIUS.xs,
+                              padding:'5px 10px',fontSize:12,fontWeight:600,cursor:'pointer' }}>記一下</button>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    <div style={{ fontSize:13,color:TEXT_MAIN,lineHeight:1.5,marginBottom:10 }}>{getSuggestion(meetingContact)}</div>
-                    <div style={{ background:'#F97316',color:'#fff',borderRadius:RADIUS.xs,padding:'9px 14px',
-                      fontSize:13,fontWeight:700,textAlign:'center' }}>
-                      {isContactWarm(meetingContact) ? '約時間碰面' : '先互動暖身'}
-                    </div>
-                  </button>
-              }
-            </div>
-
-            {/* 2 新名單 */}
-            <div style={{ background:ACCENT_GREEN_SOFT,border:'1px solid #E8F9F1',borderRadius:RADIUS.lg,padding:14 }}>
-              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
-                <span style={{ background:ACCENT_GREEN,color:'#fff',fontSize:12,fontWeight:700,width:20,height:20,
-                  borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>2</span>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位新名單</span>
+                }
               </div>
-              <div style={{ fontSize:11,color:ACCENT_GREEN_TEXT,marginBottom:10 }}>去認識新朋友，不是從舊名單湊數</div>
-              <div style={{ fontSize:13,color:TEXT_MAIN,lineHeight:1.6,marginBottom:10 }}>
-                這週已經新增 {newContactCount} 位，今天認識了新朋友嗎？加進來，從「剛認識」開始累積關係。
+            )}
+          </div>
+
+          {/* 1 會議 */}
+          <div style={{ borderTop:'1px solid #F5F6F8',padding:'10px 0' }}>
+            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+              <span style={{ background:'#F97316',color:'#fff',fontSize:12,fontWeight:700,width:22,height:22,flexShrink:0,
+                borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>1</span>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
+                  個會議{meetingContact && <span style={{ fontWeight:600,color:TEXT_SECONDARY }}>　{meetingContact.name}</span>}
+                </div>
+                <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5 }}>
+                  {meetingContact
+                    ? getSuggestion(meetingContact)
+                    : '目前沒有準備好約會議的人，先專心做 3 位互動就好'}
+                </div>
+                {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>別漫無目的，挑最接近臨門一腳的人</div>}
+              </div>
+              {meetingContact && (
+                <button onClick={()=>{ markDaily312(supabase, user.id); navigate(`/contacts/${meetingContact.id}`) }}
+                  style={{ background:'#F97316',color:'#fff',border:'none',borderRadius:RADIUS.xs,padding:'7px 10px',
+                    fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0 }}>
+                  {isContactWarm(meetingContact) ? '約時間碰面' : '先互動暖身'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 2 新名單 */}
+          <div style={{ borderTop:'1px solid #F5F6F8',padding:'10px 0' }}>
+            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+              <span style={{ background:ACCENT_GREEN,color:'#fff',fontSize:12,fontWeight:700,width:22,height:22,flexShrink:0,
+                borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>2</span>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位新名單</div>
+                <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5 }}>
+                  這週已經新增 {newContactCount} 位，去認識新朋友，不是從舊名單湊數
+                </div>
               </div>
               <button onClick={()=>navigate('/contacts/new')}
-                style={{ width:'100%',background:'#fff',color:ACCENT_GREEN_TEXT,border:`1.5px solid ${ACCENT_GREEN_TEXT}`,
-                  borderRadius:RADIUS.xs,padding:'9px 14px',fontSize:13,fontWeight:700,cursor:'pointer' }}>+ 新增聯絡人</button>
+                style={{ background:'#fff',color:ACCENT_GREEN_TEXT,border:`1.5px solid ${ACCENT_GREEN_TEXT}`,
+                  borderRadius:RADIUS.xs,padding:'6px 10px',fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0 }}>+ 新增</button>
             </div>
-
           </div>
 
-          <div style={{ textAlign:'right',marginTop:10 }}>
+          <div style={{ textAlign:'right',borderTop:'1px solid #F5F6F8',paddingTop:8 }}>
             <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}
               onClick={()=>navigate('/contacts')}>查看全部聯絡人 →</button>
           </div>
         </section>
 
+        {/* 老顧客關心：預設收成一行，點開才是名單 */}
         {careList.length > 0 && (
           <section className="area-care" style={{ marginBottom:10 }}>
-            <div style={{ background:ACCENT_PINK_SOFT,border:'1px solid #FBD4EA',borderRadius:RADIUS.lg,padding:14 }}>
-              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
-                <span style={{ background:ACCENT_PINK,color:'#fff',width:20,height:20,borderRadius:RADIUS.circle,
+            <div style={{ background:'#fff',border:'1px solid #F0F1F4',borderRadius:RADIUS.lg,overflow:'hidden' }}>
+              <button onClick={() => setCareOpen(v => !v)}
+                style={{ width:'100%',display:'flex',alignItems:'center',gap:8,background:'none',border:'none',
+                  cursor:'pointer',padding:'12px 14px',textAlign:'left' }}>
+                <span style={{ background:ACCENT_PINK_SOFT,color:ACCENT_PINK_TEXT,width:22,height:22,borderRadius:RADIUS.circle,flexShrink:0,
                   display:'flex',alignItems:'center',justifyContent:'center' }}>
                   <IconHeart size={12} stroke={2.2} />
                 </span>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>老顧客，問問用得好不好</span>
-              </div>
-              <div style={{ fontSize:11,color:ACCENT_PINK_TEXT,marginBottom:10 }}>先關心，買不買是之後的事</div>
-              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-                {careList.map(c => (
-                  <div key={c.id} style={{ background:'#fff',borderRadius:RADIUS.sm,padding:'10px 12px' }}>
-                    <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                      <Avatar name={c.name} size={28} />
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>
-                          {c.name}
-                          {c.tag && (
-                            <span style={{ marginLeft:6,fontSize:10,fontWeight:600,padding:'1px 7px',borderRadius:RADIUS.pill,
-                              background:ACCENT_YELLOW_SOFT,color:ACCENT_YELLOW_TEXT }}>{c.tag}</span>
-                          )}
+                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,flex:1 }}>
+                  老顧客，問問用得好不好
+                </span>
+                <span style={{ fontSize:12,fontWeight:700,color:ACCENT_PINK_TEXT,background:ACCENT_PINK_SOFT,
+                  borderRadius:RADIUS.pill,padding:'2px 9px' }}>{careList.length} 位</span>
+                {careOpen ? <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} /> : <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} />}
+              </button>
+              {careOpen && (
+                <div style={{ padding:'0 14px 14px' }}>
+                  <div style={{ fontSize:11,color:ACCENT_PINK_TEXT,marginBottom:8 }}>先關心，買不買是之後的事</div>
+                  <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                    {careList.map(c => (
+                      <div key={c.id} style={{ background:SUBCARD_BG,borderRadius:RADIUS.sm,padding:'10px 12px' }}>
+                        <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                          <Avatar name={c.name} size={28} />
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>
+                              {c.name}
+                              {c.tag && (
+                                <span style={{ marginLeft:6,fontSize:10,fontWeight:600,padding:'1px 7px',borderRadius:RADIUS.pill,
+                                  background:ACCENT_YELLOW_SOFT,color:ACCENT_YELLOW_TEXT }}>{c.tag}</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize:12,color:TEXT_MAIN,lineHeight:1.5 }}>{c.line}</div>
+                            {c.meta && <div style={{ fontSize:11,color:TEXT_MUTED }}>{c.meta}</div>}
+                          </div>
                         </div>
-                        <div style={{ fontSize:12,color:TEXT_MAIN,lineHeight:1.5 }}>{c.line}</div>
-                        {c.meta && <div style={{ fontSize:11,color:TEXT_MUTED }}>{c.meta}</div>}
+                        <div style={{ display:'flex',gap:14,marginTop:8,paddingLeft:38,flexWrap:'wrap' }}>
+                          <button onClick={() => navigate(c.contactId ? `/contacts/${c.contactId}` : `/customers/${c.id}`)}
+                            style={{ background:'none',border:'none',padding:0,fontSize:12,fontWeight:700,color:ACCENT_PINK_TEXT,cursor:'pointer' }}>去聊聊 ›</button>
+                          <button onClick={() => markCustomerCared(c.id)}
+                            style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_SECONDARY,cursor:'pointer' }}>我關心過了</button>
+                          <button onClick={() => snoozeCustomerCare(c.id)}
+                            style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_MUTED,cursor:'pointer' }}>這次先不打擾</button>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ display:'flex',gap:14,marginTop:8,paddingLeft:38,flexWrap:'wrap' }}>
-                      <button onClick={() => navigate(c.contactId ? `/contacts/${c.contactId}` : `/customers/${c.id}`)}
-                        style={{ background:'none',border:'none',padding:0,fontSize:12,fontWeight:700,color:ACCENT_PINK_TEXT,cursor:'pointer' }}>去聊聊 ›</button>
-                      <button onClick={() => markCustomerCared(c.id)}
-                        style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_SECONDARY,cursor:'pointer' }}>我關心過了</button>
-                      <button onClick={() => snoozeCustomerCare(c.id)}
-                        style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_MUTED,cursor:'pointer' }}>這次先不打擾</button>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           </section>
         )}
 
-        <section className="area-quick" style={{ marginBottom:10 }}>
-          <div style={{ display:'flex',gap:10 }}>
-            <QuickBtn Icon={IconUsers} label="+互動" color={ACCENT_YELLOW_TEXT} bg={ACCENT_YELLOW_SOFT} onClick={()=>navigate('/contacts/new')} />
-            <QuickBtn Icon={IconChartBar} label="+業績" color={ACCENT_GREEN_TEXT} bg={ACCENT_GREEN_SOFT} onClick={()=>navigate('/transactions/new')} />
-            <QuickBtn Icon={IconSearch} label="查顧客" color={ACCENT_PINK_TEXT} bg={ACCENT_PINK_SOFT} onClick={()=>navigate('/customers')} />
-          </div>
-        </section>
+        {user && onboardingDone && (
+          <section className="area-theme" style={{ marginBottom:10 }}>
+            <StudyThemeCard user={user} />
+          </section>
+        )}
 
-        <section className="area-checkin" style={{ background:CARD_BG,borderRadius:RADIUS.xl,marginBottom:10,padding:16,border:'1px solid #F0F1F4' }}>
-          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
-            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
+        {/* 今日打卡：預設一行，點開在原地勾選；每週、每月行動在「每日行動」頁 */}
+        <section ref={checkinRef} className="area-checkin" style={{ background:CARD_BG,borderRadius:RADIUS.lg,marginBottom:10,border:'1px solid #F0F1F4',overflow:'hidden' }}>
+          <button onClick={() => setCheckinOpen(v => !v)}
+            style={{ width:'100%',display:'flex',alignItems:'center',gap:8,background:'none',border:'none',
+              cursor:'pointer',padding:'12px 14px',textAlign:'left' }}>
+            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,flex:1 }}>
               {isToday ? '今日打卡' : '打卡紀錄'}
             </span>
             <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{checkTotal}/{DAILY_TASKS.length}</span>
-          </div>
+            {checkinOpen ? <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} /> : <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} />}
+          </button>
 
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
-            marginBottom:10,background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'6px 10px' }}>
-            <button onClick={() => changeDate(-1)}
-              style={{ background:'none',border:'none',color:TEXT_SECONDARY,
-                fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
-            <div style={{ textAlign:'center' }}>
-              <span style={{ fontSize:13,fontWeight:700,color: isToday?PRIMARY:'#C9902E' }}>
-                {isToday ? '今天' : formatDateLabel(viewDate)}
-              </span>
-              {!isToday && (
-                <button onClick={() => setViewDate(today())}
-                  style={{ marginLeft:8,fontSize:11,color:PRIMARY,background:'none',
-                    border:'none',cursor:'pointer',fontWeight:700 }}>回今天</button>
-              )}
-            </div>
-            <button onClick={() => changeDate(1)}
-              style={{ background:'none',border:'none',
-                color: isToday?'#D8DCE8':TEXT_SECONDARY,
-                fontSize:18,cursor: isToday?'default':'pointer',
-                padding:'0 4px',lineHeight:1 }}>›</button>
-          </div>
-
-          <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
-            background:SUBCARD_BG,borderRadius:RADIUS.md,marginBottom:8 }}>
-            {weekStatus.map((w,i)=>{
-              const isSelected = w.date === viewDate
-              const isT = w.date === today()
-              const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
-              return (
-                <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
-                  style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-                    cursor: w.date<=today()?'pointer':'default' }}>
-                  <span style={{ fontSize:11,color: isSelected?PRIMARY:isT?PRIMARY:TEXT_MUTED,
-                    fontWeight: isSelected||isT?700:600 }}>
-                    {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
+          {checkinOpen && (
+            <div style={{ padding:'0 14px 14px' }}>
+              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
+                marginBottom:10,background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'6px 10px' }}>
+                <button onClick={() => changeDate(-1)}
+                  style={{ background:'none',border:'none',color:TEXT_SECONDARY,
+                    fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
+                <div style={{ textAlign:'center' }}>
+                  <span style={{ fontSize:13,fontWeight:700,color: isToday?PRIMARY:'#C9902E' }}>
+                    {isToday ? '今天' : formatDateLabel(viewDate)}
                   </span>
-                  <div style={{ width:10,height:10,borderRadius:RADIUS.circle,background:dc,
-                    outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
-                    outlineOffset:2 }} />
+                  {!isToday && (
+                    <button onClick={() => setViewDate(today())}
+                      style={{ marginLeft:8,fontSize:11,color:PRIMARY,background:'none',
+                        border:'none',cursor:'pointer',fontWeight:700 }}>回今天</button>
+                  )}
                 </div>
-              )
-            })}
-          </div>
+                <button onClick={() => changeDate(1)}
+                  style={{ background:'none',border:'none',
+                    color: isToday?'#D8DCE8':TEXT_SECONDARY,
+                    fontSize:18,cursor: isToday?'default':'pointer',
+                    padding:'0 4px',lineHeight:1 }}>›</button>
+              </div>
 
-          <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
-            {DAILY_TASKS.map(task=>{
-              const done=!!checkins[task.key]
-              const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
-              const TaskIcon = task.Icon
-              return (
-                <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
-                  borderBottom:'1px solid #F5F6F8' }}>
-                  <button onClick={()=>toggleCheckin(task.key)}
-                    style={{ width:20,height:20,borderRadius:7,flexShrink:0,
-                      border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      transition:'all 0.15s',cursor:'pointer' }}>
-                    {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
-                  </button>
-                  <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
-                  <button onClick={()=> hasAction && handleTaskAction(task)}
-                    style={{ flex:1,background:'none',border:'none',textAlign:'left',
-                      cursor: hasAction?'pointer':'default',padding:0,
-                      display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-                    <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
-                      textDecoration:done?'line-through':'none' }}>
-                      {task.label}
-                      {task.special&&viewContacted.length>0&&(
-                        <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
-                          {viewContacted.map((c,i) => (
-                            <span key={c.id}
-                              onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
-                              style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
-                                textDecoration:'underline' }}>
-                              {c.name}{i<viewContacted.length-1?'、':''}
+              <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
+                background:SUBCARD_BG,borderRadius:RADIUS.md,marginBottom:8 }}>
+                {weekStatus.map((w,i)=>{
+                  const isSelected = w.date === viewDate
+                  const isT = w.date === today()
+                  const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
+                  return (
+                    <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
+                      style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                        cursor: w.date<=today()?'pointer':'default' }}>
+                      <span style={{ fontSize:11,color: isSelected?PRIMARY:isT?PRIMARY:TEXT_MUTED,
+                        fontWeight: isSelected||isT?700:600 }}>
+                        {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
+                      </span>
+                      <div style={{ width:10,height:10,borderRadius:RADIUS.circle,background:dc,
+                        outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
+                        outlineOffset:2 }} />
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
+                {DAILY_TASKS.map(task=>{
+                  const done=!!checkins[task.key]
+                  const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
+                  const TaskIcon = task.Icon
+                  return (
+                    <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
+                      borderBottom:'1px solid #F5F6F8' }}>
+                      <button onClick={()=>toggleCheckin(task.key)}
+                        style={{ width:20,height:20,borderRadius:7,flexShrink:0,
+                          border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          transition:'all 0.15s',cursor:'pointer' }}>
+                        {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
+                      </button>
+                      <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
+                      <button onClick={()=> hasAction && handleTaskAction(task)}
+                        style={{ flex:1,background:'none',border:'none',textAlign:'left',
+                          cursor: hasAction?'pointer':'default',padding:0,
+                          display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                        <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
+                          textDecoration:done?'line-through':'none' }}>
+                          {task.label}
+                          {task.special&&viewContacted.length>0&&(
+                            <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
+                              {viewContacted.map((c,i) => (
+                                <span key={c.id}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
+                                  style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
+                                    textDecoration:'underline' }}>
+                                  {c.name}{i<viewContacted.length-1?'、':''}
+                                </span>
+                              ))}
+                              <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
                             </span>
-                          ))}
-                          <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    {hasAction&&(
-                      <span style={{ fontSize:12,color:TEXT_MUTED,marginLeft:8,flexShrink:0 }}>›</span>
-                    )}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+                        {hasAction&&(
+                          <span style={{ fontSize:12,color:TEXT_MUTED,marginLeft:8,flexShrink:0 }}>›</span>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ textAlign:'right',marginTop:10 }}>
+                <button onClick={() => navigate('/daily')}
+                  style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}>
+                  每週、每月行動 ›
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         </div>
