@@ -174,10 +174,13 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  // 老顧客關心卡（先關心、不催單）。出現的條件：
-  //   A. 最近 14~60 天內買過，而且買完之後沒有任何關心／互動紀錄
-  //   B. 自己設的回購日已經到了或 3 天內到
-  // 一律不出現：14 天內已經關心／互動過、被按了「這次先不打擾」（7 天內）。
+  // 老顧客關心卡（先關心、不催單）。最多 3 位，最久沒關心的排前面。
+  // 先排除：14 天內已經關心／互動過、被按了「這次先不打擾」（14 天內）。
+  // 再看是不是符合下面任一種：
+  //   A. 買完之後：新顧客（只買過一次）買完 7 天起、老顧客 14 天起，到 60 天為止；買完之後關心過就不再出現
+  //   B. 回購日：自己設的回購日前 3 天起，到過期 30 天為止；回購日前後關心過、或回購日附近又買了，就不再出現
+  //   C. 送了贈品：送出 5 天起，到 60 天為止；送完之後關心過、或後來買了，就不再出現
+  //   D. 久沒聊：買過東西，最後一次購買超過 60 天（一年內），而且 60 天以上沒關心；只在前三種不夠 3 位時補 1 位
   // 「最近一次關心」取三個來源最新的：顧客自己的 last_cared_at、連結聯絡人的 last_interacted_at、
   // 連結聯絡人的 last_contact_date，所以沒連結聯絡人的顧客也算得出來（按過「我關心過了」就有）。
   async function fetchCareCard() {
@@ -189,13 +192,25 @@ export default function Dashboard() {
       .eq('user_id', user.id).eq('is_archived', false).limit(500)
     if (!custs || custs.length === 0) { setCareList([]); return }
     const { data: tx } = await supabase.from('transactions')
-      .select('customer_id,date,is_gift')
+      .select('customer_id,date,is_gift,line_kind,order_id,product_name')
       .eq('user_id', user.id).not('customer_id', 'is', null)
-      .order('date', { ascending: false }).limit(2000)
+      .order('date', { ascending: false }).limit(3000)
+
+    // 每位顧客：最後一次付費購買、購買次數（同一張訂單算一次）、最近一次送贈品
     const lastPurchase = {}
+    const purchaseKeys = {}
+    const lastGift = {}
     ;(tx || []).forEach(t => {
-      if (t.is_gift) return
+      if (t.line_kind) return
+      if (t.is_gift) {
+        const g = lastGift[t.customer_id]
+        if (!g) lastGift[t.customer_id] = { date: t.date, names: [t.product_name] }
+        else if (g.date === t.date) g.names.push(t.product_name)
+        return
+      }
       if (!lastPurchase[t.customer_id]) lastPurchase[t.customer_id] = t.date
+      if (!purchaseKeys[t.customer_id]) purchaseKeys[t.customer_id] = new Set()
+      purchaseKeys[t.customer_id].add(t.order_id || t.date)
     })
     const { data: cts } = await supabase.from('contacts')
       .select('id,last_interacted_at,last_contact_date')
@@ -203,45 +218,88 @@ export default function Dashboard() {
     const contactMap = {}
     ;(cts || []).forEach(c => { contactMap[c.id] = c })
 
+    const toMs = (d) => new Date(d + 'T00:00:00+08:00').getTime()
     const soon = toDateStr(new Date(nowMs + 3 * DAY))
     const list = []
+    const lapsed = []
     custs.forEach(c => {
       if (c.care_snoozed_until && c.care_snoozed_until >= todayStr) return
       const ct = c.contact_id ? contactMap[c.contact_id] : null
       const careTimes = [
         c.last_cared_at ? new Date(c.last_cared_at).getTime() : 0,
         ct?.last_interacted_at ? new Date(ct.last_interacted_at).getTime() : 0,
-        ct?.last_contact_date ? new Date(ct.last_contact_date + 'T00:00:00+08:00').getTime() : 0,
+        ct?.last_contact_date ? toMs(ct.last_contact_date) : 0,
       ]
       const lastCareMs = Math.max(...careTimes)
       if (lastCareMs && nowMs - lastCareMs < 14 * DAY) return
 
       const lp = lastPurchase[c.id] || null
-      const lpMs = lp ? new Date(lp + 'T00:00:00+08:00').getTime() : 0
+      const lpMs = lp ? toMs(lp) : 0
       const lpDays = lp ? (nowMs - lpMs) / DAY : Infinity
+      const purchaseCount = purchaseKeys[c.id] ? purchaseKeys[c.id].size : 0
       const caredSincePurchase = !!(lastCareMs && lpMs && lastCareMs >= lpMs)
-
-      const caseA = lp && lpDays >= 14 && lpDays <= 60 && !caredSincePurchase
-      const caseB = c.repurchase_reminder && c.repurchase_reminder <= soon
-      if (!caseA && !caseB) return
-
-      let line
-      if (lastCareMs && !(lp && !caredSincePurchase)) {
-        const weeks = Math.max(2, Math.floor((nowMs - lastCareMs) / DAY / 7))
-        line = `上次聊是 ${weeks} 週前，聊聊近況就好`
-      } else if (lp) {
-        line = '買完之後還沒聊過，問問他用得順不順'
-      } else {
-        line = '還沒記錄過關心，問問他最近好不好'
-      }
       const md = (s) => { const p = s.split('-'); return `${Number(p[1])}/${Number(p[2])}` }
+
+      // A. 買完之後
+      const startDays = purchaseCount <= 1 ? 7 : 14
+      const caseA = lp && lpDays >= startDays && lpDays <= 60 && !caredSincePurchase
+
+      // B. 回購日
+      let caseB = false
+      if (c.repurchase_reminder && c.repurchase_reminder <= soon) {
+        const remMs = toMs(c.repurchase_reminder)
+        const stale = nowMs - remMs > 30 * DAY
+        const caredAround = lastCareMs >= remMs - 3 * DAY
+        const boughtAround = lp && lpMs >= remMs - 14 * DAY
+        caseB = !stale && !caredAround && !boughtAround
+      }
+
+      // C. 送了贈品
+      let caseC = false
+      const g = lastGift[c.id]
+      if (g) {
+        const gMs = toMs(g.date)
+        const gDays = (nowMs - gMs) / DAY
+        const caredSinceGift = lastCareMs >= gMs
+        const boughtSinceGift = lp && lp >= g.date
+        caseC = gDays >= 5 && gDays <= 60 && !caredSinceGift && !boughtSinceGift
+      }
+
+      if (!caseA && !caseB && !caseC) {
+        // D. 久沒聊（候補）
+        if (lp && lpDays > 60 && lpDays <= 365 && (!lastCareMs || nowMs - lastCareMs > 60 * DAY)) {
+          const gapMs = nowMs - Math.max(lpMs, lastCareMs)
+          const months = Math.max(2, Math.round(gapMs / DAY / 30))
+          lapsed.push({ id: c.id, name: c.name, contactId: c.contact_id,
+            tag: '好久沒聊', line: `大約 ${months} 個月沒聊了，打聲招呼就好`,
+            meta: `上次購買 ${md(lp)}`, lastCareMs, gapMs })
+        }
+        return
+      }
+
+      let line, tag = null
+      if (caseC && !caseA) {
+        tag = '上次送了' + g.names.slice(0, 2).join('、')
+        line = '問問他試用得怎麼樣'
+      } else if (caseA) {
+        line = purchaseCount <= 1 ? '第一次買，問問他用得順不順' : '買完之後還沒聊過，問問他用得順不順'
+      } else {
+        line = lastCareMs
+          ? `上次聊是 ${Math.max(2, Math.floor((nowMs - lastCareMs) / DAY / 7))} 週前，聊聊近況就好`
+          : '回購日快到了，先問問他用得順不順'
+      }
       const meta = []
       if (lp) meta.push(`上次購買 ${md(lp)}`)
       if (c.repurchase_reminder) meta.push(`你設的回購日 ${md(c.repurchase_reminder)}`)
-      list.push({ id: c.id, name: c.name, contactId: c.contact_id, line, meta: meta.join('、'), lastCareMs })
+      list.push({ id: c.id, name: c.name, contactId: c.contact_id, tag, line, meta: meta.join('、'), lastCareMs })
     })
     list.sort((a, b) => a.lastCareMs - b.lastCareMs)
-    setCareList(list.slice(0, 3))
+    const result = list.slice(0, 3)
+    if (result.length < 3 && lapsed.length > 0) {
+      lapsed.sort((a, b) => a.gapMs - b.gapMs)
+      result.push(lapsed[0])
+    }
+    setCareList(result)
   }
 
   async function markCustomerCared(customerId) {
@@ -251,7 +309,7 @@ export default function Dashboard() {
   }
   async function snoozeCustomerCare(customerId) {
     setCareList(prev => prev.filter(c => c.id !== customerId))
-    const until = toDateStr(new Date(Date.now() + 7 * 86400000))
+    const until = toDateStr(new Date(Date.now() + 14 * 86400000))
     await supabase.from('customers').update({ care_snoozed_until: until }).eq('id', customerId)
   }
 
@@ -801,7 +859,13 @@ export default function Dashboard() {
                     <div style={{ display:'flex',alignItems:'center',gap:10 }}>
                       <Avatar name={c.name} size={28} />
                       <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>{c.name}</div>
+                        <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>
+                          {c.name}
+                          {c.tag && (
+                            <span style={{ marginLeft:6,fontSize:10,fontWeight:600,padding:'1px 7px',borderRadius:RADIUS.pill,
+                              background:ACCENT_YELLOW_SOFT,color:ACCENT_YELLOW_TEXT }}>{c.tag}</span>
+                          )}
+                        </div>
                         <div style={{ fontSize:12,color:TEXT_MAIN,lineHeight:1.5 }}>{c.line}</div>
                         {c.meta && <div style={{ fontSize:11,color:TEXT_MUTED }}>{c.meta}</div>}
                       </div>

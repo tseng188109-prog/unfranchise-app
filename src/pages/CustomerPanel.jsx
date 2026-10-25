@@ -6,6 +6,9 @@ import {
   IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive, IconHeart,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import OrderForm from './OrderForm'
+import OrderCard from './OrderCard'
+import { groupPurchases } from './orderUtils'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -45,6 +48,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const navigate = useNavigate()
   const [customer, setCustomer] = useState(null)
   const [transactions, setTransactions] = useState([])
+  const [orders, setOrders] = useState([])
+  const [showOrder, setShowOrder] = useState(false) // false | { orderId: null | 訂單 id }
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('info') // info | tx — 先看「這個人」，不是先看帳本
 
@@ -79,7 +84,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     setShowForm(false)
     setLinkedContact(null)
     setSameNameContact(null)
-    const { data: c } = await supabase.from('customers').select('*').eq('id', id).single()
+    setShowOrder(false)
+    const { data: c }= await supabase.from('customers').select('*').eq('id', id).single()
     if (c) {
       setCustomer(c)
       setReminderDate(c.repurchase_reminder || '')
@@ -98,6 +104,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     const { data: tx } = await supabase.from('transactions')
       .select('*').eq('customer_id', id).order('date', { ascending: false })
     if (tx) setTransactions(tx)
+    const { data: ord } = await supabase.from('orders').select('*').eq('customer_id', id)
+    setOrders(ord || [])
     setLoading(false)
   }
 
@@ -135,9 +143,14 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   }
 
   function openAdd() {
-    setForm(loadDraft(`customerTxNew:${id}`) || EMPTY_FORM)
+    setShowForm(false)
     setEditId(null)
-    setShowForm(true)
+    setShowOrder({ orderId: null })
+  }
+  function openEditOrder(orderId) {
+    setShowForm(false)
+    setEditId(null)
+    setShowOrder({ orderId })
   }
   function openEdit(tx) {
     const base = {
@@ -148,6 +161,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     }
     setForm(loadDraft(`customerTxEdit:${tx.id}`) || base)
     setEditId(tx.id)
+    setShowOrder(false)
     setShowForm(true)
   }
 
@@ -182,6 +196,13 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     fetchData()
     onChanged?.()
   }
+  async function deleteOrder(orderId) {
+    await supabase.from('transactions').delete().eq('order_id', orderId)
+    await supabase.from('orders').delete().eq('id', orderId)
+    setDeleteConfirm(null)
+    fetchData()
+    onChanged?.()
+  }
 
   function setF(key, val) { setForm(p => ({ ...p, [key]: val })) }
   const canSave = form.product_name.trim() && form.points !== ''
@@ -191,6 +212,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   }
   if (!customer) return null
 
+  const purchaseGroups = groupPurchases(transactions, orders)
   const totalBV = transactions.filter(t=>t.type==='BV').reduce((s,t) => s + Number(t.points), 0)
   const totalIBV = transactions.filter(t=>t.type==='IBV').reduce((s,t) => s + Number(t.points), 0)
   const totalProfit = transactions.reduce((s,t) => s + ((t.amount||0)-(t.cost||0)), 0)
@@ -287,7 +309,19 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               </div>
             </div>
 
-            {!showForm ? (
+            {showOrder ? (
+              <div style={{ border:`1px solid ${BORDER}`, borderRadius:12, padding:12, marginBottom:16, background:SUBCARD_BG }}>
+                <OrderForm
+                  key={showOrder.orderId || 'new'}
+                  userId={customer.user_id}
+                  customerId={id}
+                  customerName={customer.name}
+                  orderId={showOrder.orderId}
+                  onDone={() => { setShowOrder(false); fetchData(); onChanged?.() }}
+                  onCancel={() => setShowOrder(false)}
+                />
+              </div>
+            ) : !showForm ? (
               <button onClick={openAdd}
                 style={{ width:'100%', padding:'10px', borderRadius:10, border:`1px dashed ${PRIMARY}`,
                   background:'#EEF3FB', color:PRIMARY, fontSize:13, fontWeight:700, cursor:'pointer', marginBottom:16 }}>
@@ -343,9 +377,12 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>還沒有消費紀錄</p>
             ) : (
               <div style={{ display:'flex', flexDirection:'column' }}>
-                {transactions.map((t, i) => (
+                {purchaseGroups.map((g, i) => g.orderId ? (
+                  <OrderCard key={g.key} group={g} customerName={customer.name}
+                    onEdit={openEditOrder} onDelete={(oid) => setDeleteConfirm({ kind:'order', id:oid })} />
+                ) : (() => { const t = g.lines[0]; return (
                   <div key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0',
-                    borderBottom: i < transactions.length-1 ? `1px solid ${BORDER}` : 'none' }}>
+                    borderBottom: i < purchaseGroups.length-1 ? `1px solid ${BORDER}` : 'none' }}>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN }}>{t.product_name}</span>
@@ -372,13 +409,13 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                         style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex' }}>
                         <IconPencil size={13} stroke={1.9} />
                       </button>
-                      <button onClick={() => setDeleteConfirm(t.id)}
+                      <button onClick={() => setDeleteConfirm({ kind:'tx', id:t.id })}
                         style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, display:'flex' }}>
                         <IconTrash size={13} stroke={1.9} />
                       </button>
                     </div>
                   </div>
-                ))}
+                ) })())}
               </div>
             )}
           </>
@@ -496,14 +533,16 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           onClick={e => { if (e.target===e.currentTarget) setDeleteConfirm(null) }}>
           <div style={{ background:'#fff', borderRadius:18, padding:24, width:'100%', maxWidth:320 }}>
             <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px', textAlign:'center' }}>確定要刪除？</p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px', textAlign:'center' }}>這筆消費紀錄將永久刪除，無法復原</p>
+            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px', textAlign:'center' }}>
+              {deleteConfirm.kind === 'order' ? '這張訂單和裡面所有產品的紀錄將永久刪除，無法復原' : '這筆消費紀錄將永久刪除，無法復原'}
+            </p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteConfirm(null)}
                 style={{ flex:1, padding:'12px', borderRadius:12, border:`1px solid ${BORDER}`, background:'#fff',
                   fontSize:14, fontWeight:600, cursor:'pointer', color:TEXT_SECONDARY }}>
                 取消
               </button>
-              <button onClick={() => deleteTx(deleteConfirm)}
+              <button onClick={() => (deleteConfirm.kind === 'order' ? deleteOrder(deleteConfirm.id) : deleteTx(deleteConfirm.id))}
                 style={{ flex:1, padding:'12px', borderRadius:12, border:'none', background:DANGER, color:'#fff',
                   fontSize:14, fontWeight:700, cursor:'pointer' }}>
                 刪除

@@ -6,6 +6,7 @@ import {
   IconDotsVertical, IconPencil, IconTrash, IconX, IconGift, IconChartBar,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import GiftFollowCard from './GiftFollowCard'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -600,6 +601,9 @@ export default function Transactions() {
           </div>
         )}
       </div>
+
+      {/* ── 這個月送出的贈品：手機、桌面共用一張，放在標頭跟清單之間 ── */}
+      {user && !searchMode && !isSearching && <GiftFollowCard userId={user.id} year={year} month={month} />}
 
       {/* ── 手機版清單（維持原邏輯不變，桌面版隱藏） ── */}
       <div className="dash-container tx-mobile-list">

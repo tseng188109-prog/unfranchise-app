@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
-import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import OrderForm from './OrderForm'
+import { saveDraft, loadDraft } from './formDraft'
 import {
-  PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
-  ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
+  TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, BORDER,
 } from './designTokens'
 
@@ -21,7 +21,6 @@ function customerLabel(c) {
 export default function TransactionNew() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
-  const [saving, setSaving] = useState(false)
   const [customers, setCustomers] = useState([])
   const [customerSearch, setCustomerSearch] = useState(() => loadDraft('txNew')?.customerSearch || '')
   const [showCustomerList, setShowCustomerList] = useState(false)
@@ -32,16 +31,9 @@ export default function TransactionNew() {
   const [quickOccupation, setQuickOccupation] = useState('')
   const [quickError, setQuickError] = useState('')
 
-  const [form, setForm] = useState(() => loadDraft('txNew')?.form || {
-    date: new Date().toISOString().split('T')[0],
-    customer_id: '',
-    customer_name: '',
-    type: 'BV',
-    points: '',
-    product_name: '',
-    amount: '',
-    cost: '',
-    is_gift: false,
+  const [form, setForm] = useState(() => {
+    const d = loadDraft('txNew')?.form
+    return { customer_id: d?.customer_id || '', customer_name: d?.customer_name || '' }
   })
   const [errors, setErrors] = useState({})
 
@@ -98,30 +90,6 @@ export default function TransactionNew() {
     }
   }
 
-  async function handleSave() {
-    const errs = {}
-    if (!form.customer_id) errs.customer = '請選擇顧客'
-    if (!form.points) errs.points = '請輸入點數'
-    if (!form.product_name.trim()) errs.product_name = '請輸入品項'
-    if (!form.is_gift && !form.amount) errs.amount = '請輸入消費金額'
-    if (Object.keys(errs).length) { setErrors(errs); return }
-
-    setSaving(true)
-    const { error } = await supabase.from('transactions').insert({
-      user_id: user.id,
-      customer_id: form.customer_id,
-      date: form.date,
-      type: form.type,
-      points: Number(form.points),
-      product_name: form.product_name.trim(),
-      amount: form.is_gift ? 0 : Number(form.amount),
-      cost: form.cost ? Number(form.cost) : null,
-      is_gift: form.is_gift,
-    })
-    setSaving(false)
-    if (!error) { clearDraft('txNew'); navigate('/transactions') }
-  }
-
   return (
     <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
@@ -142,13 +110,6 @@ export default function TransactionNew() {
       </div>
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
-
-        {/* 日期 */}
-        <div style={fw}>
-          <label style={lb}>日期</label>
-          <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
-            style={inp} />
-        </div>
 
         {/* 顧客 */}
         <div style={fw}>
@@ -242,88 +203,20 @@ export default function TransactionNew() {
           </div>
         )}
 
-        {/* BV / IBV */}
-        <div style={fw}>
-          <label style={lb}>類型</label>
-          <div style={{ display:'flex', gap:8 }}>
-            {['BV','IBV'].map(t => (
-              <button key={t} onClick={() => set('type', t)}
-                style={{ flex:1, padding:'10px', borderRadius:12, border:'none', fontWeight:700,
-                  background:form.type===t?PRIMARY:'#F5F8FC',
-                  color:form.type===t?'#fff':TEXT_SECONDARY, cursor:'pointer', fontSize:14 }}>{t}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* 點數 */}
-        <div style={fw}>
-          <label style={lb}>點數 <span style={req}>*</span></label>
-          <input type="number" value={form.points} onChange={e => set('points', e.target.value)}
-            placeholder="輸入點數..."
-            style={{ ...inp, borderColor: errors.points ? DANGER : BORDER }} />
-          {errors.points && <p style={err}>{errors.points}</p>}
-        </div>
-
-        {/* 品項 */}
-        <div style={fw}>
-          <label style={lb}>品項 <span style={req}>*</span></label>
-          <input value={form.product_name} onChange={e => set('product_name', e.target.value)}
-            placeholder="輸入或選擇產品..."
-            style={{ ...inp, borderColor: errors.product_name ? DANGER : BORDER }} />
-          {errors.product_name && <p style={err}>{errors.product_name}</p>}
-        </div>
-
-        {/* 贈品切換 */}
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16,
-          padding:'12px', background:ACCENT_YELLOW_SOFT, borderRadius:12 }}>
-          <button onClick={() => set('is_gift', !form.is_gift)}
-            style={{ width:44, height:24, borderRadius:12, border:'none', cursor:'pointer',
-              background:form.is_gift?ACCENT_YELLOW:'#D1D5DB', position:'relative', transition:'all 0.2s' }}>
-            <div style={{ width:20, height:20, borderRadius:'50%', background:'#fff',
-              position:'absolute', top:2, transition:'all 0.2s',
-              left:form.is_gift?22:2 }} />
-          </button>
-          <span style={{ fontSize:13, fontWeight:600, color:ACCENT_YELLOW_TEXT }}>贈品（成本記入，消費歸零）</span>
-        </div>
-
-        {/* 消費金額 */}
-        {!form.is_gift && (
-          <div style={fw}>
-            <label style={lb}>消費金額 <span style={req}>*</span></label>
-            <div style={{ position:'relative' }}>
-              <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)',
-                color:TEXT_MUTED, fontSize:14 }}>NT$</span>
-              <input type="number" value={form.amount} onChange={e => set('amount', e.target.value)}
-                placeholder="0"
-                style={{ ...inp, paddingLeft:44, borderColor: errors.amount ? DANGER : BORDER }} />
-            </div>
-            {errors.amount && <p style={err}>{errors.amount}</p>}
-          </div>
+        {/* 訂單（選了顧客才出現） */}
+        {form.customer_id && user ? (
+          <OrderForm
+            key={form.customer_id}
+            userId={user.id}
+            customerId={form.customer_id}
+            customerName={form.customer_name}
+            onDone={() => navigate('/transactions')}
+          />
+        ) : (
+          <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>
+            先選顧客，產品欄位就會出現
+          </p>
         )}
-
-        {/* 成本 */}
-        <div style={fw}>
-          <label style={lb}>成本 <span style={{ fontSize:11, color:TEXT_MUTED }}>選填，可事後補填</span></label>
-          <div style={{ position:'relative' }}>
-            <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)',
-              color:TEXT_MUTED, fontSize:14 }}>NT$</span>
-            <input type="number" value={form.cost} onChange={e => set('cost', e.target.value)}
-              placeholder="0" style={{ ...inp, paddingLeft:44 }} />
-          </div>
-          {form.amount && form.cost && (
-            <p style={{ fontSize:13, color:ACCENT_GREEN_TEXT, margin:'6px 0 0', fontWeight:600 }}>
-              價差：NT${(Number(form.amount)-Number(form.cost)).toLocaleString()}
-            </p>
-          )}
-        </div>
-
-        {/* 儲存 */}
-        <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%', padding:'14px', borderRadius:14, border:'none',
-            background:saving?'#9BBBF2':PRIMARY, color:'#fff',
-            fontSize:16, fontWeight:700, cursor:'pointer', marginTop:8 }}>
-          {saving ? '儲存中…' : '儲存'}
-        </button>
       </div>
     </div>
   )
