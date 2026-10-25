@@ -421,7 +421,7 @@ async function handleImport() {
   }
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh' }}
+    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}
       onClick={() => setMenuTarget(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -687,8 +687,8 @@ async function handleImport() {
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
                           {r.name[0]}
                         </div>
-                        <div style={{ flex:1 }}>
-                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{r.name}</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>{r.name}</span>
                           {r.occupation && <span style={{ fontSize:12, color:TEXT_MUTED }}> · {r.occupation}</span>}
                           {r.next_contact_date && <span style={{ fontSize:11, color:TEXT_SECONDARY, marginLeft:6 }}>{r.next_contact_date}</span>}
                           {r.birthday && <span style={{ fontSize:11, color:'#A855F7', marginLeft:6 }}>{r.birthday}</span>}

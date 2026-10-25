@@ -55,6 +55,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   const [quickDate, setQuickDate] = useState(today())
   const [quickNote, setQuickNote] = useState('')
   const [quickSaving, setQuickSaving] = useState(false)
+  const [addToStory, setAddToStory] = useState(false) // 這筆互動要不要順便存進認識故事時間軸
 
   const [editingLogId, setEditingLogId] = useState(null)
   const [editNote, setEditNote] = useState('')
@@ -62,7 +63,6 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
 
   // 一句話日記（contact_notes）+ 階段標注（annotation only，使用者自己點才會改）
   const [contactNotes, setContactNotes] = useState([])
-  const [newNoteText, setNewNoteText] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
   const [muteSaving, setMuteSaving] = useState(false)
 
@@ -114,14 +114,17 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     setLoading(false)
   }
 
-  // 快速新增：日期留今天＝原本的「今天互動了」，改日期＝原本的「新增互動紀錄」，行為統一
+  // 快速新增：日期留今天＝原本的「今天互動了」，改日期＝原本的「新增互動紀錄」，行為統一。
+  // 這是整頁唯一的互動輸入口：送出一定算一次真的互動（更新最近互動時間，熱/冷判斷才會跟著真實節奏走），
+  // 有勾選「順便記進認識故事」才會額外多存一筆到 contact_notes，避免日常互動內容稀釋故事時間軸。
   async function handleQuickAdd() {
     if (quickSaving) return
     setQuickSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
+    const trimmedNote = quickNote.trim()
     await supabase.from('contact_logs').insert({
       contact_id: id, user_id: user.id,
-      date: quickDate, note: quickNote.trim() || null,
+      date: quickDate, note: trimmedNote || null,
     })
     await supabase.from('daily_checkins').upsert({
       user_id: user.id, date: quickDate,
@@ -129,18 +132,25 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,date,task_key' })
     if (quickDate === today()) await markDaily312(supabase, user.id, quickDate)
+
+    const contactUpdate = { last_interacted_at: new Date().toISOString() }
     const isNewer = !contact.last_contact_date || quickDate >= contact.last_contact_date
     if (isNewer) {
       const days = DAYS_MAP[contact.action_type] || 30
       const next = new Date(quickDate + 'T00:00:00')
       next.setDate(next.getDate() + days)
-      await supabase.from('contacts').update({
-        last_contact_date: quickDate,
-        next_contact_date: toDateStr(next),
-      }).eq('id', id)
+      contactUpdate.last_contact_date = quickDate
+      contactUpdate.next_contact_date = toDateStr(next)
     }
+    await supabase.from('contacts').update(contactUpdate).eq('id', id)
+
+    if (addToStory && trimmedNote) {
+      await addContactNote(supabase, { contactId: id, userId: user.id, note: trimmedNote, touchInteraction: false })
+    }
+
     setQuickNote('')
     setQuickDate(today())
+    setAddToStory(false)
     setQuickSaving(false)
     fetchContact()
     onChanged?.()
@@ -162,14 +172,23 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     onChanged?.()
   }
 
-  // 一句話日記：有打字就記一句，沒打字按「這次沒特別聊到什麼」也算一次互動
-  async function handleAddNote(text, resolvesNoteId = null) {
+  // 故事時間軸的「還是這樣嗎？」確認：對舊的一句話按「還是這樣」，等於重新用同樣內容再記一筆，
+  // 並標記 resolvesNoteId 讓它接續舊紀錄；按「已經不是了」則記一筆說明已經過期，同樣接續舊紀錄。
+  // 這兩個動作都不算「真的互動過」，所以不更新最近互動時間（那是互動紀錄在負責的事）。
+  async function handleConfirmNoteStillTrue(text, resolvesNoteId) {
     if (noteSaving) return
-    const note = (text || '').trim() || '這次沒特別聊到什麼'
     setNoteSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    await addContactNote(supabase, { contactId: id, userId: user.id, note, resolvesNoteId })
-    setNewNoteText('')
+    await addContactNote(supabase, { contactId: id, userId: user.id, note: text, resolvesNoteId, touchInteraction: false })
+    setNoteSaving(false)
+    fetchContact()
+    onChanged?.()
+  }
+  async function handleNoteNoLongerTrue(resolvesNoteId) {
+    if (noteSaving) return
+    setNoteSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await addContactNote(supabase, { contactId: id, userId: user.id, note: '已經不是了', resolvesNoteId, touchInteraction: false })
     setNoteSaving(false)
     fetchContact()
     onChanged?.()
@@ -279,7 +298,8 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   ].filter(r => r.value)
 
   return (
-    <div style={{ background:'#fff', minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40 }}>
+    <div style={{ background:'#fff', minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40,
+      overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
 
       {/* Header */}
       <div style={{ padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
@@ -427,23 +447,8 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               )}
             </div>
 
-            {/* 一句話日記：主要行動 */}
-            <div style={{ background:'#fff', border:`2px solid ${PRIMARY}`, borderRadius:RADIUS.lg, padding:16, marginBottom:16 }}>
-              <label style={{ display:'block', fontSize:14, fontWeight:700, color:TEXT_MAIN, marginBottom:8 }}>今天知道了什麼新的事？</label>
-              <input value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
-                placeholder="一句話就好，例如：最近換了新工作"
-                style={{ width:'100%', boxSizing:'border-box', border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
-                  padding:'10px 12px', fontSize:13, color:TEXT_MAIN, background:SUBCARD_BG, marginBottom:10, outline:'none' }} />
-              <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                <button onClick={() => handleAddNote(newNoteText)} disabled={noteSaving || !newNoteText.trim()}
-                  style={{ background: PRIMARY, color:'#fff', border:'none', borderRadius:RADIUS.xs,
-                    padding:'9px 18px', fontSize:13, fontWeight:700, cursor:'pointer' }}>記下來</button>
-                <button onClick={() => handleAddNote('')} disabled={noteSaving}
-                  style={{ background:'none', color:TEXT_MUTED, border:'none', fontSize:12, cursor:'pointer' }}>這次沒特別聊到什麼</button>
-              </div>
-            </div>
-
-            {/* 認識故事時間軸：舊的自然變淡，過期的可以一鍵確認還是這樣嗎 */}
+            {/* 認識故事時間軸：舊的自然變淡，過期的可以一鍵確認還是這樣嗎。
+                新的故事只會從下面「記錄一筆新互動」順便勾選加入，這裡不再有獨立的輸入框。 */}
             {contactNotes.length > 0 && (
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, marginBottom:10 }}>
@@ -454,16 +459,16 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                     <div key={n.id} style={{ display:'flex', gap:10, padding:'12px 0',
                       borderBottom: i < contactNotes.length-1 ? `1px solid ${BORDER}` : 'none', opacity: noteAgeOpacity(n.created_at) }}>
                       <span style={{ width:8, height:8, borderRadius:RADIUS.circle, background:PRIMARY, marginTop:6, flexShrink:0 }} />
-                      <div style={{ flex:1 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:12, color:TEXT_MUTED }}>{formatDateDisplay(n.created_at?.slice(0,10))}</div>
-                        <div style={{ fontSize:14, color:TEXT_MAIN, lineHeight:1.5, margin:'2px 0' }}>{n.note}</div>
+                        <div style={{ fontSize:14, color:TEXT_MAIN, lineHeight:1.5, margin:'2px 0', wordBreak:'break-word', overflowWrap:'anywhere' }}>{n.note}</div>
                         {isStale(n.created_at) && (
                           <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
                             <span style={{ fontSize:12, color:TEXT_MUTED }}>還是這樣嗎？</span>
-                            <button onClick={() => handleAddNote(n.note, n.id)}
+                            <button onClick={() => handleConfirmNoteStillTrue(n.note, n.id)}
                               style={{ background:'#fff', color:TEXT_SECONDARY, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
                                 padding:'4px 10px', fontSize:12, cursor:'pointer' }}>還是這樣</button>
-                            <button onClick={() => handleAddNote('', n.id)}
+                            <button onClick={() => handleNoteNoLongerTrue(n.id)}
                               style={{ background:'#fff', color:ACCENT_GREEN_TEXT, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
                                 padding:'4px 10px', fontSize:12, cursor:'pointer' }}>已經不是了</button>
                           </div>
@@ -601,20 +606,29 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               )}
             </div>
 
-            <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-              <input type="date" value={quickDate} max={today()}
-                onChange={e => setQuickDate(e.target.value)}
-                style={{ width:130, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                  fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-              <input value={quickNote} onChange={e => setQuickNote(e.target.value)}
-                placeholder="記錄一筆新互動…（選填備註）"
-                style={{ flex:1, minWidth:160, padding:'9px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                  fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-              <button onClick={handleQuickAdd} disabled={quickSaving}
-                style={{ padding:'9px 16px', borderRadius:RADIUS.sm, border:'none',
-                  background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-                {quickSaving ? '新增中…' : '新增'}
-              </button>
+            <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:16 }}>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+                <input type="date" value={quickDate} max={today()}
+                  onChange={e => setQuickDate(e.target.value)}
+                  style={{ width:130, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                    fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+                <input value={quickNote} onChange={e => setQuickNote(e.target.value)}
+                  placeholder="今天跟他發生了什麼事？（選填）"
+                  style={{ flex:1, minWidth:160, padding:'9px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                    fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+              </div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:TEXT_SECONDARY, cursor:'pointer' }}>
+                  <input type="checkbox" checked={addToStory} onChange={e => setAddToStory(e.target.checked)}
+                    style={{ width:15, height:15, cursor:'pointer' }} />
+                  順便記進認識故事
+                </label>
+                <button onClick={handleQuickAdd} disabled={quickSaving}
+                  style={{ padding:'9px 16px', borderRadius:RADIUS.sm, border:'none',
+                    background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                  {quickSaving ? '新增中…' : '新增'}
+                </button>
+              </div>
             </div>
 
             {logs.length === 0 ? (
@@ -675,7 +689,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             {linkedCustomer && (
               <div style={{ display:'flex', alignItems:'center', gap:10,
                 background:PRIMARY_SOFT, borderRadius:RADIUS.sm, padding:'10px 12px' }}>
-                <div style={{ flex:1 }}>
+                <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:'0 0 4px', fontWeight:600 }}>顧客消費紀錄</p>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <span style={{ fontSize:13, color:TEXT_MAIN, fontWeight:700 }}>{linkedCustomer.totalBV.toFixed(0)} BV</span>

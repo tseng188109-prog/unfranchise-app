@@ -9,7 +9,7 @@ import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
-  IconFlag, IconUsersGroup,
+  IconFlag, IconUsersGroup, IconHeart,
 } from '@tabler/icons-react'
 
 const BV_GOAL = 1500
@@ -26,6 +26,7 @@ import {
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
 import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312, isContactWarm } from './followUp'
+import StudyThemeCard from './StudyThemeCard'
 
 
 function toDateStr(d) {
@@ -33,6 +34,8 @@ function toDateStr(d) {
 }
 function today() { return toDateStr(new Date()) }
 
+// 「本週」＝業績結算週：週六 00:00 到週五 24:00（跟公司結算時間一致）。
+// 下面兩個函式的 diff = (星期幾 + 1) % 7，週六=0、週日=1 … 週五=6，起點永遠是最近的週六。
 function getWeekStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const dow = d.getDay()
@@ -134,6 +137,9 @@ export default function Dashboard() {
   // 我為什麼留在這裡：首頁安靜預覽一行，沒寫過就不顯示，不主動邀請填寫
   const [whyHerePreview, setWhyHerePreview] = useState('')
 
+  // 老顧客關心卡：最多 3 位，沒有需要關心的人就整張卡不出現
+  const [careList, setCareList] = useState([])
+
   const isToday = viewDate === today()
 
   useEffect(() => {
@@ -163,9 +169,90 @@ export default function Dashboard() {
     await Promise.all([
       fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
       fetchCheckin(), fetchWeekStatus(), fetchViewContacted(),
-      fetchGoalText(), fetchStarterTasks(), fetchTeamCard(), fetchMeetupCard()
+      fetchGoalText(), fetchStarterTasks(), fetchTeamCard(), fetchMeetupCard(), fetchCareCard()
     ])
     setLoading(false)
+  }
+
+  // 老顧客關心卡（先關心、不催單）。出現的條件：
+  //   A. 最近 14~60 天內買過，而且買完之後沒有任何關心／互動紀錄
+  //   B. 自己設的回購日已經到了或 3 天內到
+  // 一律不出現：14 天內已經關心／互動過、被按了「這次先不打擾」（7 天內）。
+  // 「最近一次關心」取三個來源最新的：顧客自己的 last_cared_at、連結聯絡人的 last_interacted_at、
+  // 連結聯絡人的 last_contact_date，所以沒連結聯絡人的顧客也算得出來（按過「我關心過了」就有）。
+  async function fetchCareCard() {
+    const todayStr = today()
+    const nowMs = Date.now()
+    const DAY = 86400000
+    const { data: custs } = await supabase.from('customers')
+      .select('id,name,contact_id,repurchase_reminder,last_cared_at,care_snoozed_until')
+      .eq('user_id', user.id).eq('is_archived', false).limit(500)
+    if (!custs || custs.length === 0) { setCareList([]); return }
+    const { data: tx } = await supabase.from('transactions')
+      .select('customer_id,date,is_gift')
+      .eq('user_id', user.id).not('customer_id', 'is', null)
+      .order('date', { ascending: false }).limit(2000)
+    const lastPurchase = {}
+    ;(tx || []).forEach(t => {
+      if (t.is_gift) return
+      if (!lastPurchase[t.customer_id]) lastPurchase[t.customer_id] = t.date
+    })
+    const { data: cts } = await supabase.from('contacts')
+      .select('id,last_interacted_at,last_contact_date')
+      .eq('user_id', user.id).limit(2000)
+    const contactMap = {}
+    ;(cts || []).forEach(c => { contactMap[c.id] = c })
+
+    const soon = toDateStr(new Date(nowMs + 3 * DAY))
+    const list = []
+    custs.forEach(c => {
+      if (c.care_snoozed_until && c.care_snoozed_until >= todayStr) return
+      const ct = c.contact_id ? contactMap[c.contact_id] : null
+      const careTimes = [
+        c.last_cared_at ? new Date(c.last_cared_at).getTime() : 0,
+        ct?.last_interacted_at ? new Date(ct.last_interacted_at).getTime() : 0,
+        ct?.last_contact_date ? new Date(ct.last_contact_date + 'T00:00:00+08:00').getTime() : 0,
+      ]
+      const lastCareMs = Math.max(...careTimes)
+      if (lastCareMs && nowMs - lastCareMs < 14 * DAY) return
+
+      const lp = lastPurchase[c.id] || null
+      const lpMs = lp ? new Date(lp + 'T00:00:00+08:00').getTime() : 0
+      const lpDays = lp ? (nowMs - lpMs) / DAY : Infinity
+      const caredSincePurchase = !!(lastCareMs && lpMs && lastCareMs >= lpMs)
+
+      const caseA = lp && lpDays >= 14 && lpDays <= 60 && !caredSincePurchase
+      const caseB = c.repurchase_reminder && c.repurchase_reminder <= soon
+      if (!caseA && !caseB) return
+
+      let line
+      if (lastCareMs && !(lp && !caredSincePurchase)) {
+        const weeks = Math.max(2, Math.floor((nowMs - lastCareMs) / DAY / 7))
+        line = `上次聊是 ${weeks} 週前，聊聊近況就好`
+      } else if (lp) {
+        line = '買完之後還沒聊過，問問他用得順不順'
+      } else {
+        line = '還沒記錄過關心，問問他最近好不好'
+      }
+      const md = (s) => { const p = s.split('-'); return `${Number(p[1])}/${Number(p[2])}` }
+      const meta = []
+      if (lp) meta.push(`上次購買 ${md(lp)}`)
+      if (c.repurchase_reminder) meta.push(`你設的回購日 ${md(c.repurchase_reminder)}`)
+      list.push({ id: c.id, name: c.name, contactId: c.contact_id, line, meta: meta.join('、'), lastCareMs })
+    })
+    list.sort((a, b) => a.lastCareMs - b.lastCareMs)
+    setCareList(list.slice(0, 3))
+  }
+
+  async function markCustomerCared(customerId) {
+    setCareList(prev => prev.filter(c => c.id !== customerId))
+    await supabase.from('customers')
+      .update({ last_cared_at: new Date().toISOString(), care_snoozed_until: null }).eq('id', customerId)
+  }
+  async function snoozeCustomerCare(customerId) {
+    setCareList(prev => prev.filter(c => c.id !== customerId))
+    const until = toDateStr(new Date(Date.now() + 7 * 86400000))
+    await supabase.from('customers').update({ care_snoozed_until: until }).eq('id', customerId)
   }
 
   async function fetchProfile() {
@@ -236,12 +323,17 @@ export default function Dashboard() {
     const { data: everCheckin } = await supabase
       .from('daily_checkins').select('id')
       .eq('user_id', user.id).eq('is_done', true).limit(1)
-    const sevenDaysAgo = toDateStr(new Date(Date.now() - 6 * 86400000))
+    // 一週內累積 3 天：用結算週（週六到週五）算，跟其他「本週」同一條線。
+    // 為了不讓週六 0 點一到、已經達成的任務又退回去，這週或上一個結算週任一週達標都算完成。
+    const thisWeekDays = getWeekDays(todayStr)
+    const prevWeekDays = getWeekDays(toDateStr(new Date(new Date(thisWeekDays[0] + 'T00:00:00').getTime() - 86400000)))
     const { data: weekCheckins } = await supabase
       .from('daily_checkins').select('date')
       .eq('user_id', user.id).eq('is_done', true)
-      .gte('date', sevenDaysAgo).lte('date', todayStr)
-    const uniqueDays = new Set((weekCheckins || []).map(r => r.date)).size
+      .gte('date', prevWeekDays[0]).lte('date', todayStr)
+    const checkinDates = new Set((weekCheckins || []).map(r => r.date))
+    const daysIn = (days) => days.filter(d => checkinDates.has(d)).length
+    const uniqueDays = Math.max(daysIn(thisWeekDays), daysIn(prevWeekDays))
     const { count: logCount } = await supabase
       .from('contact_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
     const { data: userData } = await supabase
@@ -281,10 +373,11 @@ export default function Dashboard() {
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
     if (data) setActiveContacts(data)
-    const weekAgo = toDateStr(new Date(Date.now()-7*86400000))
+    // 「這週已經新增」＝本結算週（週六 00:00 起）新增的聯絡人，不是往前數 7 天
+    const weekStartTaipei = new Date(getWeekStart(today()) + 'T00:00:00+08:00').toISOString()
     const { count } = await supabase.from('contacts')
       .select('id',{count:'exact',head:true})
-      .eq('user_id',user.id).gte('created_at',weekAgo)
+      .eq('user_id',user.id).gte('created_at',weekStartTaipei)
     setNewContactCount(count || 0)
   }
 
@@ -387,7 +480,7 @@ export default function Dashboard() {
   if(loading) return <LoadingSpinner />
 
   return (
-    <div style={{ background:PAGE_BG,minHeight:'100vh' }}>
+    <div style={{ background:PAGE_BG,minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
       <style>{`
         .dashboard-wrap { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -400,15 +493,19 @@ export default function Dashboard() {
             grid-template-columns: 1.6fr 1fr;
             grid-template-areas:
               "meetup meetup"
+              "theme theme"
               "starter starter"
               "kpi followup"
               "team followup"
+              "care followup"
               "quick followup"
               "checkin followup";
             gap: 14px;
             align-items: start;
           }
           .area-meetup { grid-area: meetup; margin-bottom: 0 !important; }
+          .area-theme { grid-area: theme; margin-bottom: 0 !important; }
+          .area-care { grid-area: care; margin-bottom: 0 !important; }
           .area-starter { grid-area: starter; margin-bottom: 0 !important; }
           .area-kpi { grid-area: kpi; margin-bottom: 0 !important; }
           .area-team { grid-area: team; margin-bottom: 0 !important; }
@@ -463,6 +560,12 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          </section>
+        )}
+
+        {user && onboardingDone && (
+          <section className="area-theme" style={{ marginBottom:10 }}>
+            <StudyThemeCard user={user} />
           </section>
         )}
 
@@ -680,6 +783,43 @@ export default function Dashboard() {
               onClick={()=>navigate('/contacts')}>查看全部聯絡人 →</button>
           </div>
         </section>
+
+        {careList.length > 0 && (
+          <section className="area-care" style={{ marginBottom:10 }}>
+            <div style={{ background:ACCENT_PINK_SOFT,border:'1px solid #FBD4EA',borderRadius:RADIUS.lg,padding:14 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
+                <span style={{ background:ACCENT_PINK,color:'#fff',width:20,height:20,borderRadius:RADIUS.circle,
+                  display:'flex',alignItems:'center',justifyContent:'center' }}>
+                  <IconHeart size={12} stroke={2.2} />
+                </span>
+                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>老顧客，問問用得好不好</span>
+              </div>
+              <div style={{ fontSize:11,color:ACCENT_PINK_TEXT,marginBottom:10 }}>先關心，買不買是之後的事</div>
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {careList.map(c => (
+                  <div key={c.id} style={{ background:'#fff',borderRadius:RADIUS.sm,padding:'10px 12px' }}>
+                    <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                      <Avatar name={c.name} size={28} />
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>{c.name}</div>
+                        <div style={{ fontSize:12,color:TEXT_MAIN,lineHeight:1.5 }}>{c.line}</div>
+                        {c.meta && <div style={{ fontSize:11,color:TEXT_MUTED }}>{c.meta}</div>}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex',gap:14,marginTop:8,paddingLeft:38,flexWrap:'wrap' }}>
+                      <button onClick={() => navigate(c.contactId ? `/contacts/${c.contactId}` : `/customers/${c.id}`)}
+                        style={{ background:'none',border:'none',padding:0,fontSize:12,fontWeight:700,color:ACCENT_PINK_TEXT,cursor:'pointer' }}>去聊聊 ›</button>
+                      <button onClick={() => markCustomerCared(c.id)}
+                        style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_SECONDARY,cursor:'pointer' }}>我關心過了</button>
+                      <button onClick={() => snoozeCustomerCare(c.id)}
+                        style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_MUTED,cursor:'pointer' }}>這次先不打擾</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="area-quick" style={{ marginBottom:10 }}>
           <div style={{ display:'flex',gap:10 }}>

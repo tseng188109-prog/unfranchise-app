@@ -123,7 +123,7 @@ export default function TransactionNew() {
   }
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh' }}>
+    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {

@@ -103,7 +103,7 @@ export default function CustomerNew() {
   )
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh' }}>
+    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -131,7 +131,7 @@ export default function CustomerNew() {
           {linkedContactId ? (
             <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
               borderRadius:12, padding:'10px 12px' }}>
-              <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1 }}>
+              <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1, minWidth:0, wordBreak:'break-word', overflowWrap:'anywhere' }}>
                 ✓ 已連結：{linkedContactName}
               </span>
               <button onClick={clearLinkedContact}

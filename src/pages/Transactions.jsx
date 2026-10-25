@@ -383,7 +383,7 @@ export default function Transactions() {
   }
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}
+    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}
       onClick={() => setMenuId(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }

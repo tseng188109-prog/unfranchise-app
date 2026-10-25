@@ -8,7 +8,8 @@ export function toDateStr(d) {
 }
 export function today() { return toDateStr(new Date()) }
 
-// 本週週一到週日的日期陣列
+// 本週（業績結算週）：週六 00:00 到週五 24:00 的日期陣列
+// diff = (星期幾 + 1) % 7：週六=0、週日=1 … 週五=6，所以起點永遠是最近的週六
 export function getWeekDays() {
   const d = new Date()
   const dow = d.getDay()

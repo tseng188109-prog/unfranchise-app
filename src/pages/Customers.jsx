@@ -270,7 +270,7 @@ export default function Customers() {
   }
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh' }}
+    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}
       onClick={() => setMenuTarget(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -462,8 +462,8 @@ export default function Customers() {
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
                           {r.name[0]}
                         </div>
-                        <div style={{ flex:1 }}>
-                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{r.name}</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>{r.name}</span>
                           {r.phone && <span style={{ fontSize:12, color:TEXT_MUTED }}> · {r.phone}</span>}
                         </div>
                         <div style={{ textAlign:'right' }}>

@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPencil, IconX, IconGift, IconPhone, IconMail,
-  IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive,
+  IconMapPin, IconCalendarEvent, IconId, IconBell, IconTrash, IconCheck, IconArchive, IconHeart,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -57,14 +57,28 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [linkedContact, setLinkedContact] = useState(null)
+  // 同名建議：顧客還沒連到互動名單、但互動名單裡剛好有唯一一位同名的人時，問使用者是不是同一位。
+  // 只是「建議」，連不連由使用者自己按（標注不自動推導）。
+  const [sameNameContact, setSameNameContact] = useState(null)
+  const [careSaving, setCareSaving] = useState(false)
 
   useEffect(() => { if (id) fetchData() }, [id])
+
+  function suggestionDismissKey() { return `linkSuggestDismissed:${id}` }
+  function isSuggestionDismissed() {
+    try { return localStorage.getItem(suggestionDismissKey()) === '1' } catch { return false }
+  }
+  function dismissSuggestion() {
+    try { localStorage.setItem(suggestionDismissKey(), '1') } catch {}
+    setSameNameContact(null)
+  }
 
   async function fetchData() {
     setLoading(true)
     setTab('info')
     setShowForm(false)
     setLinkedContact(null)
+    setSameNameContact(null)
     const { data: c } = await supabase.from('customers').select('*').eq('id', id).single()
     if (c) {
       setCustomer(c)
@@ -74,6 +88,11 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           .select('id,name,egg_type,need_level,action_type,occupation')
           .eq('id', c.contact_id).single()
         if (ct) setLinkedContact(ct)
+      } else if (c.name && !isSuggestionDismissed()) {
+        const { data: sameName } = await supabase.from('contacts')
+          .select('id,name,occupation')
+          .eq('user_id', c.user_id).eq('name', c.name).eq('is_archived', false).limit(2)
+        if (sameName && sameName.length === 1) setSameNameContact(sameName[0])
       }
     }
     const { data: tx } = await supabase.from('transactions')
@@ -86,6 +105,24 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     await supabase.from('customers').update({ repurchase_reminder: reminderDate || null }).eq('id', id)
     setCustomer(p => ({ ...p, repurchase_reminder: reminderDate }))
     setEditReminder(false)
+    onChanged?.()
+  }
+
+  async function linkSameNameContact() {
+    if (!sameNameContact) return
+    await supabase.from('customers').update({ contact_id: sameNameContact.id }).eq('id', id)
+    onChanged?.()
+    fetchData()
+  }
+
+  // 「我關心過了」：不用連到互動名單也能記下最近一次關心，首頁顧客關心卡會參考這個時間
+  async function markCared() {
+    if (careSaving) return
+    setCareSaving(true)
+    const nowIso = new Date().toISOString()
+    await supabase.from('customers').update({ last_cared_at: nowIso, care_snoozed_until: null }).eq('id', id)
+    setCustomer(p => ({ ...p, last_cared_at: nowIso, care_snoozed_until: null }))
+    setCareSaving(false)
     onChanged?.()
   }
 
@@ -167,7 +204,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   ].filter(r => r.value)
 
   return (
-    <div style={{ background:'#fff', minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40 }}>
+    <div style={{ background:'#fff', minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40,
+      overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
 
       {/* Header */}
       <div style={{ padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
@@ -348,6 +386,21 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
 
         {tab === 'info' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {!linkedContact && sameNameContact && (
+              <div style={{ background:PRIMARY_SOFT, borderRadius:10, padding:'10px 12px' }}>
+                <p style={{ fontSize:12, color:TEXT_MAIN, margin:'0 0 8px', lineHeight:1.6, wordBreak:'break-word', overflowWrap:'anywhere' }}>
+                  互動名單裡也有一位叫「{sameNameContact.name}」{sameNameContact.occupation ? `（${sameNameContact.occupation}）` : ''}，是同一位嗎？
+                </p>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={linkSameNameContact}
+                    style={{ fontSize:12, color:PRIMARY, background:'#fff', border:`1px solid ${BORDER}`,
+                      borderRadius:8, padding:'6px 12px', cursor:'pointer', fontWeight:600 }}>是，連起來</button>
+                  <button onClick={dismissSuggestion}
+                    style={{ fontSize:12, color:TEXT_MUTED, background:'none', border:'none', cursor:'pointer' }}>不是同一位</button>
+                </div>
+              </div>
+            )}
+
             {linkedContact && (
               <div style={{ display:'flex', alignItems:'center', gap:10,
                 background:PRIMARY_SOFT, borderRadius:10, padding:'10px 12px' }}>
@@ -401,6 +454,23 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               <button onClick={() => setEditReminder(v => !v)}
                 style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>
                 {editReminder ? '取消' : '設定'}
+              </button>
+            </div>
+
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+              background:SUBCARD_BG, borderRadius:10, padding:'10px 12px', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                <IconHeart size={16} stroke={1.8} color={TEXT_SECONDARY} style={{ marginTop:1, flexShrink:0 }} />
+                <div>
+                  <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 2px' }}>最近一次關心</p>
+                  <p style={{ fontSize:13, color: customer.last_cared_at ? TEXT_MAIN : TEXT_MUTED, margin:0 }}>
+                    {customer.last_cared_at ? formatDate(toDateStr(new Date(customer.last_cared_at))) : '還沒記錄'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={markCared} disabled={careSaving}
+                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>
+                我關心過了
               </button>
             </div>
 

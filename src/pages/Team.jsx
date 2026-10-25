@@ -228,7 +228,7 @@ export default function Team() {
   const reachedSummit = teamPct >= 100
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
+    <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80, overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
