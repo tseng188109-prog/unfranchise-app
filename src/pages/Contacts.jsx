@@ -13,8 +13,7 @@ import { RELATIONSHIP_STAGES } from './followUp'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, DANGER_SOFT,
-  BORDER, SUBCARD_BG, RADIUS, getEggColor, getEggBg, avatarBg,
-} from './designTokens'
+  BORDER, SUBCARD_BG, RADIUS, getEggColor, getEggBg, avatarBg, PAGE_BG } from './designTokens'
 
 function today() { return new Date().toISOString().split('T')[0] }
 
@@ -421,7 +420,7 @@ async function handleImport() {
   }
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}
+    <div style={{ background:PAGE_BG, minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}
       onClick={() => setMenuTarget(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -429,6 +428,7 @@ async function handleImport() {
           .dash-container { max-width: 720px; }
         }
         .contacts-panel-col { display: none; }
+        .contacts-list-col { margin: 12px 16px 0; background: #fff; border: 1px solid ${BORDER}; border-radius: 16px; overflow: hidden; }
         @media (min-width: 1024px) {
           .contacts-body {
             display: flex;
@@ -440,19 +440,21 @@ async function handleImport() {
             box-sizing: border-box;
           }
           .contacts-list-col {
+            margin: 0;
             width: 360px;
             flex-shrink: 0;
             border: 1px solid ${BORDER};
-            border-radius: 14px;
+            border-radius: 16px;
             overflow-y: auto;
             max-height: calc(100vh - 230px);
           }
           .contacts-panel-col {
+            background: #fff;
             display: block;
             flex: 1;
             min-width: 0;
             border: 1px solid ${BORDER};
-            border-radius: 14px;
+            border-radius: 16px;
             overflow-y: auto;
             max-height: calc(100vh - 230px);
           }

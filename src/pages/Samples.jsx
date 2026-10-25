@@ -8,8 +8,7 @@ import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_TEXT,
-  DANGER, BORDER, SUBCARD_BG, avatarBg,
-} from './designTokens'
+  DANGER, BORDER, SUBCARD_BG, avatarBg, RADIUS, PAGE_BG } from './designTokens'
 
 function today() { return new Date().toISOString().split('T')[0] }
 function formatDate(d) {
@@ -198,7 +197,7 @@ export default function Samples() {
   )
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
+    <div style={{ background:PAGE_BG,minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -235,14 +234,14 @@ export default function Samples() {
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>試用品追蹤</h1>
           <button onClick={() => setShowNew(true)}
-            style={{ width:36,height:36,borderRadius:12,background:PRIMARY,
+            style={{ width:36,height:36,borderRadius:RADIUS.md,background:PRIMARY,
               border:'none',color:'#fff',cursor:'pointer',
               display:'flex',alignItems:'center',justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
         </div>
         <div style={{ display:'flex',gap:8,paddingBottom:12,overflowX:'auto' }}>
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              style={{ padding:'5px 14px',borderRadius:99,border:'none',whiteSpace:'nowrap',
+              style={{ padding:'5px 14px',borderRadius:RADIUS.pill,border:'none',whiteSpace:'nowrap',
                 background:filter===f?PRIMARY:'#F5F8FC',
                 color:filter===f?'#fff':TEXT_SECONDARY,
                 fontSize:13,fontWeight:600,cursor:'pointer' }}>{f}</button>
@@ -254,7 +253,7 @@ export default function Samples() {
       <div className="dash-container samples-wide">
       {/* 新增表單 */}
       {showNew && (
-        <div className="samples-new-form-wrap" style={{ background:'#fff',borderRadius:18,
+        <div className="samples-new-form-wrap" style={{ background:'#fff',borderRadius:RADIUS.xl,
           padding:16,border:`1px solid ${BORDER}` }}>
           <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 12px' }}>新增試用品</p>
 
@@ -266,7 +265,7 @@ export default function Samples() {
               style={inp} />
             {contactSearch && !newForm.contact_id && !newForm.customer_id && (
               <div style={{ position:'absolute',top:'100%',left:0,right:0,background:'#fff',
-                border:`1px solid ${BORDER}`,borderRadius:12,zIndex:50,maxHeight:160,overflowY:'auto',
+                border:`1px solid ${BORDER}`,borderRadius:RADIUS.md,zIndex:50,maxHeight:160,overflowY:'auto',
                 boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
                 {filteredContacts.map(c => (
                   <button key={c.key} onClick={() => {
@@ -299,12 +298,12 @@ export default function Samples() {
 
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={handleCreate} disabled={saving}
-              style={{ flex:1,padding:'11px',borderRadius:12,border:'none',
+              style={{ flex:1,padding:'11px',borderRadius:RADIUS.md,border:'none',
                 background:PRIMARY,color:'#fff',fontWeight:700,cursor:'pointer',fontSize:14 }}>
               {saving?'儲存中…':'儲存'}
             </button>
             <button onClick={() => { setShowNew(false); setContactSearch('') }}
-              style={{ flex:1,padding:'11px',borderRadius:12,border:`1px solid ${BORDER}`,
+              style={{ flex:1,padding:'11px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
                 background:'#fff',cursor:'pointer',fontSize:14,color:TEXT_SECONDARY }}>取消</button>
           </div>
         </div>
@@ -330,7 +329,7 @@ export default function Samples() {
             const needsAttention =
               (isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)) || isOverdueFollowup
             return (
-              <div key={s.id} style={{ background:'#fff',borderRadius:16,padding:14,
+              <div key={s.id} style={{ background:'#fff',borderRadius:RADIUS.card,padding:14,
                 border: needsAttention ? `1.5px solid #FFDF9E` : `1px solid ${BORDER}` }}>
 
                 {/* 頂部 */}
@@ -352,7 +351,7 @@ export default function Samples() {
                     </p>
                   </div>
                   {s.result && (
-                    <span style={{ fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:99,
+                    <span style={{ fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:RADIUS.pill,
                       background:badgeColor.bg, color:badgeColor.text,flexShrink:0 }}>
                       {s.result}
                     </span>
@@ -374,7 +373,7 @@ export default function Samples() {
                       {SAMPLE_STEPS.map(step => (
                         <button key={step.field}
                           onClick={() => toggleFollowup(s.id, step.field, s[step.field])}
-                          style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
+                          style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
                             fontSize:11,fontWeight:600,cursor:'pointer',
                             background:s[step.field]?ACCENT_GREEN_SOFT:'#F5F8FC',
                             color:s[step.field]?ACCENT_GREEN_TEXT:TEXT_SECONDARY }}>
@@ -387,7 +386,7 @@ export default function Samples() {
                       <div style={{ display:'flex',gap:6 }}>
                         {SAMPLE_RESULTS.map(r => (
                           <button key={r} onClick={() => setResult(s.id, r)}
-                            style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
+                            style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
                               fontSize:11,fontWeight:600,cursor:'pointer',
                               background:s.result===r?PRIMARY:'#F5F8FC',
                               color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
@@ -405,7 +404,7 @@ export default function Samples() {
                       <span style={{ fontSize:12, color:TEXT_MUTED }}>下次追蹤</span>
                       <input type="date" value={s.next_followup_date || ''}
                         onChange={e => updateNextFollowup(s.id, e.target.value)}
-                        style={{ padding:'5px 8px', borderRadius:8, border:`1px solid ${BORDER}`,
+                        style={{ padding:'5px 8px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
                           fontSize:12, outline:'none', color:TEXT_MAIN }} />
                       {s.next_followup_date && (
                         <span style={{ fontSize:11, fontWeight:700, color:ACCENT_YELLOW_TEXT }}>
@@ -416,7 +415,7 @@ export default function Samples() {
 
                     <button onClick={() => toggleExpand(s.id)}
                       style={{ width:'100%', padding:'7px', background:'none', border:`1px dashed ${BORDER}`,
-                        borderRadius:10, color:TEXT_SECONDARY, fontSize:12, cursor:'pointer', marginBottom:8 }}>
+                        borderRadius:RADIUS.sm, color:TEXT_SECONDARY, fontSize:12, cursor:'pointer', marginBottom:8 }}>
                       {expandedId === s.id ? '收起追蹤紀錄 ▲' : `追蹤紀錄${followupLogsMap[s.id] ? ` (${followupLogsMap[s.id].length})` : ''} ▼`}
                     </button>
 
@@ -425,14 +424,14 @@ export default function Samples() {
                         <div style={{ display:'flex', gap:6, marginBottom:8, flexWrap:'wrap' }}>
                           <input type="date" value={logDate} max={today()}
                             onChange={e => setLogDate(e.target.value)}
-                            style={{ padding:'7px 8px', borderRadius:8, border:`1px solid ${BORDER}`,
+                            style={{ padding:'7px 8px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
                               fontSize:12, outline:'none', color:TEXT_MAIN, width:120 }} />
                           <input value={logNote} onChange={e => setLogNote(e.target.value)}
                             placeholder="記錄這次追蹤說了什麼…"
-                            style={{ flex:1, minWidth:120, padding:'7px 10px', borderRadius:8,
+                            style={{ flex:1, minWidth:120, padding:'7px 10px', borderRadius:RADIUS.xs,
                               border:`1px solid ${BORDER}`, fontSize:12, outline:'none', color:TEXT_MAIN }} />
                           <button onClick={() => addFollowupLog(s.id)} disabled={logSaving}
-                            style={{ padding:'7px 14px', borderRadius:8, border:'none',
+                            style={{ padding:'7px 14px', borderRadius:RADIUS.xs, border:'none',
                               background:PRIMARY, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                             {logSaving ? '新增中…' : '新增'}
                           </button>
@@ -444,7 +443,7 @@ export default function Samples() {
                         ) : (
                           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                             {followupLogsMap[s.id].map(log => (
-                              <div key={log.id} style={{ background:SUBCARD_BG, borderRadius:8, padding:'7px 10px' }}>
+                              <div key={log.id} style={{ background:SUBCARD_BG, borderRadius:RADIUS.xs, padding:'7px 10px' }}>
                                 <div style={{ display:'flex', justifyContent:'space-between' }}>
                                   <span style={{ fontSize:11, fontWeight:700, color:TEXT_SECONDARY }}>{formatDate(log.date)}</span>
                                 </div>
@@ -465,7 +464,7 @@ export default function Samples() {
                     <div style={{ display:'flex',gap:6 }}>
                       {SAMPLE_RESULTS.map(r => (
                         <button key={r} onClick={() => setResult(s.id, r)}
-                          style={{ flex:1,padding:'6px 4px',borderRadius:10,border:'none',
+                          style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
                             fontSize:11,fontWeight:600,cursor:'pointer',
                             background:s.result===r?PRIMARY:'#F5F8FC',
                             color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
@@ -508,7 +507,7 @@ export default function Samples() {
               onChange={e => setEditForm(p => ({ ...p, cost: e.target.value }))}
               placeholder="成本 NT$（選填）" style={{ ...inp, marginTop:-8, marginBottom:16 }} />
             <button onClick={saveEditSample} disabled={editSaving}
-              style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+              style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                 background: editSaving ? '#9BBBF2' : PRIMARY,color:'#fff',
                 fontSize:15,fontWeight:700,cursor:'pointer' }}>
               {editSaving ? '儲存中…' : '儲存'}
@@ -521,7 +520,7 @@ export default function Samples() {
       {deleteTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
-          <div style={{ background:'#fff',borderRadius:18,padding:24,width:280,textAlign:'center' }}>
+          <div style={{ background:'#fff',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -531,10 +530,10 @@ export default function Samples() {
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1,padding:'10px 0',borderRadius:12,border:`1px solid ${BORDER}`,
+                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
                   background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeleteSample} disabled={deleting}
-                style={{ flex:1,padding:'10px 0',borderRadius:12,border:'none',
+                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 {deleting ? '刪除中…' : '刪除'}
               </button>
@@ -546,5 +545,5 @@ export default function Samples() {
   )
 }
 
-const inp = { width:'100%',padding:'10px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+const inp = { width:'100%',padding:'10px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
   fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }

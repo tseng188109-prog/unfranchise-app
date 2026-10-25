@@ -4,8 +4,7 @@ import { IconGift } from '@tabler/icons-react'
 import { toDateStr } from './teamStats'
 import {
   TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, SUBCARD_BG,
-  ACCENT_YELLOW_TEXT, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
-} from './designTokens'
+  ACCENT_YELLOW_TEXT, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_PINK_SOFT, ACCENT_PINK_TEXT, RADIUS } from './designTokens'
 import { fmt, shortDate } from './orderUtils'
 
 const DAY = 86400000
@@ -89,7 +88,7 @@ export default function GiftFollowCard({ userId, year, month }) {
 
   return (
     <div className="dash-container" style={{ padding: '12px 16px 0' }}>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 14 }}>
+      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14 }}>
         <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconGift size={16} stroke={1.9} color={ACCENT_YELLOW_TEXT} /> {month} 月送出的贈品
         </p>
@@ -100,7 +99,7 @@ export default function GiftFollowCard({ userId, year, month }) {
               <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, minWidth: 0, wordBreak: 'break-word' }}>{r.name}</span>
               <span style={{ fontSize: 12, color: TEXT_MUTED, flexShrink: 0 }}>{r.items.join('、')}　{shortDate(r.date)}</span>
             </div>
-            <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, padding: '2px 8px', borderRadius: 99, background: tones[r.tone].bg, color: tones[r.tone].fg }}>
+            <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, padding: '2px 8px', borderRadius: RADIUS.pill, background: tones[r.tone].bg, color: tones[r.tone].fg }}>
               {r.status}
             </span>
           </div>

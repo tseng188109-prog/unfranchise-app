@@ -6,8 +6,7 @@ import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
-  DANGER, DANGER_SOFT, BORDER,
-} from './designTokens'
+  DANGER, DANGER_SOFT, BORDER, RADIUS } from './designTokens'
 
 function BirthdayPicker({ value, onChange }) {
   const months = Array.from({length:12}, (_,i) => String(i+1).padStart(2,'0'))
@@ -24,14 +23,14 @@ function BirthdayPicker({ value, onChange }) {
   return (
     <div style={{ display:'flex', gap:8 }}>
       <select value={mm} onChange={e => handleChange(e.target.value, dd)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
+        style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
           color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>月份</option>
         {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
       </select>
       <select value={dd} onChange={e => handleChange(mm, e.target.value)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:12,border:`1px solid ${BORDER}`,
+        style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
           fontSize:14,background:'#fff',outline:'none',
           color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>日期</option>
@@ -175,7 +174,7 @@ export default function CustomerEdit() {
           <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯顧客</h1>
         </div>
         <button onClick={() => setShowArchiveConfirm(true)}
-          style={{ display:'flex', alignItems:'center', gap:6, background:DANGER_SOFT, border:'none', borderRadius:10,
+          style={{ display:'flex', alignItems:'center', gap:6, background:DANGER_SOFT, border:'none', borderRadius:RADIUS.sm,
             padding:'6px 12px', fontSize:13, cursor:'pointer', color:DANGER, fontWeight:600 }}>
           <IconArchive size={14} stroke={1.9} /> 封存
         </button>
@@ -185,7 +184,7 @@ export default function CustomerEdit() {
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
         {/* 參照提示 */}
-        <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px',
+        <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px',
           marginBottom:16 }}>
           <p style={{ fontSize:12, color:PRIMARY, margin:0, lineHeight:1.6 }}>
             除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
@@ -199,7 +198,7 @@ export default function CustomerEdit() {
           </label>
           {linkedContactId ? (
             <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
-              borderRadius:12, padding:'10px 12px' }}>
+              borderRadius:RADIUS.md, padding:'10px 12px' }}>
               <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1, minWidth:0, wordBreak:'break-word', overflowWrap:'anywhere' }}>
                 ✓ 已連結：{linkedContactName}
               </span>
@@ -215,7 +214,7 @@ export default function CustomerEdit() {
           )}
           {contactSearch && !linkedContactId && (
             <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff',
-              border:`1px solid ${BORDER}`, borderRadius:12, zIndex:50, maxHeight:160, overflowY:'auto',
+              border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, zIndex:50, maxHeight:160, overflowY:'auto',
               boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
               {contacts.filter(c => c.name.includes(contactSearch)).map(c => (
                 <button key={c.id} onClick={() => selectContact(c)}
@@ -243,7 +242,7 @@ export default function CustomerEdit() {
         <div style={fw}>
           <label style={lb}>
             手機
-            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
+            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
               background: form.phone.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
               color: form.phone.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
@@ -255,7 +254,7 @@ export default function CustomerEdit() {
         <div style={fw}>
           <label style={lb}>
             生日
-            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
+            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
               background: form.birthday.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
               color: form.birthday.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
@@ -267,7 +266,7 @@ export default function CustomerEdit() {
         <div style={fw}>
           <label style={lb}>
             職業
-            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:99,
+            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
               background: form.occupation.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
               color: form.occupation.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
@@ -277,7 +276,7 @@ export default function CustomerEdit() {
 
         {/* 參照錯誤 */}
         {errors._ref && (
-          <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px',
+          <div style={{ background:DANGER_SOFT, borderRadius:RADIUS.md, padding:'10px 14px',
             marginBottom:16 }}>
             <p style={{ fontSize:13, color:DANGER, margin:0 }}>{errors._ref}</p>
           </div>
@@ -305,7 +304,7 @@ export default function CustomerEdit() {
         </div>
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+          style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
             background:saving?'#9BBBF2':PRIMARY,color:'#fff',
             fontSize:16,fontWeight:700,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
@@ -315,17 +314,17 @@ export default function CustomerEdit() {
       {showArchiveConfirm && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:20 }}>
-          <div style={{ background:'#fff',borderRadius:18,padding:24,width:'100%',maxWidth:340 }}>
+          <div style={{ background:'#fff',borderRadius:RADIUS.xl,padding:24,width:'100%',maxWidth:340 }}>
             <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>確定要封存這位顧客嗎？</p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>
               封存後可以到顧客檔案的「封存名單」找到並復原，或永久刪除。
             </p>
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setShowArchiveConfirm(false)}
-                style={{ flex:1,padding:'12px',borderRadius:12,border:`1px solid ${BORDER}`,
+                style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
                   background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive} disabled={archiving}
-                style={{ flex:1,padding:'12px',borderRadius:12,border:'none',
+                style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 {archiving?'封存中…':'確定封存'}
               </button>
@@ -339,6 +338,6 @@ export default function CustomerEdit() {
 
 const fw = { marginBottom:16 }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:4,marginBottom:6 }
-const inp = { width:'100%',padding:'11px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+const inp = { width:'100%',padding:'11px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
   fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
 const err = { fontSize:12,color:DANGER,margin:'4px 0 0' }

@@ -23,7 +23,12 @@ export const DANGER_SOFT = '#FDE2E2'
 export const BORDER = '#F0F1F4'
 export const SUBCARD_BG = '#F5F8FC'
 export const CARD_BG = '#fff'
-export const PAGE_BG = '#fff'
+// 頁面底色：淡灰藍，白色卡片放上去才有層次（首頁、列表頁、詳情頁統一）
+export const PAGE_BG = '#F6F8FC'
+// 橘色：「1 個會議」專用，其他地方不用
+export const ORANGE = '#F97316'
+export const ORANGE_SOFT = '#FFEDDD'
+export const ORANGE_TEXT = '#C2570C'
 
 // ── 圓角 ─────────────────────────────────────
 // 盤點時發現的實際用法：
@@ -40,6 +45,7 @@ export const RADIUS = {
   md: 12,
   lg: 14,
   xl: 18,
+  card: 16, // 卡片統一圓角
   pill: 999,
   circle: '50%',
 }

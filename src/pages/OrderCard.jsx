@@ -3,8 +3,7 @@ import { IconPencil, IconTrash, IconCopy, IconGift } from '@tabler/icons-react'
 import {
   PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT, ACCENT_GREEN_TEXT, ACCENT_PINK_TEXT,
-  DANGER, BORDER, PRIMARY_SOFT,
-} from './designTokens'
+  DANGER, BORDER, PRIMARY_SOFT, RADIUS } from './designTokens'
 import { fmt, shortDate, computeOrder, buildCopyText, copyToClipboard } from './orderUtils'
 
 // 顧客頁「消費紀錄」裡，一張訂單合在一起的樣子
@@ -29,7 +28,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
   }
 
   return (
-    <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12, marginBottom: 10, background: '#fff' }}>
+    <div style={{ border: `1px solid ${BORDER}`, borderRadius: RADIUS.md, padding: 12, marginBottom: 10, background: '#fff' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{shortDate(group.date)} 訂單</span>
         <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>
@@ -43,7 +42,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
             <span style={{ minWidth: 0, color: TEXT_MAIN, wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {t.product_name}
               {t.is_gift && (
-                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 99, background: ACCENT_YELLOW_SOFT, color: ACCENT_YELLOW_TEXT, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: RADIUS.pill, background: ACCENT_YELLOW_SOFT, color: ACCENT_YELLOW_TEXT, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <IconGift size={10} stroke={1.9} /> 贈品
                 </span>
               )}
@@ -66,7 +65,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
         <p style={{ margin: '4px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>運費由客人出（不影響獲利）</p>
       )}
       {group.order?.note && (
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY, background: PRIMARY_SOFT, borderRadius: 8, padding: '6px 8px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{group.order.note}</p>
+        <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY, background: PRIMARY_SOFT, borderRadius: RADIUS.xs, padding: '6px 8px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{group.order.note}</p>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8 }}>

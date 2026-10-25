@@ -6,8 +6,7 @@ import OrderForm from './OrderForm'
 import { saveDraft, loadDraft } from './formDraft'
 import {
   TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
-  ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, BORDER,
-} from './designTokens'
+  ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, BORDER, RADIUS } from './designTokens'
 
 // 顯示顧客識別資訊（智慧顯示）
 function customerLabel(c) {
@@ -127,7 +126,7 @@ export default function TransactionNew() {
               style={{ ...inp, borderColor: errors.customer ? DANGER : BORDER }} />
             {showCustomerList && customerSearch && (
               <div style={{ position:'absolute', top:'100%', left:0, right:0,
-                background:'#fff', border:`1px solid ${BORDER}`, borderRadius:12,
+                background:'#fff', border:`1px solid ${BORDER}`, borderRadius:RADIUS.md,
                 zIndex:50, maxHeight:200, overflowY:'auto',
                 boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
                 {filteredCustomers.map(c => (
@@ -162,7 +161,7 @@ export default function TransactionNew() {
 
         {/* 快速建檔 */}
         {showQuickCreate && (
-          <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:14, padding:14, marginBottom:16 }}>
+          <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:RADIUS.lg, padding:14, marginBottom:16 }}>
             <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:'0 0 4px' }}>
               快速建檔
             </p>
@@ -186,7 +185,7 @@ export default function TransactionNew() {
             )}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={handleQuickCreate}
-                style={{ flex:1, padding:'9px', borderRadius:10, border:'none',
+                style={{ flex:1, padding:'9px', borderRadius:RADIUS.sm, border:'none',
                   background:ACCENT_GREEN_TEXT, color:'#fff', fontWeight:700,
                   cursor:'pointer', fontSize:13 }}>
                 建檔並繼續
@@ -196,7 +195,7 @@ export default function TransactionNew() {
                 setQuickName(''); setQuickPhone('')
                 setQuickBirthday(''); setQuickOccupation('')
                 setQuickError('')
-              }} style={{ flex:1, padding:'9px', borderRadius:10,
+              }} style={{ flex:1, padding:'9px', borderRadius:RADIUS.sm,
                 border:`1px solid ${BORDER}`, background:'#fff',
                 cursor:'pointer', fontSize:13, color:TEXT_SECONDARY }}>取消</button>
             </div>
@@ -225,6 +224,6 @@ export default function TransactionNew() {
 const fw = { marginBottom: 16 }
 const lb = { fontSize:13, fontWeight:600, color:TEXT_MAIN, display:'block', marginBottom:6 }
 const req = { color:DANGER }
-const inp = { width:'100%', padding:'11px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
+const inp = { width:'100%', padding:'11px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
   fontSize:14, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }
 const err = { fontSize:12, color:DANGER, margin:'4px 0 0' }

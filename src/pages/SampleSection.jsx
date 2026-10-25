@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconPencil, IconTrash, IconX, IconFlask } from '@tabler/icons-react'
+import { cardStyle } from './ui'
 import { SAMPLE_STEPS, SAMPLE_RESULTS, sampleResultBadgeColor, formatSampleDue } from './sampleTracking'
 import {
   PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -125,7 +126,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
   const totalCost = samples.reduce((s, x) => s + (Number(x.cost) || 0), 0)
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ ...cardStyle, padding: 14, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconFlask size={14} stroke={1.9} color={TEXT_SECONDARY} /> 試用品

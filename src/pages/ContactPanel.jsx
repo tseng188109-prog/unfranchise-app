@@ -16,8 +16,7 @@ import {
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN, ACCENT_GREEN_TEXT, DANGER, BORDER, SUBCARD_BG, RADIUS,
-  getEggColor, getEggBg, avatarBg,
-} from './designTokens'
+  getEggColor, getEggBg, avatarBg, PAGE_BG } from './designTokens'
 
 const ACTION_MAP = {
   '茶葉蛋':{'大一':'軟性活動','大二':'商機講座','大三':'直接法','大四':'直接法'},
@@ -221,11 +220,11 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   ].filter(r => r.value)
 
   return (
-    <div style={{ background:'#fff', minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40,
+    <div style={{ background:PAGE_BG, minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40,
       overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
 
       {/* Header */}
-      <div style={{ padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
+      <div style={{ background:'#fff', padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
         {!embedded && (
           <div style={{ marginBottom:12 }}>
             <button onClick={onBack || (() => navigate(-1))}
@@ -506,7 +505,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>還沒有補充資料</p>
             ) : infoRows.map(r => (
               <div key={r.label} style={{ display:'flex', alignItems:'flex-start', gap:10,
-                background:SUBCARD_BG, borderRadius:RADIUS.sm, padding:'10px 12px' }}>
+                background:'#fff', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:'12px 14px' }}>
                 <r.icon size={16} stroke={1.8} color={TEXT_SECONDARY} style={{ marginTop:1, flexShrink:0 }} />
                 <div>
                   <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 2px' }}>{r.label}</p>

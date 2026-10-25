@@ -12,8 +12,7 @@ import LoadingSpinner from './LoadingSpinner'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_PINK, DANGER, DANGER_SOFT,
-  BORDER, SUBCARD_BG, RADIUS, avatarBg,
-} from './designTokens'
+  BORDER, SUBCARD_BG, RADIUS, avatarBg, PAGE_BG } from './designTokens'
 function formatDate(d) {
   if (!d) return ''
   const dt = new Date(d + 'T00:00:00')
@@ -270,7 +269,7 @@ export default function Customers() {
   }
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}
+    <div style={{ background:PAGE_BG, minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}
       onClick={() => setMenuTarget(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -278,6 +277,7 @@ export default function Customers() {
           .dash-container { max-width: 720px; }
         }
         .customers-panel-col { display: none; }
+        .customers-list-col { margin: 12px 16px 0; background: #fff; border: 1px solid ${BORDER}; border-radius: 16px; overflow: hidden; }
         @media (min-width: 1024px) {
           .customers-body {
             display: flex;
@@ -289,19 +289,21 @@ export default function Customers() {
             box-sizing: border-box;
           }
           .customers-list-col {
+            margin: 0;
             width: 360px;
             flex-shrink: 0;
             border: 1px solid ${BORDER};
-            border-radius: 14px;
+            border-radius: 16px;
             overflow-y: auto;
             max-height: calc(100vh - 180px);
           }
           .customers-panel-col {
+            background: #fff;
             display: block;
             flex: 1;
             min-width: 0;
             border: 1px solid ${BORDER};
-            border-radius: 14px;
+            border-radius: 16px;
             overflow-y: auto;
             max-height: calc(100vh - 180px);
           }

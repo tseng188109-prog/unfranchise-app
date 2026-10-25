@@ -6,8 +6,7 @@ import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
-  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG,
-} from './designTokens'
+  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
 
 export default function CustomerNew() {
   const navigate = useNavigate()
@@ -130,7 +129,7 @@ export default function CustomerNew() {
           </label>
           {linkedContactId ? (
             <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
-              borderRadius:12, padding:'10px 12px' }}>
+              borderRadius:RADIUS.md, padding:'10px 12px' }}>
               <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1, minWidth:0, wordBreak:'break-word', overflowWrap:'anywhere' }}>
                 ✓ 已連結：{linkedContactName}
               </span>
@@ -143,12 +142,12 @@ export default function CustomerNew() {
             <input value={contactSearch}
               onChange={e => setContactSearch(e.target.value)}
               placeholder="搜尋互動名單裡的聯絡人姓名..."
-              style={{ width:'100%', padding:'11px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
+              style={{ width:'100%', padding:'11px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                 fontSize:14, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
           )}
           {filteredContacts.length > 0 && (
             <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff',
-              border:`1px solid ${BORDER}`, borderRadius:12, zIndex:50, maxHeight:160, overflowY:'auto',
+              border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, zIndex:50, maxHeight:160, overflowY:'auto',
               boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
               {filteredContacts.map(c => (
                 <button key={c.id} onClick={() => selectContact(c)}
@@ -164,7 +163,7 @@ export default function CustomerNew() {
         </div>
 
         {/* 參照欄位提示 */}
-        <div style={{ background:PRIMARY_SOFT, borderRadius:12, padding:'10px 14px',
+        <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px',
           marginBottom:16 }}>
           <p style={{ fontSize:12, color:PRIMARY, margin:0, lineHeight:1.6 }}>
             除姓名外，請至少填寫 <strong>手機、生日、職業</strong> 其中一項，方便日後區分同名顧客
@@ -179,7 +178,7 @@ export default function CustomerNew() {
               {f.req && <span style={{ color:DANGER }}>*</span>}
               {f.ref && (
                 <span style={{
-                  fontSize:10, padding:'1px 6px', borderRadius:99,
+                  fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
                   background: hasRef && (
                     (f.key==='phone' && form.phone.trim()) ||
                     (f.key==='birthday' && form.birthday.trim()) ||
@@ -199,7 +198,7 @@ export default function CustomerNew() {
               value={form[f.key]}
               onChange={e => set(f.key, e.target.value)}
               placeholder={f.placeholder || ''}
-              style={{ width:'100%', padding:'11px 12px', borderRadius:12,
+              style={{ width:'100%', padding:'11px 12px', borderRadius:RADIUS.md,
                 border:`1px solid ${errors[f.key] ? DANGER : BORDER}`,
                 fontSize:14, background:'#fff', boxSizing:'border-box',
                 outline:'none', color:TEXT_MAIN }}
@@ -212,14 +211,14 @@ export default function CustomerNew() {
 
         {/* 參照欄位錯誤提示 */}
         {errors._ref && (
-          <div style={{ background:DANGER_SOFT, borderRadius:12, padding:'10px 14px',
+          <div style={{ background:DANGER_SOFT, borderRadius:RADIUS.md, padding:'10px 14px',
             marginBottom:16 }}>
             <p style={{ fontSize:13, color:DANGER, margin:0 }}>{errors._ref}</p>
           </div>
         )}
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width:'100%', padding:'14px', borderRadius:14, border:'none',
+          style={{ width:'100%', padding:'14px', borderRadius:RADIUS.lg, border:'none',
             background:saving ? '#9BBBF2' : PRIMARY, color:'#fff',
             fontSize:16, fontWeight:700, cursor:'pointer', marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}

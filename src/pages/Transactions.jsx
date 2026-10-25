@@ -12,8 +12,7 @@ import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
   ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
-  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, avatarBg,
-} from './designTokens'
+  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, avatarBg, RADIUS, PAGE_BG } from './designTokens'
 
 function formatDate(d) {
   if (!d) return ''
@@ -315,7 +314,7 @@ export default function Transactions() {
         <div style={{ flex:1,minWidth:0 }}>
           <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
             <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{name}</span>
-            <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
+            <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:RADIUS.xs,
               background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
               color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
           </div>
@@ -338,7 +337,7 @@ export default function Transactions() {
         {menuId === t.id && (
           <div onClick={e => e.stopPropagation()}
             style={{ position:'absolute',right:12,top:44,background:'#fff',
-              borderRadius:12,boxShadow:'0 4px 20px rgba(19,42,77,0.13)',
+              borderRadius:RADIUS.md,boxShadow:'0 4px 20px rgba(19,42,77,0.13)',
               zIndex:100,overflow:'hidden',minWidth:110 }}>
             <button onClick={() => openEdit(t)}
               style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
@@ -384,7 +383,7 @@ export default function Transactions() {
   }
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}
+    <div style={{ background:PAGE_BG,minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}
       onClick={() => setMenuId(null)}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
@@ -422,7 +421,7 @@ export default function Transactions() {
           <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={searchMode ? exitSearch : enterSearch}
-              style={{ width:36,height:36,borderRadius:12,
+              style={{ width:36,height:36,borderRadius:RADIUS.md,
                 background: searchMode ? PRIMARY : PRIMARY_SOFT,
                 border: 'none',
                 color: searchMode ? '#fff' : PRIMARY,
@@ -430,12 +429,12 @@ export default function Transactions() {
                 display:'flex',alignItems:'center',justifyContent:'center' }}
               title="搜尋"><IconSearch size={16} stroke={1.9} /></button>
             <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
-              style={{ width:36,height:36,borderRadius:12,background:ACCENT_GREEN_SOFT,
+              style={{ width:36,height:36,borderRadius:RADIUS.md,background:ACCENT_GREEN_SOFT,
                 border:'none',color:ACCENT_GREEN_TEXT,cursor:'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center' }}
               title="CSV 批量匯入"><IconDownload size={17} stroke={1.9} /></button>
             <button onClick={() => navigate('/transactions/new')}
-              style={{ width:36,height:36,borderRadius:12,background:PRIMARY,
+              style={{ width:36,height:36,borderRadius:RADIUS.md,background:PRIMARY,
                 border:'none',color:'#fff',cursor:'pointer',
                 display:'flex',alignItems:'center',justifyContent:'center' }}><IconPlus size={19} stroke={2} /></button>
           </div>
@@ -448,13 +447,13 @@ export default function Transactions() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="搜尋顧客姓名或產品名稱…"
-              style={{ flex:1,padding:'9px 14px',borderRadius:12,
+              style={{ flex:1,padding:'9px 14px',borderRadius:RADIUS.md,
                 border:`1.5px solid ${PRIMARY}`,fontSize:14,outline:'none',
                 color:TEXT_MAIN,background:PRIMARY_SOFT }}
             />
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]) }}
-                style={{ padding:'0 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+                style={{ padding:'0 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
                   background:'#fff',fontSize:13,color:TEXT_SECONDARY,cursor:'pointer' }}>
                 清除
               </button>
@@ -473,15 +472,15 @@ export default function Transactions() {
             </div>
 
             <div style={{ display:'flex',gap:10,marginBottom:8 }}>
-              <div style={{ flex:1,background:ACCENT_YELLOW_SOFT,borderRadius:14,padding:'12px' }}>
+              <div style={{ flex:1,background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.lg,padding:'12px' }}>
                 <p style={{ fontSize:11,fontWeight:700,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
                 <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
               </div>
-              <div style={{ flex:1,background:PRIMARY_SOFT,borderRadius:14,padding:'12px' }}>
+              <div style={{ flex:1,background:PRIMARY_SOFT,borderRadius:RADIUS.lg,padding:'12px' }}>
                 <p style={{ fontSize:11,fontWeight:700,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
                 <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
               </div>
-              <div style={{ flex:1,background:ACCENT_GREEN_SOFT,borderRadius:14,padding:'12px' }}>
+              <div style={{ flex:1,background:ACCENT_GREEN_SOFT,borderRadius:RADIUS.lg,padding:'12px' }}>
                 <p style={{ fontSize:11,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
                 <p style={{ fontSize:18,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
               </div>
@@ -493,7 +492,7 @@ export default function Transactions() {
             )}
 
             {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
-              <div style={{ background:SUBCARD_BG,borderRadius:14,padding:'12px 8px 8px',marginTop:4 }}>
+              <div style={{ background:SUBCARD_BG,borderRadius:RADIUS.lg,padding:'12px 8px 8px',marginTop:4 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
                   <span style={{ fontSize:12,fontWeight:700,color:TEXT_SECONDARY }}>每日點數趨勢</span>
                   <div style={{ display:'flex',gap:10 }}>
@@ -526,7 +525,7 @@ export default function Transactions() {
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:10 }}>
           <div style={{ display:'flex',alignItems:'center',gap:14 }}>
             <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
-            <div style={{ display:'flex',alignItems:'center',gap:8,background:SUBCARD_BG,borderRadius:10,padding:'4px 10px' }}>
+            <div style={{ display:'flex',alignItems:'center',gap:8,background:SUBCARD_BG,borderRadius:RADIUS.sm,padding:'4px 10px' }}>
               <button onClick={prevMonth}
                 style={{ background:'none',border:'none',fontSize:16,cursor:'pointer',color:TEXT_SECONDARY }}>‹</button>
               <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
@@ -540,25 +539,25 @@ export default function Transactions() {
                 style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)' }} />
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 placeholder="搜尋顧客或品項"
-                style={{ padding:'8px 12px 8px 30px',borderRadius:10,border:`1px solid ${BORDER}`,
+                style={{ padding:'8px 12px 8px 30px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,
                   fontSize:13,background:SUBCARD_BG,color:TEXT_MAIN,outline:'none',width:180,boxSizing:'border-box' }} />
             </div>
             {TYPE_FILTERS.map(f => (
               <button key={f} onClick={() => setTypeFilter(f)}
-                style={{ padding:'7px 14px',borderRadius:99,border:'none',fontSize:12,fontWeight:700,cursor:'pointer',
+                style={{ padding:'7px 14px',borderRadius:RADIUS.pill,border:'none',fontSize:12,fontWeight:700,cursor:'pointer',
                   background: typeFilter===f ? (f==='BV'?ACCENT_YELLOW_SOFT:f==='IBV'?PRIMARY_SOFT:PRIMARY) : SUBCARD_BG,
                   color: typeFilter===f ? (f==='BV'?ACCENT_YELLOW_TEXT:f==='IBV'?PRIMARY:'#fff') : TEXT_SECONDARY }}>
                 {f}
               </button>
             ))}
             <button onClick={() => { setShowImport(true); resetImport() }}
-              style={{ padding:'8px 14px',borderRadius:10,border:'none',background:ACCENT_GREEN_SOFT,
+              style={{ padding:'8px 14px',borderRadius:RADIUS.sm,border:'none',background:ACCENT_GREEN_SOFT,
                 color:ACCENT_GREEN_TEXT,fontSize:12,fontWeight:700,cursor:'pointer',
                 display:'flex',alignItems:'center',gap:6 }}>
               <IconDownload size={14} stroke={1.9} /> 匯入
             </button>
             <button onClick={() => navigate('/transactions/new')}
-              style={{ padding:'8px 16px',borderRadius:10,border:'none',background:PRIMARY,
+              style={{ padding:'8px 16px',borderRadius:RADIUS.sm,border:'none',background:PRIMARY,
                 color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer' }}>
               + 新增
             </button>
@@ -566,26 +565,26 @@ export default function Transactions() {
         </div>
 
         <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16 }}>
-          <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:12,padding:'12px 14px' }}>
+          <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.md,padding:'12px 14px' }}>
             <p style={{ fontSize:11,fontWeight:700,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
             <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
           </div>
-          <div style={{ background:PRIMARY_SOFT,borderRadius:12,padding:'12px 14px' }}>
+          <div style={{ background:PRIMARY_SOFT,borderRadius:RADIUS.md,padding:'12px 14px' }}>
             <p style={{ fontSize:11,fontWeight:700,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
             <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
           </div>
-          <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:12,padding:'12px 14px' }}>
+          <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:RADIUS.md,padding:'12px 14px' }}>
             <p style={{ fontSize:11,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
             <p style={{ fontSize:20,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
           </div>
-          <div style={{ background:SUBCARD_BG,borderRadius:12,padding:'12px 14px' }}>
+          <div style={{ background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'12px 14px' }}>
             <p style={{ fontSize:11,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 4px' }}>贈品成本</p>
             <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>-NT${giftCost.toLocaleString()}</p>
           </div>
         </div>
 
         {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
-          <div style={{ background:SUBCARD_BG,borderRadius:14,padding:'14px 14px 10px',marginBottom:16 }}>
+          <div style={{ background:SUBCARD_BG,borderRadius:RADIUS.lg,padding:'14px 14px 10px',marginBottom:16 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
               <span style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY }}>每日點數趨勢</span>
               <div style={{ display:'flex',gap:12 }}>
@@ -626,7 +625,7 @@ export default function Transactions() {
           <p style={{ fontSize:15 }}>找不到「{searchQuery}」的紀錄</p>
         </div>
       ) : (
-        <div style={{ margin:'8px 0',background:'#fff' }}>
+        <div style={{ margin:'12px 16px',background:'#fff',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,overflow:'hidden' }}>
           {displayList.map(t => <TxRow key={t.id} t={t} dense={searchMode} />)}
         </div>
       )}
@@ -637,12 +636,12 @@ export default function Transactions() {
         {loading && !isSearching ? (
           <LoadingSpinner fullPage={false} />
         ) : desktopList.length === 0 ? (
-          <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED,border:`1px solid ${BORDER}`,borderRadius:14 }}>
+          <div style={{ textAlign:'center',padding:60,color:TEXT_MUTED,border:`1px solid ${BORDER}`,borderRadius:RADIUS.lg }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconChartBar size={36} stroke={1.5} /></div>
             <p style={{ fontSize:15 }}>{isSearching ? `找不到「${searchQuery}」的紀錄` : '這個月還沒有業績紀錄，點「+ 新增」開始記錄！'}</p>
           </div>
         ) : (
-          <table style={{ width:'100%',borderCollapse:'collapse',border:`1px solid ${BORDER}`,borderRadius:14,overflow:'hidden' }}>
+          <table style={{ width:'100%',borderCollapse:'collapse',border:`1px solid ${BORDER}`,borderRadius:RADIUS.lg,overflow:'hidden' }}>
             <thead>
               <tr style={{ borderBottom:`1px solid ${BORDER}`,background:SUBCARD_BG }}>
                 <th style={thStyle}>日期</th>
@@ -667,7 +666,7 @@ export default function Transactions() {
                       {t.is_gift && <span style={{ marginLeft:6,fontSize:11,color:TEXT_MUTED }}>🎁贈品</span>}
                     </td>
                     <td style={tdStyle}>
-                      <span style={{ fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:6,
+                      <span style={{ fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:RADIUS.xs,
                         background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
                         color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
                     </td>
@@ -711,7 +710,7 @@ export default function Transactions() {
             </div>
             <button onClick={downloadTemplate}
               style={{ display:'flex',alignItems:'center',gap:10,width:'100%',
-                padding:'12px 16px',borderRadius:14,border:`1px dashed ${ACCENT_GREEN}`,
+                padding:'12px 16px',borderRadius:RADIUS.lg,border:`1px dashed ${ACCENT_GREEN}`,
                 background:ACCENT_GREEN_SOFT,marginBottom:16,cursor:'pointer' }}>
               <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
@@ -719,7 +718,7 @@ export default function Transactions() {
                 <p style={{ fontSize:11,color:TEXT_SECONDARY,margin:0 }}>date, customer_name, customer_phone, product_name, type, points, amount, cost, is_gift</p>
               </div>
             </button>
-            <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:12,padding:'10px 14px',marginBottom:16 }}>
+            <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.md,padding:'10px 14px',marginBottom:16 }}>
               <p style={{ fontSize:12,color:'#8A5A16',margin:0,lineHeight:1.6 }}>
                 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
                 <strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
@@ -731,7 +730,7 @@ export default function Transactions() {
               onChange={handleFileChange} style={{ display:'none' }} />
             <button onClick={() => fileInputRef.current.click()}
               style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                width:'100%',padding:'13px 0',borderRadius:14,
+                width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,
                 border:`1px solid ${BORDER}`,background:SUBCARD_BG,
                 fontSize:14,fontWeight:600,color:TEXT_MAIN,cursor:'pointer',marginBottom:16 }}>
               <IconFolder size={17} stroke={1.9} /> 選擇 CSV 檔案
@@ -742,7 +741,7 @@ export default function Transactions() {
                   偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
-                  <div style={{ background:DANGER_SOFT,borderRadius:12,padding:'10px 14px',marginBottom:10 }}>
+                  <div style={{ background:DANGER_SOFT,borderRadius:RADIUS.md,padding:'10px 14px',marginBottom:10 }}>
                     <p style={{ fontSize:12,fontWeight:700,color:DANGER,margin:'0 0 4px' }}>
                       發現 {importErrors.length} 個問題：
                     </p>
@@ -752,12 +751,12 @@ export default function Transactions() {
                   </div>
                 )}
                 {importErrors.length === 0 && (
-                  <div style={{ border:`1px solid ${BORDER}`,borderRadius:12,overflow:'hidden',marginBottom:12 }}>
+                  <div style={{ border:`1px solid ${BORDER}`,borderRadius:RADIUS.md,overflow:'hidden',marginBottom:12 }}>
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex',alignItems:'center',gap:10,
                         padding:'9px 14px',borderBottom:i<Math.min(importRows.length,5)-1?`1px solid ${BORDER}`:'none',
                         background:i%2===0?'#fff':SUBCARD_BG }}>
-                        <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:6,
+                        <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:RADIUS.xs,
                           background:r.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
                           color:r.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY,flexShrink:0 }}>{r.type}</span>
                         <div style={{ flex:1,minWidth:0 }}>
@@ -781,7 +780,7 @@ export default function Transactions() {
               </div>
             )}
             {importDone && (
-              <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:12,padding:'12px 16px',marginBottom:16 }}>
+              <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:RADIUS.md,padding:'12px 16px',marginBottom:16 }}>
                 <p style={{ fontSize:14,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>
                   匯入完成！成功 {importDone.success} 筆
                 </p>
@@ -789,7 +788,7 @@ export default function Transactions() {
             )}
             {importRows.length > 0 && importErrors.length === 0 && !importDone && (
               <button onClick={handleImport} disabled={importing}
-                style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+                style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                   background:importing?'#9BBBF2':PRIMARY,
                   color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
@@ -797,7 +796,7 @@ export default function Transactions() {
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
-                style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+                style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                   background:PRIMARY,color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
                 完成
               </button>
@@ -810,7 +809,7 @@ export default function Transactions() {
       {deleteTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
-          <div style={{ background:'#fff',borderRadius:18,padding:24,width:280,textAlign:'center' }}>
+          <div style={{ background:'#fff',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -818,10 +817,10 @@ export default function Transactions() {
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>刪除後無法復原</p>
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1,padding:'10px 0',borderRadius:12,border:`1px solid ${BORDER}`,
+                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
                   background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
-                style={{ flex:1,padding:'10px 0',borderRadius:12,border:'none',
+                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
             </div>
           </div>
@@ -850,7 +849,7 @@ export default function Transactions() {
             <div style={{ display:'flex',gap:8,marginBottom:14 }}>
               {['BV','IBV'].map(type => (
                 <button key={type} onClick={() => setEditForm(f => ({...f, type}))}
-                  style={{ flex:1,padding:'9px 0',borderRadius:12,fontWeight:700,fontSize:14,cursor:'pointer',
+                  style={{ flex:1,padding:'9px 0',borderRadius:RADIUS.md,fontWeight:700,fontSize:14,cursor:'pointer',
                     border: 'none',
                     background: editForm.type===type ? (type==='BV'?ACCENT_YELLOW:PRIMARY) : SUBCARD_BG,
                     color: editForm.type===type ? (type==='BV'?'#5B3200':'#fff') : TEXT_SECONDARY }}>{type}</button>
@@ -882,7 +881,7 @@ export default function Transactions() {
               這是贈品（成本計入費用，不計算獲利）
             </label>
             <button onClick={handleSave} disabled={saving}
-              style={{ width:'100%',padding:'13px 0',borderRadius:14,border:'none',
+              style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                 background: saving ? '#9BBBF2' : PRIMARY,color:'#fff',
                 fontSize:15,fontWeight:700,cursor:'pointer' }}>
               {saving ? '儲存中…' : '儲存'}
@@ -898,7 +897,7 @@ const labelStyle = {
   display:'block', fontSize:12, fontWeight:700, color:TEXT_SECONDARY, marginBottom:4
 }
 const inputStyle = {
-  width:'100%', padding:'10px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
+  width:'100%', padding:'10px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
   fontSize:14, color:TEXT_MAIN, marginBottom:14, boxSizing:'border-box', outline:'none'
 }
 const thStyle = {

@@ -22,11 +22,12 @@ import {
   ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
   ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
   ACCENT_PINK, ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
-  DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS,
+  DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
 import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312, isContactWarm } from './followUp'
 import StudyThemeCard from './StudyThemeCard'
+import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
 
 
 function toDateStr(d) {
@@ -83,13 +84,12 @@ function ProgressBar({ value, max, color, trackColor }) {
     </div>
   )
 }
-function QuickBtn({ Icon, label, onClick, color }) {
+function QuickBtn({ Icon, label, onClick, color, bg }) {
   return (
     <button onClick={onClick}
       style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-        padding:'10px 4px',borderRadius:RADIUS.lg,border:'1px solid #F0F1F4',
-        background:'#fff',cursor:'pointer' }}>
-      <Icon size={16} stroke={1.9} color={color} />
+        padding:'12px 4px',borderRadius:RADIUS.lg,border:'none',background:bg,cursor:'pointer' }}>
+      <Icon size={17} stroke={1.9} color={color} />
       <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>{label}</span>
     </button>
   )
@@ -133,13 +133,6 @@ export default function Dashboard() {
 
   // 老顧客關心卡：最多 3 位，沒有需要關心的人就整張卡不出現
   const [careList, setCareList] = useState([])
-
-  // 首頁收合狀態：預設都收起來，只有「3 位互動」展開（每天最常用）
-  const [statsOpen, setStatsOpen] = useState(false)
-  const [careOpen, setCareOpen] = useState(false)
-  const [checkinOpen, setCheckinOpen] = useState(false)
-  const [interactOpen, setInteractOpen] = useState(true)
-  const checkinRef = useRef(null)
 
   const isToday = viewDate === today()
 
@@ -546,42 +539,46 @@ export default function Dashboard() {
           .dashboard-wrap { max-width: 1600px; margin: 0; }
         }
         .dash-grid { display: block; }
+        .care-scroll { display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px; padding:0 16px 4px; -webkit-overflow-scrolling:touch; }
+        .care-scroll::-webkit-scrollbar { display:none; }
+        .care-card { flex:0 0 82%; scroll-snap-align:start; }
         @media (min-width: 1024px) {
           .dash-grid {
             display: grid;
-            grid-template-columns: 1.6fr 1fr;
+            grid-template-columns: 1fr 1fr;
             grid-template-areas:
               "quick quick"
               "starter starter"
-              "stats followup"
-              "care followup"
-              "theme followup"
-              "checkin followup";
-            gap: 14px;
+              "todo checkin"
+              "care checkin"
+              "stats theme";
+            gap: 0 18px;
             align-items: start;
           }
-          .area-theme { grid-area: theme; margin-bottom: 0 !important; }
-          .area-care { grid-area: care; margin-bottom: 0 !important; }
-          .area-starter { grid-area: starter; margin-bottom: 0 !important; }
-          .area-stats { grid-area: stats; margin-bottom: 0 !important; }
-          .area-followup { grid-area: followup; margin-bottom: 0 !important; }
-          .area-quick { grid-area: quick; margin-bottom: 0 !important; }
-          .area-checkin { grid-area: checkin; margin-bottom: 0 !important; }
+          .area-quick { grid-area: quick; }
+          .area-starter { grid-area: starter; }
+          .area-todo { grid-area: todo; }
+          .area-care { grid-area: care; }
+          .area-checkin { grid-area: checkin; }
+          .area-stats { grid-area: stats; }
+          .area-theme { grid-area: theme; }
+          .care-scroll { flex-wrap:wrap; overflow:visible; margin:0; padding:0; }
+          .care-card { flex:1 1 280px; }
         }
       `}</style>
 
       <div className="dashboard-wrap" style={{ padding:'20px 16px 0' }}>
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10 }}>
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',gap:10 }}>
           <div style={{ minWidth:0 }}>
             <p style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>嗨，{displayName} 👋</p>
-            <p style={{ fontSize:12,color:TEXT_MUTED,margin:'5px 0 0' }}>{todayStr}</p>
-            {whyHerePreview && (
-              <p onClick={() => navigate('/settings')}
-                style={{ fontSize:12,fontStyle:'italic',color:TEXT_SECONDARY,margin:'6px 0 0',cursor:'pointer',
-                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                「{whyHerePreview}」
-              </p>
-            )}
+            <p style={{ fontSize:12,color:TEXT_MUTED,margin:'4px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+              {todayStr}
+              {whyHerePreview && (
+                <span onClick={() => navigate('/settings')} style={{ cursor:'pointer',fontStyle:'italic',marginLeft:10 }}>
+                  「{whyHerePreview}」
+                </span>
+              )}
+            </p>
           </div>
           <div style={{ display:'flex',gap:8,flexShrink:0 }}>
             <NotificationBell userId={user?.id} />
@@ -594,26 +591,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dashboard-wrap" style={{ padding:'14px 16px 0' }}>
+      <div className="dashboard-wrap" style={{ padding:'12px 16px 0' }}>
         <div className="dash-grid">
 
-        {/* 常用入口：一排小按鈕，放最上面，拇指最好按 */}
-        <section className="area-quick" style={{ marginBottom:10 }}>
+        {/* 常用入口 */}
+        <section className="area-quick">
           <div style={{ display:'flex',gap:8 }}>
-            <QuickBtn Icon={IconUsers} label="+互動" color={ACCENT_YELLOW_TEXT} onClick={()=>navigate('/contacts/new')} />
-            <QuickBtn Icon={IconChartBar} label="+業績" color={ACCENT_GREEN_TEXT} onClick={()=>navigate('/transactions/new')} />
-            <QuickBtn Icon={IconSearch} label="查顧客" color={ACCENT_PINK_TEXT} onClick={()=>navigate('/customers')} />
+            <QuickBtn Icon={IconUsers} label="+互動" color={ACCENT_YELLOW_TEXT} bg={ACCENT_YELLOW_SOFT} onClick={()=>navigate('/contacts/new')} />
+            <QuickBtn Icon={IconChartBar} label="+業績" color={ACCENT_GREEN_TEXT} bg={ACCENT_GREEN_SOFT} onClick={()=>navigate('/transactions/new')} />
+            <QuickBtn Icon={IconSearch} label="查顧客" color={ACCENT_PINK_TEXT} bg={ACCENT_PINK_SOFT} onClick={()=>navigate('/customers')} />
           </div>
         </section>
 
-        {/* 新手起步：一條細線，做完就消失 */}
+        {/* 新手起步：做完就消失 */}
         {showStarterCard && (
-          <section className="area-starter" style={{ borderRadius:RADIUS.lg,overflow:'hidden',marginBottom:10,
-            border:'1px solid #F0F1F4',background:'#fff' }}>
+          <section className="area-starter" style={{ ...cardStyle, overflow:'hidden', marginTop:12 }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
                 style={{ width:'100%',background:'#fff',border:'none',cursor:'pointer',
-                  padding:'9px 14px',display:'flex',alignItems:'center',gap:10 }}>
+                  padding:'10px 14px',display:'flex',alignItems:'center',gap:10 }}>
                 <IconRocket size={15} stroke={1.9} color={PRIMARY} />
                 <span style={{ fontSize:12,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>新手起步</span>
                 <div style={{ flex:1,height:5,background:PRIMARY_SOFT,borderRadius:RADIUS.pill,overflow:'hidden' }}>
@@ -673,378 +669,265 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* 數字列：三個最重要的數字一眼看完，點開才看細節 */}
-        <section className="area-stats" style={{ background:CARD_BG,border:'1px solid #F0F1F4',borderRadius:RADIUS.lg,marginBottom:10 }}>
-          <div style={{ display:'flex',alignItems:'stretch' }}>
-            <button onClick={() => setStatsOpen(v => !v)}
-              style={{ flex:2,display:'flex',background:'none',border:'none',cursor:'pointer',padding:'12px 4px 12px 0',textAlign:'center' }}>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:11,color:TEXT_MUTED,fontWeight:600 }}>本週訪談</div>
-                <div style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,marginTop:2 }}>
-                  {meetupCard ? meetupCard.count : '–'}<span style={{ fontSize:12,color:TEXT_MUTED,fontWeight:600 }}>/2</span>
-                </div>
-              </div>
-              <div style={{ flex:1,borderLeft:'1px solid #F0F1F4' }}>
-                <div style={{ fontSize:11,color:TEXT_MUTED,fontWeight:600 }}>本季 BV</div>
-                <div style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,marginTop:2 }}>
-                  {bvTotal.toFixed(0)}<span style={{ fontSize:12,color:TEXT_MUTED,fontWeight:600 }}>/{BV_GOAL}</span>
-                </div>
-              </div>
-            </button>
-            <button onClick={() => { setCheckinOpen(true); setTimeout(() => checkinRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 50) }}
-              style={{ flex:1,background:'none',border:'none',borderLeft:'1px solid #F0F1F4',cursor:'pointer',padding:'12px 0',textAlign:'center' }}>
-              <div style={{ fontSize:11,color:TEXT_MUTED,fontWeight:600 }}>{isToday ? '今日打卡' : '打卡'}</div>
-              <div style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,marginTop:2 }}>
-                {checkTotal}<span style={{ fontSize:12,color:TEXT_MUTED,fontWeight:600 }}>/{DAILY_TASKS.length}</span>
-              </div>
-            </button>
-          </div>
-          <button onClick={() => setStatsOpen(v => !v)}
-            style={{ width:'100%',background:'none',border:'none',borderTop:'1px solid #F0F1F4',cursor:'pointer',
-              padding:'6px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:4,
-              fontSize:11,color:TEXT_MUTED }}>
-            {statsOpen ? '收起' : '看細節'}
-            {statsOpen ? <IconChevronUp size={13} stroke={1.9} /> : <IconChevronDown size={13} stroke={1.9} />}
-          </button>
+        {/* 今天要做的：3-1-2，三張同規格的卡 */}
+        <section className="area-todo">
+          <SectionHeader title="今天的 3-1-2" hint="查看全部聯絡人 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
-          {statsOpen && (
-            <div style={{ padding:'4px 16px 16px',borderTop:'1px solid #F0F1F4' }}>
-              {meetupCard && (
-                <div style={{ display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',margin:'12px 0 14px' }}>
-                  <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>
-                    本週訪談：{meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
-                  </span>
-                  {meetupCard.streak >= 2 && (
-                    <span style={{ background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.pill,padding:'3px 10px',
-                      fontSize:12,fontWeight:700,color:ACCENT_YELLOW_TEXT }}>連續 {meetupCard.streak} 週達標</span>
-                  )}
-                </div>
+          <div style={{ ...cardStyle, padding:12, display:'flex', gap:12, marginBottom:8 }}>
+            <Tile bg={PRIMARY_SOFT} color={PRIMARY}>3</Tile>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
+                位互動<span style={{ fontSize:11,fontWeight:400,color:TEXT_MUTED,marginLeft:8 }}>不要老是同樣那幾位</span>
+              </div>
+              {interactionContacts.length===0
+                ? <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'6px 0 0' }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
+                : <div style={{ display:'flex',flexWrap:'wrap',gap:6,marginTop:8 }}>
+                    {interactionContacts.map(c=>(
+                      <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
+                        style={{ display:'inline-flex',alignItems:'center',gap:6,background:SUBCARD_BG,border:'none',
+                          borderRadius:RADIUS.pill,padding:'3px 12px 3px 3px',cursor:'pointer',
+                          fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
+                        <Avatar name={c.name} size={24} />{c.name}
+                      </button>
+                    ))}
+                  </div>
+              }
+              {interactionContacts.length>0 && (
+                <div style={{ fontSize:11,color:TEXT_MUTED,marginTop:6 }}>點名字，到他的頁面記一下</div>
               )}
-              <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>本季業績進度</span>
-                <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:600,display:'flex',alignItems:'center',gap:2 }}
-                  onClick={()=>navigate('/transactions')}>查看詳情 <IconChevronRight size={13} stroke={2} /></button>
-              </div>
-              <div style={{ display:'flex',gap:16,marginBottom:12 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                    <span style={{ fontSize:12,fontWeight:700,color:ACCENT_YELLOW_TEXT }}>BV</span>
-                    <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{bvTotal.toFixed(0)} <span style={{ color:TEXT_MUTED,fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
-                  </div>
-                  <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="#F0F1F4" />
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                    <span style={{ fontSize:12,fontWeight:700,color:PRIMARY }}>IBV</span>
-                    <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{ibvTotal.toFixed(0)} <span style={{ color:TEXT_MUTED,fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
-                  </div>
-                  <ProgressBar value={ibvTotal} max={IBV_GOAL} color={PRIMARY} trackColor="#F0F1F4" />
-                </div>
-              </div>
-              <div style={{ display:'flex',justifyContent:'space-between',padding:'10px 0',borderTop:'1px solid #F0F1F4' }}>
-                <span style={{ color:TEXT_SECONDARY,fontSize:12 }}>本月獲利</span>
-                <span style={{ color:TEXT_MAIN,fontWeight:700,fontSize:15 }}>NT${profit.toLocaleString()}</span>
-              </div>
-
-              {/* 戰隊：只顯示全隊平均打卡率，不顯示個人名次；「戰隊」「我的夥伴」入口永遠顯示 */}
-              {teamCard && (
-                <div style={{ padding:'10px 0 4px',borderTop:'1px solid #F0F1F4' }}>
-                  <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'0 0 8px',fontWeight:700 }}>戰隊本週打卡率</p>
-                  <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                    <div style={{ flex:1,height:8,background:'#F0F1F4',borderRadius:RADIUS.pill,overflow:'hidden' }}>
-                      <div style={{ height:'100%',borderRadius:RADIUS.pill,width:`${teamCard.teamAvgRate}%`,
-                        background: teamCard.teamAvgRate>=70?ACCENT_GREEN:teamCard.teamAvgRate>=40?ACCENT_YELLOW:DANGER,
-                        transition:'width 0.5s ease' }} />
-                    </div>
-                    <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{teamCard.teamAvgRate}%</span>
-                  </div>
-                </div>
-              )}
-              <div style={{ display:'flex',gap:10,marginTop:12 }}>
-                <button onClick={() => navigate('/team')}
-                  style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                    padding:'10px 0',borderRadius:RADIUS.md,border:'1px solid #F0F1F4',
-                    background:SUBCARD_BG,color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
-                  <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
-                </button>
-                <button onClick={() => navigate('/partners')}
-                  style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                    padding:'10px 0',borderRadius:RADIUS.md,border:'1px solid #F0F1F4',
-                    background:SUBCARD_BG,color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
-                  <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
-                </button>
-              </div>
             </div>
-          )}
-        </section>
-
-        {/* 今天的 3-1-2：首頁主角，每一項一行 */}
-        <section className="area-followup" style={{ background:CARD_BG,borderRadius:RADIUS.lg,marginBottom:10,padding:'14px 14px 10px',border:'1px solid #F0F1F4' }}>
-          <div style={{ display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:8 }}>
-            <div style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN }}>今天的 3-1-2</div>
-            <div style={{ fontSize:11,color:TEXT_MUTED }}>建立長期有意義的關係</div>
           </div>
 
-          {/* 3 互動 */}
-          <div style={{ borderTop:'1px solid #F5F6F8',padding:'10px 0' }}>
-            <button onClick={() => setInteractOpen(v => !v)}
-              style={{ width:'100%',display:'flex',alignItems:'center',gap:10,background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left' }}>
-              <span style={{ background:PRIMARY,color:'#fff',fontSize:12,fontWeight:700,width:22,height:22,flexShrink:0,
-                borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>3</span>
-              <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位互動</div>
-                {!interactOpen && (
-                  <div style={{ fontSize:12,color:TEXT_SECONDARY,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                    {interactionContacts.length === 0 ? '還沒有可以互動的聯絡人' : interactionContacts.map(c => c.name).join('、')}
-                  </div>
-                )}
+          <div style={{ ...cardStyle, padding:12, display:'flex', gap:12, alignItems:'center', marginBottom:8 }}>
+            <Tile bg={ORANGE_SOFT} color={ORANGE}>1</Tile>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
+                個會議{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}
               </div>
-              {interactOpen ? <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} /> : <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} />}
-            </button>
-            {interactOpen && (
-              <div style={{ marginTop:8,paddingLeft:32 }}>
-                <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:8 }}>不要老是同樣那幾位</div>
-                {interactionContacts.length===0
-                  ? <p style={{ fontSize:13,color:TEXT_MUTED,margin:0 }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
-                  : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-                      {interactionContacts.map(c=>(
-                        <div key={c.id} style={{ display:'flex',alignItems:'center',gap:10 }}>
-                          <Avatar name={c.name} size={28} />
-                          <span onClick={()=>navigate(`/contacts/${c.id}`)}
-                            style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,flex:1,cursor:'pointer' }}>{c.name}</span>
-                          <button onClick={()=>navigate(`/contacts/${c.id}`)}
-                            style={{ background:PRIMARY_SOFT,color:PRIMARY,border:'none',borderRadius:RADIUS.xs,
-                              padding:'5px 10px',fontSize:12,fontWeight:600,cursor:'pointer' }}>記一下</button>
-                        </div>
-                      ))}
-                    </div>
-                }
+              <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
+                {meetingContact
+                  ? getSuggestion(meetingContact)
+                  : '目前沒有準備好約會議的人，先專心做 3 位互動就好'}
               </div>
+              {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>別漫無目的，挑最接近臨門一腳的人</div>}
+            </div>
+            {meetingContact && (
+              <SoftBtn solid color={ORANGE}
+                onClick={()=>{ markDaily312(supabase, user.id); navigate(`/contacts/${meetingContact.id}`) }}>
+                {isContactWarm(meetingContact) ? '約碰面' : '先暖身'}
+              </SoftBtn>
             )}
           </div>
 
-          {/* 1 會議 */}
-          <div style={{ borderTop:'1px solid #F5F6F8',padding:'10px 0' }}>
-            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-              <span style={{ background:'#F97316',color:'#fff',fontSize:12,fontWeight:700,width:22,height:22,flexShrink:0,
-                borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>1</span>
-              <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
-                  個會議{meetingContact && <span style={{ fontWeight:600,color:TEXT_SECONDARY }}>　{meetingContact.name}</span>}
-                </div>
-                <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5 }}>
-                  {meetingContact
-                    ? getSuggestion(meetingContact)
-                    : '目前沒有準備好約會議的人，先專心做 3 位互動就好'}
-                </div>
-                {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>別漫無目的，挑最接近臨門一腳的人</div>}
+          <div style={{ ...cardStyle, padding:12, display:'flex', gap:12, alignItems:'center' }}>
+            <Tile bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT}>2</Tile>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>位新名單</div>
+              <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
+                這週已經新增 {newContactCount} 位，去認識新朋友，不是從舊名單湊數
               </div>
-              {meetingContact && (
-                <button onClick={()=>{ markDaily312(supabase, user.id); navigate(`/contacts/${meetingContact.id}`) }}
-                  style={{ background:'#F97316',color:'#fff',border:'none',borderRadius:RADIUS.xs,padding:'7px 10px',
-                    fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0 }}>
-                  {isContactWarm(meetingContact) ? '約時間碰面' : '先互動暖身'}
-                </button>
-              )}
             </div>
-          </div>
-
-          {/* 2 新名單 */}
-          <div style={{ borderTop:'1px solid #F5F6F8',padding:'10px 0' }}>
-            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-              <span style={{ background:ACCENT_GREEN,color:'#fff',fontSize:12,fontWeight:700,width:22,height:22,flexShrink:0,
-                borderRadius:RADIUS.circle,display:'flex',alignItems:'center',justifyContent:'center' }}>2</span>
-              <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>位新名單</div>
-                <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5 }}>
-                  這週已經新增 {newContactCount} 位，去認識新朋友，不是從舊名單湊數
-                </div>
-              </div>
-              <button onClick={()=>navigate('/contacts/new')}
-                style={{ background:'#fff',color:ACCENT_GREEN_TEXT,border:`1.5px solid ${ACCENT_GREEN_TEXT}`,
-                  borderRadius:RADIUS.xs,padding:'6px 10px',fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0 }}>+ 新增</button>
-            </div>
-          </div>
-
-          <div style={{ textAlign:'right',borderTop:'1px solid #F5F6F8',paddingTop:8 }}>
-            <button style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}
-              onClick={()=>navigate('/contacts')}>查看全部聯絡人 →</button>
+            <SoftBtn bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT} onClick={()=>navigate('/contacts/new')}>+ 新增</SoftBtn>
           </div>
         </section>
 
-        {/* 老顧客關心：預設收成一行，點開才是名單 */}
+        {/* 老顧客關心：橫向滑動的卡片，露出下一張的邊緣 */}
         {careList.length > 0 && (
-          <section className="area-care" style={{ marginBottom:10 }}>
-            <div style={{ background:'#fff',border:'1px solid #F0F1F4',borderRadius:RADIUS.lg,overflow:'hidden' }}>
-              <button onClick={() => setCareOpen(v => !v)}
-                style={{ width:'100%',display:'flex',alignItems:'center',gap:8,background:'none',border:'none',
-                  cursor:'pointer',padding:'12px 14px',textAlign:'left' }}>
-                <span style={{ background:ACCENT_PINK_SOFT,color:ACCENT_PINK_TEXT,width:22,height:22,borderRadius:RADIUS.circle,flexShrink:0,
-                  display:'flex',alignItems:'center',justifyContent:'center' }}>
-                  <IconHeart size={12} stroke={2.2} />
-                </span>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,flex:1 }}>
-                  老顧客，問問用得好不好
-                </span>
-                <span style={{ fontSize:12,fontWeight:700,color:ACCENT_PINK_TEXT,background:ACCENT_PINK_SOFT,
-                  borderRadius:RADIUS.pill,padding:'2px 9px' }}>{careList.length} 位</span>
-                {careOpen ? <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} /> : <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} />}
-              </button>
-              {careOpen && (
-                <div style={{ padding:'0 14px 14px' }}>
-                  <div style={{ fontSize:11,color:ACCENT_PINK_TEXT,marginBottom:8 }}>先關心，買不買是之後的事</div>
-                  <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-                    {careList.map(c => (
-                      <div key={c.id} style={{ background:SUBCARD_BG,borderRadius:RADIUS.sm,padding:'10px 12px' }}>
-                        <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                          <Avatar name={c.name} size={28} />
-                          <div style={{ flex:1,minWidth:0 }}>
-                            <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>
-                              {c.name}
-                              {c.tag && (
-                                <span style={{ marginLeft:6,fontSize:10,fontWeight:600,padding:'1px 7px',borderRadius:RADIUS.pill,
-                                  background:ACCENT_YELLOW_SOFT,color:ACCENT_YELLOW_TEXT }}>{c.tag}</span>
-                              )}
-                            </div>
-                            <div style={{ fontSize:12,color:TEXT_MAIN,lineHeight:1.5 }}>{c.line}</div>
-                            {c.meta && <div style={{ fontSize:11,color:TEXT_MUTED }}>{c.meta}</div>}
-                          </div>
-                        </div>
-                        <div style={{ display:'flex',gap:14,marginTop:8,paddingLeft:38,flexWrap:'wrap' }}>
-                          <button onClick={() => navigate(c.contactId ? `/contacts/${c.contactId}` : `/customers/${c.id}`)}
-                            style={{ background:'none',border:'none',padding:0,fontSize:12,fontWeight:700,color:ACCENT_PINK_TEXT,cursor:'pointer' }}>去聊聊 ›</button>
-                          <button onClick={() => markCustomerCared(c.id)}
-                            style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_SECONDARY,cursor:'pointer' }}>我關心過了</button>
-                          <button onClick={() => snoozeCustomerCare(c.id)}
-                            style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_MUTED,cursor:'pointer' }}>這次先不打擾</button>
-                        </div>
-                      </div>
-                    ))}
+          <section className="area-care">
+            <SectionHeader title="老顧客，問問用得好不好" hint="先關心，買不買是之後的事" hintColor={ACCENT_PINK_TEXT} />
+            <div className="care-scroll">
+              {careList.map(c => (
+                <div key={c.id} className="care-card"
+                  style={{ background:'#fff',border:`1px solid #FBD4EA`,borderRadius:RADIUS.card,padding:12 }}>
+                  <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:6 }}>
+                    <Avatar name={c.name} size={32} />
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>{c.name}</div>
+                      {c.tag && <Tag bg={ACCENT_YELLOW_SOFT} color={ACCENT_YELLOW_TEXT}>{c.tag}</Tag>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:12,color:TEXT_MAIN,lineHeight:1.5 }}>{c.line}</div>
+                  {c.meta && <div style={{ fontSize:11,color:TEXT_MUTED,marginTop:2 }}>{c.meta}</div>}
+                  <div style={{ display:'flex',alignItems:'center',gap:14,marginTop:10,flexWrap:'wrap' }}>
+                    <SoftBtn bg={ACCENT_PINK_SOFT} color={ACCENT_PINK_TEXT}
+                      onClick={() => navigate(c.contactId ? `/contacts/${c.contactId}` : `/customers/${c.id}`)}>去聊聊 ›</SoftBtn>
+                    <button onClick={() => markCustomerCared(c.id)}
+                      style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_SECONDARY,cursor:'pointer' }}>我關心過了</button>
+                    <button onClick={() => snoozeCustomerCare(c.id)}
+                      style={{ background:'none',border:'none',padding:0,fontSize:12,color:TEXT_MUTED,cursor:'pointer' }}>這次先不打擾</button>
                   </div>
                 </div>
-              )}
+              ))}
             </div>
           </section>
         )}
 
+        {/* 今日打卡：維持原樣 */}
+        <section className="area-checkin">
+          <SectionHeader title={isToday ? '今日打卡' : '打卡紀錄'} hint={`${checkTotal}/${DAILY_TASKS.length}`} />
+          <div style={{ ...cardStyle, padding:'12px 14px 12px' }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
+              marginBottom:10,background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'6px 10px' }}>
+              <button onClick={() => changeDate(-1)}
+                style={{ background:'none',border:'none',color:TEXT_SECONDARY,
+                  fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
+              <div style={{ textAlign:'center' }}>
+                <span style={{ fontSize:13,fontWeight:700,color: isToday?PRIMARY:'#C9902E' }}>
+                  {isToday ? '今天' : formatDateLabel(viewDate)}
+                </span>
+                {!isToday && (
+                  <button onClick={() => setViewDate(today())}
+                    style={{ marginLeft:8,fontSize:11,color:PRIMARY,background:'none',
+                      border:'none',cursor:'pointer',fontWeight:700 }}>回今天</button>
+                )}
+              </div>
+              <button onClick={() => changeDate(1)}
+                style={{ background:'none',border:'none',
+                  color: isToday?'#D8DCE8':TEXT_SECONDARY,
+                  fontSize:18,cursor: isToday?'default':'pointer',
+                  padding:'0 4px',lineHeight:1 }}>›</button>
+            </div>
+
+            <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
+              background:SUBCARD_BG,borderRadius:RADIUS.md,marginBottom:8 }}>
+              {weekStatus.map((w,i)=>{
+                const isSelected = w.date === viewDate
+                const isT = w.date === today()
+                const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
+                return (
+                  <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
+                    style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                      cursor: w.date<=today()?'pointer':'default' }}>
+                    <span style={{ fontSize:11,color: isSelected?PRIMARY:isT?PRIMARY:TEXT_MUTED,
+                      fontWeight: isSelected||isT?700:600 }}>
+                      {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
+                    </span>
+                    <div style={{ width:10,height:10,borderRadius:RADIUS.circle,background:dc,
+                      outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
+                      outlineOffset:2 }} />
+                  </div>
+                )
+              })}
+            </div>
+
+            <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
+              {DAILY_TASKS.map(task=>{
+                const done=!!checkins[task.key]
+                const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
+                const TaskIcon = task.Icon
+                return (
+                  <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
+                    borderBottom:'1px solid #F5F6F8' }}>
+                    <button onClick={()=>toggleCheckin(task.key)}
+                      style={{ width:20,height:20,borderRadius:7,flexShrink:0,
+                        border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        transition:'all 0.15s',cursor:'pointer' }}>
+                      {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
+                    </button>
+                    <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
+                    <button onClick={()=> hasAction && handleTaskAction(task)}
+                      style={{ flex:1,background:'none',border:'none',textAlign:'left',
+                        cursor: hasAction?'pointer':'default',padding:0,
+                        display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                      <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
+                        textDecoration:done?'line-through':'none' }}>
+                        {task.label}
+                        {task.special&&viewContacted.length>0&&(
+                          <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
+                            {viewContacted.map((c,i) => (
+                              <span key={c.id}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
+                                style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
+                                  textDecoration:'underline' }}>
+                                {c.name}{i<viewContacted.length-1?'、':''}
+                              </span>
+                            ))}
+                            <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
+                          </span>
+                        )}
+                      </span>
+                      {hasAction&&(
+                        <span style={{ fontSize:12,color:TEXT_MUTED,marginLeft:8,flexShrink:0 }}>›</span>
+                      )}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ textAlign:'right',marginTop:10 }}>
+              <button onClick={() => navigate('/daily')}
+                style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}>
+                每週、每月行動 ›
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* 本季進度：看結果的區塊，放在要做的事後面 */}
+        <section className="area-stats">
+          <SectionHeader title="本季進度" hint="查看詳情 ›" onHint={()=>navigate('/transactions')} hintColor={PRIMARY} />
+          <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',borderRadius:RADIUS.xl,padding:'14px 16px',color:'#fff' }}>
+            <div style={{ display:'flex',gap:16 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                  <span style={{ fontSize:12,fontWeight:700,color:ACCENT_YELLOW }}>BV</span>
+                  <span style={{ fontSize:14,fontWeight:700 }}>{bvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
+                </div>
+                <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="rgba(255,255,255,0.22)" />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                  <span style={{ fontSize:12,fontWeight:700 }}>IBV</span>
+                  <span style={{ fontSize:14,fontWeight:700 }}>{ibvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
+                </div>
+                <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#fff" trackColor="rgba(255,255,255,0.22)" />
+              </div>
+            </div>
+            <div style={{ display:'flex',marginTop:12,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.18)' }}>
+              <div style={{ flex:1.2 }}>
+                <div style={{ fontSize:11,opacity:0.75 }}>本月獲利</div>
+                <div style={{ fontSize:15,fontWeight:700 }}>NT${profit.toLocaleString()}</div>
+              </div>
+              <div style={{ flex:1,borderLeft:'1px solid rgba(255,255,255,0.18)',paddingLeft:12 }}>
+                <div style={{ fontSize:11,opacity:0.75 }}>本週訪談</div>
+                <div style={{ fontSize:15,fontWeight:700 }}>
+                  {meetupCard ? meetupCard.count : '–'}<span style={{ opacity:0.6,fontSize:12,fontWeight:400 }}>/2</span>
+                </div>
+                {meetupCard && (
+                  <div style={{ fontSize:11,opacity:0.85 }}>
+                    {meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
+                    {meetupCard.streak >= 2 && `・連續 ${meetupCard.streak} 週`}
+                  </div>
+                )}
+              </div>
+              {teamCard && (
+                <div style={{ flex:1,borderLeft:'1px solid rgba(255,255,255,0.18)',paddingLeft:12 }}>
+                  <div style={{ fontSize:11,opacity:0.75 }}>戰隊打卡率</div>
+                  <div style={{ fontSize:15,fontWeight:700 }}>{teamCard.teamAvgRate}%</div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display:'flex',gap:8,marginTop:8 }}>
+            <button onClick={() => navigate('/team')}
+              style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+              <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
+            </button>
+            <button onClick={() => navigate('/partners')}
+              style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+              <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
+            </button>
+          </div>
+        </section>
+
         {user && onboardingDone && (
-          <section className="area-theme" style={{ marginBottom:10 }}>
+          <section className="area-theme" style={{ marginTop:16 }}>
             <StudyThemeCard user={user} />
           </section>
         )}
-
-        {/* 今日打卡：預設一行，點開在原地勾選；每週、每月行動在「每日行動」頁 */}
-        <section ref={checkinRef} className="area-checkin" style={{ background:CARD_BG,borderRadius:RADIUS.lg,marginBottom:10,border:'1px solid #F0F1F4',overflow:'hidden' }}>
-          <button onClick={() => setCheckinOpen(v => !v)}
-            style={{ width:'100%',display:'flex',alignItems:'center',gap:8,background:'none',border:'none',
-              cursor:'pointer',padding:'12px 14px',textAlign:'left' }}>
-            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,flex:1 }}>
-              {isToday ? '今日打卡' : '打卡紀錄'}
-            </span>
-            <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{checkTotal}/{DAILY_TASKS.length}</span>
-            {checkinOpen ? <IconChevronUp size={16} stroke={1.9} color={TEXT_MUTED} /> : <IconChevronDown size={16} stroke={1.9} color={TEXT_MUTED} />}
-          </button>
-
-          {checkinOpen && (
-            <div style={{ padding:'0 14px 14px' }}>
-              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
-                marginBottom:10,background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'6px 10px' }}>
-                <button onClick={() => changeDate(-1)}
-                  style={{ background:'none',border:'none',color:TEXT_SECONDARY,
-                    fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
-                <div style={{ textAlign:'center' }}>
-                  <span style={{ fontSize:13,fontWeight:700,color: isToday?PRIMARY:'#C9902E' }}>
-                    {isToday ? '今天' : formatDateLabel(viewDate)}
-                  </span>
-                  {!isToday && (
-                    <button onClick={() => setViewDate(today())}
-                      style={{ marginLeft:8,fontSize:11,color:PRIMARY,background:'none',
-                        border:'none',cursor:'pointer',fontWeight:700 }}>回今天</button>
-                  )}
-                </div>
-                <button onClick={() => changeDate(1)}
-                  style={{ background:'none',border:'none',
-                    color: isToday?'#D8DCE8':TEXT_SECONDARY,
-                    fontSize:18,cursor: isToday?'default':'pointer',
-                    padding:'0 4px',lineHeight:1 }}>›</button>
-              </div>
-
-              <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
-                background:SUBCARD_BG,borderRadius:RADIUS.md,marginBottom:8 }}>
-                {weekStatus.map((w,i)=>{
-                  const isSelected = w.date === viewDate
-                  const isT = w.date === today()
-                  const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
-                  return (
-                    <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
-                      style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-                        cursor: w.date<=today()?'pointer':'default' }}>
-                      <span style={{ fontSize:11,color: isSelected?PRIMARY:isT?PRIMARY:TEXT_MUTED,
-                        fontWeight: isSelected||isT?700:600 }}>
-                        {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
-                      </span>
-                      <div style={{ width:10,height:10,borderRadius:RADIUS.circle,background:dc,
-                        outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
-                        outlineOffset:2 }} />
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
-                {DAILY_TASKS.map(task=>{
-                  const done=!!checkins[task.key]
-                  const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
-                  const TaskIcon = task.Icon
-                  return (
-                    <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
-                      borderBottom:'1px solid #F5F6F8' }}>
-                      <button onClick={()=>toggleCheckin(task.key)}
-                        style={{ width:20,height:20,borderRadius:7,flexShrink:0,
-                          border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
-                          display:'flex',alignItems:'center',justifyContent:'center',
-                          transition:'all 0.15s',cursor:'pointer' }}>
-                        {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
-                      </button>
-                      <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
-                      <button onClick={()=> hasAction && handleTaskAction(task)}
-                        style={{ flex:1,background:'none',border:'none',textAlign:'left',
-                          cursor: hasAction?'pointer':'default',padding:0,
-                          display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-                        <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
-                          textDecoration:done?'line-through':'none' }}>
-                          {task.label}
-                          {task.special&&viewContacted.length>0&&(
-                            <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
-                              {viewContacted.map((c,i) => (
-                                <span key={c.id}
-                                  onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
-                                  style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
-                                    textDecoration:'underline' }}>
-                                  {c.name}{i<viewContacted.length-1?'、':''}
-                                </span>
-                              ))}
-                              <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
-                            </span>
-                          )}
-                        </span>
-                        {hasAction&&(
-                          <span style={{ fontSize:12,color:TEXT_MUTED,marginLeft:8,flexShrink:0 }}>›</span>
-                        )}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ textAlign:'right',marginTop:10 }}>
-                <button onClick={() => navigate('/daily')}
-                  style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}>
-                  每週、每月行動 ›
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
 
         </div>
         <div style={{ height:80 }} />

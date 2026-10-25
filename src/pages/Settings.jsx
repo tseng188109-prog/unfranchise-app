@@ -7,8 +7,7 @@ import {
 } from '@tabler/icons-react'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
-  ACCENT_GREEN, ACCENT_YELLOW_TEXT, ACCENT_YELLOW_SOFT, DANGER, DANGER_SOFT, BORDER,
-} from './designTokens'
+  ACCENT_GREEN, ACCENT_YELLOW_TEXT, ACCENT_YELLOW_SOFT, DANGER, DANGER_SOFT, BORDER, RADIUS } from './designTokens'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -158,7 +157,7 @@ export default function Settings() {
         {/* 我為什麼留在這裡：打開個人頁第一眼看到的東西，不是一般設定欄位。
             獨立欄位 why_here，跟目標聲明 goal_declaration 分開──目標聲明是要達成的成果，
             這裡是私密的、寫給自己看的一句話，不對外，也不追求量化。 */}
-        <div style={{ background:PRIMARY_SOFT, borderRadius:18, padding:'18px 20px',
+        <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.xl, padding:'18px 20px',
           borderLeft:`4px solid ${PRIMARY}` }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
             <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:0, letterSpacing:0.5 }}>我為什麼留在這裡</p>
@@ -185,7 +184,7 @@ export default function Settings() {
               <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
                 {WHY_STARTERS.map(s => (
                   <button key={s} onClick={() => fillWhyStarter(s)}
-                    style={{ padding:'5px 12px', borderRadius:99, border:`1px solid #C7D6EF`,
+                    style={{ padding:'5px 12px', borderRadius:RADIUS.pill, border:`1px solid #C7D6EF`,
                       background:'#fff', color:PRIMARY, fontSize:11, cursor:'pointer' }}>
                     {s}＿
                   </button>
@@ -194,17 +193,17 @@ export default function Settings() {
               <input value={whyDraft} maxLength={WHY_HERE_MAX}
                 onChange={e => setWhyDraft(e.target.value)}
                 placeholder="用一句話，是什麼讓你留在這裡？"
-                style={{ width:'100%', padding:'10px 12px', borderRadius:12, border:`1px solid ${BORDER}`,
+                style={{ width:'100%', padding:'10px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN,
                   background:'#fff', marginBottom:6 }} />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ fontSize:11, color:TEXT_MUTED }}>還可以打 {WHY_HERE_MAX - whyDraft.length} 字</span>
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={() => setEditingWhy(false)}
-                    style={{ padding:'7px 14px', borderRadius:10, border:`1px solid ${BORDER}`,
+                    style={{ padding:'7px 14px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
                       background:'#fff', color:TEXT_SECONDARY, fontSize:12, cursor:'pointer' }}>取消</button>
                   <button onClick={saveWhy} disabled={whySaving || !whyDraft.trim()}
-                    style={{ padding:'7px 16px', borderRadius:10, border:'none',
+                    style={{ padding:'7px 16px', borderRadius:RADIUS.sm, border:'none',
                       background: whySaving ? '#9BBBF2' : PRIMARY, color:'#fff',
                       fontSize:12, fontWeight:700, cursor:'pointer' }}>
                     {whySaving ? '儲存中…' : '儲存'}
@@ -233,10 +232,10 @@ export default function Settings() {
           <div style={{ display:'flex',gap:8 }}>
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="輸入名稱..."
-              style={{ flex:1,padding:'10px 12px',borderRadius:12,border:`1px solid ${BORDER}`,
+              style={{ flex:1,padding:'10px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
                 fontSize:14,outline:'none',color:TEXT_MAIN }} />
             <button onClick={handleSaveName} disabled={saving}
-              style={{ display:'flex',alignItems:'center',gap:4,padding:'10px 16px',borderRadius:12,border:'none',
+              style={{ display:'flex',alignItems:'center',gap:4,padding:'10px 16px',borderRadius:RADIUS.md,border:'none',
                 background:saved?ACCENT_GREEN:PRIMARY,color:'#fff',
                 fontWeight:700,fontSize:13,cursor:'pointer' }}>
               {saved && <IconCheck size={14} stroke={2.4} />} {saved?'已存':'儲存'}
@@ -280,7 +279,7 @@ export default function Settings() {
                 <p style={{ fontSize:12,color:DANGER,margin:'0 0 8px' }}>{passwordMsg}</p>
               )}
               <button onClick={handleSavePassword} disabled={passwordSaving}
-                style={{ width:'100%',padding:'11px',borderRadius:12,border:'none',
+                style={{ width:'100%',padding:'11px',borderRadius:RADIUS.md,border:'none',
                   background: passwordSaved?ACCENT_GREEN:passwordSaving?'#9BBBF2':PRIMARY,
                   color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 {passwordSaved ? '✓ 密碼已更新' : passwordSaving ? '更新中…' : '確認修改'}
@@ -315,7 +314,7 @@ export default function Settings() {
                 推薦人尚未註冊也沒關係，對方日後建立帳號後會自動串聯
               </p>
               <button onClick={handleSaveReferrer}
-                style={{ width:'100%',padding:'10px',borderRadius:12,border:'none',
+                style={{ width:'100%',padding:'10px',borderRadius:RADIUS.md,border:'none',
                   background:PRIMARY,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
                 儲存推薦人
               </button>
@@ -340,7 +339,7 @@ export default function Settings() {
 
         {/* 登出 */}
         <button onClick={handleSignOut}
-          style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
+          style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
             background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:700,cursor:'pointer' }}>
           登出
         </button>
@@ -350,10 +349,10 @@ export default function Settings() {
   )
 }
 
-const card = { background:'#fff',borderRadius:18,padding:16,border:`1px solid ${BORDER}` }
+const card = { background:'#fff',borderRadius:RADIUS.xl,padding:16,border:`1px solid ${BORDER}` }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
 const inputStyle = {
-  width:'100%',padding:'10px 12px',borderRadius:12,
+  width:'100%',padding:'10px 12px',borderRadius:RADIUS.md,
   border:`1px solid ${BORDER}`,fontSize:14,boxSizing:'border-box',
   outline:'none',color:TEXT_MAIN,
 }
