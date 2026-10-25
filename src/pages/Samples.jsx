@@ -229,7 +229,7 @@ export default function Samples() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff',padding:'52px 0 0',borderBottom:`1px solid ${BORDER}` }}>
+      <div style={{ background:'var(--card)',padding:'52px 0 0',borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container samples-wide" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>試用品追蹤</h1>
@@ -242,7 +242,7 @@ export default function Samples() {
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)}
               style={{ padding:'5px 14px',borderRadius:RADIUS.pill,border:'none',whiteSpace:'nowrap',
-                background:filter===f?PRIMARY:'#F5F8FC',
+                background:filter===f?PRIMARY:'var(--sub)',
                 color:filter===f?'#fff':TEXT_SECONDARY,
                 fontSize:13,fontWeight:600,cursor:'pointer' }}>{f}</button>
           ))}
@@ -253,7 +253,7 @@ export default function Samples() {
       <div className="dash-container samples-wide">
       {/* 新增表單 */}
       {showNew && (
-        <div className="samples-new-form-wrap" style={{ background:'#fff',borderRadius:RADIUS.xl,
+        <div className="samples-new-form-wrap" style={{ background:'var(--card)',borderRadius:RADIUS.xl,
           padding:16,border:`1px solid ${BORDER}` }}>
           <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 12px' }}>新增試用品</p>
 
@@ -264,7 +264,7 @@ export default function Samples() {
               placeholder="搜尋互動名單或顧客 *"
               style={inp} />
             {contactSearch && !newForm.contact_id && !newForm.customer_id && (
-              <div style={{ position:'absolute',top:'100%',left:0,right:0,background:'#fff',
+              <div style={{ position:'absolute',top:'100%',left:0,right:0,background:'var(--card)',
                 border:`1px solid ${BORDER}`,borderRadius:RADIUS.md,zIndex:50,maxHeight:160,overflowY:'auto',
                 boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
                 {filteredContacts.map(c => (
@@ -304,7 +304,7 @@ export default function Samples() {
             </button>
             <button onClick={() => { setShowNew(false); setContactSearch('') }}
               style={{ flex:1,padding:'11px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                background:'#fff',cursor:'pointer',fontSize:14,color:TEXT_SECONDARY }}>取消</button>
+                background:'var(--card)',cursor:'pointer',fontSize:14,color:TEXT_SECONDARY }}>取消</button>
           </div>
         </div>
       )}
@@ -329,8 +329,8 @@ export default function Samples() {
             const needsAttention =
               (isActive && (!s.followup_1_done||!s.followup_2_done||!s.followup_3_done)) || isOverdueFollowup
             return (
-              <div key={s.id} style={{ background:'#fff',borderRadius:RADIUS.card,padding:14,
-                border: needsAttention ? `1.5px solid #FFDF9E` : `1px solid ${BORDER}` }}>
+              <div key={s.id} style={{ background:'var(--card)',borderRadius:RADIUS.card,padding:14,
+                border: needsAttention ? `1.5px solid var(--yellow-border)` : `1px solid ${BORDER}` }}>
 
                 {/* 頂部 */}
                 <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
@@ -375,7 +375,7 @@ export default function Samples() {
                           onClick={() => toggleFollowup(s.id, step.field, s[step.field])}
                           style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
                             fontSize:11,fontWeight:600,cursor:'pointer',
-                            background:s[step.field]?ACCENT_GREEN_SOFT:'#F5F8FC',
+                            background:s[step.field]?ACCENT_GREEN_SOFT:'var(--sub)',
                             color:s[step.field]?ACCENT_GREEN_TEXT:TEXT_SECONDARY }}>
                           {s[step.field]?'✓ ':''}{step.label}
                         </button>
@@ -388,7 +388,7 @@ export default function Samples() {
                           <button key={r} onClick={() => setResult(s.id, r)}
                             style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
                               fontSize:11,fontWeight:600,cursor:'pointer',
-                              background:s.result===r?PRIMARY:'#F5F8FC',
+                              background:s.result===r?PRIMARY:'var(--sub)',
                               color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
                         ))}
                       </div>
@@ -466,7 +466,7 @@ export default function Samples() {
                         <button key={r} onClick={() => setResult(s.id, r)}
                           style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
                             fontSize:11,fontWeight:600,cursor:'pointer',
-                            background:s.result===r?PRIMARY:'#F5F8FC',
+                            background:s.result===r?PRIMARY:'var(--sub)',
                             color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
                       ))}
                     </div>
@@ -484,7 +484,7 @@ export default function Samples() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:300 }}
           onClick={() => setEditTarget(null)}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 36px',width:'100%',maxWidth:480 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
@@ -520,7 +520,7 @@ export default function Samples() {
       {deleteTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
-          <div style={{ background:'#fff',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
+          <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -531,7 +531,7 @@ export default function Samples() {
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
                 style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeleteSample} disabled={deleting}
                 style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
@@ -546,4 +546,4 @@ export default function Samples() {
 }
 
 const inp = { width:'100%',padding:'10px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
+  fontSize:14,background:'var(--card)',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }

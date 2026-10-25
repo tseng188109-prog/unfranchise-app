@@ -14,7 +14,7 @@ import {
   DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
 
 // 戰隊專屬漸層（跟 Partners 的純藍漸層做出區隔，帶一點紫調更有前進感）
-const TEAM_GRADIENT = 'linear-gradient(135deg,#6C4CE0,#1668E3)'
+const TEAM_GRADIENT = 'linear-gradient(135deg,#6C4CE0,#2457D6)'
 const STREAK_COLOR = '#FF8C42'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
@@ -227,7 +227,7 @@ export default function Team() {
   const reachedSummit = teamPct >= 100
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80, overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh', paddingBottom:80, overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -270,7 +270,7 @@ export default function Team() {
         {!team ? (
           <>
             {!mode && (
-              <div style={{ background:'#fff', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:20 }}>
+              <div style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:20 }}>
                 <p style={{ fontSize:14,color:TEXT_SECONDARY,margin:'0 0 20px',lineHeight:1.7 }}>
                   跟夥伴組成戰隊，一起看見彼此的行動，一起往你想要的生活前進。
                 </p>
@@ -282,7 +282,7 @@ export default function Team() {
                 </button>
                 <button onClick={() => { setMode('join'); setActionMsg('') }}
                   style={{ width:'100%',padding:'14px',borderRadius:RADIUS.md,
-                    border:`1.5px solid ${PRIMARY}`,background:'#fff',color:PRIMARY,
+                    border:`1.5px solid ${PRIMARY}`,background:'var(--card)',color:PRIMARY,
                     fontSize:15,fontWeight:700,cursor:'pointer' }}>
                   輸入邀請碼加入
                 </button>
@@ -290,7 +290,7 @@ export default function Team() {
             )}
 
             {mode === 'create' && (
-              <div style={{ background:'#fff',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,padding:20 }}>
+              <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,padding:20 }}>
                 <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 14px' }}>建立新戰隊</p>
                 <label style={{ fontSize:12,color:TEXT_MUTED,display:'block',marginBottom:6 }}>戰隊名稱</label>
                 <input value={teamNameInput} onChange={e => setTeamNameInput(e.target.value)}
@@ -302,7 +302,7 @@ export default function Team() {
                 <div style={{ display:'flex',gap:10,marginTop:16 }}>
                   <button onClick={() => setMode(null)}
                     style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,
-                      border:`1px solid ${BORDER}`,background:'#fff',
+                      border:`1px solid ${BORDER}`,background:'var(--card)',
                       color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>取消</button>
                   <button onClick={handleCreate} disabled={actionLoading}
                     style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
@@ -314,7 +314,7 @@ export default function Team() {
             )}
 
             {mode === 'join' && (
-              <div style={{ background:'#fff',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,padding:20 }}>
+              <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,padding:20 }}>
                 <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 14px' }}>輸入邀請碼</p>
                 <label style={{ fontSize:12,color:TEXT_MUTED,display:'block',marginBottom:6 }}>邀請碼</label>
                 <input value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
@@ -327,7 +327,7 @@ export default function Team() {
                 <div style={{ display:'flex',gap:10,marginTop:16 }}>
                   <button onClick={() => setMode(null)}
                     style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,
-                      border:`1px solid ${BORDER}`,background:'#fff',
+                      border:`1px solid ${BORDER}`,background:'var(--card)',
                       color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>取消</button>
                   <button onClick={handleJoin} disabled={actionLoading}
                     style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
@@ -357,7 +357,7 @@ export default function Team() {
 
               <div style={{ position:'relative', height:56, margin:'0 10px 8px' }}>
                 <div style={{ position:'absolute', top:24, left:0, right:0, height:8,
-                  background:'#F0F1F4', borderRadius:4 }} />
+                  background:'var(--border)', borderRadius:4 }} />
                 <div style={{ position:'absolute', top:24, left:0, width:`${teamPct}%`, height:8,
                   background:ACCENT_YELLOW, borderRadius:4, transition:'width 0.5s ease' }} />
                 {myContribPct > 0 && (
@@ -367,21 +367,21 @@ export default function Team() {
                 )}
 
                 <div style={{ position:'absolute', top:8, left:'50%', transform:'translateX(-50%)',
-                  width:28, height:28, borderRadius:'50%', background:'#fff', border:'3px solid #FFD166',
+                  width:28, height:28, borderRadius:'50%', background:'var(--card)', border:'3px solid #FFD166',
                   display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <IconFlag2 size={13} stroke={1.9} color={ACCENT_YELLOW_TEXT} />
                 </div>
 
                 <div style={{ position:'absolute', top:0, left:`${teamPct}%`, transform:'translateX(-50%)',
-                  width:34, height:34, borderRadius:'50%', background:'#fff', border:'3px solid #F97316',
+                  width:34, height:34, borderRadius:'50%', background:'var(--card)', border:'3px solid #F97316',
                   display:'flex', alignItems:'center', justifyContent:'center', transition:'left 0.5s ease' }}>
                   <IconUsersGroup size={15} stroke={1.9} color="#F97316" />
                 </div>
 
                 <div style={{ position:'absolute', top:6, left:'100%', transform:'translateX(-100%)',
                   width:36, height:36, borderRadius:'50%',
-                  background: reachedSummit ? ACCENT_YELLOW_SOFT : '#F5F8FC',
-                  border:`3px solid ${reachedSummit ? ACCENT_YELLOW : '#D8DCE8'}`,
+                  background: reachedSummit ? ACCENT_YELLOW_SOFT : 'var(--sub)',
+                  border:`3px solid ${reachedSummit ? ACCENT_YELLOW : 'var(--border2)'}`,
                   display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <IconMountain size={17} stroke={1.9} color={reachedSummit ? ACCENT_YELLOW_TEXT : TEXT_MUTED} />
                 </div>
@@ -427,7 +427,7 @@ export default function Team() {
                   )}
                   <button onClick={copyInviteCode}
                     style={{ padding:'5px 12px',borderRadius:RADIUS.xs,border:`1px solid ${PRIMARY}`,
-                      background: copied?PRIMARY:'#fff',
+                      background: copied?PRIMARY:'var(--card)',
                       color: copied?'#fff':PRIMARY,
                       fontSize:12,fontWeight:700,cursor:'pointer' }}>
                     {copied ? '已複製' : '複製'}
@@ -445,7 +445,7 @@ export default function Team() {
                 const cardBorder = isSelf ? `1.5px solid ${PRIMARY}` : `1px solid ${BORDER}`
                 return (
                   <div key={m.user_id}
-                    style={{ background:'#fff', border:cardBorder, borderRadius:RADIUS.lg, overflow:'hidden' }}>
+                    style={{ background:'var(--card)', border:cardBorder, borderRadius:RADIUS.lg, overflow:'hidden' }}>
 
                     {/* 成員主列 */}
                     <div style={{ padding:'12px 14px',cursor:'pointer' }}
@@ -503,7 +503,7 @@ export default function Team() {
                               </span>
                               <div style={{
                                 width:10,height:10,borderRadius:'50%',
-                                background: isFuture ? BORDER : done ? ACCENT_GREEN : '#E4E8EF',
+                                background: isFuture ? BORDER : done ? ACCENT_GREEN : 'var(--border)',
                                 border: isT && !done ? `1.5px solid ${PRIMARY}` : 'none',
                                 boxSizing:'border-box',
                                 cursor: isFuture ? 'default' : 'pointer',
@@ -542,7 +542,7 @@ export default function Team() {
                         </p>
 
                         {expandedDay?.memberId === m.user_id && expandedDay?.date && (
-                          <div style={{ background:'#fff',border:`1px solid ${BORDER}`,borderRadius:RADIUS.sm,padding:'10px 12px' }}>
+                          <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.sm,padding:'10px 12px' }}>
                             <p style={{ fontSize:12,fontWeight:700,color:PRIMARY,margin:'0 0 8px' }}>
                               {DAYS_ZH[new Date(expandedDay.date+'T00:00:00').getDay()]}　{expandedDay.date.slice(5).replace('-','/')}
                             </p>
@@ -560,7 +560,7 @@ export default function Team() {
                                         borderBottom:`1px solid ${BORDER}` }}>
                                         {done
                                           ? <IconCheck size={13} stroke={2.4} color={ACCENT_GREEN_TEXT} />
-                                          : <span style={{ width:13,height:13,borderRadius:'50%',border:'1.5px solid #D8DCE8',display:'inline-block' }} />}
+                                          : <span style={{ width:13,height:13,borderRadius:'50%',border:'1.5px solid var(--border2)',display:'inline-block' }} />}
                                         <span style={{ fontSize:12,
                                           color: done ? TEXT_MAIN : TEXT_MUTED }}>
                                           {t.label}
@@ -604,7 +604,7 @@ export default function Team() {
             <div style={{ display:'flex',gap:10,marginTop:14 }}>
               <button onClick={() => setShowLeaveConfirm(true)}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,
-                  border:`1px solid ${BORDER}`,background:'#fff',
+                  border:`1px solid ${BORDER}`,background:'var(--card)',
                   color:TEXT_SECONDARY,fontSize:13,fontWeight:600,cursor:'pointer' }}>
                 退出戰隊
               </button>
@@ -635,7 +635,7 @@ export default function Team() {
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setShowLeaveConfirm(false)}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,
-                  border:`1px solid ${BORDER}`,background:'#fff',
+                  border:`1px solid ${BORDER}`,background:'var(--card)',
                   fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleLeave} disabled={actionLoading}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
@@ -660,7 +660,7 @@ export default function Team() {
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setShowDisbandConfirm(false)}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,
-                  border:`1px solid ${BORDER}`,background:'#fff',
+                  border:`1px solid ${BORDER}`,background:'var(--card)',
                   fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDisband} disabled={actionLoading}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
@@ -682,7 +682,7 @@ export default function Team() {
             <div style={{ display:'flex',gap:10,marginTop:20 }}>
               <button onClick={() => setKickTarget(null)}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,
-                  border:`1px solid ${BORDER}`,background:'#fff',
+                  border:`1px solid ${BORDER}`,background:'var(--card)',
                   fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={() => handleKick(kickTarget.user_id)} disabled={actionLoading}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
@@ -702,5 +702,5 @@ const overlayStyle = {
   display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20,
 }
 const modalStyle = {
-  background:'#fff',borderRadius:RADIUS.card,padding:24,width:'100%',maxWidth:340,
+  background:'var(--card)',borderRadius:RADIUS.card,padding:24,width:'100%',maxWidth:340,
 }

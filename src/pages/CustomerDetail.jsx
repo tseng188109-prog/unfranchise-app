@@ -4,7 +4,7 @@ import CustomerPanel from './CustomerPanel'
 export default function CustomerDetail() {
   const { id } = useParams()
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:40 }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh', paddingBottom:40 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {

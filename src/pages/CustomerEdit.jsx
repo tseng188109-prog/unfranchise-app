@@ -24,14 +24,14 @@ function BirthdayPicker({ value, onChange }) {
     <div style={{ display:'flex', gap:8 }}>
       <select value={mm} onChange={e => handleChange(e.target.value, dd)}
         style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-          fontSize:14,background:'#fff',outline:'none',
+          fontSize:14,background:'var(--card)',outline:'none',
           color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>月份</option>
         {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
       </select>
       <select value={dd} onChange={e => handleChange(mm, e.target.value)}
         style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-          fontSize:14,background:'#fff',outline:'none',
+          fontSize:14,background:'var(--card)',outline:'none',
           color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>日期</option>
         {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
@@ -156,7 +156,7 @@ export default function CustomerEdit() {
   )
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -164,7 +164,7 @@ export default function CustomerEdit() {
         }
       `}</style>
 
-      <div style={{ background:'#fff', padding:'52px 0 16px',
+      <div style={{ background:'var(--card)', padding:'52px 0 16px',
         borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center',
         justifyContent:'space-between' }}>
@@ -213,7 +213,7 @@ export default function CustomerEdit() {
               placeholder="搜尋互動名單裡的聯絡人姓名..." style={inp} />
           )}
           {contactSearch && !linkedContactId && (
-            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff',
+            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--card)',
               border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, zIndex:50, maxHeight:160, overflowY:'auto',
               boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
               {contacts.filter(c => c.name.includes(contactSearch)).map(c => (
@@ -314,7 +314,7 @@ export default function CustomerEdit() {
       {showArchiveConfirm && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:20 }}>
-          <div style={{ background:'#fff',borderRadius:RADIUS.xl,padding:24,width:'100%',maxWidth:340 }}>
+          <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:'100%',maxWidth:340 }}>
             <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>確定要封存這位顧客嗎？</p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>
               封存後可以到顧客檔案的「封存名單」找到並復原，或永久刪除。
@@ -322,7 +322,7 @@ export default function CustomerEdit() {
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setShowArchiveConfirm(false)}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive} disabled={archiving}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
@@ -339,5 +339,5 @@ export default function CustomerEdit() {
 const fw = { marginBottom:16 }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:4,marginBottom:6 }
 const inp = { width:'100%',padding:'11px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
+  fontSize:14,background:'var(--card)',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
 const err = { fontSize:12,color:DANGER,margin:'4px 0 0' }

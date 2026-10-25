@@ -1,34 +1,35 @@
+// 顏色都是 CSS 變數（真正的數值在 theme.jsx，白天／夜晚各一套）。
 // 設計系統共用 tokens：顏色 + 圓角 + 共用小工具函式
 // 原本 Contacts/Customers/Dashboard/ContactPanel/ContactEdit/ContactNew 六個檔案
 // 各自重複宣告同一批顏色常數，蛋型顏色/頭像顏色也各自重複定義了 3-4 次。
 // 統一從這裡 import，之後要調色只改這一個檔案。
 
 // ── 顏色 ─────────────────────────────────────
-export const PRIMARY = '#1668E3'
-export const PRIMARY_SOFT = '#EEF3FB'
-export const TEXT_MAIN = '#132A4D'
-export const TEXT_MUTED = '#9FAEC2'
-export const TEXT_SECONDARY = '#7C8CA3'
+export const PRIMARY = 'var(--primary)'
+export const PRIMARY_SOFT = 'var(--primary-soft)'
+export const TEXT_MAIN = 'var(--text)'
+export const TEXT_MUTED = 'var(--muted)'
+export const TEXT_SECONDARY = 'var(--text2)'
 export const ACCENT_GREEN = '#3ECF8E'
-export const ACCENT_GREEN_SOFT = '#E8F9F1'
-export const ACCENT_GREEN_TEXT = '#2C9C6A'
+export const ACCENT_GREEN_SOFT = 'var(--green-soft)'
+export const ACCENT_GREEN_TEXT = 'var(--green-text)'
 export const ACCENT_YELLOW = '#FFD166'
-export const ACCENT_YELLOW_SOFT = '#FFF7E6'
-export const ACCENT_YELLOW_TEXT = '#9A6A16'
+export const ACCENT_YELLOW_SOFT = 'var(--yellow-soft)'
+export const ACCENT_YELLOW_TEXT = 'var(--yellow-text)'
 export const ACCENT_PINK = '#F45DA8'
-export const ACCENT_PINK_SOFT = '#FDE8F3'
-export const ACCENT_PINK_TEXT = '#D23E8C'
+export const ACCENT_PINK_SOFT = 'var(--pink-soft)'
+export const ACCENT_PINK_TEXT = 'var(--pink-text)'
 export const DANGER = '#E0454A'
-export const DANGER_SOFT = '#FDE2E2'
-export const BORDER = '#F0F1F4'
-export const SUBCARD_BG = '#F5F8FC'
-export const CARD_BG = '#fff'
+export const DANGER_SOFT = 'var(--danger-soft)'
+export const BORDER = 'var(--border)'
+export const SUBCARD_BG = 'var(--sub)'
+export const CARD_BG = 'var(--card)'
 // 頁面底色：淡灰藍，白色卡片放上去才有層次（首頁、列表頁、詳情頁統一）
-export const PAGE_BG = '#F6F8FC'
+export const PAGE_BG = 'var(--page)'
 // 橘色：「1 個會議」專用，其他地方不用
 export const ORANGE = '#F97316'
-export const ORANGE_SOFT = '#FFEDDD'
-export const ORANGE_TEXT = '#C2570C'
+export const ORANGE_SOFT = 'var(--orange-soft)'
+export const ORANGE_TEXT = 'var(--orange-text)'
 
 // ── 圓角 ─────────────────────────────────────
 // 盤點時發現的實際用法：
@@ -55,7 +56,7 @@ export function getEggColor(t) {
   return t === '茶葉蛋' ? '#F97316' : t === '荷包蛋' ? '#3B82F6' : t === '生雞蛋' ? '#22C55E' : '#9CA3AF'
 }
 export function getEggBg(t) {
-  return t === '茶葉蛋' ? '#FFF7ED' : t === '荷包蛋' ? '#EFF6FF' : t === '生雞蛋' ? '#F0FDF4' : '#F9FAFB'
+  return t === '茶葉蛋' ? 'var(--orange-soft)' : t === '荷包蛋' ? 'var(--primary-soft)' : t === '生雞蛋' ? 'var(--green-soft)' : 'var(--sub)'
 }
 
 // ── 頭像底色（原本在 Customers.jsx / Dashboard.jsx / ContactPanel.jsx / Contacts.jsx 四處各自重複定義）──

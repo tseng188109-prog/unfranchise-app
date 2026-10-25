@@ -55,7 +55,7 @@ export const MONTH_ITEMS = [
 
 // 每週行動計數器的顏色（月曆/標籤用）
 export const COUNTER_COLORS = {
-  bv_share:      '#1668E3', ibv_share: '#2C9C6A',
-  meetup:        '#D23E8C', show_business: '#9A6A16',
+  bv_share:      'var(--primary)', ibv_share: 'var(--green-text)',
+  meetup:        'var(--pink-text)', show_business: 'var(--yellow-text)',
   sell_ticket:   '#7C5CD6', stranger: '#17A2A2',
 }

@@ -16,7 +16,7 @@ const EMPTY = () => ({ product_name: '', portions: '', share_date: today(), cost
 
 const inp = {
   width: '100%', padding: '8px 10px', borderRadius: RADIUS.xs, border: `1px solid ${BORDER}`,
-  fontSize: 13, background: '#fff', boxSizing: 'border-box', outline: 'none', color: TEXT_MAIN,
+  fontSize: 13, background: 'var(--card)', boxSizing: 'border-box', outline: 'none', color: TEXT_MAIN,
 }
 
 // 試用品區塊：互動名單頁、顧客頁共用同一份，兩邊看到的永遠一樣。
@@ -201,7 +201,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                         <button key={step.field} onClick={() => toggleStep(s.id, step.field, s[step.field])}
                           style={{ flex: 1, padding: '5px 4px', borderRadius: RADIUS.xs, border: 'none',
                             fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                            background: s[step.field] ? ACCENT_GREEN : '#fff',
+                            background: s[step.field] ? ACCENT_GREEN : 'var(--card)',
                             color: s[step.field] ? '#fff' : TEXT_SECONDARY }}>
                           {s[step.field] ? '✓ ' : ''}{step.label}
                         </button>
@@ -212,7 +212,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                         {SAMPLE_RESULTS.map(r => (
                           <button key={r} onClick={() => setResult(s.id, r)}
                             style={{ flex: 1, padding: '5px 4px', borderRadius: RADIUS.xs, border: 'none',
-                              fontSize: 10, fontWeight: 600, cursor: 'pointer', background: '#fff', color: TEXT_SECONDARY }}>{r}</button>
+                              fontSize: 10, fontWeight: 600, cursor: 'pointer', background: 'var(--card)', color: TEXT_SECONDARY }}>{r}</button>
                         ))}
                       </div>
                     )}
@@ -233,7 +233,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                       <button key={r} onClick={() => setResult(s.id, r)}
                         style={{ flex: 1, padding: '5px 4px', borderRadius: RADIUS.xs, border: 'none',
                           fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                          background: s.result === r ? PRIMARY : '#fff',
+                          background: s.result === r ? PRIMARY : 'var(--card)',
                           color: s.result === r ? '#fff' : TEXT_SECONDARY }}>{r}</button>
                     ))}
                   </div>
@@ -248,7 +248,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,42,77,0.4)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 300 }}
           onClick={() => setEditTarget(null)}>
-          <div style={{ background: '#fff', borderRadius: '22px 22px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: 480 }}
+          <div style={{ background: 'var(--card)', borderRadius: '22px 22px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: 480 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN, margin: 0 }}>編輯試用品紀錄</h2>
@@ -281,7 +281,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
       {deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,42,77,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
-          <div style={{ background: '#fff', borderRadius: RADIUS.xl, padding: 24, width: 280, textAlign: 'center' }}>
+          <div style={{ background: 'var(--card)', borderRadius: RADIUS.xl, padding: 24, width: 280, textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -290,7 +290,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setDeleteTarget(null)}
                 style={{ flex: 1, padding: '10px 0', borderRadius: RADIUS.md, border: `1px solid ${BORDER}`,
-                  background: '#fff', fontSize: 14, cursor: 'pointer', color: TEXT_SECONDARY }}>取消</button>
+                  background: 'var(--card)', fontSize: 14, cursor: 'pointer', color: TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete} disabled={deleting}
                 style={{ flex: 1, padding: '10px 0', borderRadius: RADIUS.md, border: 'none',
                   background: DANGER, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate } from 'react-router-dom'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
@@ -19,6 +20,7 @@ export default function Settings() {
   const [referrerPending, setReferrerPending] = useState('')
   const [editingReferrer, setEditingReferrer] = useState(false)
   const [newReferrerEmail, setNewReferrerEmail] = useState('')
+  const [themeMode, setThemeModeState] = useState(getThemeMode())
   const [referrerMsg, setReferrerMsg] = useState('')
 
   // 我為什麼留在這裡（獨立欄位 users.why_here，跟 Daily.jsx 的目標宣言 goal_declaration 分開）
@@ -137,7 +139,7 @@ export default function Settings() {
   ]
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -145,7 +147,7 @@ export default function Settings() {
         }
       `}</style>
 
-      <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',
+      <div style={{ background:'var(--hero)',
         padding:'52px 0 24px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
           <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0 }}>設定</h1>
@@ -184,8 +186,8 @@ export default function Settings() {
               <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
                 {WHY_STARTERS.map(s => (
                   <button key={s} onClick={() => fillWhyStarter(s)}
-                    style={{ padding:'5px 12px', borderRadius:RADIUS.pill, border:`1px solid #C7D6EF`,
-                      background:'#fff', color:PRIMARY, fontSize:11, cursor:'pointer' }}>
+                    style={{ padding:'5px 12px', borderRadius:RADIUS.pill, border:`1px solid var(--border2)`,
+                      background:'var(--card)', color:PRIMARY, fontSize:11, cursor:'pointer' }}>
                     {s}＿
                   </button>
                 ))}
@@ -195,13 +197,13 @@ export default function Settings() {
                 placeholder="用一句話，是什麼讓你留在這裡？"
                 style={{ width:'100%', padding:'10px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                   fontSize:14, boxSizing:'border-box', outline:'none', color:TEXT_MAIN,
-                  background:'#fff', marginBottom:6 }} />
+                  background:'var(--card)', marginBottom:6 }} />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ fontSize:11, color:TEXT_MUTED }}>還可以打 {WHY_HERE_MAX - whyDraft.length} 字</span>
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={() => setEditingWhy(false)}
                     style={{ padding:'7px 14px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                      background:'#fff', color:TEXT_SECONDARY, fontSize:12, cursor:'pointer' }}>取消</button>
+                      background:'var(--card)', color:TEXT_SECONDARY, fontSize:12, cursor:'pointer' }}>取消</button>
                   <button onClick={saveWhy} disabled={whySaving || !whyDraft.trim()}
                     style={{ padding:'7px 16px', borderRadius:RADIUS.sm, border:'none',
                       background: whySaving ? '#9BBBF2' : PRIMARY, color:'#fff',
@@ -240,6 +242,23 @@ export default function Settings() {
                 fontWeight:700,fontSize:13,cursor:'pointer' }}>
               {saved && <IconCheck size={14} stroke={2.4} />} {saved?'已存':'儲存'}
             </button>
+          </div>
+        </div>
+
+        {/* 外觀：跟隨手機／永遠白天／永遠夜晚 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 10px' }}>外觀</p>
+          <div style={{ display:'flex',gap:4,padding:4,background:'var(--sub2)',borderRadius:RADIUS.md }}>
+            {[['system','跟隨手機'],['light','白天'],['dark','夜晚']].map(([k,label]) => (
+              <button key={k} onClick={() => { setThemeMode(k); setThemeModeState(k) }}
+                style={{ flex:1,padding:'8px 0',border:'none',borderRadius:RADIUS.sm,cursor:'pointer',
+                  fontSize:13,fontWeight:themeMode===k?600:500,
+                  background:themeMode===k?'var(--card)':'transparent',
+                  color:themeMode===k?TEXT_MAIN:TEXT_SECONDARY,
+                  boxShadow:themeMode===k?'0 1px 2px rgba(0,0,0,0.12)':'none' }}>
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -349,7 +368,7 @@ export default function Settings() {
   )
 }
 
-const card = { background:'#fff',borderRadius:RADIUS.xl,padding:16,border:`1px solid ${BORDER}` }
+const card = { background:'var(--card)',borderRadius:RADIUS.xl,padding:16,border:`1px solid ${BORDER}` }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
 const inputStyle = {
   width:'100%',padding:'10px 12px',borderRadius:RADIUS.md,

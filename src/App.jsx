@@ -78,7 +78,7 @@ function App() {
 
   if (loading) return (
     <div style={{
-      minHeight: '100vh', background: '#0f172a',
+      minHeight: '100vh', background: 'var(--text)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       color: '#ffffff', fontSize: '16px'
     }}>載入中...</div>

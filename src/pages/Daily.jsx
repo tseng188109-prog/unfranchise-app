@@ -10,19 +10,19 @@ import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS, WEEKLY_TASKS, WEEKLY_COUNTERS, MONTH_ITEMS, COUNTER_COLORS } from './taskDefinitions'
 
 // 設計系統色碼
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
+const PRIMARY = 'var(--primary)'
+const PRIMARY_SOFT = 'var(--primary-soft)'
+const TEXT_MAIN = 'var(--text)'
+const TEXT_MUTED = 'var(--muted)'
+const TEXT_SECONDARY = 'var(--text2)'
 const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_YELLOW_TEXT = 'var(--yellow-text)'
 const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_GREEN_SOFT = 'var(--green-soft)'
+const ACCENT_GREEN_TEXT = 'var(--green-text)'
 const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
+const BORDER = 'var(--border)'
+const SUBCARD_BG = 'var(--sub)'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
 function toDateStr(d) {
@@ -365,7 +365,7 @@ export default function Daily() {
   if (loading) return <LoadingSpinner />
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh',paddingBottom:80 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -387,7 +387,7 @@ export default function Daily() {
           </div>
           <button onClick={() => changeDate(1)}
             style={{ background:'none',
-              border:'none',color: isToday?'#C7CEDD':TEXT_SECONDARY,
+              border:'none',color: isToday?'var(--border2)':TEXT_SECONDARY,
               width:28,height:28,fontSize:18,
               cursor: isToday?'default':'pointer',
               display:'flex',alignItems:'center',justifyContent:'center' }}>›</button>
@@ -416,7 +416,7 @@ export default function Daily() {
             {weekStatus.map((w,i) => {
               const isSelected = w.date === viewDate
               const isT = w.date === today()
-              const dc = w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
+              const dc = w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'var(--border)'
               return (
                 <div key={i} onClick={() => { if (w.date <= today()) setViewDate(w.date) }}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
@@ -442,12 +442,12 @@ export default function Daily() {
                 borderBottom:`1px solid ${BORDER}` }}>
                 <button onClick={() => toggleCheckin(task.key)}
                   style={{ width:20,height:20,borderRadius:7,flexShrink:0,
-                    border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
+                    border:done?'none':'2px solid var(--border2)',background:done?ACCENT_GREEN:'var(--card)',
                     display:'flex',alignItems:'center',justifyContent:'center',
                     transition:'all 0.15s',cursor:'pointer' }}>
                   {done&&<IconCheck size={12} stroke={2.5} color="#fff" />}
                 </button>
-                <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
+                <TaskIcon size={16} stroke={1.9} color={done?'var(--border2)':PRIMARY} />
                 <button onClick={() => hasAction && handleTaskAction(task)}
                   style={{ flex:1,background:'none',border:'none',textAlign:'left',
                     cursor: hasAction?'pointer':'default',padding:0,
@@ -498,7 +498,7 @@ export default function Daily() {
                     toggleWeekTask(task.key, targetDate)
                   }}
                     style={{ width:20,height:20,borderRadius:6,flexShrink:0,
-                      border:anyDone?'none':'2px solid #D8DCE8',background:anyDone?ACCENT_GREEN:'#fff',
+                      border:anyDone?'none':'2px solid var(--border2)',background:anyDone?ACCENT_GREEN:'var(--card)',
                       display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer' }}>
                     {anyDone&&<IconCheck size={11} stroke={2.5} color="#fff" />}
                   </button>
@@ -552,15 +552,15 @@ export default function Daily() {
               const hasDone = dayLogs.some(l => l.is_done)
               const hasPlan = dayLogs.some(l => !l.is_done)
               const isSelected = selectedWeekDay === d
-              let bg = '#fff', border = BORDER
-              if (hasDone) { bg = ACCENT_GREEN_SOFT; border = '#B7EBD3' }
-              else if (hasPlan) { bg = '#FFF3D6'; border = '#FFDF9E' }
+              let bg = 'var(--card)', border = BORDER
+              if (hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
+              else if (hasPlan) { bg = 'var(--yellow-soft)'; border = 'var(--yellow-border)' }
               if (isSelected) border = PRIMARY
               return (
                 <div key={d} onClick={() => setSelectedWeekDay(isSelected ? null : d)}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',
                     gap:2,cursor:'pointer' }}>
-                  <span style={{ fontSize:10,color: isT?PRIMARY:isFut?'#C7CEDD':TEXT_MUTED,
+                  <span style={{ fontSize:10,color: isT?PRIMARY:isFut?'var(--border2)':TEXT_MUTED,
                     fontWeight: isT?700:600 }}>
                     {DAYS_ZH[new Date(d+'T00:00:00').getDay()]}<br/>{formatShortDate(d)}
                   </span>
@@ -574,8 +574,8 @@ export default function Daily() {
                       const color = COUNTER_COLORS[log.counter_key] || TEXT_MUTED
                       return (
                         <div key={log.id} style={{ fontSize:9,padding:'1px 3px',borderRadius:4,
-                          background: log.is_done ? `${color}22` : '#FFDF9E66',
-                          color: log.is_done ? color : '#9A6A16',
+                          background: log.is_done ? `color-mix(in srgb, ${color} 14%, transparent)` : 'var(--yellow-soft)',
+                          color: log.is_done ? color : 'var(--yellow-text)',
                           fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
                           {c?.label || ''}
                         </div>
@@ -615,7 +615,7 @@ export default function Daily() {
                     : (log.contacts?.name || '—')
                   return (
                     <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
-                      background: log.is_done?ACCENT_GREEN_SOFT:'#FFF9EC',
+                      background: log.is_done?ACCENT_GREEN_SOFT:'var(--yellow-soft)',
                       borderRadius:10,padding:'8px 10px',marginBottom:6 }}>
                       {log.is_done
                         ? <IconCheck size={14} stroke={2.2} color={ACCENT_GREEN_TEXT} />
@@ -623,7 +623,7 @@ export default function Daily() {
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
                           <span style={{ fontSize:10,padding:'1px 6px',borderRadius:99,
-                            background:`${color}22`,color,fontWeight:700 }}>{c?.label}</span>
+                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:700 }}>{c?.label}</span>
                           <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{displayName}</span>
                         </div>
                         {c?.mode === 'product' && log.product_name && (
@@ -689,8 +689,8 @@ export default function Daily() {
               const isT = day.dateStr === today()
               const isSelected = selectedMonthDay === day.dateStr
               let bg = SUBCARD_BG, border = BORDER
-              if (day.hasDone) { bg = ACCENT_GREEN_SOFT; border = '#B7EBD3' }
-              else if (day.hasPlan) { bg = '#FFF3D6'; border = '#FFDF9E' }
+              if (day.hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
+              else if (day.hasPlan) { bg = 'var(--yellow-soft)'; border = 'var(--yellow-border)' }
               if (isSelected) border = PRIMARY
               return (
                 <div key={day.dateStr}
@@ -739,7 +739,7 @@ export default function Daily() {
                   const color = log.counter_key === 'new_product' ? PRIMARY : ACCENT_GREEN_TEXT
                   return (
                     <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
-                      background: log.is_done?ACCENT_GREEN_SOFT:'#FFF9EC',
+                      background: log.is_done?ACCENT_GREEN_SOFT:'var(--yellow-soft)',
                       borderRadius:10,padding:'8px 10px',marginBottom:6 }}>
                       {log.is_done
                         ? <IconCheck size={14} stroke={2.2} color={ACCENT_GREEN_TEXT} />
@@ -747,7 +747,7 @@ export default function Daily() {
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
                           <span style={{ fontSize:10,padding:'1px 6px',borderRadius:99,
-                            background:`${color}22`,color,fontWeight:700 }}>{item?.label}</span>
+                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:700 }}>{item?.label}</span>
                           <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>
                             {log.product_name || '—'}
                           </span>
@@ -779,7 +779,7 @@ export default function Daily() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setGoalModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
@@ -811,7 +811,7 @@ export default function Daily() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
                 <IconMessageCircle size={17} stroke={1.9} color={PRIMARY} /> 前往回應
@@ -839,7 +839,7 @@ export default function Daily() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setLogModal(null) }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
@@ -907,7 +907,7 @@ export default function Daily() {
                     {contactSearch.map(c => (
                       <button key={c.id} onClick={() => { setLogContact(c.name); setLogContactId(c.id); setContactSearch([]) }}
                         style={{ display:'block',width:'100%',textAlign:'left',padding:'10px 12px',
-                          background: logContactId===c.id?PRIMARY_SOFT:'#fff',border:'none',
+                          background: logContactId===c.id?PRIMARY_SOFT:'var(--card)',border:'none',
                           borderBottom:`1px solid ${BORDER}`,fontSize:14,cursor:'pointer',color:TEXT_MAIN }}>
                         {c.name}
                       </button>
@@ -954,7 +954,7 @@ export default function Daily() {
 
             <button onClick={confirmLog} disabled={logSaving || !canConfirm()}
               style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
-                background: canConfirm()?PRIMARY:'#D8DCE8',
+                background: canConfirm()?PRIMARY:'var(--border2)',
                 color:'#fff',fontSize:15,fontWeight:700,
                 cursor: canConfirm()?'pointer':'not-allowed' }}>
               {logSaving ? '儲存中…' : logModal.editId ? '儲存修改' : logDate > today() ? '預排' : '確認儲存'}
@@ -967,7 +967,7 @@ export default function Daily() {
   )
 }
 
-const card = { background:'#fff',borderRadius:18,padding:'16px',border:`1px solid ${BORDER}` }
+const card = { background:'var(--card)',borderRadius:18,padding:'16px',border:`1px solid ${BORDER}` }
 const sectionTitle = { fontSize:14,fontWeight:700,color:TEXT_MAIN }
 const navBtn = { background:'none',border:`1px solid ${BORDER}`,borderRadius:10,
   width:28,height:28,cursor:'pointer',fontSize:14,color:TEXT_SECONDARY,

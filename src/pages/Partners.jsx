@@ -7,20 +7,20 @@ import {
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS } from './taskDefinitions'
 
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
+const PRIMARY = 'var(--primary)'
+const PRIMARY_SOFT = 'var(--primary-soft)'
+const TEXT_MAIN = 'var(--text)'
+const TEXT_MUTED = 'var(--muted)'
+const TEXT_SECONDARY = 'var(--text2)'
 const ACCENT_YELLOW = '#FFD166'
-const ACCENT_YELLOW_SOFT = '#FFF7E6'
-const ACCENT_YELLOW_TEXT = '#9A6A16'
+const ACCENT_YELLOW_SOFT = 'var(--yellow-soft)'
+const ACCENT_YELLOW_TEXT = 'var(--yellow-text)'
 const ACCENT_GREEN = '#3ECF8E'
-const ACCENT_GREEN_SOFT = '#E8F9F1'
-const ACCENT_GREEN_TEXT = '#2C9C6A'
+const ACCENT_GREEN_SOFT = 'var(--green-soft)'
+const ACCENT_GREEN_TEXT = 'var(--green-text)'
 const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
-const SUBCARD_BG = '#F5F8FC'
+const BORDER = 'var(--border)'
+const SUBCARD_BG = 'var(--sub)'
 
 function avatarBg(name) {
   const colors = ['#F97316','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6']
@@ -314,7 +314,7 @@ export default function Partners() {
             { label:'IBV', value:panelDetail.ibv, color:PRIMARY },
             { label:'互動名單', value:panelDetail.contactCount, color:ACCENT_GREEN_TEXT, unit:'人' },
           ].map(m => (
-            <div key={m.label} style={{ flex:1, background:'#fff',
+            <div key={m.label} style={{ flex:1, background:'var(--card)',
               borderRadius:12, padding:'10px 8px', textAlign:'center',
               border:`1px solid ${BORDER}` }}>
               <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 4px', fontWeight:600 }}>
@@ -412,7 +412,7 @@ export default function Partners() {
   )
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh', paddingBottom:80 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -447,7 +447,7 @@ export default function Partners() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',
+      <div style={{ background:'var(--hero)',
         padding:'52px 0 20px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
           <h1 style={{ fontSize:20, fontWeight:700, color:'#fff', margin:0 }}>我的夥伴</h1>
@@ -459,7 +459,7 @@ export default function Partners() {
         <div className="partners-list-col dash-container" style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
 
           {/* 公告板 */}
-          <div style={{ background:'#fff', borderRadius:18, padding:14, border:`1px solid ${BORDER}` }}>
+          <div style={{ background:'var(--card)', borderRadius:18, padding:14, border:`1px solid ${BORDER}` }}>
             <div style={{ display:'flex', alignItems:'center',
               justifyContent:'space-between', marginBottom:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
@@ -555,7 +555,7 @@ export default function Partners() {
                 const isSelected = selectedPartner?.id === p.id
                 return (
                 <div key={p.id} onClick={() => openPanel(p)}
-                  style={{ background: isSelected ? PRIMARY_SOFT : '#fff', borderRadius:18, padding:14,
+                  style={{ background: isSelected ? PRIMARY_SOFT : 'var(--card)', borderRadius:18, padding:14,
                     border: isSelected ? `1.5px solid ${PRIMARY}` : `1px solid ${BORDER}`, cursor:'pointer' }}>
 
                   {/* 名字列 */}
@@ -635,7 +635,7 @@ export default function Partners() {
                   {pending.map(p => (
                     <div key={p.id} style={{ display:'flex', alignItems:'center',
                       justifyContent:'space-between', padding:'8px 0',
-                      borderBottom:'1px solid #FFDF9E' }}>
+                      borderBottom:'1px solid var(--yellow-border)' }}>
                       <div>
                         <p style={{ fontSize:14, color:TEXT_MAIN, margin:0, fontWeight:600 }}>
                           {p.name || '未命名'}
@@ -702,7 +702,7 @@ export default function Partners() {
           <div onClick={closePanel}
             style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)', zIndex:100 }} />
           <div style={{ position:'fixed', top:0, right:0, bottom:0, width:'90%',
-            maxWidth:400, background:'#fff', zIndex:101,
+            maxWidth:400, background:'var(--card)', zIndex:101,
             display:'flex', flexDirection:'column',
             boxShadow:'-4px 0 20px rgba(19,42,77,0.15)',
             animation:'slideIn 0.25s ease' }}>
@@ -747,7 +747,7 @@ export default function Partners() {
         <div style={{ position:'fixed', inset:0, zIndex:200,
           display:'flex', alignItems:'flex-end', justifyContent:'center' }}
           onClick={e => { if (e.target === e.currentTarget) setDayDetail(null) }}>
-          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0',
+          <div style={{ background:'var(--card)', borderRadius:'20px 20px 0 0',
             padding:20, width:'100%', maxWidth:400,
             boxShadow:'0 -4px 20px rgba(19,42,77,0.15)',
             animation:'slideUp 0.2s ease' }}>

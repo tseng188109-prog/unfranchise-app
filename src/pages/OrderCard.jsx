@@ -28,7 +28,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
   }
 
   return (
-    <div style={{ border: `1px solid ${BORDER}`, borderRadius: RADIUS.md, padding: 12, marginBottom: 10, background: '#fff' }}>
+    <div style={{ border: `1px solid ${BORDER}`, borderRadius: RADIUS.md, padding: 12, marginBottom: 10, background: 'var(--card)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{shortDate(group.date)} 訂單</span>
         <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>

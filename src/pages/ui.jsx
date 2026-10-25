@@ -8,15 +8,16 @@ import {
 } from './designTokens'
 
 export const cardStyle = {
-  background: '#fff',
+  background: 'var(--card)',
   border: `1px solid ${BORDER}`,
   borderRadius: RADIUS.card,
+  boxShadow: 'var(--shadow)',
 }
 
 export function SectionHeader({ title, hint, hintColor, onHint }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, margin: '16px 4px 8px' }}>
-      <span style={{ fontSize: 15, fontWeight: 700, color: TEXT_MAIN }}>{title}</span>
+      <span style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>{title}</span>
       {hint && (
         <span onClick={onHint}
           style={{ fontSize: 12, color: hintColor || TEXT_SECONDARY, cursor: onHint ? 'pointer' : 'default', textAlign: 'right' }}>
@@ -32,7 +33,7 @@ export function Tile({ children, bg, color, size = 38 }) {
   return (
     <div style={{ width: size, height: size, borderRadius: RADIUS.md, background: bg, color,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
+      fontSize: 18, fontWeight: 600, flexShrink: 0 }}>
       {children}
     </div>
   )
@@ -42,7 +43,7 @@ export function Tile({ children, bg, color, size = 38 }) {
 export function SoftBtn({ children, onClick, bg, color, solid = false, style }) {
   return (
     <button onClick={onClick}
-      style={{ border: 'none', borderRadius: RADIUS.sm, padding: '8px 12px', fontSize: 12, fontWeight: 700,
+      style={{ border: 'none', borderRadius: RADIUS.sm, padding: '8px 12px', fontSize: 12, fontWeight: 600,
         cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
         background: solid ? color : bg, color: solid ? '#fff' : color, ...style }}>
       {children}

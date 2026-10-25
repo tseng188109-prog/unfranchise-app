@@ -6,9 +6,9 @@ import {
   IconHeadphones, IconCamera, IconUsers, IconRobot,
 } from '@tabler/icons-react'
 
-const PRIMARY = '#1668E3'
-const TEXT_MAIN = '#132A4D'
-const TEXT_SECONDARY = '#7C8CA3'
+const PRIMARY = 'var(--primary)'
+const TEXT_MAIN = 'var(--text)'
+const TEXT_SECONDARY = 'var(--text2)'
 const ACCENT_GREEN = '#3ECF8E'
 
 const STEPS = [
@@ -94,7 +94,7 @@ export default function Onboarding({ user, onComplete }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(160deg, #1668E3 0%, #2E8FEA 100%)',
+      background: 'var(--hero)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -113,7 +113,7 @@ export default function Onboarding({ user, onComplete }) {
               <div key={s} style={{
                 height: 6, borderRadius: 99,
                 width: active ? 20 : 6,
-                background: done ? ACCENT_GREEN : active ? '#fff' : 'rgba(255,255,255,0.3)',
+                background: done ? ACCENT_GREEN : active ? 'var(--card)' : 'rgba(255,255,255,0.3)',
                 transition: 'all 0.3s ease',
               }} />
             )
@@ -135,7 +135,7 @@ export default function Onboarding({ user, onComplete }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}><IconRobot size={19} stroke={1.9} color="#fff" /></div>
           <div style={{
-            background: '#fff', borderRadius: '18px 18px 18px 4px',
+            background: 'var(--card)', borderRadius: '18px 18px 18px 4px',
             padding: '14px 16px', maxWidth: 300,
             boxShadow: '0 8px 24px rgba(19,42,77,0.18)',
           }}>
@@ -215,7 +215,7 @@ export default function Onboarding({ user, onComplete }) {
                 width: '100%', boxSizing: 'border-box',
                 padding: '12px 14px', borderRadius: 14,
                 border: 'none', fontSize: 15,
-                background: 'rgba(255,255,255,0.95)',
+                background: 'var(--card)',
                 color: TEXT_MAIN, outline: 'none',
                 boxShadow: '0 4px 14px rgba(19,42,77,0.15)',
               }}
@@ -232,7 +232,7 @@ export default function Onboarding({ user, onComplete }) {
                 width: '100%', boxSizing: 'border-box',
                 padding: '12px 14px', borderRadius: 14,
                 border: 'none', fontSize: 14,
-                background: 'rgba(255,255,255,0.95)',
+                background: 'var(--card)',
                 color: TEXT_MAIN, outline: 'none',
                 boxShadow: '0 4px 14px rgba(19,42,77,0.15)',
               }}
@@ -249,7 +249,7 @@ export default function Onboarding({ user, onComplete }) {
                 width: '100%', boxSizing: 'border-box',
                 padding: '12px 14px', borderRadius: 14,
                 border: 'none', fontSize: 13,
-                background: 'rgba(255,255,255,0.95)',
+                background: 'var(--card)',
                 color: TEXT_MAIN, outline: 'none',
                 resize: 'none', fontFamily: 'inherit',
                 lineHeight: 1.7,
@@ -266,7 +266,7 @@ export default function Onboarding({ user, onComplete }) {
                     onClick={() => setActiveDaily(activeDaily === item.key ? null : item.key)}
                     style={{
                       background: activeDaily === item.key
-                        ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.15)',
+                        ? 'var(--card)' : 'rgba(255,255,255,0.15)',
                       borderRadius: 12, padding: '10px 12px',
                       display: 'flex', alignItems: 'center', gap: 10,
                       cursor: 'pointer', transition: 'all 0.2s',
@@ -332,7 +332,7 @@ export default function Onboarding({ user, onComplete }) {
             disabled={!canNext || saving}
             style={{
               flex: 1, padding: '13px', borderRadius: 14, border: 'none',
-              background: canNext ? '#fff' : 'rgba(255,255,255,0.3)',
+              background: canNext ? 'var(--card)' : 'rgba(255,255,255,0.3)',
               color: canNext ? PRIMARY : 'rgba(255,255,255,0.5)',
               fontWeight: 700, fontSize: 15, cursor: canNext ? 'pointer' : 'default',
               transition: 'all 0.2s',

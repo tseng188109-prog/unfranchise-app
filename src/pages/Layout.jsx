@@ -20,10 +20,10 @@ const SECONDARY_TABS = [
 const SIDEBAR_WIDTH = 220
 
 // 設計系統色碼
-const PRIMARY = '#1668E3'
-const PRIMARY_SOFT = '#EEF3FB'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
+const PRIMARY = 'var(--primary)'
+const PRIMARY_SOFT = 'var(--primary-soft)'
+const TEXT_MAIN = 'var(--text)'
+const TEXT_MUTED = 'var(--muted)'
 
 export default function Layout({ children }) {
   const navigate = useNavigate()
@@ -52,12 +52,12 @@ export default function Layout({ children }) {
       {/* 電腦版左側固定選單 */}
       <div className="rwd-sidebar" style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: SIDEBAR_WIDTH,
-        background: '#fff', borderRight: '1px solid #F0F1F4',
+        background: 'var(--card)', borderRight: '1px solid var(--border)',
         flexDirection: 'column', zIndex: 100,
       }}>
         <div style={{
           padding: '20px 16px', fontSize: 16, fontWeight: 700, color: TEXT_MAIN,
-          borderBottom: '1px solid #F0F1F4',
+          borderBottom: '1px solid var(--border)',
         }}>
           超連鎖行動計畫
         </div>
@@ -85,7 +85,7 @@ export default function Layout({ children }) {
         </div>
 
         <div style={{
-          padding: '8px', borderTop: '1px solid #F0F1F4',
+          padding: '8px', borderTop: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column', gap: 2,
         }}>
           {SECONDARY_TABS.map(tab => {
@@ -119,7 +119,7 @@ export default function Layout({ children }) {
       <div className="rwd-bottomnav" style={{
         position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 430,
-        background: '#fff', borderTop: '1px solid #F0F1F4',
+        background: 'var(--card)', borderTop: '1px solid var(--border)',
         zIndex: 100,
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>

@@ -22,7 +22,7 @@ import {
   ACCENT_YELLOW, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
   ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT,
   ACCENT_PINK, ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
-  DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_SOFT,
+  DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_TEXT, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
 import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312, isContactWarm } from './followUp'
@@ -32,6 +32,10 @@ import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
 
 function toDateStr(d) {
   return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+}
+function greetingByHour() {
+  const h = new Date().getHours()
+  return h < 5 ? '夜深了' : h < 12 ? '早安' : h < 18 ? '午安' : '晚安'
 }
 function today() { return toDateStr(new Date()) }
 
@@ -70,7 +74,7 @@ function Avatar({ name, size=36 }) {
   return (
     <div style={{ width:size,height:size,borderRadius:RADIUS.circle,background:avatarBg(name||''),
       display:'flex',alignItems:'center',justifyContent:'center',
-      color:'#fff',fontWeight:700,fontSize:size*0.42,flexShrink:0 }}>
+      color:'#fff',fontWeight:600,fontSize:size*0.42,flexShrink:0 }}>
       {name?name[0]:'?'}
     </div>
   )
@@ -78,7 +82,7 @@ function Avatar({ name, size=36 }) {
 function ProgressBar({ value, max, color, trackColor }) {
   const pct = max>0 ? Math.min((value/max)*100,100) : 0
   return (
-    <div style={{ background:trackColor||'#F3F4F6',borderRadius:RADIUS.pill,height:8,overflow:'hidden' }}>
+    <div style={{ background:trackColor||'var(--sub2)',borderRadius:RADIUS.pill,height:4,overflow:'hidden' }}>
       <div style={{ width:`${pct}%`,height:'100%',borderRadius:RADIUS.pill,background:color,
         transition:'width 0.6s cubic-bezier(0.34,1.56,0.64,1)' }} />
     </div>
@@ -90,7 +94,7 @@ function QuickBtn({ Icon, label, onClick, color, bg }) {
       style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
         padding:'12px 4px',borderRadius:RADIUS.lg,border:'none',background:bg,cursor:'pointer' }}>
       <Icon size={17} stroke={1.9} color={color} />
-      <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>{label}</span>
+      <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,whiteSpace:'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -570,7 +574,7 @@ export default function Dashboard() {
       <div className="dashboard-wrap" style={{ padding:'20px 16px 0' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',gap:10 }}>
           <div style={{ minWidth:0 }}>
-            <p style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>嗨，{displayName} 👋</p>
+            <p style={{ fontSize:19,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{greetingByHour()}，{displayName}</p>
             <p style={{ fontSize:12,color:TEXT_MUTED,margin:'4px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
               {todayStr}
               {whyHerePreview && (
@@ -608,32 +612,32 @@ export default function Dashboard() {
           <section className="area-starter" style={{ ...cardStyle, overflow:'hidden', marginTop:12 }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
-                style={{ width:'100%',background:'#fff',border:'none',cursor:'pointer',
+                style={{ width:'100%',background:'var(--card)',border:'none',cursor:'pointer',
                   padding:'10px 14px',display:'flex',alignItems:'center',gap:10 }}>
                 <IconRocket size={15} stroke={1.9} color={PRIMARY} />
-                <span style={{ fontSize:12,fontWeight:700,color:TEXT_MAIN,whiteSpace:'nowrap' }}>新手起步</span>
+                <span style={{ fontSize:12,fontWeight:600,color:TEXT_MAIN,whiteSpace:'nowrap' }}>新手起步</span>
                 <div style={{ flex:1,height:5,background:PRIMARY_SOFT,borderRadius:RADIUS.pill,overflow:'hidden' }}>
                   <div style={{ height:'100%',borderRadius:RADIUS.pill,background:PRIMARY,
                     width:`${Math.round((starterDoneCount/STARTER_TASKS.length)*100)}%`,
                     transition:'width 0.5s ease' }} />
                 </div>
-                <span style={{ fontSize:12,fontWeight:700,color:PRIMARY,whiteSpace:'nowrap' }}>
+                <span style={{ fontSize:12,fontWeight:600,color:PRIMARY,whiteSpace:'nowrap' }}>
                   {starterDoneCount}/{STARTER_TASKS.length}
                 </span>
                 <IconChevronDown size={14} stroke={1.9} color={TEXT_MUTED} />
               </button>
             )}
             {starterExpanded && (
-              <div style={{ background:'#fff' }}>
+              <div style={{ background:'var(--card)' }}>
                 <div style={{ padding:'12px 14px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                   <div>
-                    <p style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+                    <p style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
                       <IconRocket size={15} stroke={1.9} color={PRIMARY} /> 新手起步任務
                     </p>
                     <p style={{ fontSize:11,color:TEXT_MUTED,margin:'4px 0 0' }}>完成這 5 件事，讓你的事業正式起步！</p>
                   </div>
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                    <span style={{ fontSize:12,fontWeight:700,background:PRIMARY_SOFT,color:PRIMARY,
+                    <span style={{ fontSize:12,fontWeight:600,background:PRIMARY_SOFT,color:PRIMARY,
                       padding:'3px 10px',borderRadius:RADIUS.pill }}>
                       {starterDoneCount}/{STARTER_TASKS.length}
                     </span>
@@ -648,18 +652,18 @@ export default function Dashboard() {
                     const done = starterTasks?.[task.id] === true
                     return (
                       <div key={task.id} style={{ display:'flex',alignItems:'center',gap:10,
-                        padding:'9px 0',borderTop:'1px solid #F5F6F8' }}>
+                        padding:'9px 0',borderTop:'1px solid var(--sub2)' }}>
                         <div style={{ width:20,height:20,borderRadius:RADIUS.circle,flexShrink:0,
                           display:'flex',alignItems:'center',justifyContent:'center',
-                          background: done ? ACCENT_GREEN : '#F0F1F4',
-                          border: done ? 'none' : '1.5px solid #D8DCE8' }}>
+                          background: done ? ACCENT_GREEN : 'var(--border)',
+                          border: done ? 'none' : '1.5px solid var(--border2)' }}>
                           {done && <span style={{ fontSize:11,color:'#fff' }}>✓</span>}
                         </div>
                         <span style={{ fontSize:13,fontWeight:600,color: done?TEXT_MUTED:TEXT_MAIN,
                           textDecoration: done?'line-through':'none',flex:1 }}>
                           {task.label}
                         </span>
-                        {done && <span style={{ fontSize:11,color:ACCENT_GREEN_TEXT,fontWeight:700 }}>完成</span>}
+                        {done && <span style={{ fontSize:11,color:ACCENT_GREEN_TEXT,fontWeight:600 }}>完成</span>}
                       </div>
                     )
                   })}
@@ -673,10 +677,11 @@ export default function Dashboard() {
         <section className="area-todo">
           <SectionHeader title="今天的 3-1-2" hint="查看全部聯絡人 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
-          <div style={{ ...cardStyle, padding:12, display:'flex', gap:12, marginBottom:8 }}>
+          <div style={{ ...cardStyle, overflow:'hidden' }}>
+          <div style={{ padding:14, display:'flex', gap:12 }}>
             <Tile bg={PRIMARY_SOFT} color={PRIMARY}>3</Tile>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
+              <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
                 位互動<span style={{ fontSize:11,fontWeight:400,color:TEXT_MUTED,marginLeft:8 }}>不要老是同樣那幾位</span>
               </div>
               {interactionContacts.length===0
@@ -698,10 +703,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div style={{ ...cardStyle, padding:12, display:'flex', gap:12, alignItems:'center', marginBottom:8 }}>
-            <Tile bg={ORANGE_SOFT} color={ORANGE}>1</Tile>
+          <div style={{ padding:14, display:'flex', gap:12, alignItems:'center', borderTop:'1px solid var(--border)' }}>
+            <Tile bg={ORANGE_SOFT} color={ORANGE_TEXT}>1</Tile>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>
+              <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
                 個會議{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}
               </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
@@ -719,15 +724,16 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div style={{ ...cardStyle, padding:12, display:'flex', gap:12, alignItems:'center' }}>
+          <div style={{ padding:14, display:'flex', gap:12, alignItems:'center', borderTop:'1px solid var(--border)' }}>
             <Tile bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT}>2</Tile>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>位新名單</div>
+              <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>位新名單</div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
                 這週已經新增 {newContactCount} 位，去認識新朋友，不是從舊名單湊數
               </div>
             </div>
             <SoftBtn bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT} onClick={()=>navigate('/contacts/new')}>+ 新增</SoftBtn>
+          </div>
           </div>
         </section>
 
@@ -738,11 +744,11 @@ export default function Dashboard() {
             <div className="care-scroll">
               {careList.map(c => (
                 <div key={c.id} className="care-card"
-                  style={{ background:'#fff',border:`1px solid #FBD4EA`,borderRadius:RADIUS.card,padding:12 }}>
+                  style={{ background:'var(--card)',border:`1px solid var(--pink-border)`,borderRadius:RADIUS.card,padding:12 }}>
                   <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:6 }}>
                     <Avatar name={c.name} size={32} />
                     <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>{c.name}</div>
+                      <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,wordBreak:'break-word',overflowWrap:'anywhere' }}>{c.name}</div>
                       {c.tag && <Tag bg={ACCENT_YELLOW_SOFT} color={ACCENT_YELLOW_TEXT}>{c.tag}</Tag>}
                     </div>
                   </div>
@@ -772,18 +778,18 @@ export default function Dashboard() {
                 style={{ background:'none',border:'none',color:TEXT_SECONDARY,
                   fontSize:18,cursor:'pointer',padding:'0 4px',lineHeight:1 }}>‹</button>
               <div style={{ textAlign:'center' }}>
-                <span style={{ fontSize:13,fontWeight:700,color: isToday?PRIMARY:'#C9902E' }}>
+                <span style={{ fontSize:13,fontWeight:600,color: isToday?PRIMARY:'var(--yellow-text)' }}>
                   {isToday ? '今天' : formatDateLabel(viewDate)}
                 </span>
                 {!isToday && (
                   <button onClick={() => setViewDate(today())}
                     style={{ marginLeft:8,fontSize:11,color:PRIMARY,background:'none',
-                      border:'none',cursor:'pointer',fontWeight:700 }}>回今天</button>
+                      border:'none',cursor:'pointer',fontWeight:600 }}>回今天</button>
                 )}
               </div>
               <button onClick={() => changeDate(1)}
                 style={{ background:'none',border:'none',
-                  color: isToday?'#D8DCE8':TEXT_SECONDARY,
+                  color: isToday?'var(--border2)':TEXT_SECONDARY,
                   fontSize:18,cursor: isToday?'default':'pointer',
                   padding:'0 4px',lineHeight:1 }}>›</button>
             </div>
@@ -793,7 +799,7 @@ export default function Dashboard() {
               {weekStatus.map((w,i)=>{
                 const isSelected = w.date === viewDate
                 const isT = w.date === today()
-                const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'#E1E5EE'
+                const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'var(--border)'
                 return (
                   <div key={i} onClick={() => { if(w.date<=today()) setViewDate(w.date) }}
                     style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:4,
@@ -817,15 +823,15 @@ export default function Dashboard() {
                 const TaskIcon = task.Icon
                 return (
                   <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
-                    borderBottom:'1px solid #F5F6F8' }}>
+                    borderBottom:'1px solid var(--sub2)' }}>
                     <button onClick={()=>toggleCheckin(task.key)}
                       style={{ width:20,height:20,borderRadius:7,flexShrink:0,
-                        border:done?'none':'2px solid #D8DCE8',background:done?ACCENT_GREEN:'#fff',
+                        border:done?'none':'2px solid var(--border2)',background:done?ACCENT_GREEN:'var(--card)',
                         display:'flex',alignItems:'center',justifyContent:'center',
                         transition:'all 0.15s',cursor:'pointer' }}>
-                      {done&&<span style={{ fontSize:11,color:'#fff' }}>✓</span>}
+                      {done&&<span className="ufa-pop" style={{ fontSize:11,color:'#fff',lineHeight:1 }}>✓</span>}
                     </button>
-                    <TaskIcon size={16} stroke={1.9} color={done?'#C7CEDD':PRIMARY} />
+                    <TaskIcon size={16} stroke={1.9} color={done?'var(--border2)':PRIMARY} />
                     <button onClick={()=> hasAction && handleTaskAction(task)}
                       style={{ flex:1,background:'none',border:'none',textAlign:'left',
                         cursor: hasAction?'pointer':'default',padding:0,
@@ -838,12 +844,12 @@ export default function Dashboard() {
                             {viewContacted.map((c,i) => (
                               <span key={c.id}
                                 onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
-                                style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
+                                style={{ color:ACCENT_GREEN_TEXT,fontWeight:600,cursor:'pointer',
                                   textDecoration:'underline' }}>
                                 {c.name}{i<viewContacted.length-1?'、':''}
                               </span>
                             ))}
-                            <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
+                            <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:600 }}>✓</span>
                           </span>
                         )}
                       </span>
@@ -855,9 +861,14 @@ export default function Dashboard() {
                 )
               })}
             </div>
+            {DAILY_TASKS.length>0 && DAILY_TASKS.every(t=>checkins[t.key]) && (
+              <div style={{ textAlign:'center',padding:'12px 0 2px',fontSize:13,color:ACCENT_GREEN_TEXT,fontWeight:500 }}>
+                今天的行動都完成了，好好休息。
+              </div>
+            )}
             <div style={{ textAlign:'right',marginTop:10 }}>
               <button onClick={() => navigate('/daily')}
-                style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}>
+                style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:600 }}>
                 每週、每月行動 ›
               </button>
             </div>
@@ -867,31 +878,31 @@ export default function Dashboard() {
         {/* 本季進度：看結果的區塊，放在要做的事後面 */}
         <section className="area-stats">
           <SectionHeader title="本季進度" hint="查看詳情 ›" onHint={()=>navigate('/transactions')} hintColor={PRIMARY} />
-          <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',borderRadius:RADIUS.xl,padding:'14px 16px',color:'#fff' }}>
+          <div style={{ background:'var(--hero)',border:'1px solid var(--hero-border)',borderRadius:RADIUS.xl,padding:'18px 18px 16px',color:'#fff' }}>
             <div style={{ display:'flex',gap:16 }}>
               <div style={{ flex:1 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:12,fontWeight:700,color:ACCENT_YELLOW }}>BV</span>
-                  <span style={{ fontSize:14,fontWeight:700 }}>{bvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
+                  <span style={{ fontSize:12,fontWeight:600,color:ACCENT_YELLOW }}>BV</span>
+                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{bvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.55)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
                 </div>
-                <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="rgba(255,255,255,0.22)" />
+                <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="rgba(255,255,255,0.14)" />
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:12,fontWeight:700 }}>IBV</span>
-                  <span style={{ fontSize:14,fontWeight:700 }}>{ibvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.6)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
+                  <span style={{ fontSize:12,fontWeight:600 }}>IBV</span>
+                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{ibvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.55)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
                 </div>
-                <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#fff" trackColor="rgba(255,255,255,0.22)" />
+                <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#fff" trackColor="rgba(255,255,255,0.14)" />
               </div>
             </div>
             <div style={{ display:'flex',marginTop:12,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.18)' }}>
               <div style={{ flex:1.2 }}>
                 <div style={{ fontSize:11,opacity:0.75 }}>本月獲利</div>
-                <div style={{ fontSize:15,fontWeight:700 }}>NT${profit.toLocaleString()}</div>
+                <div style={{ fontSize:15,fontWeight:600 }}>NT${profit.toLocaleString()}</div>
               </div>
               <div style={{ flex:1,borderLeft:'1px solid rgba(255,255,255,0.18)',paddingLeft:12 }}>
                 <div style={{ fontSize:11,opacity:0.75 }}>本週訪談</div>
-                <div style={{ fontSize:15,fontWeight:700 }}>
+                <div style={{ fontSize:15,fontWeight:600 }}>
                   {meetupCard ? meetupCard.count : '–'}<span style={{ opacity:0.6,fontSize:12,fontWeight:400 }}>/2</span>
                 </div>
                 {meetupCard && (
@@ -904,7 +915,7 @@ export default function Dashboard() {
               {teamCard && (
                 <div style={{ flex:1,borderLeft:'1px solid rgba(255,255,255,0.18)',paddingLeft:12 }}>
                   <div style={{ fontSize:11,opacity:0.75 }}>戰隊打卡率</div>
-                  <div style={{ fontSize:15,fontWeight:700 }}>{teamCard.teamAvgRate}%</div>
+                  <div style={{ fontSize:15,fontWeight:600 }}>{teamCard.teamAvgRate}%</div>
                 </div>
               )}
             </div>
@@ -912,12 +923,12 @@ export default function Dashboard() {
           <div style={{ display:'flex',gap:8,marginTop:8 }}>
             <button onClick={() => navigate('/team')}
               style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:600,cursor:'pointer' }}>
               <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
             </button>
             <button onClick={() => navigate('/partners')}
               style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:600,cursor:'pointer' }}>
               <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
             </button>
           </div>
@@ -937,10 +948,10 @@ export default function Dashboard() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e=>{ if(e.target===e.currentTarget) setGoalModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
                 <IconTarget size={17} stroke={1.9} color={PRIMARY} /> 我的目標宣言
               </h3>
               <button onClick={()=>setGoalModal(false)}
@@ -949,12 +960,12 @@ export default function Dashboard() {
             <textarea ref={goalTextareaRef} value={goalText}
               onChange={e=>{ setGoalText(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
               placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..." rows={4}
-              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.md,border:'1px solid #E1E5EE',
+              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.md,border:'1px solid var(--border)',
                 fontSize:15,boxSizing:'border-box',outline:'none',resize:'none',lineHeight:1.8,display:'block' }} />
             <button onClick={saveGoalText} disabled={goalSaving}
               style={{ width:'100%',padding:'13px',borderRadius:RADIUS.lg,border:'none',
                 background: goalSaved?ACCENT_GREEN:goalSaving?'#9BBBF2':PRIMARY,
-                color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer',marginTop:12 }}>
+                color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer',marginTop:12 }}>
               {goalSaved ? '✓ 已儲存' : goalSaving ? '儲存中…' : '儲存'}
             </button>
           </div>
@@ -965,9 +976,9 @@ export default function Dashboard() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e=>{ if(e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
+              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
                 <IconMessageCircle size={17} stroke={1.9} color={PRIMARY} /> 前往回應
               </h3>
               <button onClick={()=>setSocialModal(false)}
@@ -976,12 +987,12 @@ export default function Dashboard() {
             <div style={{ display:'flex',gap:12,marginBottom:8 }}>
               <button onClick={()=>{ window.open('https://www.facebook.com/groups/710836659091767/','_blank'); setSocialModal(false) }}
                 style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
-                  background:'#1877F2',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                  background:'#1877F2',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
                 📘 臉書 IDEA
               </button>
               <button onClick={()=>{ window.open('https://line.me','_blank'); setSocialModal(false) }}
                 style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
-                  background:'#06C755',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                  background:'#06C755',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
                 💚 LINE
               </button>
             </div>

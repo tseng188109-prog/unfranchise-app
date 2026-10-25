@@ -360,7 +360,7 @@ async function handleImport() {
         onTouchEnd={onPressEnd} onTouchMove={onPressEnd}
         onClick={() => showArchived ? setMenuTarget(c) : openContact(c)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-          background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : '#fff',
+          background: menuTarget?.id === c.id ? SUBCARD_BG : isSelected ? PRIMARY_SOFT : 'var(--card)',
           borderBottom:`1px solid ${BORDER}`, opacity: c.is_muted ? 0.55 : 1,
           cursor:'pointer', userSelect:'none' }}>
         <Avatar name={c.name} size={42} />
@@ -428,7 +428,7 @@ async function handleImport() {
           .dash-container { max-width: 720px; }
         }
         .contacts-panel-col { display: none; }
-        .contacts-list-col { margin: 12px 16px 0; background: #fff; border: 1px solid ${BORDER}; border-radius: 16px; overflow: hidden; }
+        .contacts-list-col { margin: 12px 16px 0; background: var(--card); border: 1px solid ${BORDER}; border-radius: 16px; overflow: hidden; }
         @media (min-width: 1024px) {
           .contacts-body {
             display: flex;
@@ -449,7 +449,7 @@ async function handleImport() {
             max-height: calc(100vh - 230px);
           }
           .contacts-panel-col {
-            background: #fff;
+            background: var(--card);
             display: block;
             flex: 1;
             min-width: 0;
@@ -462,7 +462,7 @@ async function handleImport() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff', padding:'52px 0 0', borderBottom:`1px solid ${BORDER}` }}>
+      <div style={{ background:'var(--card)', padding:'52px 0 0', borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
           <h1 style={{ fontSize:20, fontWeight:700, color:TEXT_MAIN, margin:0 }}>互動名單</h1>
@@ -539,7 +539,7 @@ async function handleImport() {
               <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
                 title={sortDir === 'asc' ? '升冪（點擊切換為降冪）' : '降冪（點擊切換為升冪）'}
                 style={{ width:26, height:26, borderRadius:RADIUS.circle, border:`1px solid ${BORDER}`,
-                  background:'#fff', color:TEXT_SECONDARY, fontSize:14, fontWeight:700,
+                  background:'var(--card)', color:TEXT_SECONDARY, fontSize:14, fontWeight:700,
                   cursor:'pointer', flexShrink:0,
                   display:'flex', alignItems:'center', justifyContent:'center' }}>
                 {sortDir === 'asc' ? '↑' : '↓'}
@@ -553,8 +553,8 @@ async function handleImport() {
       <div className="contacts-body">
         <div className="contacts-list-col">
           {showArchived && (
-            <div style={{ background:'#FFF9E9', padding:'10px 16px',
-              fontSize:13, color:'#9A6A16', display:'flex', alignItems:'center', gap:6 }}>
+            <div style={{ background:'var(--yellow-soft)', padding:'10px 16px',
+              fontSize:13, color:'var(--yellow-text)', display:'flex', alignItems:'center', gap:6 }}>
               <IconArchive size={15} stroke={1.9} />
               <span>封存名單 · 點擊可復原聯絡人</span>
             </div>
@@ -572,11 +572,11 @@ async function handleImport() {
               </p>
             </div>
           ) : showArchived ? (
-            <div style={{ background:'#fff' }}>
+            <div style={{ background:'var(--card)' }}>
               <Section title="封存中" count={filtered.length} items={filtered} />
             </div>
           ) : isFlatSort ? (
-            <div style={{ background:'#fff' }}>
+            <div style={{ background:'var(--card)' }}>
               <Section title="釘選" count={pinned.length} items={pinned} />
               <Section
                 title={sortBy === 'last_contact' ? '依最近互動排序' : '依建議互動排序'}
@@ -585,11 +585,11 @@ async function handleImport() {
               />
             </div>
           ) : showMuted ? (
-            <div style={{ background:'#fff' }}>
+            <div style={{ background:'var(--card)' }}>
               <Section title="時機未到" count={applySort(unpinned).length} items={applySort(unpinned)} />
             </div>
           ) : (
-            <div style={{ background:'#fff' }}>
+            <div style={{ background:'var(--card)' }}>
               <Section title="釘選" count={pinned.length} items={pinned} />
               {stageGroups.map(g => (
                 <Section key={g.stage} title={g.stage} count={g.items.length} items={g.items} />
@@ -621,7 +621,7 @@ async function handleImport() {
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.5)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
-          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
+          <div style={{ background:'var(--card)', borderRadius:'22px 22px 0 0',
             padding:'24px 20px 40px', width:'100%', maxWidth:480,
             maxHeight:'85vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
@@ -648,9 +648,9 @@ async function handleImport() {
             {/* 格式說明 */}
             <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:14 }}>
               <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
-              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 跟進日期：2025-07-01 或 2025/7/1 或 114/7/1 都可以</p>
-              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• 生日：06-15 或 6/15 或 06/15 都可以</p>
-              <p style={{ fontSize:11, color:'#4A7BC8', margin:'2px 0' }}>• Excel 存出的格式會自動轉換，不用特別處理</p>
+              <p style={{ fontSize:11, color:'var(--text2)', margin:'2px 0' }}>• 跟進日期：2025-07-01 或 2025/7/1 或 114/7/1 都可以</p>
+              <p style={{ fontSize:11, color:'var(--text2)', margin:'2px 0' }}>• 生日：06-15 或 6/15 或 06/15 都可以</p>
+              <p style={{ fontSize:11, color:'var(--text2)', margin:'2px 0' }}>• Excel 存出的格式會自動轉換，不用特別處理</p>
             </div>
 
             <input ref={fileInputRef} type="file" accept=".csv"
@@ -683,7 +683,7 @@ async function handleImport() {
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
                         padding:'9px 14px', borderBottom: i<Math.min(importRows.length,5)-1 ? `1px solid ${BORDER}` : 'none',
-                        background: i%2===0 ? '#fff' : SUBCARD_BG }}>
+                        background: i%2===0 ? 'var(--card)' : SUBCARD_BG }}>
                         <div style={{ width:28, height:28, borderRadius:RADIUS.circle,
                           background:avatarBg(r.name), display:'flex', alignItems:'center',
                           justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
@@ -747,7 +747,7 @@ async function handleImport() {
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}
           onClick={() => setMenuTarget(null)}>
-          <div style={{ background:'#fff', borderRadius:'22px 22px 0 0',
+          <div style={{ background:'var(--card)', borderRadius:'22px 22px 0 0',
             padding:'20px 16px 36px', width:'100%', maxWidth:480 }}
             onClick={e => e.stopPropagation()}>
             <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN,
@@ -791,7 +791,7 @@ async function handleImport() {
             )}
             <button onClick={() => setMenuTarget(null)}
               style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg,
-                border:`1px solid ${BORDER}`, background:'#fff',
+                border:`1px solid ${BORDER}`, background:'var(--card)',
                 fontSize:15, color:TEXT_SECONDARY, cursor:'pointer' }}>取消</button>
           </div>
         </div>
@@ -800,7 +800,7 @@ async function handleImport() {
       {archiveTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconArchive size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -811,7 +811,7 @@ async function handleImport() {
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setArchiveTarget(null)}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
@@ -823,7 +823,7 @@ async function handleImport() {
       {restoreTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
+          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
             </div>
@@ -834,7 +834,7 @@ async function handleImport() {
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setRestoreTarget(null)}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleRestore}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
@@ -846,7 +846,7 @@ async function handleImport() {
       {deleteTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'#fff', borderRadius:RADIUS.xl, padding:24, width:300, textAlign:'center' }}>
+          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:300, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -859,7 +859,7 @@ async function handleImport() {
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'#fff', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeletePermanent} disabled={deleting}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
                   background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>

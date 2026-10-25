@@ -90,7 +90,7 @@ export default function TransactionNew() {
   }
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -99,7 +99,7 @@ export default function TransactionNew() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff', padding:'52px 0 16px',
+      <div style={{ background:'var(--card)', padding:'52px 0 16px',
         borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate(-1)}
@@ -126,7 +126,7 @@ export default function TransactionNew() {
               style={{ ...inp, borderColor: errors.customer ? DANGER : BORDER }} />
             {showCustomerList && customerSearch && (
               <div style={{ position:'absolute', top:'100%', left:0, right:0,
-                background:'#fff', border:`1px solid ${BORDER}`, borderRadius:RADIUS.md,
+                background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.md,
                 zIndex:50, maxHeight:200, overflowY:'auto',
                 boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
                 {filteredCustomers.map(c => (
@@ -196,7 +196,7 @@ export default function TransactionNew() {
                 setQuickBirthday(''); setQuickOccupation('')
                 setQuickError('')
               }} style={{ flex:1, padding:'9px', borderRadius:RADIUS.sm,
-                border:`1px solid ${BORDER}`, background:'#fff',
+                border:`1px solid ${BORDER}`, background:'var(--card)',
                 cursor:'pointer', fontSize:13, color:TEXT_SECONDARY }}>取消</button>
             </div>
           </div>
@@ -225,5 +225,5 @@ const fw = { marginBottom: 16 }
 const lb = { fontSize:13, fontWeight:600, color:TEXT_MAIN, display:'block', marginBottom:6 }
 const req = { color:DANGER }
 const inp = { width:'100%', padding:'11px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-  fontSize:14, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }
+  fontSize:14, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }
 const err = { fontSize:12, color:DANGER, margin:'4px 0 0' }

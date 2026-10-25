@@ -117,7 +117,7 @@ export default function ContactNew() {
   }
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
       <style>{`
         .cn-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -128,7 +128,7 @@ export default function ContactNew() {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'#fff',padding:'52px 0 16px',
+      <div style={{ background:'var(--card)',padding:'52px 0 16px',
         borderBottom:`1px solid ${BORDER}` }}>
         <div className="cn-container" style={{ padding:'0 16px',
           display:'flex',alignItems:'center',justifyContent:'space-between',gap:12 }}>
@@ -173,7 +173,7 @@ export default function ContactNew() {
             <div style={{ display:'flex',gap:8 }}>
               {PLATFORMS.map(p => (
                 <button key={p} onClick={() => set('platform', form.platform===p?'':p)}
-                  style={{ ...styles.chipBtn, background:form.platform===p?PRIMARY:'#F5F8FC',
+                  style={{ ...styles.chipBtn, background:form.platform===p?PRIMARY:'var(--sub)',
                     color:form.platform===p?'#fff':TEXT_SECONDARY }}>{p}</button>
               ))}
             </div>
@@ -195,7 +195,7 @@ export default function ContactNew() {
                 return (
                   <button key={e.value} onClick={() => set('egg_type', selected ? '' : e.value)}
                     style={{ flex:1,padding:'10px 8px',borderRadius:RADIUS.md,border:`2px solid ${selected?color:BORDER}`,
-                      background: selected ? bg : '#F5F8FC',
+                      background: selected ? bg : 'var(--sub)',
                       cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
                     <div style={{ fontSize:13,fontWeight:700,color: selected?color:TEXT_MAIN }}>{e.value}</div>
                     <div style={{ fontSize:11,color: selected?color:TEXT_MUTED,marginTop:2 }}>{e.desc}</div>
@@ -215,7 +215,7 @@ export default function ContactNew() {
                   <button key={n.value} onClick={() => set('need_level', selected ? '' : n.value)}
                     style={{ flex:1,padding:'10px 8px',borderRadius:RADIUS.md,
                       border:`2px solid ${selected?PRIMARY:BORDER}`,
-                      background: selected?PRIMARY_SOFT:'#F5F8FC',
+                      background: selected?PRIMARY_SOFT:'var(--sub)',
                       cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
                     <div style={{ fontSize:13,fontWeight:700,color: selected?PRIMARY:TEXT_MAIN }}>{n.value}</div>
                     <div style={{ fontSize:11,color: selected?PRIMARY:TEXT_MUTED,marginTop:2 }}>{n.desc}</div>
@@ -281,7 +281,7 @@ export default function ContactNew() {
             </button>
             <button onClick={() => handleSave(false)} disabled={saving}
               style={{ flex:1,padding:'14px',borderRadius:RADIUS.lg,border:`1.5px solid ${PRIMARY}`,
-                background:'#fff',color:PRIMARY,
+                background:'var(--card)',color:PRIMARY,
                 fontSize:15,fontWeight:700,cursor:'pointer' }}>
               儲存並返回列表
             </button>
@@ -298,7 +298,7 @@ const styles = {
   label: { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 },
   suggest: { fontSize:11,color:PRIMARY,fontWeight:500,marginLeft:4 },
   input: { width:'100%',padding:'11px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-    fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN },
+    fontSize:14,background:'var(--card)',boxSizing:'border-box',outline:'none',color:TEXT_MAIN },
   chipBtn: { padding:'7px 14px',borderRadius:RADIUS.sm,border:'none',fontSize:13,
     fontWeight:600,cursor:'pointer' },
   errorMsg: { fontSize:12,color:DANGER,margin:'4px 0 0' },

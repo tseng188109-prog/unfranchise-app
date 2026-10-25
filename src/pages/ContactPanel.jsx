@@ -224,7 +224,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
       overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
 
       {/* Header */}
-      <div style={{ background:'#fff', padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
+      <div style={{ background:'var(--card)', padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
         {!embedded && (
           <div style={{ marginBottom:12 }}>
             <button onClick={onBack || (() => navigate(-1))}
@@ -253,12 +253,12 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0 }}>
             <button onClick={() => navigate(`/contacts/${id}/edit`)}
-              style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'#fff',
+              style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'var(--card)',
                 display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_SECONDARY }}>
               <IconPencil size={15} stroke={1.9} />
             </button>
             <button onClick={handleArchive}
-              style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'#fff',
+              style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'var(--card)',
                 display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_MUTED }}>
               <IconArchive size={15} stroke={1.9} />
             </button>
@@ -293,7 +293,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             ) : (
               <>
                 {suggestedAction && (
-                  <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
+                  <div style={{ background:'var(--hero)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
                     <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>現在最適合這樣接觸</p>
                     <p style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>{getSuggestion(contact)}</p>
                     <p style={{ margin:'4px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>
@@ -324,14 +324,14 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                         style={{ background:'none', border:'none', cursor:'pointer', padding:4,
                           display:'flex', flexDirection:'column', alignItems:'center', gap:6, flexShrink:0 }}>
                         <span style={{ width: isCurrent?16:11, height: isCurrent?16:11, borderRadius:RADIUS.circle,
-                          background: reached ? PRIMARY : '#D7DEE7',
+                          background: reached ? PRIMARY : 'var(--border2)',
                           border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
                           boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
-                        <span style={{ fontSize:9, color: reached ? (isCurrent?PRIMARY:TEXT_MUTED) : '#C3CCDA',
+                        <span style={{ fontSize:9, color: reached ? (isCurrent?PRIMARY:TEXT_MUTED) : 'var(--border2)',
                           fontWeight: isCurrent?700:400, whiteSpace:'nowrap' }}>{s}</span>
                       </button>
                       {i < RELATIONSHIP_STAGES.length-1 && (
-                        <div style={{ height:2, flex:1, background: i < curIdx ? PRIMARY : '#D7DEE7' }} />
+                        <div style={{ height:2, flex:1, background: i < curIdx ? PRIMARY : 'var(--border2)' }} />
                       )}
                     </div>
                   )
@@ -357,7 +357,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }}>
                   {REFERRAL_STAGES.map(s => (
                     <button key={s} onClick={() => { handleSetStage('referral', s); setShowReferralOptions(false) }}
-                      style={{ background: contact.referral_stage===s ? ACCENT_GREEN : '#fff',
+                      style={{ background: contact.referral_stage===s ? ACCENT_GREEN : 'var(--card)',
                         color: contact.referral_stage===s ? '#fff' : TEXT_SECONDARY,
                         border: contact.referral_stage===s ? 'none' : `1px solid ${BORDER}`,
                         borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
@@ -388,10 +388,10 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                           <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
                             <span style={{ fontSize:12, color:TEXT_MUTED }}>還是這樣嗎？</span>
                             <button onClick={() => handleConfirmNoteStillTrue(n.note, n.id)}
-                              style={{ background:'#fff', color:TEXT_SECONDARY, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
+                              style={{ background:'var(--card)', color:TEXT_SECONDARY, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
                                 padding:'4px 10px', fontSize:12, cursor:'pointer' }}>還是這樣</button>
                             <button onClick={() => handleNoteNoLongerTrue(n.id)}
-                              style={{ background:'#fff', color:ACCENT_GREEN_TEXT, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
+                              style={{ background:'var(--card)', color:ACCENT_GREEN_TEXT, border:`1px solid ${BORDER}`, borderRadius:RADIUS.xs,
                                 padding:'4px 10px', fontSize:12, cursor:'pointer' }}>已經不是了</button>
                           </div>
                         )}
@@ -437,7 +437,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 {logs.map((log, i) => (
                   <div key={log.id} style={{ position:'relative', marginBottom: i < logs.length-1 ? 16 : 0 }}>
                     <div style={{ position:'absolute', left:-20, top:2, width:10, height:10, borderRadius:RADIUS.circle,
-                      background: i===0 ? ACCENT_GREEN : '#D8DCE8', border:'2px solid #fff' }} />
+                      background: i===0 ? ACCENT_GREEN : 'var(--border2)', border:'2px solid var(--card)' }} />
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                       <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>
                         {formatMD(log.date)}
@@ -495,7 +495,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                   </div>
                 </div>
                 <button onClick={() => navigate(`/customers/${linkedCustomer.id}`)}
-                  style={{ fontSize:12, color:PRIMARY, background:'#fff', border:`1px solid ${BORDER}`,
+                  style={{ fontSize:12, color:PRIMARY, background:'var(--card)', border:`1px solid ${BORDER}`,
                     borderRadius:RADIUS.xs, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
                   查看顧客檔案
                 </button>
@@ -505,7 +505,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>還沒有補充資料</p>
             ) : infoRows.map(r => (
               <div key={r.label} style={{ display:'flex', alignItems:'flex-start', gap:10,
-                background:'#fff', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:'12px 14px' }}>
+                background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:'12px 14px' }}>
                 <r.icon size={16} stroke={1.8} color={TEXT_SECONDARY} style={{ marginTop:1, flexShrink:0 }} />
                 <div>
                   <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 2px' }}>{r.label}</p>

@@ -39,8 +39,8 @@ function birthdayThisYear(mmdd) {
   return `${year}-${mmdd}`
 }
 
-function getEggColor(t) { return t === '茶葉蛋' ? '#F97316' : t === '荷包蛋' ? '#3B82F6' : t === '生雞蛋' ? '#22C55E' : '#9CA3AF' }
-function getEggBg(t) { return t === '茶葉蛋' ? '#FFF7ED' : t === '荷包蛋' ? '#EFF6FF' : t === '生雞蛋' ? '#F0FDF4' : '#F9FAFB' }
+function getEggColor(t) { return t === '茶葉蛋' ? '#F97316' : t === '荷包蛋' ? '#3B82F6' : t === '生雞蛋' ? '#22C55E' : 'var(--muted)' }
+function getEggBg(t) { return t === '茶葉蛋' ? 'var(--orange-soft)' : t === '荷包蛋' ? 'var(--primary-soft)' : t === '生雞蛋' ? 'var(--green-soft)' : 'var(--sub)' }
 
 function avatarBg(name) {
   const colors = ['#F97316', '#3B82F6', '#22C55E', '#A855F7', '#EC4899', '#14B8A6']
@@ -267,7 +267,7 @@ export default function NotificationBell({ userId }) {
       <button
         onClick={() => setOpen(true)}
         style={{
-          position: 'relative', background: 'rgba(255,255,255,0.15)',
+          position: 'relative', background: 'var(--sub2)',
           border: 'none', borderRadius: '50%', width: 40, height: 40,
           display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
         }}>
@@ -278,7 +278,7 @@ export default function NotificationBell({ userId }) {
             background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 700,
             borderRadius: '50%', width: 16, height: 16,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '2px solid #1E3A5F'
+            border: '2px solid var(--page)'
           }}>
             {totalCount > 99 ? '99+' : totalCount}
           </span>
@@ -296,31 +296,31 @@ export default function NotificationBell({ userId }) {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#F8FAFC', borderRadius: '20px 20px 0 0',
+              background: 'var(--page)', borderRadius: '20px 20px 0 0',
               width: '100%', maxWidth: 430, maxHeight: '85vh',
               display: 'flex', flexDirection: 'column',
               boxShadow: '0 -4px 24px rgba(0,0,0,0.15)'
             }}>
 
             {/* 抽屜 Header */}
-            <div style={{ padding: '16px 20px 0', background: '#fff', borderRadius: '20px 20px 0 0' }}>
+            <div style={{ padding: '16px 20px 0', background: 'var(--card)', borderRadius: '20px 20px 0 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 18 }}>🔔</span>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: '#111827' }}>提醒通知</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>提醒通知</span>
                   {totalCount > 0 && (
                     <span style={{
                       fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
-                      background: '#FEF2F2', color: '#DC2626'
+                      background: 'var(--danger-soft)', color: 'var(--danger-text)'
                     }}>{totalCount} 則</span>
                   )}
                 </div>
                 <button onClick={handleClose}
-                  style={{ background: 'none', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+                  style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--muted)', cursor: 'pointer' }}>✕</button>
               </div>
 
               {/* Tabs */}
-              <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #F3F4F6' }}>
+              <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid var(--sub2)' }}>
                 {TABS.map((tab, i) => {
                   const cnt = [tab1Count, tab2Count, tab3Count][i]
                   return (
@@ -328,8 +328,8 @@ export default function NotificationBell({ userId }) {
                       style={{
                         flex: 1, padding: '8px 4px', border: 'none', background: 'none',
                         fontSize: 12, fontWeight: activeTab === i ? 700 : 500,
-                        color: activeTab === i ? '#2563EB' : '#6B7280',
-                        borderBottom: activeTab === i ? '2px solid #2563EB' : '2px solid transparent',
+                        color: activeTab === i ? 'var(--primary)' : 'var(--text2)',
+                        borderBottom: activeTab === i ? '2px solid var(--primary)' : '2px solid transparent',
                         marginBottom: -2, cursor: 'pointer', whiteSpace: 'nowrap',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
                       }}>
@@ -337,8 +337,8 @@ export default function NotificationBell({ userId }) {
                       {cnt > 0 && (
                         <span style={{
                           fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 99,
-                          background: activeTab === i ? '#DBEAFE' : '#F3F4F6',
-                          color: activeTab === i ? '#2563EB' : '#9CA3AF'
+                          background: activeTab === i ? 'var(--primary-soft)' : 'var(--sub2)',
+                          color: activeTab === i ? 'var(--primary)' : 'var(--muted)'
                         }}>{cnt}</span>
                       )}
                     </button>
@@ -350,7 +350,7 @@ export default function NotificationBell({ userId }) {
             {/* 內容 */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 24px' }}>
               {loading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>載入中…</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>載入中…</div>
               ) : (
                 <>
                   {/* Tab 0：名單經營 */}
@@ -359,20 +359,20 @@ export default function NotificationBell({ userId }) {
                       {tab1Count === 0 && <EmptyState icon="👤" text="名單經營狀況良好！" />}
 
                       {overdueContacts.length > 0 && (
-                        <Section title="⏰ 久未互動" color="#EF4444" bgColor="#FEF2F2">
+                        <Section title="⏰ 久未互動" color="#EF4444" bgColor="var(--danger-soft)">
                           {overdueContacts.map(c => (
                             <NotifCard key={c.id} onClick={() => { navigate(`/contacts/${c.id}`); handleClose() }}>
                               <Avatar name={c.name} size={38} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                  <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{c.name}</span>
+                                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.name}</span>
                                   {c.egg_type && (
                                     <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 6, background: getEggBg(c.egg_type), color: getEggColor(c.egg_type) }}>
                                       {c.egg_type}
                                     </span>
                                   )}
                                 </div>
-                                <span style={{ fontSize: 12, color: '#6B7280' }}>
+                                <span style={{ fontSize: 12, color: 'var(--text2)' }}>
                                   建議行動：{c.suggestedAction}｜每 {c.threshold} 天互動一次
                                 </span>
                               </div>
@@ -385,20 +385,20 @@ export default function NotificationBell({ userId }) {
                       )}
 
                       {dueSoonContacts.length > 0 && (
-                        <Section title="📅 即將到期" color="#F97316" bgColor="#FFF7ED">
+                        <Section title="📅 即將到期" color="#F97316" bgColor="var(--orange-soft)">
                           {dueSoonContacts.map(c => (
                             <NotifCard key={c.id} onClick={() => { navigate(`/contacts/${c.id}`); handleClose() }}>
                               <Avatar name={c.name} size={38} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                  <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{c.name}</span>
+                                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.name}</span>
                                   {c.egg_type && (
                                     <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 6, background: getEggBg(c.egg_type), color: getEggColor(c.egg_type) }}>
                                       {c.egg_type}
                                     </span>
                                   )}
                                 </div>
-                                <span style={{ fontSize: 12, color: '#6B7280' }}>{c.action_type}</span>
+                                <span style={{ fontSize: 12, color: 'var(--text2)' }}>{c.action_type}</span>
                               </div>
                               <span style={{ fontSize: 12, fontWeight: 700, color: '#F97316', whiteSpace: 'nowrap' }}>
                                 {c.daysUntil === 0 ? '今天到期' : `${c.daysUntil} 天後`}
@@ -409,13 +409,13 @@ export default function NotificationBell({ userId }) {
                       )}
 
                       {contactBirthdays.length > 0 && (
-                        <Section title="🎂 名單生日" color="#A855F7" bgColor="#FAF5FF">
+                        <Section title="🎂 名單生日" color="#A855F7" bgColor="var(--sub)">
                           {contactBirthdays.map(c => (
                             <NotifCard key={c.id} onClick={() => { navigate(`/contacts/${c.id}`); handleClose() }}>
                               <Avatar name={c.name} size={38} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{c.name}</span>
-                                {c.occupation && <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>{c.occupation}</p>}
+                                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.name}</span>
+                                {c.occupation && <p style={{ fontSize: 12, color: 'var(--text2)', margin: '2px 0 0' }}>{c.occupation}</p>}
                               </div>
                               <span style={{ fontSize: 12, fontWeight: 700, color: '#A855F7', whiteSpace: 'nowrap' }}>
                                 {c.daysUntilBirthday === 0 ? '今天生日 🎉' : `${c.daysUntilBirthday} 天後`}
@@ -433,15 +433,15 @@ export default function NotificationBell({ userId }) {
                       {tab2Count === 0 && <EmptyState icon="🛍️" text="顧客維繫狀況良好！" />}
 
                       {repurchaseReminders.length > 0 && (
-                        <Section title="🔁 回購提醒" color="#2563EB" bgColor="#EFF6FF">
+                        <Section title="🔁 回購提醒" color="var(--primary)" bgColor="var(--primary-soft)">
                           {repurchaseReminders.map(c => (
                             <NotifCard key={c.id} onClick={() => { navigate(`/customers/${c.id}`); handleClose() }}>
                               <Avatar name={c.name} size={38} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{c.name}</span>
-                                {c.phone && <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>{c.phone}</p>}
+                                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.name}</span>
+                                {c.phone && <p style={{ fontSize: 12, color: 'var(--text2)', margin: '2px 0 0' }}>{c.phone}</p>}
                               </div>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                                 {c.daysUntil === 0 ? '今天到期' : `${c.daysUntil} 天後`}
                               </span>
                             </NotifCard>
@@ -450,13 +450,13 @@ export default function NotificationBell({ userId }) {
                       )}
 
                       {customerBirthdays.length > 0 && (
-                        <Section title="🎂 顧客生日" color="#EC4899" bgColor="#FDF2F8">
+                        <Section title="🎂 顧客生日" color="#EC4899" bgColor="var(--pink-soft)">
                           {customerBirthdays.map(c => (
                             <NotifCard key={c.id} onClick={() => { navigate(`/customers/${c.id}`); handleClose() }}>
                               <Avatar name={c.name} size={38} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{c.name}</span>
-                                {c.phone && <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>{c.phone}</p>}
+                                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.name}</span>
+                                {c.phone && <p style={{ fontSize: 12, color: 'var(--text2)', margin: '2px 0 0' }}>{c.phone}</p>}
                               </div>
                               <span style={{ fontSize: 12, fontWeight: 700, color: '#EC4899', whiteSpace: 'nowrap' }}>
                                 {c.daysUntilBirthday === 0 ? '今天生日 🎉' : `${c.daysUntilBirthday} 天後`}
@@ -467,13 +467,13 @@ export default function NotificationBell({ userId }) {
                       )}
 
                       {sampleFollowups.length > 0 && (
-                        <Section title="🧪 試用品跟進" color="#F97316" bgColor="#FFF7ED">
+                        <Section title="🧪 試用品跟進" color="#F97316" bgColor="var(--orange-soft)">
                           {sampleFollowups.map(s => (
                             <NotifCard key={s.id} onClick={() => { navigate('/samples'); handleClose() }}>
-                              <div style={{ width: 38, height: 38, borderRadius: 10, background: '#FED7AA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🧪</div>
+                              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--orange-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🧪</div>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{s.contacts?.name}</span>
-                                <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>{s.product_name}</p>
+                                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{s.contacts?.name}</span>
+                                <p style={{ fontSize: 12, color: 'var(--text2)', margin: '2px 0 0' }}>{s.product_name}</p>
                               </div>
                               <span style={{ fontSize: 12, fontWeight: 700, color: '#F97316', whiteSpace: 'nowrap' }}>
                                 已 {s.daysSince} 天
@@ -484,15 +484,15 @@ export default function NotificationBell({ userId }) {
                       )}
 
                       {inactiveCustomers.length > 0 && (
-                        <Section title="😴 長期未消費" color="#6B7280" bgColor="#F9FAFB">
+                        <Section title="😴 長期未消費" color="var(--text2)" bgColor="var(--sub)">
                           {inactiveCustomers.map(c => (
                             <NotifCard key={c.id} onClick={() => { navigate(`/customers/${c.id}`); handleClose() }}>
                               <Avatar name={c.name} size={38} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{c.name}</span>
-                                {c.phone && <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>{c.phone}</p>}
+                                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.name}</span>
+                                {c.phone && <p style={{ fontSize: 12, color: 'var(--text2)', margin: '2px 0 0' }}>{c.phone}</p>}
                               </div>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
                                 {c.daysSince} 天未購
                               </span>
                             </NotifCard>
@@ -508,18 +508,18 @@ export default function NotificationBell({ userId }) {
                       {tab3Count === 0 && <EmptyState icon="📊" text="業務進度一切正常！繼續加油 💪" />}
 
                       {bvWarning && (
-                        <Section title="⚠️ 業績進度落後" color="#DC2626" bgColor="#FEF2F2">
+                        <Section title="⚠️ 業績進度落後" color="var(--danger-text)" bgColor="var(--danger-soft)">
                           <div style={{ padding: '4px 0' }}>
-                            <p style={{ fontSize: 13, color: '#374151', margin: '0 0 10px' }}>
+                            <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 0 10px' }}>
                               本季已過 <strong>{bvWarning.progressPct}%</strong>，但業績進度落後：
                             </p>
                             {bvWarning.bvBehind && (
                               <div style={{ marginBottom: 8 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                                   <span style={{ fontSize: 13, fontWeight: 700, color: '#F97316' }}>BV</span>
-                                  <span style={{ fontSize: 13, color: '#374151' }}>{bvWarning.bv.toFixed(0)} / {BV_GOAL}（{bvWarning.bvPct}%）</span>
+                                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{bvWarning.bv.toFixed(0)} / {BV_GOAL}（{bvWarning.bvPct}%）</span>
                                 </div>
-                                <div style={{ background: '#FED7AA', borderRadius: 99, height: 8, overflow: 'hidden' }}>
+                                <div style={{ background: 'var(--orange-border)', borderRadius: 99, height: 8, overflow: 'hidden' }}>
                                   <div style={{ width: `${bvWarning.bvPct}%`, height: '100%', background: '#F97316', borderRadius: 99 }} />
                                 </div>
                               </div>
@@ -528,15 +528,15 @@ export default function NotificationBell({ userId }) {
                               <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                                   <span style={{ fontSize: 13, fontWeight: 700, color: '#3B82F6' }}>IBV</span>
-                                  <span style={{ fontSize: 13, color: '#374151' }}>{bvWarning.ibv.toFixed(0)} / {IBV_GOAL}（{bvWarning.ibvPct}%）</span>
+                                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{bvWarning.ibv.toFixed(0)} / {IBV_GOAL}（{bvWarning.ibvPct}%）</span>
                                 </div>
-                                <div style={{ background: '#BFDBFE', borderRadius: 99, height: 8, overflow: 'hidden' }}>
+                                <div style={{ background: 'var(--primary-soft)', borderRadius: 99, height: 8, overflow: 'hidden' }}>
                                   <div style={{ width: `${bvWarning.ibvPct}%`, height: '100%', background: '#3B82F6', borderRadius: 99 }} />
                                 </div>
                               </div>
                             )}
                             <button onClick={() => { navigate('/transactions'); handleClose() }}
-                              style={{ marginTop: 12, width: '100%', padding: '10px', borderRadius: 10, border: 'none', background: '#2563EB', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                              style={{ marginTop: 12, width: '100%', padding: '10px', borderRadius: 10, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                               前往業績頁面 →
                             </button>
                           </div>
@@ -544,17 +544,17 @@ export default function NotificationBell({ userId }) {
                       )}
 
                       {newPartners.length > 0 && (
-                        <Section title="🤝 新夥伴加入" color="#22C55E" bgColor="#F0FDF4">
+                        <Section title="🤝 新夥伴加入" color="#22C55E" bgColor="var(--green-soft)">
                           {newPartners.map(p => (
                             <NotifCard key={p.id}>
                               <div style={{ width: 38, height: 38, borderRadius: '50%', background: avatarBg(p.name || ''), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
                                 {p.name ? p.name[0] : '?'}
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{p.name || '新夥伴'}</span>
-                                <p style={{ fontSize: 12, color: '#6B7280', margin: '2px 0 0' }}>{p.email}</p>
+                                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.name || '新夥伴'}</span>
+                                <p style={{ fontSize: 12, color: 'var(--text2)', margin: '2px 0 0' }}>{p.email}</p>
                               </div>
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: '#DCFCE7', color: '#16A34A' }}>新加入</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: 'var(--green-soft)', color: 'var(--green-text)' }}>新加入</span>
                             </NotifCard>
                           ))}
                         </Section>
@@ -586,7 +586,7 @@ function NotifCard({ children, onClick }) {
     <div onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 10,
-        background: '#fff', borderRadius: 10, padding: '10px 12px',
+        background: 'var(--card)', borderRadius: 10, padding: '10px 12px',
         cursor: onClick ? 'pointer' : 'default',
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
       }}>
@@ -597,7 +597,7 @@ function NotifCard({ children, onClick }) {
 
 function EmptyState({ icon, text }) {
   return (
-    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9CA3AF' }}>
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)' }}>
       <p style={{ fontSize: 36, margin: '0 0 12px' }}>{icon}</p>
       <p style={{ fontSize: 14, margin: 0 }}>{text}</p>
     </div>

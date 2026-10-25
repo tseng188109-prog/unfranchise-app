@@ -76,7 +76,7 @@ export default function StudyThemeCard({ user }) {
   const pausedThisWeek = !!team && team.study_paused_week === thisMonday
 
   const rangeText = `${md(thisMonday)} 到 ${md(addDays(thisMonday, 6))}`
-  const cardStyle = { background:PRIMARY_SOFT, border:'1px solid #DCE7F7', borderRadius:RADIUS.card, padding:14 }
+  const cardStyle = { background:PRIMARY_SOFT, border:'1px solid var(--primary-soft)', borderRadius:RADIUS.card, padding:14 }
 
   async function toggleDone(no) {
     if (busy) return
@@ -181,7 +181,7 @@ export default function StudyThemeCard({ user }) {
       <div style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN, marginBottom:4, wordBreak:'break-word', overflowWrap:'anywhere' }}>{theme.title}</div>
       <div style={{ fontSize:12, color:TEXT_SECONDARY, lineHeight:1.6, marginBottom:10 }}>{theme.idea}</div>
 
-      <div style={{ background:'#fff', borderRadius:RADIUS.sm, padding:'10px 12px' }}>
+      <div style={{ background:'var(--card)', borderRadius:RADIUS.sm, padding:'10px 12px' }}>
         <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:2 }}>這次試試看</div>
         <div style={{ fontSize:13, color:TEXT_MAIN, lineHeight:1.6, wordBreak:'break-word', overflowWrap:'anywhere' }}>{theme.levels[level]}</div>
       </div>
@@ -210,13 +210,13 @@ export default function StudyThemeCard({ user }) {
           <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:6 }}>
             {allDone ? '五個主題都走過一輪了。' : `已走過 ${done.size} / ${STUDY_THEME_COUNT}，沒走過的可以自己補。`}
           </div>
-          <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, overflow:'hidden', background:'#fff' }}>
+          <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, overflow:'hidden', background:'var(--card)' }}>
             {STUDY_THEMES.map((t, i) => {
               const isCurrent = t.no === theme.no
               const needsFirst = t.no === 1 && !done.has(1) && !isCurrent
               return (
                 <div key={t.no} style={{ padding:'10px 12px', borderBottom: i < STUDY_THEMES.length - 1 ? `1px solid ${BORDER}` : 'none',
-                  background: isCurrent ? '#F5F8FC' : '#fff' }}>
+                  background: isCurrent ? 'var(--sub)' : 'var(--card)' }}>
                   <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:13, fontWeight:700, color: isCurrent ? PRIMARY : TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>

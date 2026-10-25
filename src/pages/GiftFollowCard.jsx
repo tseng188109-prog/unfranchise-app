@@ -88,7 +88,7 @@ export default function GiftFollowCard({ userId, year, month }) {
 
   return (
     <div className="dash-container" style={{ padding: '12px 16px 0' }}>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14 }}>
+      <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14 }}>
         <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconGift size={16} stroke={1.9} color={ACCENT_YELLOW_TEXT} /> {month} 月送出的贈品
         </p>

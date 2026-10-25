@@ -47,26 +47,26 @@ export default function ResetPassword() {
 
   const inputStyle = {
     width: '100%', padding: '10px 12px', borderRadius: '8px',
-    border: '1px solid #334155', background: '#0f172a',
+    border: '1px solid #3A3731', background: '#1A1917',
     color: '#ffffff', fontSize: '14px', boxSizing: 'border-box'
   }
-  const labelStyle = { color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '6px' }
+  const labelStyle = { color: '#A39E94', fontSize: '12px', display: 'block', marginBottom: '6px' }
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#0f172a',
+      minHeight: '100vh', background: '#1A1917',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'Arial, sans-serif', padding: 16
     }}>
       <div style={{
-        background: '#1e293b', borderRadius: '16px', padding: '40px',
+        background: '#232220', borderRadius: '16px', padding: '40px',
         width: '100%', maxWidth: '400px', boxShadow: '0 4px 24px rgba(0,0,0,0.3)'
       }}>
         <h1 style={{ color: '#ffffff', fontSize: '20px', fontWeight: '700',
           textAlign: 'center', marginBottom: '8px' }}>重設密碼</h1>
 
         {checking ? (
-          <p style={{ color:'#94a3b8', fontSize:14, textAlign:'center', marginTop:20 }}>
+          <p style={{ color:'#A39E94', fontSize:14, textAlign:'center', marginTop:20 }}>
             驗證連結中…
           </p>
         ) : !ready ? (
@@ -76,14 +76,14 @@ export default function ResetPassword() {
             </p>
             <button onClick={() => navigate('/')}
               style={{ width:'100%', padding:'12px', borderRadius:'8px', border:'none',
-                background:'#3b82f6', color:'#fff', fontSize:'15px',
+                background:'#6C9BEF', color:'#fff', fontSize:'15px',
                 fontWeight:'600', cursor:'pointer' }}>
               回到登入頁
             </button>
           </div>
         ) : (
           <>
-            <p style={{ color:'#94a3b8', fontSize:13, textAlign:'center', marginBottom:24 }}>
+            <p style={{ color:'#A39E94', fontSize:13, textAlign:'center', marginBottom:24 }}>
               請輸入你的新密碼
             </p>
 
@@ -110,7 +110,7 @@ export default function ResetPassword() {
 
             <button onClick={handleReset} disabled={loading}
               style={{ width:'100%', padding:'12px', borderRadius:'8px', border:'none',
-                background: loading ? '#334155' : '#3b82f6', color:'#ffffff',
+                background: loading ? '#3A3731' : '#6C9BEF', color:'#ffffff',
                 fontSize:'15px', fontWeight:'600', cursor: loading?'not-allowed':'pointer' }}>
               {loading ? '更新中…' : '更新密碼'}
             </button>

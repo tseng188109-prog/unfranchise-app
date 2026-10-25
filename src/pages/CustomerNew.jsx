@@ -102,7 +102,7 @@ export default function CustomerNew() {
   )
 
   return (
-    <div style={{ background:'#fff', minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -110,7 +110,7 @@ export default function CustomerNew() {
         }
       `}</style>
 
-      <div style={{ background:'#fff', padding:'52px 0 16px',
+      <div style={{ background:'var(--card)', padding:'52px 0 16px',
         borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate(-1)}
@@ -143,10 +143,10 @@ export default function CustomerNew() {
               onChange={e => setContactSearch(e.target.value)}
               placeholder="搜尋互動名單裡的聯絡人姓名..."
               style={{ width:'100%', padding:'11px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                fontSize:14, background:'#fff', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+                fontSize:14, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
           )}
           {filteredContacts.length > 0 && (
-            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff',
+            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--card)',
               border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, zIndex:50, maxHeight:160, overflowY:'auto',
               boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
               {filteredContacts.map(c => (
@@ -200,7 +200,7 @@ export default function CustomerNew() {
               placeholder={f.placeholder || ''}
               style={{ width:'100%', padding:'11px 12px', borderRadius:RADIUS.md,
                 border:`1px solid ${errors[f.key] ? DANGER : BORDER}`,
-                fontSize:14, background:'#fff', boxSizing:'border-box',
+                fontSize:14, background:'var(--card)', boxSizing:'border-box',
                 outline:'none', color:TEXT_MAIN }}
             />
             {errors[f.key] && (

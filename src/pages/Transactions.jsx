@@ -306,7 +306,7 @@ export default function Transactions() {
       <div key={t.id} style={{ display:'flex',alignItems:'center',gap:12,
         padding:'12px 16px',borderBottom:`1px solid ${BORDER}`,position:'relative' }}>
         <div style={{ width:40,height:40,borderRadius:'50%',
-          background: t.is_gift ? '#F0F1F4' : avatarBg(name),
+          background: t.is_gift ? 'var(--border)' : avatarBg(name),
           display:'flex',alignItems:'center',justifyContent:'center',
           color: t.is_gift ? TEXT_SECONDARY : '#fff',fontWeight:700,fontSize:15,flexShrink:0 }}>
           {t.is_gift ? <IconGift size={17} stroke={1.9} /> : name[0]}
@@ -336,7 +336,7 @@ export default function Transactions() {
             color:TEXT_MUTED,padding:'4px 6px',marginLeft:4,flexShrink:0 }}><IconDotsVertical size={17} stroke={1.9} /></button>
         {menuId === t.id && (
           <div onClick={e => e.stopPropagation()}
-            style={{ position:'absolute',right:12,top:44,background:'#fff',
+            style={{ position:'absolute',right:12,top:44,background:'var(--card)',
               borderRadius:RADIUS.md,boxShadow:'0 4px 20px rgba(19,42,77,0.13)',
               zIndex:100,overflow:'hidden',minWidth:110 }}>
             <button onClick={() => openEdit(t)}
@@ -414,7 +414,7 @@ export default function Transactions() {
       `}</style>
 
       {/* ── 手機版 Header（維持原邏輯不變，桌面版隱藏） ── */}
-      <div className="tx-mobile-header" style={{ background:'#fff',padding:'52px 0 16px',borderBottom:`1px solid ${BORDER}` }}>
+      <div className="tx-mobile-header" style={{ background:'var(--card)',padding:'52px 0 16px',borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
 
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
@@ -454,7 +454,7 @@ export default function Transactions() {
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]) }}
                 style={{ padding:'0 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'#fff',fontSize:13,color:TEXT_SECONDARY,cursor:'pointer' }}>
+                  background:'var(--card)',fontSize:13,color:TEXT_SECONDARY,cursor:'pointer' }}>
                 清除
               </button>
             )}
@@ -625,7 +625,7 @@ export default function Transactions() {
           <p style={{ fontSize:15 }}>找不到「{searchQuery}」的紀錄</p>
         </div>
       ) : (
-        <div style={{ margin:'12px 16px',background:'#fff',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,overflow:'hidden' }}>
+        <div style={{ margin:'12px 16px',background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,overflow:'hidden' }}>
           {displayList.map(t => <TxRow key={t.id} t={t} dense={searchMode} />)}
         </div>
       )}
@@ -658,7 +658,7 @@ export default function Transactions() {
                 const name = t.customers?.name || t.customer_name || '未知顧客'
                 const margin = (t.amount||0) - (t.cost||0)
                 return (
-                  <tr key={t.id} style={{ borderBottom:`1px solid ${BORDER}`, background: i%2===1 ? '#FAFBFD' : '#fff' }}>
+                  <tr key={t.id} style={{ borderBottom:`1px solid ${BORDER}`, background: i%2===1 ? 'var(--sub)' : 'var(--card)' }}>
                     <td style={tdStyle}>{formatDate(t.date)}</td>
                     <td style={{ ...tdStyle, fontWeight:600, color:TEXT_MAIN }}>{name}</td>
                     <td style={tdStyle}>
@@ -699,7 +699,7 @@ export default function Transactions() {
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 40px',width:'100%',maxWidth:480,
             maxHeight:'85vh',overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
@@ -719,7 +719,7 @@ export default function Transactions() {
               </div>
             </button>
             <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.md,padding:'10px 14px',marginBottom:16 }}>
-              <p style={{ fontSize:12,color:'#8A5A16',margin:0,lineHeight:1.6 }}>
+              <p style={{ fontSize:12,color:'var(--yellow-text)',margin:0,lineHeight:1.6 }}>
                 <strong>日期</strong> 支援 YYYY-MM-DD、YYYY/MM/DD、民國年<br/>
                 <strong>customer_phone</strong> 填手機號碼，優先用電話配對顧客<br/>
                 <strong>is_gift</strong> 填 true/false<br/>
@@ -755,7 +755,7 @@ export default function Transactions() {
                     {importRows.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex',alignItems:'center',gap:10,
                         padding:'9px 14px',borderBottom:i<Math.min(importRows.length,5)-1?`1px solid ${BORDER}`:'none',
-                        background:i%2===0?'#fff':SUBCARD_BG }}>
+                        background:i%2===0?'var(--card)':SUBCARD_BG }}>
                         <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:RADIUS.xs,
                           background:r.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
                           color:r.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY,flexShrink:0 }}>{r.type}</span>
@@ -809,7 +809,7 @@ export default function Transactions() {
       {deleteTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
-          <div style={{ background:'#fff',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
+          <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
@@ -818,7 +818,7 @@ export default function Transactions() {
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
                 style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
                 style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
@@ -831,7 +831,7 @@ export default function Transactions() {
       {editTarget && (
         <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200 }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 36px',width:'100%',maxWidth:480 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
               <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯業績紀錄</h2>

@@ -3,12 +3,12 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconPin, IconLink, IconX, IconStar, IconChevronRight } from '@tabler/icons-react'
 
-const PRIMARY = '#1668E3'
-const TEXT_MAIN = '#132A4D'
-const TEXT_MUTED = '#9FAEC2'
-const TEXT_SECONDARY = '#7C8CA3'
+const PRIMARY = 'var(--primary)'
+const TEXT_MAIN = 'var(--text)'
+const TEXT_MUTED = 'var(--muted)'
+const TEXT_SECONDARY = 'var(--text2)'
 const DANGER = '#E0454A'
-const BORDER = '#F0F1F4'
+const BORDER = 'var(--border)'
 
 const ADMIN_EMAIL = 'tseng980725@hotmail.com'
 
@@ -103,13 +103,13 @@ export default function ResourceLinks({ type, title, icon }) {
   }
 
   if (loading) return (
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'#fff' }}>
+    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'var(--page)' }}>
       <p style={{ color:TEXT_MUTED }}>載入中…</p>
     </div>
   )
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',paddingBottom:80 }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh',paddingBottom:80 }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -118,7 +118,7 @@ export default function ResourceLinks({ type, title, icon }) {
       `}</style>
 
       {/* Header */}
-      <div style={{ background:'linear-gradient(135deg,#1668E3,#2E8FEA)',
+      <div style={{ background:'var(--hero)',
         padding:'52px 0 24px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
           <div style={{ display:'flex',alignItems:'center',gap:12 }}>
@@ -158,7 +158,7 @@ export default function ResourceLinks({ type, title, icon }) {
                   <button onClick={() => openLink(link.url)}
                     style={{ flex:1,display:'flex',alignItems:'center',gap:12,
                       padding:'12px 14px',borderRadius:14,border:`1px solid ${BORDER}`,
-                      background:'#fff',cursor:'pointer',textAlign:'left' }}>
+                      background:'var(--card)',cursor:'pointer',textAlign:'left' }}>
                     <span style={{ fontSize:22,flexShrink:0 }}>{link.emoji}</span>
                     <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,flex:1 }}>{link.name}</span>
                     <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
@@ -199,7 +199,7 @@ export default function ResourceLinks({ type, title, icon }) {
                   <button onClick={() => openLink(link.url)}
                     style={{ flex:1,display:'flex',alignItems:'center',gap:12,
                       padding:'12px 14px',borderRadius:14,border:`1px solid ${BORDER}`,
-                      background:'#fff',cursor:'pointer',textAlign:'left' }}>
+                      background:'var(--card)',cursor:'pointer',textAlign:'left' }}>
                     <span style={{ fontSize:22,flexShrink:0 }}>{link.emoji}</span>
                     <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,flex:1 }}>{link.name}</span>
                     <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
@@ -221,7 +221,7 @@ export default function ResourceLinks({ type, title, icon }) {
       {/* 新增/編輯 Modal */}
       {modal && (
         <div style={overlayStyle} onClick={e => { if (e.target===e.currentTarget) setModal(null) }}>
-          <div style={{ background:'#fff',borderRadius:'22px 22px 0 0',padding:24,
+          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
               <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
@@ -239,7 +239,7 @@ export default function ResourceLinks({ type, title, icon }) {
                   <button key={e} onClick={() => setFormEmoji(e)}
                     style={{ width:38,height:38,borderRadius:12,fontSize:20,cursor:'pointer',
                       border: formEmoji===e ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                      background: formEmoji===e ? '#EEF3FB' : '#F5F8FC' }}>
+                      background: formEmoji===e ? 'var(--primary-soft)' : 'var(--sub)' }}>
                     {e}
                   </button>
                 ))}
@@ -274,7 +274,7 @@ export default function ResourceLinks({ type, title, icon }) {
       {/* 刪除確認 */}
       {deleteTarget && (
         <div style={overlayStyle} onClick={() => setDeleteTarget(null)}>
-          <div style={{ background:'#fff',borderRadius:18,padding:24,width:'100%',maxWidth:320,margin:'0 20px' }}
+          <div style={{ background:'var(--card)',borderRadius:18,padding:24,width:'100%',maxWidth:320,margin:'0 20px' }}
             onClick={e => e.stopPropagation()}>
             <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
               確定要刪除？
@@ -285,7 +285,7 @@ export default function ResourceLinks({ type, title, icon }) {
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
                 style={{ flex:1,padding:'12px',borderRadius:12,border:`1px solid ${BORDER}`,
-                  background:'#fff',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
+                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
                 style={{ flex:1,padding:'12px',borderRadius:12,border:'none',
                   background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
@@ -297,7 +297,7 @@ export default function ResourceLinks({ type, title, icon }) {
   )
 }
 
-const card = { background:'#fff',borderRadius:18,padding:16,border:`1px solid ${BORDER}` }
+const card = { background:'var(--card)',borderRadius:18,padding:16,border:`1px solid ${BORDER}` }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
 const inputStyle = {
   width:'100%',padding:'10px 12px',borderRadius:12,

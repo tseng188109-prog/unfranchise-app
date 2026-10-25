@@ -63,34 +63,34 @@ export default function Auth() {
 
   const inputStyle = {
     width: '100%', padding: '10px 12px', borderRadius: '8px',
-    border: '1px solid #334155', background: '#0f172a',
+    border: '1px solid #3A3731', background: '#1A1917',
     color: '#ffffff', fontSize: '14px', boxSizing: 'border-box'
   }
-  const labelStyle = { color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '6px' }
+  const labelStyle = { color: '#A39E94', fontSize: '12px', display: 'block', marginBottom: '6px' }
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#0f172a',
+      minHeight: '100vh', background: '#1A1917',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'Arial, sans-serif'
     }}>
       <div style={{
-        background: '#1e293b', borderRadius: '16px', padding: '40px',
+        background: '#232220', borderRadius: '16px', padding: '40px',
         width: '100%', maxWidth: '400px', boxShadow: '0 4px 24px rgba(0,0,0,0.3)'
       }}>
         <h1 style={{ color: '#ffffff', fontSize: '24px', fontWeight: '700',
           textAlign: 'center', marginBottom: '8px' }}>超連鎖行動計畫</h1>
-        <p style={{ color: '#94a3b8', fontSize: '14px', textAlign: 'center',
+        <p style={{ color: '#A39E94', fontSize: '14px', textAlign: 'center',
           marginBottom: '32px' }}>Unfranchise Daily Work App</p>
 
         {mode !== 'forgot' && (
-          <div style={{ display:'flex', background:'#0f172a', borderRadius:'8px',
+          <div style={{ display:'flex', background:'#1A1917', borderRadius:'8px',
             padding:'4px', marginBottom:'24px' }}>
             {['login','register'].map(m => (
               <button key={m} onClick={() => { setMode(m); setMessage('') }}
                 style={{ flex:1, padding:'8px', borderRadius:'6px', border:'none',
-                  background: mode===m ? '#3b82f6' : 'transparent',
-                  color: mode===m ? '#ffffff' : '#94a3b8',
+                  background: mode===m ? '#6C9BEF' : 'transparent',
+                  color: mode===m ? '#ffffff' : '#A39E94',
                   fontSize:'14px', fontWeight:'600', cursor:'pointer' }}>
                 {m === 'login' ? '登入' : '註冊'}
               </button>
@@ -101,7 +101,7 @@ export default function Auth() {
         {mode === 'forgot' && (
           <div style={{ marginBottom: 24 }}>
             <p style={{ color:'#fff', fontWeight:700, fontSize:16, margin:'0 0 4px' }}>重設密碼</p>
-            <p style={{ color:'#94a3b8', fontSize:13, margin:0 }}>輸入你的 Email，我們會寄重設連結給你</p>
+            <p style={{ color:'#A39E94', fontSize:13, margin:0 }}>輸入你的 Email，我們會寄重設連結給你</p>
           </div>
         )}
 
@@ -143,7 +143,7 @@ export default function Auth() {
         {mode === 'login' && (
           <div style={{ textAlign:'right', marginBottom: 16, marginTop: -8 }}>
             <button onClick={() => { setMode('forgot'); setMessage('') }}
-              style={{ background:'none', border:'none', color:'#3b82f6',
+              style={{ background:'none', border:'none', color:'#6C9BEF',
                 fontSize:13, cursor:'pointer', padding:0 }}>
               忘記密碼？
             </button>
@@ -163,7 +163,7 @@ export default function Auth() {
           onClick={mode==='login'?handleLogin:mode==='register'?handleRegister:handleForgot}
           disabled={loading}
           style={{ width:'100%', padding:'12px', borderRadius:'8px', border:'none',
-            background: loading ? '#334155' : '#3b82f6', color:'#ffffff',
+            background: loading ? '#3A3731' : '#6C9BEF', color:'#ffffff',
             fontSize:'15px', fontWeight:'600', cursor: loading?'not-allowed':'pointer' }}>
           {loading ? '處理中...' : mode==='login' ? '登入' : mode==='register' ? '註冊' : '寄出重設連結'}
         </button>
@@ -171,7 +171,7 @@ export default function Auth() {
         {mode === 'forgot' && (
           <button onClick={() => { setMode('login'); setMessage('') }}
             style={{ width:'100%', marginTop:12, padding:'10px', borderRadius:'8px',
-              border:'1px solid #334155', background:'none', color:'#94a3b8',
+              border:'1px solid #3A3731', background:'none', color:'#A39E94',
               fontSize:14, cursor:'pointer' }}>
             返回登入
           </button>

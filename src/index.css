@@ -18,7 +18,7 @@ html, body {
   padding: 0;
   width: 100%;
   min-height: 100%;
-  background: #F8FAFC;
+  background: var(--page, #F7F5F1);
 }
 
 #root {
@@ -32,5 +32,5 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   border-radius: 4px;
-  background: #F4F3EC;
+  background: var(--sub2, #F1EEE8);
 }

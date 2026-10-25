@@ -34,14 +34,14 @@ function BirthdayPicker({ value, onChange }) {
     <div style={{ display:'flex', gap:8 }}>
       <select value={mm} onChange={e => handleChange(e.target.value, dd)}
         style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-          fontSize:14,background:'#fff',outline:'none',
+          fontSize:14,background:'var(--card)',outline:'none',
           color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>月份</option>
         {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
       </select>
       <select value={dd} onChange={e => handleChange(mm, e.target.value)}
         style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-          fontSize:14,background:'#fff',outline:'none',
+          fontSize:14,background:'var(--card)',outline:'none',
           color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
         <option value=''>日期</option>
         {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
@@ -146,7 +146,7 @@ export default function ContactEdit() {
   )
 
   return (
-    <div style={{ background:'#fff',minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
+    <div style={{ background:'var(--page)',minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
       <style>{`
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
@@ -154,7 +154,7 @@ export default function ContactEdit() {
         }
       `}</style>
 
-      <div style={{ background:'#fff',padding:'52px 0 16px',
+      <div style={{ background:'var(--card)',padding:'52px 0 16px',
         borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px',display:'flex',alignItems:'center',gap:12 }}>
         <button onClick={() => navigate(-1)}
@@ -175,7 +175,7 @@ export default function ContactEdit() {
           <div style={{ display:'flex',gap:8,flexWrap:'wrap' }}>
             {PLATFORMS.map(p => (
               <button key={p} onClick={() => set('platform', form.platform===p?'':p)}
-                style={{ ...chip, background:form.platform===p?PRIMARY:'#F5F8FC',
+                style={{ ...chip, background:form.platform===p?PRIMARY:'var(--sub)',
                   color:form.platform===p?'#fff':TEXT_SECONDARY }}>{p}</button>
             ))}
           </div>
@@ -191,7 +191,7 @@ export default function ContactEdit() {
             {EGG_TYPES.map(e => (
               <button key={e} onClick={() => set('egg_type', form.egg_type===e?'':e)}
                 style={{ ...chip, flex:1,
-                  background:form.egg_type===e?PRIMARY:'#F5F8FC',
+                  background:form.egg_type===e?PRIMARY:'var(--sub)',
                   color:form.egg_type===e?'#fff':TEXT_SECONDARY }}>{e}</button>
             ))}
           </div>
@@ -203,7 +203,7 @@ export default function ContactEdit() {
             {NEED_LEVELS.map(n => (
               <button key={n} onClick={() => set('need_level', form.need_level===n?'':n)}
                 style={{ ...chip, flex:1,
-                  background:form.need_level===n?PRIMARY:'#F5F8FC',
+                  background:form.need_level===n?PRIMARY:'var(--sub)',
                   color:form.need_level===n?'#fff':TEXT_SECONDARY }}>{n}</button>
             ))}
           </div>
@@ -215,7 +215,7 @@ export default function ContactEdit() {
             {ACTION_TYPES.map(a => (
               <button key={a} onClick={() => set('action_type', a)}
                 style={{ ...chip,
-                  background:form.action_type===a?PRIMARY:'#F5F8FC',
+                  background:form.action_type===a?PRIMARY:'var(--sub)',
                   color:form.action_type===a?'#fff':TEXT_SECONDARY }}>{a}</button>
             ))}
           </div>
@@ -270,5 +270,5 @@ export default function ContactEdit() {
 const fw = { marginBottom: 16 }
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
 const inp = { width:'100%',padding:'11px 12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-  fontSize:14,background:'#fff',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
+  fontSize:14,background:'var(--card)',boxSizing:'border-box',outline:'none',color:TEXT_MAIN }
 const chip = { padding:'7px 14px',borderRadius:RADIUS.sm,border:'none',fontSize:13,fontWeight:600,cursor:'pointer' }

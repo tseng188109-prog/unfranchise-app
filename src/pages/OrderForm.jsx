@@ -17,7 +17,7 @@ import {
 
 const inp = {
   width: '100%', padding: '9px 10px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`,
-  fontSize: 14, background: '#fff', boxSizing: 'border-box', outline: 'none', color: TEXT_MAIN, minWidth: 0,
+  fontSize: 14, background: 'var(--card)', boxSizing: 'border-box', outline: 'none', color: TEXT_MAIN, minWidth: 0,
 }
 const lbl = { fontSize: 11, color: TEXT_SECONDARY, margin: '0 0 3px', display: 'block' }
 const ADJ_KIND_LABEL = { amount: '金額折扣', percent: '幾折', shipping: '運費' }
@@ -229,7 +229,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
 
     return (
       <div>
-        <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14, textAlign: 'center', marginBottom: 10 }}>
+        <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14, textAlign: 'center', marginBottom: 10 }}>
           <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <IconCircleCheck size={18} stroke={1.9} color={ACCENT_GREEN_TEXT} />
             {saved.edited ? '已儲存修改' : `已記下 ${customerName} 的訂單`}
@@ -268,11 +268,11 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                 ))}
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                   <button onClick={setReminder} disabled={!suggest}
-                    style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: suggest ? ACCENT_PINK : '#E9C7DA', color: '#fff', fontSize: 14, fontWeight: 700, cursor: suggest ? 'pointer' : 'default' }}>
+                    style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: suggest ? ACCENT_PINK : 'var(--pink-border)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: suggest ? 'pointer' : 'default' }}>
                     設提醒
                   </button>
                   <button onClick={() => setSaved(s => ({ ...s, reminderState: 'skip' }))}
-                    style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: `1px solid ${BORDER}`, background: '#fff', color: TEXT_SECONDARY, fontSize: 14, cursor: 'pointer' }}>
+                    style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: `1px solid ${BORDER}`, background: 'var(--card)', color: TEXT_SECONDARY, fontSize: 14, cursor: 'pointer' }}>
                     不用
                   </button>
                 </div>
@@ -281,7 +281,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
           </div>
         )}
 
-        <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10 }}>
+        <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10 }}>
           <button onClick={() => setSaved(s => ({ ...s, copyOpen: !s.copyOpen }))}
             style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: PRIMARY }}>
             <IconCopy size={16} stroke={1.9} /> 複製給 {customerName}
@@ -319,7 +319,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         {catalog.names.slice(0, 200).map(n => <option key={n} value={n} />)}
       </datalist>
 
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
+      <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <span style={lbl}>{orderId ? '編輯訂單' : '新增訂單'}</span>
@@ -348,7 +348,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         const m = catalog.map[l.product_name.trim()]
         const priceHint = m ? (m.custPrice != null ? `上次賣 ${fmt(m.custPrice)}` : m.lastPrice != null ? `一般賣 ${fmt(m.lastPrice)}` : '之後補') : '之後補'
         return (
-          <div key={l.key} style={{ background: l.is_gift ? ACCENT_YELLOW_SOFT : '#fff', border: `1px solid ${l.is_gift ? '#FFE7B3' : BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
+          <div key={l.key} style={{ background: l.is_gift ? ACCENT_YELLOW_SOFT : 'var(--card)', border: `1px solid ${l.is_gift ? 'var(--yellow-soft)' : BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
                 產品 {i + 1}
@@ -402,12 +402,12 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       })}
 
       <button onClick={addLine}
-        style={{ width: '100%', padding: '10px', borderRadius: RADIUS.md, border: `1px dashed ${PRIMARY}`, background: '#fff', color: PRIMARY, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        style={{ width: '100%', padding: '10px', borderRadius: RADIUS.md, border: `1px dashed ${PRIMARY}`, background: 'var(--card)', color: PRIMARY, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         <IconPlus size={16} stroke={1.9} /> 再加一個產品
       </button>
 
       {/* 調整：折扣、運費 */}
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
+      <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
         <button onClick={() => setShowAdj(v => !v)}
           style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>
           調整（折扣／運費）
@@ -443,7 +443,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                       {[['me', '我出'], ['customer', '客人出']].map(([v, t]) => (
                         <button key={v} onClick={() => setAdj(a.id, { payer: v })}
                           style={{ flex: 1, padding: '8px', borderRadius: RADIUS.sm, border: a.payer === v ? 'none' : `1px solid ${BORDER}`, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                            background: a.payer === v ? PRIMARY : '#fff', color: a.payer === v ? '#fff' : TEXT_SECONDARY }}>{t}</button>
+                            background: a.payer === v ? PRIMARY : 'var(--card)', color: a.payer === v ? '#fff' : TEXT_SECONDARY }}>{t}</button>
                       ))}
                     </div>
                   )}
@@ -459,7 +459,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {['amount', 'percent', 'shipping'].map(k => (
                 <button key={k} onClick={() => addAdjustment(k)}
-                  style={{ padding: '7px 12px', borderRadius: RADIUS.sm, border: `1px dashed ${PRIMARY}`, background: '#fff', color: PRIMARY, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ padding: '7px 12px', borderRadius: RADIUS.sm, border: `1px dashed ${PRIMARY}`, background: 'var(--card)', color: PRIMARY, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   + {ADJ_KIND_LABEL[k]}
                 </button>
               ))}
@@ -469,7 +469,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       </div>
 
       {/* 合計 */}
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10, color: TEXT_MAIN }}>
+      <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10, color: TEXT_MAIN }}>
         <Row k="點數合計" v={`BV ${fmt(calc.bv)}${calc.ibv > 0 ? `　IBV ${fmt(calc.ibv)}` : ''}`} />
         <Row k="成本合計" v={fmt(calc.costTotal)} />
         <Row k="賣價合計" v={fmt(calc.listTotal)} />
