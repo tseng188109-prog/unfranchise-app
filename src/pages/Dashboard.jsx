@@ -577,11 +577,6 @@ export default function Dashboard() {
             <p style={{ fontSize:19,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{greetingByHour()}，{displayName}</p>
             <p style={{ fontSize:12,color:TEXT_MUTED,margin:'4px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
               {todayStr}
-              {whyHerePreview && (
-                <span onClick={() => navigate('/settings')} style={{ cursor:'pointer',fontStyle:'italic',marginLeft:10 }}>
-                  「{whyHerePreview}」
-                </span>
-              )}
             </p>
           </div>
           <div style={{ display:'flex',gap:8,flexShrink:0 }}>
@@ -593,6 +588,13 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+        {whyHerePreview && (
+          <p onClick={() => navigate('/settings')}
+            style={{ fontSize:14,fontStyle:'italic',color:TEXT_SECONDARY,lineHeight:1.6,margin:'12px 0 0',
+              padding:'2px 0 2px 12px',borderLeft:'2px solid var(--primary)',cursor:'pointer',overflowWrap:'anywhere' }}>
+            「{whyHerePreview}」
+          </p>
+        )}
       </div>
 
       <div className="dashboard-wrap" style={{ padding:'12px 16px 0' }}>
