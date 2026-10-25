@@ -373,33 +373,25 @@ export default function Dashboard() {
   }
 
   async function fetchStarterTasks() {
-    const todayStr = today()
     const { count: contactCount } = await supabase
       .from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
     const { data: everCheckin } = await supabase
       .from('daily_checkins').select('id')
       .eq('user_id', user.id).eq('is_done', true).limit(1)
-    // 一週內累積 3 天：用結算週（週六到週五）算，跟其他「本週」同一條線。
-    // 為了不讓週六 0 點一到、已經達成的任務又退回去，這週或上一個結算週任一週達標都算完成。
-    const thisWeekDays = getWeekDays(todayStr)
-    const prevWeekDays = getWeekDays(toDateStr(new Date(new Date(thisWeekDays[0] + 'T00:00:00').getTime() - 86400000)))
-    const { data: weekCheckins } = await supabase
-      .from('daily_checkins').select('date')
-      .eq('user_id', user.id).eq('is_done', true)
-      .gte('date', prevWeekDays[0]).lte('date', todayStr)
-    const checkinDates = new Set((weekCheckins || []).map(r => r.date))
-    const daysIn = (days) => days.filter(d => checkinDates.has(d)).length
-    const uniqueDays = Math.max(daysIn(thisWeekDays), daysIn(prevWeekDays))
     const { count: logCount } = await supabase
       .from('contact_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+    const { count: txCount } = await supabase
+      .from('transactions').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+    const { count: sampleCount } = await supabase
+      .from('sample_tracking').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
     const { data: userData } = await supabase
-      .from('users').select('goal_declaration, onboarding_done').eq('id', user.id).single()
+      .from('users').select('onboarding_done').eq('id', user.id).single()
     const tasks = {
       has_contact:     (contactCount || 0) > 0,
-      has_checkin:     (everCheckin || []).length > 0,
-      week3_checkin:   uniqueDays >= 3,
       has_log:         (logCount || 0) > 0,
-      has_declaration: !!(userData?.goal_declaration?.trim()),
+      has_checkin:     (everCheckin || []).length > 0,
+      has_transaction: (txCount || 0) > 0,
+      has_sample:      (sampleCount || 0) > 0,
     }
     setOnboardingDone(userData?.onboarding_done === true)
     setStarterTasks(tasks)

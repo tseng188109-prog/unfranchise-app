@@ -64,7 +64,7 @@ export default function Onboarding({ user, onComplete }) {
     if (currentStep === 'why') {
       if (!why.trim()) return
       setSaving(true)
-      await supabase.from('users').update({ goal_declaration: why.trim() }).eq('id', user.id)
+      await supabase.from('users').update({ goal_declaration: why.trim(), why_here: why.trim() }).eq('id', user.id)
       setSaving(false)
     }
 
@@ -175,7 +175,7 @@ export default function Onboarding({ user, onComplete }) {
                   你為什麼加入美安？✍️
                 </p>
                 <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
-                  寫下你的 Why 和目標，這就是你的目標宣言。遇到困難的時候，它會提醒你為什麼出發。
+                  寫下你的 Why。它會一直顯示在首頁最上面，遇到困難的時候，提醒你為什麼出發。
                 </p>
               </>
             )}

@@ -1,6 +1,6 @@
 import {
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
-  IconHeadphones, IconCamera, IconUsers, IconTrendingUp,
+  IconHeadphones, IconCamera, IconUsers, IconChartBar, IconFlask,
 } from '@tabler/icons-react'
 
 // ── 全站任務/行動定義的唯一事實來源 ──────────────────────────
@@ -24,11 +24,11 @@ export const DAILY_TASKS = [
 // 新手起步任務 —— 一次性成就，不是每日重置。
 // 2026/07 修過「完成一次打卡」被誤寫成查「今天」導致卡片卡住的 bug，別再拆開維護。
 export const STARTER_TASKS = [
-  { id: 'has_contact',     label: '新增第一筆互動名單',  Icon: IconUsers },
-  { id: 'has_checkin',     label: '完成一次打卡',        Icon: IconTarget },
-  { id: 'week3_checkin',   label: '一週內累積打卡 3 天', Icon: IconTrendingUp },
-  { id: 'has_log',         label: '新增第一筆互動紀錄',  Icon: IconMessageCircle },
-  { id: 'has_declaration', label: '設定你的目標宣言',    Icon: IconTarget },
+  { id: 'has_contact',     label: '新增第一位互動名單',  Icon: IconUsers },
+  { id: 'has_log',         label: '記下第一筆互動紀錄',  Icon: IconMessageCircle },
+  { id: 'has_checkin',     label: '完成第一次每日打卡',  Icon: IconTarget },
+  { id: 'has_transaction', label: '記下第一筆業績',      Icon: IconChartBar },
+  { id: 'has_sample',      label: '發出第一份試用品',    Icon: IconFlask },
 ]
 
 // 每週固定任務（單純打勾，不需要選對象/日期）
