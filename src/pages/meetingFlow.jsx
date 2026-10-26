@@ -199,7 +199,7 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
     const note = quote.trim()
     const planText = plan.trim()
     await supabase.from('contact_logs').insert({
-      contact_id: contact.id, user_id: userId, date: dt, note: note || `見面：${lv.label}`,
+      contact_id: contact.id, user_id: userId, date: dt, kind: 'meet', note: note || `見面：${lv.label}`,
     })
     const upd = {
       last_interacted_at: new Date().toISOString(),

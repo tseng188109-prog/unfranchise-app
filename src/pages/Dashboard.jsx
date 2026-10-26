@@ -1,5 +1,6 @@
 import SocialModal from './socialModal'
 import GoalModal from './goalModal'
+import WeeklyReviewCard from './weeklyReview'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
@@ -970,6 +971,12 @@ export default function Dashboard() {
           </div>
         </section>
 
+        )}
+
+        {user && onboardingDone && !isNewbie && (
+          <section className="area-review" style={{ marginTop:16 }}>
+            <WeeklyReviewCard userId={user.id} />
+          </section>
         )}
 
         {user && onboardingDone && !isNewbie && (
