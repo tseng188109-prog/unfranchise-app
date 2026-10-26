@@ -307,10 +307,10 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             ) : (
               <>
                 {suggestedAction && (
-                  <div style={{ background:'var(--hero)', borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
-                    <p style={{ margin:'0 0 3px', fontSize:11, color:'rgba(255,255,255,0.75)', fontWeight:600 }}>現在最適合這樣接觸</p>
-                    <p style={{ margin:0, fontSize:16, fontWeight:700, color:'#fff' }}>{getSuggestion(contact)}</p>
-                    <p style={{ margin:'4px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>
+                  <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
+                    <p style={{ margin:'0 0 3px', fontSize:11, color:TEXT_SECONDARY, fontWeight:600 }}>現在最適合這樣接觸</p>
+                    <p style={{ margin:0, fontSize:16, fontWeight:700, color:TEXT_MAIN }}>{getSuggestion(contact)}</p>
+                    <p style={{ margin:'4px 0 0', fontSize:11, color:TEXT_SECONDARY }}>
                       依據：{contact.egg_type}{contact.need_level ? ' · 需求度'+contact.need_level : ''}
                     </p>
                   </div>

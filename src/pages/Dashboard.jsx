@@ -888,43 +888,43 @@ export default function Dashboard() {
         {/* 本季進度：看結果的區塊，放在要做的事後面 */}
         <section className="area-stats">
           <SectionHeader title="本季進度" hint="查看詳情 ›" onHint={()=>navigate('/transactions')} hintColor={PRIMARY} />
-          <div style={{ background:'var(--hero)',border:'1px solid var(--hero-border)',borderRadius:RADIUS.xl,padding:'18px 18px 16px',color:'#fff' }}>
+          <div style={{ ...cardStyle,padding:'18px 18px 16px',color:TEXT_MAIN }}>
             <div style={{ display:'flex',gap:16 }}>
               <div style={{ flex:1 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:12,fontWeight:600,color:ACCENT_YELLOW }}>BV</span>
-                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{bvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.55)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
+                  <span style={{ fontSize:12,fontWeight:600,color:ORANGE_TEXT }}>BV</span>
+                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{bvTotal.toFixed(0)} <span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
                 </div>
-                <ProgressBar value={bvTotal} max={BV_GOAL} color={ACCENT_YELLOW} trackColor="rgba(255,255,255,0.14)" />
+                <ProgressBar value={bvTotal} max={BV_GOAL} color={ORANGE} trackColor="var(--sub2)" />
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:12,fontWeight:600 }}>IBV</span>
-                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{ibvTotal.toFixed(0)} <span style={{ color:'rgba(255,255,255,0.55)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
+                  <span style={{ fontSize:12,fontWeight:600,color:PRIMARY }}>IBV</span>
+                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{ibvTotal.toFixed(0)} <span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
                 </div>
-                <ProgressBar value={ibvTotal} max={IBV_GOAL} color="#fff" trackColor="rgba(255,255,255,0.14)" />
+                <ProgressBar value={ibvTotal} max={IBV_GOAL} color={PRIMARY} trackColor="var(--sub2)" />
               </div>
             </div>
-            <div style={{ display:'flex',marginTop:12,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.18)' }}>
+            <div style={{ display:'flex',marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)' }}>
               <div style={{ flex:1.2 }}>
-                <div style={{ fontSize:11,opacity:0.75 }}>本月獲利</div>
+                <div style={{ fontSize:11,color:'var(--text2)' }}>本月獲利</div>
                 <div style={{ fontSize:15,fontWeight:600 }}>NT${profit.toLocaleString()}</div>
               </div>
-              <div style={{ flex:1,borderLeft:'1px solid rgba(255,255,255,0.18)',paddingLeft:12 }}>
-                <div style={{ fontSize:11,opacity:0.75 }}>本週訪談</div>
+              <div style={{ flex:1,borderLeft:'1px solid var(--border)',paddingLeft:12 }}>
+                <div style={{ fontSize:11,color:'var(--text2)' }}>本週訪談</div>
                 <div style={{ fontSize:15,fontWeight:600 }}>
-                  {meetupCard ? meetupCard.count : '–'}<span style={{ opacity:0.6,fontSize:12,fontWeight:400 }}>/2</span>
+                  {meetupCard ? meetupCard.count : '–'}<span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/2</span>
                 </div>
                 {meetupCard && (
-                  <div style={{ fontSize:11,opacity:0.85 }}>
+                  <div style={{ fontSize:11,color:'var(--text2)' }}>
                     {meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
                     {meetupCard.streak >= 2 && `・連續 ${meetupCard.streak} 週`}
                   </div>
                 )}
               </div>
               {teamCard && (
-                <div style={{ flex:1,borderLeft:'1px solid rgba(255,255,255,0.18)',paddingLeft:12 }}>
-                  <div style={{ fontSize:11,opacity:0.75 }}>戰隊打卡率</div>
+                <div style={{ flex:1,borderLeft:'1px solid var(--border)',paddingLeft:12 }}>
+                  <div style={{ fontSize:11,color:'var(--text2)' }}>戰隊打卡率</div>
                   <div style={{ fontSize:15,fontWeight:600 }}>{teamCard.teamAvgRate}%</div>
                 </div>
               )}
