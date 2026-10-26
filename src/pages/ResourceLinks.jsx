@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
-import { IconArrowLeft, IconPin, IconLink, IconX, IconStar, IconChevronRight } from '@tabler/icons-react'
+import {
+  IconArrowLeft, IconPin, IconLink, IconX, IconStar, IconChevronRight,
+  IconBooks, IconBook, IconFlame, IconVideo, IconHeadphones, IconFileText, IconChartBar,
+  IconHeart, IconRadio, IconMusic, IconBulb,
+} from '@tabler/icons-react'
 
 const PRIMARY = 'var(--primary)'
 const TEXT_MAIN = 'var(--text)'
@@ -12,7 +16,42 @@ const BORDER = 'var(--border)'
 
 const ADMIN_EMAIL = 'tseng980725@hotmail.com'
 
-const EMOJI_OPTIONS = ['🎧','📻','🎵','📖','📚','⭐','🔗','📝','🎬','💡','🔥','📌']
+// 圖示：用跟 App 其他地方同一套線條圖示（資料庫的 emoji 欄位存 'ti:名稱'；舊的表情符號會自動對應）
+const ICONS = {
+  books:      { Icon: IconBooks,      bg: 'var(--primary-soft)', color: 'var(--primary)' },
+  book:       { Icon: IconBook,       bg: 'var(--primary-soft)', color: 'var(--primary)' },
+  flame:      { Icon: IconFlame,      bg: 'var(--orange-soft)',  color: 'var(--orange-text)' },
+  video:      { Icon: IconVideo,      bg: 'var(--pink-soft)',    color: 'var(--pink-text)' },
+  headphones: { Icon: IconHeadphones, bg: 'var(--green-soft)',   color: 'var(--green-text)' },
+  radio:      { Icon: IconRadio,      bg: 'var(--green-soft)',   color: 'var(--green-text)' },
+  music:      { Icon: IconMusic,      bg: 'var(--green-soft)',   color: 'var(--green-text)' },
+  filetext:   { Icon: IconFileText,   bg: 'var(--yellow-soft)',  color: 'var(--yellow-text)' },
+  link:       { Icon: IconLink,       bg: 'var(--sub2)',         color: 'var(--text2)' },
+  chartbar:   { Icon: IconChartBar,   bg: 'var(--primary-soft)', color: 'var(--primary)' },
+  heart:      { Icon: IconHeart,      bg: 'var(--pink-soft)',    color: 'var(--pink-text)' },
+  bulb:       { Icon: IconBulb,       bg: 'var(--yellow-soft)',  color: 'var(--yellow-text)' },
+  star:       { Icon: IconStar,       bg: 'var(--yellow-soft)',  color: 'var(--yellow-text)' },
+  pin:        { Icon: IconPin,        bg: 'var(--sub2)',         color: 'var(--text2)' },
+}
+const ICON_KEYS = ['books','flame','video','headphones','filetext','link','chartbar','heart','book','radio','music','bulb']
+const EMOJI_TO_KEY = {
+  '🎧':'headphones','📻':'radio','🎵':'music','📖':'book','📚':'books','⭐':'star',
+  '🔗':'link','📝':'filetext','🎬':'video','💡':'bulb','🔥':'flame','📌':'pin',
+}
+function iconKeyOf(v) {
+  if (typeof v === 'string' && v.startsWith('ti:') && ICONS[v.slice(3)]) return v.slice(3)
+  return EMOJI_TO_KEY[v] || 'link'
+}
+function ResIcon({ value, size = 38 }) {
+  const it = ICONS[iconKeyOf(value)]
+  const I = it.Icon
+  return (
+    <span style={{ width:size, height:size, borderRadius:10, background:it.bg, color:it.color,
+      display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+      <I size={Math.round(size*0.55)} stroke={1.8} />
+    </span>
+  )
+}
 
 export default function ResourceLinks({ type, title, icon }) {
   const navigate = useNavigate()
@@ -25,7 +64,7 @@ export default function ResourceLinks({ type, title, icon }) {
   // 新增/編輯 Modal
   const [modal, setModal] = useState(null) // null | { scope, editId }
   const [formName, setFormName] = useState('')
-  const [formEmoji, setFormEmoji] = useState('🔗')
+  const [formEmoji, setFormEmoji] = useState('ti:link')
   const [formUrl, setFormUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [formMsg, setFormMsg] = useState('')
@@ -57,12 +96,12 @@ export default function ResourceLinks({ type, title, icon }) {
 
   function openAdd(scope) {
     setModal({ scope, editId: null })
-    setFormName(''); setFormEmoji('🎧'); setFormUrl(''); setFormMsg('')
+    setFormName(''); setFormEmoji('ti:headphones'); setFormUrl(''); setFormMsg('')
   }
 
   function openEdit(link) {
     setModal({ scope: link.scope, editId: link.id })
-    setFormName(link.name); setFormEmoji(link.emoji); setFormUrl(link.url); setFormMsg('')
+    setFormName(link.name); setFormEmoji('ti:' + iconKeyOf(link.emoji)); setFormUrl(link.url); setFormMsg('')
   }
 
   async function handleSave() {
@@ -124,7 +163,9 @@ export default function ResourceLinks({ type, title, icon }) {
           <div style={{ display:'flex',alignItems:'center',gap:12 }}>
             <button onClick={() => navigate(-1)}
               style={{ background:'none',border:'none',color:'#fff',cursor:'pointer',padding:0,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-            <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0 }}>{icon} {title}</h1>
+            <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0,display:'flex',alignItems:'center',gap:8 }}>
+              {(() => { const I = ICONS[iconKeyOf(icon)].Icon; return <I size={22} stroke={1.9} /> })()} {title}
+            </h1>
           </div>
           <p style={{ fontSize:13,color:'rgba(255,255,255,0.75)',margin:'6px 0 0 34px' }}>
             點按鈕直接開啟連結
@@ -159,16 +200,16 @@ export default function ResourceLinks({ type, title, icon }) {
                     style={{ flex:1,display:'flex',alignItems:'center',gap:12,
                       padding:'12px 14px',borderRadius:14,border:`1px solid ${BORDER}`,
                       background:'var(--card)',cursor:'pointer',textAlign:'left' }}>
-                    <span style={{ fontSize:22,flexShrink:0 }}>{link.emoji}</span>
+                    <ResIcon value={link.emoji} />
                     <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,flex:1 }}>{link.name}</span>
                     <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
                   </button>
                   {isAdmin && (
-                    <div style={{ display:'flex',flexDirection:'column',gap:4 }}>
+                    <div style={{ display:'flex',flexDirection:'column',gap:0 }}>
                       <button onClick={() => openEdit(link)}
-                        style={{ fontSize:11,color:PRIMARY,background:'none',border:'none',cursor:'pointer' }}>編輯</button>
+                        style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
                       <button onClick={() => setDeleteTarget(link)}
-                        style={{ fontSize:11,color:DANGER,background:'none',border:'none',cursor:'pointer' }}>刪除</button>
+                        style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
                     </div>
                   )}
                 </div>
@@ -200,15 +241,15 @@ export default function ResourceLinks({ type, title, icon }) {
                     style={{ flex:1,display:'flex',alignItems:'center',gap:12,
                       padding:'12px 14px',borderRadius:14,border:`1px solid ${BORDER}`,
                       background:'var(--card)',cursor:'pointer',textAlign:'left' }}>
-                    <span style={{ fontSize:22,flexShrink:0 }}>{link.emoji}</span>
+                    <ResIcon value={link.emoji} />
                     <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,flex:1 }}>{link.name}</span>
                     <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
                   </button>
-                  <div style={{ display:'flex',flexDirection:'column',gap:4 }}>
+                  <div style={{ display:'flex',flexDirection:'column',gap:0 }}>
                     <button onClick={() => openEdit(link)}
-                      style={{ fontSize:11,color:PRIMARY,background:'none',border:'none',cursor:'pointer' }}>編輯</button>
+                      style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
                     <button onClick={() => setDeleteTarget(link)}
-                      style={{ fontSize:11,color:DANGER,background:'none',border:'none',cursor:'pointer' }}>刪除</button>
+                      style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
                   </div>
                 </div>
               ))}
@@ -235,14 +276,19 @@ export default function ResourceLinks({ type, title, icon }) {
             <div style={{ marginBottom:14 }}>
               <label style={lb}>圖示</label>
               <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
-                {EMOJI_OPTIONS.map(e => (
-                  <button key={e} onClick={() => setFormEmoji(e)}
-                    style={{ width:38,height:38,borderRadius:12,fontSize:20,cursor:'pointer',
-                      border: formEmoji===e ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                      background: formEmoji===e ? 'var(--primary-soft)' : 'var(--sub)' }}>
-                    {e}
-                  </button>
-                ))}
+                {ICON_KEYS.map(k => {
+                  const I = ICONS[k].Icon
+                  const on = formEmoji === 'ti:' + k
+                  return (
+                    <button key={k} onClick={() => setFormEmoji('ti:' + k)}
+                      style={{ width:44,height:44,borderRadius:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                        border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+                        background: on ? 'var(--primary-soft)' : 'var(--sub)',
+                        color: on ? PRIMARY : TEXT_SECONDARY }}>
+                      <I size={22} stroke={1.8} />
+                    </button>
+                  )
+                })}
               </div>
             </div>
 

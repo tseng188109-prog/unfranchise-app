@@ -1,3 +1,4 @@
+import GoalModal from './goalModal'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
@@ -954,31 +955,13 @@ export default function Dashboard() {
       </div>
 
       {goalModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
-          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
-          onClick={e=>{ if(e.target===e.currentTarget) setGoalModal(false) }}>
-          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
-            width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
-            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
-              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
-                <IconTarget size={17} stroke={1.9} color={PRIMARY} /> 我的目標宣言
-              </h3>
-              <button onClick={()=>setGoalModal(false)}
-                style={{ background:'none',border:'none',fontSize:20,color:TEXT_MUTED,cursor:'pointer' }}>✕</button>
-            </div>
-            <textarea ref={goalTextareaRef} value={goalText}
-              onChange={e=>{ setGoalText(e.target.value); e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
-              placeholder="寫下你的目標宣言，每天提醒自己為什麼出發..." rows={4}
-              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.md,border:'1px solid var(--border)',
-                fontSize:15,boxSizing:'border-box',outline:'none',resize:'none',lineHeight:1.8,display:'block' }} />
-            <button onClick={saveGoalText} disabled={goalSaving}
-              style={{ width:'100%',padding:'13px',borderRadius:RADIUS.lg,border:'none',
-                background: goalSaved?ACCENT_GREEN:goalSaving?'#9BBBF2':PRIMARY,
-                color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer',marginTop:12 }}>
-              {goalSaved ? '✓ 已儲存' : goalSaving ? '儲存中…' : '儲存'}
-            </button>
-          </div>
-        </div>
+        <GoalModal text={goalText} setText={setGoalText} saving={goalSaving} saved={goalSaved}
+          onSave={saveGoalText} onClose={() => setGoalModal(false)}
+          onRead={() => {
+            const t = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+            if (viewDate === t && !checkins.goal_declaration) toggleCheckin('goal_declaration')
+            setGoalModal(false)
+          }} />
       )}
 
       {socialModal && (
