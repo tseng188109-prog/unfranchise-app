@@ -25,7 +25,8 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_TEXT, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { pickMeetingContact, pickInteractionContacts, getSuggestion, markDaily312, isContactWarm } from './followUp'
+import { pickMeetingContact, pickInteractionContacts, getSuggestion, isContactWarm } from './followUp'
+import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
 
@@ -417,7 +418,7 @@ export default function Dashboard() {
 
   async function fetchFollowUps() {
     const { data } = await supabase.from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,next_plan,next_plan_date,need_tags,last_quote')
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
     if (data) setActiveContacts(data)
@@ -672,6 +673,17 @@ export default function Dashboard() {
           <SectionHeader title="今天的 3-1-2" hint="查看全部聯絡人 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
+          {upcomingPlans(activeContacts).map(c => (
+            <div key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
+              style={{ padding:'10px 14px', background:PRIMARY_SOFT, cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ fontSize:13,fontWeight:600,color:PRIMARY }}>
+                {fmtPlanDate(c.next_plan_date)} 和{c.name}　{c.next_plan}
+              </div>
+              {(c.need_tags||[]).length>0 && (
+                <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2 }}>她在意：{c.need_tags.join('、')}</div>
+              )}
+            </div>
+          ))}
           <div style={{ padding:14, display:'flex', gap:12 }}>
             <Tile bg={PRIMARY_SOFT} color={PRIMARY}>3</Tile>
             <div style={{ flex:1, minWidth:0 }}>
@@ -708,12 +720,15 @@ export default function Dashboard() {
                   ? getSuggestion(meetingContact)
                   : '目前沒有準備好約會議的人，先專心做 3 位互動就好'}
               </div>
+              {meetingContact && meetingContact.last_quote && (
+                <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次她說：「{meetingContact.last_quote}」</div>
+              )}
               {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>別漫無目的，挑最接近臨門一腳的人</div>}
             </div>
             {meetingContact && (
               <SoftBtn solid color={ORANGE}
-                onClick={()=>{ markDaily312(supabase, user.id); navigate(`/contacts/${meetingContact.id}`) }}>
-                {isContactWarm(meetingContact) ? '約碰面' : '先暖身'}
+                onClick={()=>navigate(`/contacts/${meetingContact.id}`)}>
+                {isContactWarm(meetingContact) ? '約下一次' : '先暖身'}
               </SoftBtn>
             )}
           </div>

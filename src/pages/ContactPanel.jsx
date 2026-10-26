@@ -12,6 +12,7 @@ import {
   muteContact, unmuteContact, addContactNote, setStage, isStale, noteAgeOpacity,
   markDaily312,
 } from './followUp'
+import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -64,6 +65,9 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   const [contactNotes, setContactNotes] = useState([])
   const [noteSaving, setNoteSaving] = useState(false)
   const [muteSaving, setMuteSaving] = useState(false)
+  const [showAfterMeet, setShowAfterMeet] = useState(false)
+  const [signedDays, setSignedDays] = useState(null) // 簽約後第幾天（只在 已簽約 時有值）
+  const [meUserId, setMeUserId] = useState(null)
 
 
   useEffect(() => { if (id) fetchContact() }, [id])
@@ -81,6 +85,16 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     const { data: noteData } = await supabase.from('contact_notes')
       .select('*').eq('contact_id', id).order('created_at', { ascending: false })
     setContactNotes(noteData || [])
+
+    const { data: { user: me } } = await supabase.auth.getUser()
+    setMeUserId(me ? me.id : null)
+    setSignedDays(null)
+    if (data && data.referral_stage === '已簽約') {
+      const { data: hist } = await supabase.from('contact_stage_history')
+        .select('created_at').eq('contact_id', id).eq('track', 'referral').eq('stage', '已簽約')
+        .order('created_at', { ascending: false }).limit(1)
+      if (hist && hist[0]) setSignedDays(Math.floor((Date.now() - new Date(hist[0].created_at).getTime()) / 86400000))
+    }
 
     // 反查：這位聯絡人有沒有對應的顧客檔案（有消費紀錄）
     const { data: custData } = await supabase.from('customers')
@@ -310,6 +324,15 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               </>
             )}
 
+            {!contact.is_muted && <NextPlanCard contact={contact} onOpen={() => setShowAfterMeet(true)} />}
+
+            {signedDays !== null && signedDays <= 14 && (
+              <div style={{ background:'var(--green-soft)', borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14,
+                fontSize:13, color:'var(--green-text)', lineHeight:1.5 }}>
+                簽約第 {signedDays} 天。簽約後 3–7 天內約一次跟進會面，幫她把起步做順。
+              </div>
+            )}
+
             {/* 消費狀況：路徑視覺，標注永遠由使用者自己點 */}
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
@@ -516,6 +539,10 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           </div>
         )}
       </div>
+      {showAfterMeet && meUserId && (
+        <AfterMeetSheet contact={contact} userId={meUserId} onClose={() => setShowAfterMeet(false)}
+          onSaved={() => { fetchContact(); onChanged?.() }} />
+      )}
     </div>
   )
 }

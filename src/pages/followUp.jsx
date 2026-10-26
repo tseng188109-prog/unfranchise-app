@@ -16,8 +16,8 @@ export const RELATIONSHIP_STAGES = [
 export const REFERRAL_STAGES = [
   '聽過介紹',
   '考慮中',
-  '已登記',
-  '已加入經營',
+  '已簽約',
+  '起步中',
   '穩定經營中',
   '暫時婉拒',
 ]

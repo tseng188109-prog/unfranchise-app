@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate } from 'react-router-dom'
+import { TagManager } from './meetingFlow'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
   IconFlag, IconChevronRight, IconCheck,
@@ -261,6 +262,8 @@ export default function Settings() {
             ))}
           </div>
         </div>
+
+        {user && <TagManager userId={user.id} cardStyle={card} />}
 
         {/* 密碼修改 */}
         <div style={card}>
