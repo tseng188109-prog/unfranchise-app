@@ -238,11 +238,11 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
 
         <div style={sec}>
           <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>她有興趣嗎（必選）</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }}>
             {INTEREST_LEVELS.map(x => (
               <button key={x.key} type="button" onClick={() => { setLevel(x.key === level ? null : x.key); setErr('') }}
                 style={{ border: `1px solid ${level === x.key ? PRIMARY : 'var(--border2)'}`, background: level === x.key ? PRIMARY_SOFT : 'transparent',
-                  borderRadius: RADIUS.md, padding: '8px 0 7px', cursor: 'pointer', fontSize: 12, color: TEXT_MAIN }}>
+                  borderRadius: RADIUS.md, padding: '10px 2px 9px', cursor: 'pointer', fontSize: 11, color: TEXT_MAIN, whiteSpace: 'nowrap', minWidth: 0, letterSpacing: 0 }}>
                 <span style={{ display: 'block', width: 9, height: 9, borderRadius: '50%', background: x.dot, margin: '0 auto 5px' }} />
                 {x.label}
               </button>

@@ -337,30 +337,40 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             {/* 消費狀況：路徑視覺，標注永遠由使用者自己點 */}
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:13, fontWeight:600, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
-              <div style={{ display:'flex', alignItems:'center' }}>
-                {RELATIONSHIP_STAGES.map((s, i) => {
-                  const curIdx = RELATIONSHIP_STAGES.indexOf(contact.relationship_stage)
-                  const reached = curIdx >= 0 && i <= curIdx
-                  const isCurrent = i === curIdx
-                  return (
-                    <div key={s} style={{ display:'flex', alignItems:'center', flex: i < RELATIONSHIP_STAGES.length-1 ? 1 : '0 0 auto' }}>
-                      <button onClick={() => handleSetStage('relationship', s)} title={s}
-                        style={{ background:'none', border:'none', cursor:'pointer', padding:4,
-                          display:'flex', flexDirection:'column', alignItems:'center', gap:6, flexShrink:0 }}>
-                        <span style={{ width: isCurrent?16:11, height: isCurrent?16:11, borderRadius:RADIUS.circle,
-                          background: reached ? PRIMARY : 'var(--border2)',
-                          border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
-                          boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
-                        <span style={{ fontSize:11, color: reached ? (isCurrent?PRIMARY:TEXT_MUTED) : 'var(--border2)',
-                          fontWeight: isCurrent?700:400, whiteSpace:'nowrap' }}>{s}</span>
-                      </button>
-                      {i < RELATIONSHIP_STAGES.length-1 && (
-                        <div style={{ height:2, flex:1, background: i < curIdx ? PRIMARY : 'var(--border2)' }} />
-                      )}
+              {(() => {
+                const n = RELATIONSHIP_STAGES.length
+                const curIdx = RELATIONSHIP_STAGES.indexOf(contact.relationship_stage)
+                const pad = 100 / (2 * n)            // 第一個點和最後一個點到邊緣的距離（%）
+                const span = 100 - 2 * pad
+                return (
+                  <div style={{ position:'relative' }}>
+                    <div style={{ position:'absolute', top:11, left:`${pad}%`, right:`${pad}%`, height:2, background:'var(--border2)' }} />
+                    {curIdx > 0 && (
+                      <div style={{ position:'absolute', top:11, left:`${pad}%`, width:`${(curIdx / (n - 1)) * span}%`, height:2, background:PRIMARY }} />
+                    )}
+                    <div style={{ position:'relative', display:'grid', gridTemplateColumns:`repeat(${n}, minmax(0, 1fr))` }}>
+                      {RELATIONSHIP_STAGES.map((s, i) => {
+                        const reached = curIdx >= 0 && i <= curIdx
+                        const isCurrent = i === curIdx
+                        return (
+                          <button key={s} onClick={() => handleSetStage('relationship', s)} title={s}
+                            style={{ background:'none', border:'none', cursor:'pointer', padding:'0 2px',
+                              display:'flex', flexDirection:'column', alignItems:'center', gap:6, minWidth:0 }}>
+                            <span style={{ height:24, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              <span style={{ width: isCurrent?16:11, height: isCurrent?16:11, borderRadius:RADIUS.circle,
+                                background: reached ? PRIMARY : 'var(--border2)',
+                                border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
+                                boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
+                            </span>
+                            <span style={{ fontSize:11, lineHeight:1.35, textAlign:'center', color: isCurrent ? PRIMARY : TEXT_MUTED,
+                              fontWeight: isCurrent ? 600 : 400, wordBreak:'break-all' }}>{s}</span>
+                          </button>
+                        )
+                      })}
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                )
+              })()}
               <p style={{ fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>想往前走一步嗎？點一下上面的點就能標注，系統不會自己幫你改</p>
             </div>
 
