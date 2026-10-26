@@ -294,6 +294,9 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
           <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>
             約下一次{lv && lv.key === 'none' ? '（這次可以先不約）' : ''}
           </div>
+          <div style={{ fontSize: 11, color: TEXT_MUTED, marginBottom: 8, lineHeight: 1.5 }}>
+            約的時候給對方兩個時間選，並說明大概一小時。
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
             {planChips.map(p => (
               <Chip key={p} tone={suggested.includes(p) ? 'green' : undefined} on={plan === p} onClick={() => setPlan(plan === p ? '' : p)}>
