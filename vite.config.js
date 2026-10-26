@@ -8,6 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        importScripts: ['push-sw.js'],
+      },
       manifest: {
         name: '超連鎖行動計畫',
         short_name: '超連鎖',

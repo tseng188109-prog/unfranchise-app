@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
+import { PushSetting } from './pushNotify'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
   IconFlag, IconChevronRight, IconCheck, IconHelpCircle,
@@ -359,6 +360,8 @@ export default function Settings() {
             </button>
           ))}
         </div>
+
+        {user && <PushSetting userId={user.id} />}
 
         {/* 登出 */}
         <button onClick={handleSignOut}
