@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BirthdayPicker } from './pickers'
 import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -18,38 +19,6 @@ const ACTION_MAP = {
   '生雞蛋':{'大一':'輕鬆互動','大二':'輕鬆互動','大三':'軟性活動','大四':'商機講座'},
 }
 const DAYS_MAP = {'輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5}
-
-function BirthdayPicker({ value, onChange }) {
-  const months = Array.from({length:12}, (_,i) => String(i+1).padStart(2,'0'))
-  const days = Array.from({length:31}, (_,i) => String(i+1).padStart(2,'0'))
-  const parts = value ? value.split('-') : ['','']
-  const mm = parts[0] || ''
-  const dd = parts[1] || ''
-
-  function handleChange(newMm, newDd) {
-    if (newMm && newDd) onChange(`${newMm}-${newDd}`)
-    else onChange('')
-  }
-
-  return (
-    <div style={{ display:'flex', gap:8 }}>
-      <select value={mm} onChange={e => handleChange(e.target.value, dd)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-          fontSize:14,background:'var(--card)',outline:'none',
-          color:mm?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
-        <option value=''>月份</option>
-        {months.map(m => <option key={m} value={m}>{Number(m)} 月</option>)}
-      </select>
-      <select value={dd} onChange={e => handleChange(mm, e.target.value)}
-        style={{ flex:1,padding:'11px 8px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-          fontSize:14,background:'var(--card)',outline:'none',
-          color:dd?TEXT_MAIN:TEXT_MUTED,appearance:'none',WebkitAppearance:'none' }}>
-        <option value=''>日期</option>
-        {days.map(d => <option key={d} value={d}>{Number(d)} 日</option>)}
-      </select>
-    </div>
-  )
-}
 
 export default function ContactEdit() {
   const { id } = useParams()

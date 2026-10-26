@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
@@ -338,7 +339,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                   </button>
                 </div>
                 <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
-                  <input type="date" value={form.date} onChange={e => setF('date', e.target.value)}
+                  <DateField value={form.date} onChange={e => setF('date', e.target.value)}
                     style={{ ...formInput, flex:1, minWidth:130 }} />
                   <div style={{ display:'flex', gap:6 }}>
                     {['BV','IBV'].map(type => (
@@ -479,7 +480,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                   <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 2px' }}>回購提醒</p>
                   {editReminder ? (
                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                      <input type="date" value={reminderDate} onChange={e => setReminderDate(e.target.value)}
+                      <DateField value={reminderDate} onChange={e => setReminderDate(e.target.value)}
                         style={{ padding:'5px 8px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`, fontSize:12, outline:'none' }} />
                       <button onClick={saveReminder}
                         style={{ background:'none', border:'none', cursor:'pointer', color:ACCENT_GREEN_TEXT, display:'flex' }}>

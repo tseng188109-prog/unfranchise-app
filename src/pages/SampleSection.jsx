@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { DateField } from './pickers'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconPencil, IconTrash, IconX, IconFlask } from '@tabler/icons-react'
@@ -150,7 +151,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <input type="number" value={form.portions} placeholder="幾天份 *"
               onChange={e => setForm(p => ({ ...p, portions: e.target.value }))} style={{ ...inp, flex: 1 }} />
-            <input type="date" value={form.share_date} max={today()}
+            <DateField value={form.share_date} max={today()}
               onChange={e => setForm(p => ({ ...p, share_date: e.target.value }))} style={{ ...inp, flex: 1 }} />
           </div>
           <input type="number" value={form.cost} placeholder="成本 NT$（選填）"
@@ -262,7 +263,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
               <input type="number" value={editForm.portions} placeholder="幾天份 *"
                 onChange={e => setEditForm(p => ({ ...p, portions: e.target.value }))}
                 style={{ ...inp, padding: '10px 12px', fontSize: 14, flex: 1 }} />
-              <input type="date" value={editForm.share_date}
+              <DateField value={editForm.share_date}
                 onChange={e => setEditForm(p => ({ ...p, share_date: e.target.value }))}
                 style={{ ...inp, padding: '10px 12px', fontSize: 14, flex: 1 }} />
             </div>

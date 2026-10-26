@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { DateField } from './pickers'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -839,7 +840,7 @@ export default function Transactions() {
                 style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
             <label style={labelStyle}>日期</label>
-            <input type="date" value={editForm.date}
+            <DateField value={editForm.date}
               onChange={e => setEditForm(f => ({...f, date: e.target.value}))} style={inputStyle} />
             <label style={labelStyle}>品名</label>
             <input type="text" value={editForm.product_name}

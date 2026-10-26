@@ -1,4 +1,5 @@
 import SocialModal from './socialModal'
+import { DateField } from './pickers'
 import { CloseBtn } from './ui'
 import GoalModal from './goalModal'
 import { useState, useEffect, useRef } from 'react'
@@ -805,7 +806,7 @@ export default function Daily() {
 
             <div style={{ marginBottom:16 }}>
               <label style={labelStyle}>日期</label>
-              <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)} style={inputStyle} />
+              <DateField value={logDate} onChange={e => setLogDate(e.target.value)} style={inputStyle} />
               {logDate > today() && (
                 <p style={{ fontSize:12,color:ACCENT_YELLOW_TEXT,margin:'6px 0 0',fontWeight:600 }}>
                   預排模式：儲存後顯示為「待完成」

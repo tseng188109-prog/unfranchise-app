@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { DateField, SelectField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { IconX, IconPlus, IconTrash, IconRepeat, IconCircleCheck, IconCopy, IconChevronRight, IconChevronDown } from '@tabler/icons-react'
@@ -328,7 +329,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
           </div>
           <div style={{ width: 140 }}>
             <span style={lbl}>日期</span>
-            <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp} />
+            <DateField value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp} />
           </div>
           {onCancel && (
             <button onClick={onCancel} aria-label="關閉"
@@ -424,9 +425,8 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) auto', gap: 8, alignItems: 'end' }}>
                     <div>
                       <span style={lbl}>類型</span>
-                      <select value={a.kind} onChange={e => setAdj(a.id, { kind: e.target.value })} style={inp}>
-                        {Object.keys(ADJ_KIND_LABEL).map(k => <option key={k} value={k}>{ADJ_KIND_LABEL[k]}</option>)}
-                      </select>
+                      <SelectField value={a.kind} title="類型" onChange={v => setAdj(a.id, { kind: v })} style={inp}
+                        options={Object.keys(ADJ_KIND_LABEL).map(k => ({ value: k, label: ADJ_KIND_LABEL[k] }))} />
                     </div>
                     <div>
                       <span style={lbl}>{a.kind === 'percent' ? '幾折' : '金額'}</span>

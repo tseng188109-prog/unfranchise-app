@@ -1,6 +1,7 @@
 // meetingFlow.jsx — 「見完了 → 約下一次」流程、標籤清單、下一次卡片、見面前提示
 // 原則：必填只有「她有興趣嗎」，其他都選填；標籤清單可改名／隱藏／自己新增。
 import { useState, useEffect } from 'react'
+import { DateField } from './pickers'
 import { supabase } from '../supabase'
 import { markDaily312 } from './followUp'
 import { trackUsage } from './usage'
@@ -308,7 +309,7 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
             style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', marginTop: 4 }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
             <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>哪天</span>
-            <input type="date" value={planDate} min={todayStr()} onChange={e => setPlanDate(e.target.value)}
+            <DateField value={planDate} min={todayStr()} onChange={e => setPlanDate(e.target.value)}
               style={{ padding: '7px 10px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none' }} />
             <span style={{ fontSize: 11, color: TEXT_MUTED }}>還沒定可以空著</span>
           </div>

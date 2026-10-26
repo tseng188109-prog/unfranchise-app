@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { DateField } from './pickers'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconPlus, IconFlask, IconCalendarEvent, IconPencil, IconTrash, IconX, IconCheck } from '@tabler/icons-react'
@@ -288,7 +289,7 @@ export default function Samples() {
             <input type="number" value={newForm.portions}
               onChange={e => setNewForm(p=>({...p,portions:e.target.value}))}
               placeholder="幾天份 *" style={{ ...inp, flex:1 }} />
-            <input type="date" value={newForm.share_date}
+            <DateField value={newForm.share_date}
               onChange={e => setNewForm(p=>({...p,share_date:e.target.value}))}
               style={{ ...inp, flex:1 }} />
           </div>
@@ -402,7 +403,7 @@ export default function Samples() {
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
                       <IconCalendarEvent size={14} stroke={1.9} color={TEXT_MUTED} />
                       <span style={{ fontSize:12, color:TEXT_MUTED }}>下次追蹤</span>
-                      <input type="date" value={s.next_followup_date || ''}
+                      <DateField value={s.next_followup_date || ''}
                         onChange={e => updateNextFollowup(s.id, e.target.value)}
                         style={{ padding:'5px 8px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
                           fontSize:12, outline:'none', color:TEXT_MAIN }} />
@@ -422,7 +423,7 @@ export default function Samples() {
                     {expandedId === s.id && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ display:'flex', gap:6, marginBottom:8, flexWrap:'wrap' }}>
-                          <input type="date" value={logDate} max={today()}
+                          <DateField value={logDate} max={today()}
                             onChange={e => setLogDate(e.target.value)}
                             style={{ padding:'7px 8px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
                               fontSize:12, outline:'none', color:TEXT_MAIN, width:120 }} />
@@ -499,7 +500,7 @@ export default function Samples() {
               <input type="number" value={editForm.portions}
                 onChange={e => setEditForm(p => ({ ...p, portions: e.target.value }))}
                 placeholder="幾天份 *" style={{ ...inp, flex:1, marginBottom:0 }} />
-              <input type="date" value={editForm.share_date}
+              <DateField value={editForm.share_date}
                 onChange={e => setEditForm(p => ({ ...p, share_date: e.target.value }))}
                 style={{ ...inp, flex:1, marginBottom:0 }} />
             </div>

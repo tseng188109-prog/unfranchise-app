@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
@@ -440,7 +441,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
 
             <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:16 }}>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
-                <input type="date" value={quickDate} max={today()}
+                <DateField value={quickDate} max={today()}
                   onChange={e => setQuickDate(e.target.value)}
                   style={{ width:130, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
                     fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
