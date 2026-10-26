@@ -1,3 +1,4 @@
+import SocialModal from './socialModal'
 import GoalModal from './goalModal'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
@@ -10,7 +11,7 @@ import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
-  IconFlag, IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp,
+  IconFlag, IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp, IconX,
 } from '@tabler/icons-react'
 
 const BV_GOAL = 1500
@@ -105,6 +106,8 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [showFullHome, setShowFullHome] = useState(() => { try { return localStorage.getItem('ufa_home_full') === '1' } catch { return false } })
+  const [showAllTasks, setShowAllTasks] = useState(false)
   const [bvTotal, setBvTotal] = useState(0)
   const [ibvTotal, setIbvTotal] = useState(0)
   const [profit, setProfit] = useState(0)
@@ -315,7 +318,7 @@ export default function Dashboard() {
 
   async function fetchProfile() {
     const { data } = await supabase.from('users')
-      .select('name, onboarding_done, why_here')
+      .select('name, onboarding_done, why_here, created_at')
       .eq('id', user.id).single()
     if (data) {
       setProfile(data)
@@ -516,6 +519,15 @@ export default function Dashboard() {
     setTimeout(() => fetchStarterTasks(), 500)
   }
 
+  // 新人（加入 14 天內）：先只看今天要做的事，不被本季進度、戰隊、共學主題嚇到
+  const daysSinceJoin = profile?.created_at ? (Date.now() - new Date(profile.created_at).getTime()) / 86400000 : 999
+  const isNewbie = daysSinceJoin < 14 && !showFullHome
+  const CORE_TASKS = ['goal_declaration', 'daily_3_contacts', 'listen_recording']
+  const shownTasks = isNewbie && !showAllTasks ? DAILY_TASKS.filter(t => CORE_TASKS.includes(t.key)) : DAILY_TASKS
+  function toggleFullHome(v) {
+    setShowFullHome(v)
+    try { localStorage.setItem('ufa_home_full', v ? '1' : '0') } catch { /* ignore */ }
+  }
   const displayName = profile?.name || user?.email?.split('@')[0] || 'Annie'
   const todayStr = (()=>{
     const d=new Date()
@@ -827,7 +839,7 @@ export default function Dashboard() {
             </div>
 
             <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
-              {DAILY_TASKS.map(task=>{
+              {shownTasks.map(task=>{
                 const done=!!checkins[task.key]
                 const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
                 const TaskIcon = task.Icon
@@ -871,6 +883,12 @@ export default function Dashboard() {
                 )
               })}
             </div>
+            {isNewbie && !showAllTasks && (
+              <div style={{ textAlign:'center',marginTop:6 }}>
+                <button onClick={() => setShowAllTasks(true)}
+                  style={{ fontSize:12,color:TEXT_SECONDARY,background:'none',border:'none',cursor:'pointer',padding:'8px 12px' }}>更多 ▾</button>
+              </div>
+            )}
             {DAILY_TASKS.length>0 && DAILY_TASKS.every(t=>checkins[t.key]) && (
               <div style={{ textAlign:'center',padding:'12px 0 2px',fontSize:13,color:ACCENT_GREEN_TEXT,fontWeight:500 }}>
                 今天的行動都完成了，好好休息。
@@ -886,6 +904,14 @@ export default function Dashboard() {
         </section>
 
         {/* 本季進度：看結果的區塊，放在要做的事後面 */}
+        {isNewbie && (
+          <section className="area-stats" style={{ marginTop:16,textAlign:'center' }}>
+            <div style={{ fontSize:12,color:TEXT_MUTED,lineHeight:1.6 }}>本季進度、戰隊、共學主題會在第 15 天出現</div>
+            <button onClick={() => toggleFullHome(true)}
+              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 12px',fontWeight:600 }}>現在就看全部</button>
+          </section>
+        )}
+        {!isNewbie && (
         <section className="area-stats">
           <SectionHeader title="本季進度" hint="查看詳情 ›" onHint={()=>navigate('/transactions')} hintColor={PRIMARY} />
           <div style={{ ...cardStyle,padding:'18px 18px 16px',color:TEXT_MAIN }}>
@@ -944,7 +970,9 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {user && onboardingDone && (
+        )}
+
+        {user && onboardingDone && !isNewbie && (
           <section className="area-theme" style={{ marginTop:16 }}>
             <StudyThemeCard user={user} />
           </section>
@@ -964,33 +992,7 @@ export default function Dashboard() {
           }} />
       )}
 
-      {socialModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
-          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
-          onClick={e=>{ if(e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
-            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
-                <IconMessageCircle size={17} stroke={1.9} color={PRIMARY} /> 前往回應
-              </h3>
-              <button onClick={()=>setSocialModal(false)}
-                style={{ background:'none',border:'none',fontSize:20,color:TEXT_MUTED,cursor:'pointer' }}>✕</button>
-            </div>
-            <div style={{ display:'flex',gap:12,marginBottom:8 }}>
-              <button onClick={()=>{ window.open('https://www.facebook.com/groups/710836659091767/','_blank'); setSocialModal(false) }}
-                style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
-                  background:'#1877F2',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
-                📘 臉書 IDEA
-              </button>
-              <button onClick={()=>{ window.open('https://line.me','_blank'); setSocialModal(false) }}
-                style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
-                  background:'#06C755',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
-                💚 LINE
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {socialModal && <SocialModal onClose={() => setSocialModal(false)} />}
     </div>
   )
 }

@@ -20,6 +20,7 @@ import Settings from './pages/Settings'
 import Samples from './pages/Samples'
 import Partners from './pages/Partners'
 import Team from './pages/Team'
+import Help from './pages/Help'
 import DailyPractice from './pages/DailyPractice'
 import Recording from './pages/Recording'
 import Onboarding from './pages/Onboarding'
@@ -113,6 +114,7 @@ function App() {
           <Route path="/samples" element={<Samples />} />
           <Route path="/partners" element={<Partners />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/daily-practice" element={<DailyPractice />} />
           <Route path="/recording" element={<Recording />} />
           <Route path="*" element={<Navigate to="/" />} />

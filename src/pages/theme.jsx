@@ -21,7 +21,7 @@ const DARK = `
   --page:#1A1917; --card:#232220; --sub:#2A2823; --sub2:#2F2D28;
   --border:#33312D; --border2:#45423B;
   --text:#ECE8E1; --text2:#A39E94; --muted:#77726A;
-  --primary:#6C9BEF; --primary-soft:#222C40;
+  --primary:#5B8DEF; --primary-soft:#222C40;
   --orange-soft:#3B291C; --orange-text:#E8A06B; --orange-border:#5A3F2A;
   --green-soft:#20332A; --green-text:#8FCBA8; --green-border:#2F5242;
   --yellow-soft:#3A3320; --yellow-text:#E5C77A; --yellow-border:#5A4E2C;

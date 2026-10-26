@@ -30,7 +30,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
   return (
     <div style={{ border: `1px solid ${BORDER}`, borderRadius: RADIUS.md, padding: 12, marginBottom: 10, background: 'var(--card)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>{shortDate(group.date)} 訂單</span>
+        <span style={{ fontSize: 14, fontWeight:600, color: TEXT_MAIN }}>{shortDate(group.date)} 訂單</span>
         <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>
           BV {fmt(bv)}{ibv > 0 ? `　IBV ${fmt(ibv)}` : ''}
         </span>
@@ -42,7 +42,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
             <span style={{ minWidth: 0, color: TEXT_MAIN, wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {t.product_name}
               {t.is_gift && (
-                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: RADIUS.pill, background: ACCENT_YELLOW_SOFT, color: ACCENT_YELLOW_TEXT, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize:11, padding: '1px 6px', borderRadius: RADIUS.pill, background: ACCENT_YELLOW_SOFT, color: ACCENT_YELLOW_TEXT, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <IconGift size={10} stroke={1.9} /> 贈品
                 </span>
               )}
@@ -69,13 +69,13 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: profit >= 0 ? ACCENT_GREEN_TEXT : DANGER }}>
+        <span style={{ fontSize: 13, fontWeight:600, color: profit >= 0 ? ACCENT_GREEN_TEXT : DANGER }}>
           獲利 NT${fmt(profit)}
           {unpriced > 0 && <span style={{ fontSize: 11, fontWeight: 400, color: TEXT_MUTED }}>　{unpriced} 項賣價未填</span>}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={copy}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: PRIMARY, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3, padding: 0 }}>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: PRIMARY, fontSize: 12, fontWeight:600, display: 'flex', alignItems: 'center', gap: 3, padding: 0 }}>
             <IconCopy size={13} stroke={1.9} /> {copied ? '已複製' : '複製給顧客'}
           </button>
           <button onClick={() => onEdit(group.orderId)} aria-label="編輯訂單"

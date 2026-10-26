@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft, IconArchive } from '@tabler/icons-react'
@@ -149,11 +150,7 @@ export default function CustomerEdit() {
     navigate('/customers')
   }
 
-  if (!form) return (
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <p style={{ color:TEXT_MUTED }}>載入中…</p>
-    </div>
-  )
+  if (!form) return <LoadingSpinner />
 
   return (
     <div style={{ background:'var(--page)',minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
@@ -171,7 +168,7 @@ export default function CustomerEdit() {
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => navigate(-1)}
             style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-          <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯顧客</h1>
+          <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯顧客</h1>
         </div>
         <button onClick={() => setShowArchiveConfirm(true)}
           style={{ display:'flex', alignItems:'center', gap:6, background:DANGER_SOFT, border:'none', borderRadius:RADIUS.sm,
@@ -242,7 +239,7 @@ export default function CustomerEdit() {
         <div style={fw}>
           <label style={lb}>
             手機
-            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
+            <span style={{ marginLeft:6, fontSize:11, padding:'1px 6px', borderRadius:RADIUS.pill,
               background: form.phone.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
               color: form.phone.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
@@ -254,7 +251,7 @@ export default function CustomerEdit() {
         <div style={fw}>
           <label style={lb}>
             生日
-            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
+            <span style={{ marginLeft:6, fontSize:11, padding:'1px 6px', borderRadius:RADIUS.pill,
               background: form.birthday.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
               color: form.birthday.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
@@ -266,7 +263,7 @@ export default function CustomerEdit() {
         <div style={fw}>
           <label style={lb}>
             職業
-            <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
+            <span style={{ marginLeft:6, fontSize:11, padding:'1px 6px', borderRadius:RADIUS.pill,
               background: form.occupation.trim() ? ACCENT_GREEN_SOFT : ACCENT_YELLOW_SOFT,
               color: form.occupation.trim() ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT, fontWeight:600 }}>識別用</span>
           </label>
@@ -306,16 +303,16 @@ export default function CustomerEdit() {
         <button onClick={handleSave} disabled={saving}
           style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
             background:saving?'#9BBBF2':PRIMARY,color:'#fff',
-            fontSize:16,fontWeight:700,cursor:'pointer',marginTop:8 }}>
+            fontSize:16,fontWeight:600,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
       </div>
 
       {showArchiveConfirm && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:20 }}>
           <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:'100%',maxWidth:340 }}>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>確定要封存這位顧客嗎？</p>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>確定要封存這位顧客嗎？</p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>
               封存後可以到顧客檔案的「封存名單」找到並復原，或永久刪除。
             </p>
@@ -325,7 +322,7 @@ export default function CustomerEdit() {
                   background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive} disabled={archiving}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 {archiving?'封存中…':'確定封存'}
               </button>
             </div>

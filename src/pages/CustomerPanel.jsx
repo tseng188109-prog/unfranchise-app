@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -135,7 +136,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   }
 
   async function handleArchive() {
-    if (!confirm(`確定要封存「${customer.name}」嗎？封存後可以在顧客檔案的「封存名單」找到並復原。`)) return
+    if (!(await askConfirm({ title:`封存「${customer.name}」？`, message:'封存後可以在顧客檔案的「封存名單」找到並復原。', okText:'封存', danger:true }))) return
     await supabase.from('customers').update({ is_archived: true }).eq('id', id)
     onChanged?.()
     if (onArchived) onArchived()
@@ -253,12 +254,12 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
         )}
         <div style={{ display:'flex', alignItems:'center', gap:14, paddingBottom:16, flexWrap:'wrap' }}>
           <div style={{ width: embedded?48:56, height: embedded?48:56, borderRadius:'50%', background:avatarBg(customer.name),
-            display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700,
+            display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:600,
             fontSize: embedded?19:22, flexShrink:0 }}>
             {customer.name[0]}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
-            <span style={{ fontSize: embedded?17:20, fontWeight:700, color:TEXT_MAIN }}>{customer.name}</span>
+            <span style={{ fontSize: embedded?17:20, fontWeight:600, color:TEXT_MAIN }}>{customer.name}</span>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'2px 0 0' }}>
               {customer.occupation||''}{customer.occupation&&customer.phone?' · ':''}{customer.phone||''}
             </p>
@@ -296,16 +297,16 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           <>
             <div style={{ display:'flex', gap:8, marginBottom:16 }}>
               <div style={{ flex:1, background:'var(--yellow-soft)', borderRadius:RADIUS.md, padding:'10px', textAlign:'center' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:ACCENT_YELLOW_TEXT, margin:'0 0 2px' }}>BV</p>
-                <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:0 }}>{totalBV.toFixed(0)}</p>
+                <p style={{ fontSize:11, fontWeight:600, color:ACCENT_YELLOW_TEXT, margin:'0 0 2px' }}>BV</p>
+                <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:0 }}>{totalBV.toFixed(0)}</p>
               </div>
               <div style={{ flex:1, background:'var(--primary-soft)', borderRadius:RADIUS.md, padding:'10px', textAlign:'center' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:PRIMARY, margin:'0 0 2px' }}>IBV</p>
-                <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:0 }}>{totalIBV.toFixed(0)}</p>
+                <p style={{ fontSize:11, fontWeight:600, color:PRIMARY, margin:'0 0 2px' }}>IBV</p>
+                <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:0 }}>{totalIBV.toFixed(0)}</p>
               </div>
               <div style={{ flex:1, background:ACCENT_GREEN_SOFT, borderRadius:RADIUS.md, padding:'10px', textAlign:'center' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:'0 0 2px' }}>獲利</p>
-                <p style={{ fontSize:14, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>NT${totalProfit.toLocaleString()}</p>
+                <p style={{ fontSize:11, fontWeight:600, color:ACCENT_GREEN_TEXT, margin:'0 0 2px' }}>獲利</p>
+                <p style={{ fontSize:14, fontWeight:600, color:ACCENT_GREEN_TEXT, margin:0 }}>NT${totalProfit.toLocaleString()}</p>
               </div>
             </div>
 
@@ -324,13 +325,13 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
             ) : !showForm ? (
               <button onClick={openAdd}
                 style={{ width:'100%', padding:'10px', borderRadius:RADIUS.sm, border:`1px dashed ${PRIMARY}`,
-                  background:'var(--primary-soft)', color:PRIMARY, fontSize:13, fontWeight:700, cursor:'pointer', marginBottom:16 }}>
+                  background:'var(--primary-soft)', color:PRIMARY, fontSize:13, fontWeight:600, cursor:'pointer', marginBottom:16 }}>
                 + 新增消費紀錄
               </button>
             ) : (
               <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, padding:14, marginBottom:16, background:SUBCARD_BG }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                  <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{editId?'編輯消費紀錄':'新增消費紀錄'}</span>
+                  <span style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN }}>{editId?'編輯消費紀錄':'新增消費紀錄'}</span>
                   <button onClick={() => setShowForm(false)}
                     style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex' }}>
                     <IconX size={18} />
@@ -342,7 +343,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                   <div style={{ display:'flex', gap:6 }}>
                     {['BV','IBV'].map(type => (
                       <button key={type} onClick={() => setF('type', type)}
-                        style={{ padding:'0 12px', borderRadius:RADIUS.sm, fontSize:13, fontWeight:700, cursor:'pointer', border:'none',
+                        style={{ padding:'0 12px', borderRadius:RADIUS.sm, fontSize:13, fontWeight:600, cursor:'pointer', border:'none',
                           background: form.type===type?(type==='BV'?ACCENT_YELLOW:PRIMARY):'var(--card)',
                           color: form.type===type?(type==='BV'?'#5B3200':'#fff'):TEXT_SECONDARY }}>
                         {type}
@@ -366,7 +367,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                 </label>
                 <button onClick={saveTx} disabled={saving || !canSave}
                   style={{ width:'100%', padding:'10px', borderRadius:RADIUS.sm, border:'none',
-                    background: canSave ? PRIMARY : 'var(--border2)', color:'#fff', fontSize:13, fontWeight:700,
+                    background: canSave ? PRIMARY : 'var(--border2)', color:'#fff', fontSize:13, fontWeight:600,
                     cursor: canSave ? 'pointer' : 'not-allowed' }}>
                   {saving ? '儲存中…' : editId ? '儲存修改' : '確認新增'}
                 </button>
@@ -386,12 +387,12 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN }}>{t.product_name}</span>
-                        <span style={{ fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill, fontWeight:700,
+                        <span style={{ fontSize:11, padding:'1px 6px', borderRadius:RADIUS.pill, fontWeight:600,
                           background: t.type==='BV'?'var(--yellow-soft)':'var(--primary-soft)', color: t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>
                           {t.type}
                         </span>
                         {t.is_gift && (
-                          <span style={{ fontSize:10, color:TEXT_MUTED, fontWeight:600, display:'flex', alignItems:'center', gap:2 }}>
+                          <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600, display:'flex', alignItems:'center', gap:2 }}>
                             <IconGift size={11} stroke={1.9} /> 贈品
                           </span>
                         )}
@@ -399,7 +400,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                       <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>{formatDate(t.date)}</p>
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:0 }}>{Number(t.points).toFixed(0)} 點</p>
+                      <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:0 }}>{Number(t.points).toFixed(0)} 點</p>
                       <p style={{ fontSize:12, color: t.is_gift?TEXT_MUTED:ACCENT_GREEN_TEXT, margin:'2px 0 0' }}>
                         {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${((t.amount||0)-(t.cost||0)).toLocaleString()}`}
                       </p>
@@ -493,7 +494,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                 </div>
               </div>
               <button onClick={() => setEditReminder(v => !v)}
-                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>
+                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
                 {editReminder ? '取消' : '設定'}
               </button>
             </div>
@@ -510,7 +511,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                 </div>
               </div>
               <button onClick={markCared} disabled={careSaving}
-                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>
+                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:600, flexShrink:0 }}>
                 我關心過了
               </button>
             </div>
@@ -532,11 +533,11 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
       </div>
 
       {deleteConfirm && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}
           onClick={e => { if (e.target===e.currentTarget) setDeleteConfirm(null) }}>
           <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:'100%', maxWidth:320 }}>
-            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px', textAlign:'center' }}>確定要刪除？</p>
+            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px', textAlign:'center' }}>確定要刪除？</p>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px', textAlign:'center' }}>
               {deleteConfirm.kind === 'order' ? '這張訂單和裡面所有產品的紀錄將永久刪除，無法復原' : '這筆消費紀錄將永久刪除，無法復原'}
             </p>
@@ -548,7 +549,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               </button>
               <button onClick={() => (deleteConfirm.kind === 'order' ? deleteOrder(deleteConfirm.id) : deleteTx(deleteConfirm.id))}
                 style={{ flex:1, padding:'12px', borderRadius:RADIUS.md, border:'none', background:DANGER, color:'#fff',
-                  fontSize:14, fontWeight:700, cursor:'pointer' }}>
+                  fontSize:14, fontWeight:600, cursor:'pointer' }}>
                 刪除
               </button>
             </div>

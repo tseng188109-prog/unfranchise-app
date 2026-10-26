@@ -115,7 +115,7 @@ export default function CustomerNew() {
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate(-1)}
           style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_SECONDARY, display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-        <h1 style={{ fontSize:18, fontWeight:700, color:TEXT_MAIN, margin:0 }}>新增顧客</h1>
+        <h1 style={{ fontSize:18, fontWeight:600, color:TEXT_MAIN, margin:0 }}>新增顧客</h1>
       </div>
       </div>
 
@@ -178,7 +178,7 @@ export default function CustomerNew() {
               {f.req && <span style={{ color:DANGER }}>*</span>}
               {f.ref && (
                 <span style={{
-                  fontSize:10, padding:'1px 6px', borderRadius:RADIUS.pill,
+                  fontSize:11, padding:'1px 6px', borderRadius:RADIUS.pill,
                   background: hasRef && (
                     (f.key==='phone' && form.phone.trim()) ||
                     (f.key==='birthday' && form.birthday.trim()) ||
@@ -220,7 +220,7 @@ export default function CustomerNew() {
         <button onClick={handleSave} disabled={saving}
           style={{ width:'100%', padding:'14px', borderRadius:RADIUS.lg, border:'none',
             background:saving ? '#9BBBF2' : PRIMARY, color:'#fff',
-            fontSize:16, fontWeight:700, cursor:'pointer', marginTop:8 }}>
+            fontSize:16, fontWeight:600, cursor:'pointer', marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
       </div>

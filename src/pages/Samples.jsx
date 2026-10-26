@@ -232,7 +232,7 @@ export default function Samples() {
       <div style={{ background:'var(--card)',padding:'52px 0 0',borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container samples-wide" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>試用品追蹤</h1>
+          <h1 style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>試用品追蹤</h1>
           <button onClick={() => setShowNew(true)}
             style={{ width:36,height:36,borderRadius:RADIUS.md,background:PRIMARY,
               border:'none',color:'#fff',cursor:'pointer',
@@ -255,7 +255,7 @@ export default function Samples() {
       {showNew && (
         <div className="samples-new-form-wrap" style={{ background:'var(--card)',borderRadius:RADIUS.xl,
           padding:16,border:`1px solid ${BORDER}` }}>
-          <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 12px' }}>新增試用品</p>
+          <p style={{ fontSize:15,fontWeight:600,color:TEXT_MAIN,margin:'0 0 12px' }}>新增試用品</p>
 
           {/* 選聯絡人 */}
           <div style={{ marginBottom:12,position:'relative' }}>
@@ -299,7 +299,7 @@ export default function Samples() {
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={handleCreate} disabled={saving}
               style={{ flex:1,padding:'11px',borderRadius:RADIUS.md,border:'none',
-                background:PRIMARY,color:'#fff',fontWeight:700,cursor:'pointer',fontSize:14 }}>
+                background:PRIMARY,color:'#fff',fontWeight:600,cursor:'pointer',fontSize:14 }}>
               {saving?'儲存中…':'儲存'}
             </button>
             <button onClick={() => { setShowNew(false); setContactSearch('') }}
@@ -337,11 +337,11 @@ export default function Samples() {
                   <div onClick={() => goPath && navigate(goPath)}
                     style={{ width:38,height:38,borderRadius:'50%',background:avatarBg(name),
                     display:'flex',alignItems:'center',justifyContent:'center',
-                    color:'#fff',fontWeight:700,fontSize:14,flexShrink:0,
+                    color:'#fff',fontWeight:600,fontSize:14,flexShrink:0,
                     cursor: goPath ? 'pointer' : 'default' }}>{name[0]}</div>
                   <div style={{ flex:1,minWidth:0 }}>
                     <p onClick={() => goPath && navigate(goPath)}
-                      style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN,margin:0,
+                      style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,margin:0,
                         cursor: goPath ? 'pointer' : 'default',
                         textDecoration: goPath ? 'underline' : 'none',
                         textDecorationColor: goPath ? BORDER : 'transparent',
@@ -351,7 +351,7 @@ export default function Samples() {
                     </p>
                   </div>
                   {s.result && (
-                    <span style={{ fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:RADIUS.pill,
+                    <span style={{ fontSize:11,fontWeight:600,padding:'3px 8px',borderRadius:RADIUS.pill,
                       background:badgeColor.bg, color:badgeColor.text,flexShrink:0 }}>
                       {s.result}
                     </span>
@@ -374,7 +374,7 @@ export default function Samples() {
                         <button key={step.field}
                           onClick={() => toggleFollowup(s.id, step.field, s[step.field])}
                           style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
-                            fontSize:11,fontWeight:600,cursor:'pointer',
+                            fontSize:12,fontWeight:600,cursor:'pointer',
                             background:s[step.field]?ACCENT_GREEN_SOFT:'var(--sub)',
                             color:s[step.field]?ACCENT_GREEN_TEXT:TEXT_SECONDARY }}>
                           {s[step.field]?'✓ ':''}{step.label}
@@ -387,7 +387,7 @@ export default function Samples() {
                         {SAMPLE_RESULTS.map(r => (
                           <button key={r} onClick={() => setResult(s.id, r)}
                             style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
-                              fontSize:11,fontWeight:600,cursor:'pointer',
+                              fontSize:12,fontWeight:600,cursor:'pointer',
                               background:s.result===r?PRIMARY:'var(--sub)',
                               color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
                         ))}
@@ -407,7 +407,7 @@ export default function Samples() {
                         style={{ padding:'5px 8px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
                           fontSize:12, outline:'none', color:TEXT_MAIN }} />
                       {s.next_followup_date && (
-                        <span style={{ fontSize:11, fontWeight:700, color:ACCENT_YELLOW_TEXT }}>
+                        <span style={{ fontSize:11, fontWeight:600, color:ACCENT_YELLOW_TEXT }}>
                           {formatSampleDue(s.next_followup_date, today())}
                         </span>
                       )}
@@ -432,7 +432,7 @@ export default function Samples() {
                               border:`1px solid ${BORDER}`, fontSize:12, outline:'none', color:TEXT_MAIN }} />
                           <button onClick={() => addFollowupLog(s.id)} disabled={logSaving}
                             style={{ padding:'7px 14px', borderRadius:RADIUS.xs, border:'none',
-                              background:PRIMARY, color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                              background:PRIMARY, color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
                             {logSaving ? '新增中…' : '新增'}
                           </button>
                         </div>
@@ -445,7 +445,7 @@ export default function Samples() {
                             {followupLogsMap[s.id].map(log => (
                               <div key={log.id} style={{ background:SUBCARD_BG, borderRadius:RADIUS.xs, padding:'7px 10px' }}>
                                 <div style={{ display:'flex', justifyContent:'space-between' }}>
-                                  <span style={{ fontSize:11, fontWeight:700, color:TEXT_SECONDARY }}>{formatDate(log.date)}</span>
+                                  <span style={{ fontSize:11, fontWeight:600, color:TEXT_SECONDARY }}>{formatDate(log.date)}</span>
                                 </div>
                                 {log.note && <p style={{ fontSize:12, color:TEXT_MAIN, margin:'2px 0 0' }}>{log.note}</p>}
                               </div>
@@ -460,12 +460,12 @@ export default function Samples() {
                 {/* 更改狀態：只要已經有結果（成交／考慮中／轉介），隨時都能改成別的，不會卡死 */}
                 {!isActive && (
                   <div style={{ marginTop: isConsidering ? 10 : 0 }}>
-                    <p style={{ fontSize:10, color:TEXT_MUTED, margin:'0 0 6px' }}>更改狀態</p>
+                    <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 6px' }}>更改狀態</p>
                     <div style={{ display:'flex',gap:6 }}>
                       {SAMPLE_RESULTS.map(r => (
                         <button key={r} onClick={() => setResult(s.id, r)}
                           style={{ flex:1,padding:'6px 4px',borderRadius:RADIUS.sm,border:'none',
-                            fontSize:11,fontWeight:600,cursor:'pointer',
+                            fontSize:12,fontWeight:600,cursor:'pointer',
                             background:s.result===r?PRIMARY:'var(--sub)',
                             color:s.result===r?'#fff':TEXT_SECONDARY }}>{r}</button>
                       ))}
@@ -481,14 +481,14 @@ export default function Samples() {
 
       {/* 編輯試用品紀錄 */}
       {editTarget && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:300 }}
           onClick={() => setEditTarget(null)}>
           <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 36px',width:'100%',maxWidth:480 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
-              <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯試用品紀錄</h2>
+              <h2 style={{ fontSize:17,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯試用品紀錄</h2>
               <button onClick={() => setEditTarget(null)}
                 style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
@@ -509,7 +509,7 @@ export default function Samples() {
             <button onClick={saveEditSample} disabled={editSaving}
               style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                 background: editSaving ? '#9BBBF2' : PRIMARY,color:'#fff',
-                fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                fontSize:15,fontWeight:600,cursor:'pointer' }}>
               {editSaving ? '儲存中…' : '儲存'}
             </button>
           </div>
@@ -518,13 +518,13 @@ export default function Samples() {
 
       {/* 刪除確認 */}
       {deleteTarget && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
           <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>
               確定刪除這筆試用品紀錄？
             </p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
@@ -534,7 +534,7 @@ export default function Samples() {
                   background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeleteSample} disabled={deleting}
                 style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 {deleting ? '刪除中…' : '刪除'}
               </button>
             </div>

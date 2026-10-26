@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { trackUsage } from './usage'
 import {
   IconHome2, IconUsers, IconChartBar, IconMail, IconCheck,
   IconFlag, IconSettings,
@@ -28,6 +30,10 @@ const TEXT_MUTED = 'var(--muted)'
 export default function Layout({ children }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  useEffect(() => {
+    trackUsage('page:' + (pathname.split('/')[1] || 'home'))
+    if (!pathname.startsWith('/help')) { try { sessionStorage.setItem('ufa_last_path', pathname) } catch { /* ignore */ } }
+  }, [pathname])
 
   const isActive = (path) =>
     pathname === path || (path !== '/' && pathname.startsWith(path))
@@ -56,7 +62,7 @@ export default function Layout({ children }) {
         flexDirection: 'column', zIndex: 100,
       }}>
         <div style={{
-          padding: '20px 16px', fontSize: 16, fontWeight: 700, color: TEXT_MAIN,
+          padding: '20px 16px', fontSize: 16, fontWeight:600, color: TEXT_MAIN,
           borderBottom: '1px solid var(--border)',
         }}>
           超連鎖行動計畫

@@ -14,7 +14,7 @@ import {
   DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
 
 // 戰隊專屬漸層（跟 Partners 的純藍漸層做出區隔，帶一點紫調更有前進感）
-const TEAM_GRADIENT = 'linear-gradient(135deg,#6C4CE0,#2457D6)'
+const TEAM_GRADIENT = 'var(--hero)'
 const STREAK_COLOR = '#FF8C42'
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
@@ -257,7 +257,7 @@ export default function Team() {
                 padding:6,borderRadius:RADIUS.sm,display:'flex' }}>
               <IconArrowLeft size={20} stroke={1.9} />
             </button>
-            <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0,display:'flex',alignItems:'center',gap:8 }}>
+            <h1 style={{ fontSize:20,fontWeight:600,color:'#fff',margin:0,display:'flex',alignItems:'center',gap:8 }}>
               <IconFlag size={19} stroke={1.9} /> 戰隊
             </h1>
           </div>
@@ -276,14 +276,14 @@ export default function Team() {
                 </p>
                 <button onClick={() => { setMode('create'); setActionMsg('') }}
                   style={{ width:'100%',padding:'14px',borderRadius:RADIUS.md,border:'none',
-                    background:PRIMARY,color:'#fff',fontSize:15,fontWeight:700,
+                    background:PRIMARY,color:'#fff',fontSize:15,fontWeight:600,
                     cursor:'pointer',marginBottom:10 }}>
                   建立新戰隊
                 </button>
                 <button onClick={() => { setMode('join'); setActionMsg('') }}
                   style={{ width:'100%',padding:'14px',borderRadius:RADIUS.md,
                     border:`1.5px solid ${PRIMARY}`,background:'var(--card)',color:PRIMARY,
-                    fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                    fontSize:15,fontWeight:600,cursor:'pointer' }}>
                   輸入邀請碼加入
                 </button>
               </div>
@@ -291,7 +291,7 @@ export default function Team() {
 
             {mode === 'create' && (
               <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,padding:20 }}>
-                <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 14px' }}>建立新戰隊</p>
+                <p style={{ fontSize:15,fontWeight:600,color:TEXT_MAIN,margin:'0 0 14px' }}>建立新戰隊</p>
                 <label style={{ fontSize:12,color:TEXT_MUTED,display:'block',marginBottom:6 }}>戰隊名稱</label>
                 <input value={teamNameInput} onChange={e => setTeamNameInput(e.target.value)}
                   placeholder="例：火箭推進小組"
@@ -306,7 +306,7 @@ export default function Team() {
                       color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>取消</button>
                   <button onClick={handleCreate} disabled={actionLoading}
                     style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
-                      background:PRIMARY,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                      background:PRIMARY,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                     {actionLoading ? '建立中…' : '確認建立'}
                   </button>
                 </div>
@@ -315,13 +315,13 @@ export default function Team() {
 
             {mode === 'join' && (
               <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.card,padding:20 }}>
-                <p style={{ fontSize:15,fontWeight:700,color:TEXT_MAIN,margin:'0 0 14px' }}>輸入邀請碼</p>
+                <p style={{ fontSize:15,fontWeight:600,color:TEXT_MAIN,margin:'0 0 14px' }}>輸入邀請碼</p>
                 <label style={{ fontSize:12,color:TEXT_MUTED,display:'block',marginBottom:6 }}>邀請碼</label>
                 <input value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
                   placeholder="例：A7B2C9"
                   style={{ width:'100%',padding:'10px 12px',borderRadius:RADIUS.sm,
                     border:`1px solid ${BORDER}`,background:SUBCARD_BG,
-                    color:TEXT_MAIN,fontSize:16,fontWeight:700,letterSpacing:3,
+                    color:TEXT_MAIN,fontSize:16,fontWeight:600,letterSpacing:3,
                     boxSizing:'border-box',outline:'none' }} />
                 {actionMsg && <p style={{ fontSize:12,color:DANGER,margin:'8px 0 0' }}>{actionMsg}</p>}
                 <div style={{ display:'flex',gap:10,marginTop:16 }}>
@@ -331,7 +331,7 @@ export default function Team() {
                       color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>取消</button>
                   <button onClick={handleJoin} disabled={actionLoading}
                     style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
-                      background:PRIMARY,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                      background:PRIMARY,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                     {actionLoading ? '加入中…' : '確認加入'}
                   </button>
                 </div>
@@ -342,7 +342,7 @@ export default function Team() {
           <>
             {/* 戰隊旅程：集體進度視覺化，取代原本的排行榜。不顯示任何個人名次或排序。 */}
             <div style={{ background:SUBCARD_BG, borderRadius:RADIUS.xl, padding:'20px', marginBottom:4 }}>
-              <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 4px' }}>戰隊本週旅程</p>
+              <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 4px' }}>戰隊本週旅程</p>
               <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 14px' }}>全隊一起邁向夢想的頂點</p>
 
               {selfMember && myContribPct > 0 && (
@@ -401,7 +401,7 @@ export default function Team() {
                         background:avatarColor(m.name), opacity: active ? 1 : 0.35,
                         border: isSelf ? `2px solid ${ACCENT_GREEN}` : 'none',
                         display:'flex', alignItems:'center', justifyContent:'center',
-                        color:'#fff', fontSize:12, fontWeight:700 }}>
+                        color:'#fff', fontSize:12, fontWeight:600 }}>
                       {m.name[0]}
                     </div>
                   )
@@ -416,7 +416,7 @@ export default function Team() {
               <div style={{ background:SUBCARD_BG,border:`1px solid ${BORDER}`,borderRadius:RADIUS.lg,padding:'12px 16px' }}>
                 <div style={{ display:'flex',alignItems:'center',gap:8 }}>
                   <span style={{ fontSize:12,color:TEXT_MUTED }}>邀請碼</span>
-                  <span style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,letterSpacing:3,flex:1 }}>
+                  <span style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,letterSpacing:3,flex:1 }}>
                     {team.invite_code}
                   </span>
                   {isCreator && (
@@ -429,7 +429,7 @@ export default function Team() {
                     style={{ padding:'5px 12px',borderRadius:RADIUS.xs,border:`1px solid ${PRIMARY}`,
                       background: copied?PRIMARY:'var(--card)',
                       color: copied?'#fff':PRIMARY,
-                      fontSize:12,fontWeight:700,cursor:'pointer' }}>
+                      fontSize:12,fontWeight:600,cursor:'pointer' }}>
                     {copied ? '已複製' : '複製'}
                   </button>
                 </div>
@@ -453,21 +453,21 @@ export default function Team() {
                       <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
                         <div style={{ width:32,height:32,borderRadius:'50%',background:avatarColor(m.name),
                           display:'flex',alignItems:'center',justifyContent:'center',
-                          color:'#fff',fontWeight:700,fontSize:13,flexShrink:0 }}>
+                          color:'#fff',fontWeight:600,fontSize:13,flexShrink:0 }}>
                           {m.name[0]}
                         </div>
                         <div style={{ flex:1,minWidth:0 }}>
                           <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{m.name}</span>
+                            <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>{m.name}</span>
                             {isSelf && (
-                              <span style={{ fontSize:10,color:'#fff',fontWeight:700,
+                              <span style={{ fontSize:11,color:'#fff',fontWeight:600,
                                 background:PRIMARY,borderRadius:5,padding:'1px 6px' }}>我</span>
                             )}
                           </div>
                           <div style={{ fontSize:11,color:TEXT_SECONDARY,marginTop:1,display:'flex',alignItems:'center',gap:4 }}>
                             本週 {m.weekCheckinDays}/7 天
                             {m.streak >= 2 && (
-                              <span style={{ color:'#fff',background:STREAK_COLOR,fontWeight:700,
+                              <span style={{ color:'#fff',background:STREAK_COLOR,fontWeight:600,
                                 borderRadius:RADIUS.pill,padding:'1px 7px',display:'flex',alignItems:'center',gap:2 }}>
                                 <IconFlame size={11} stroke={2} /> 連續 {m.streak} 天
                               </span>
@@ -475,14 +475,14 @@ export default function Team() {
                           </div>
                         </div>
                         <div style={{ display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0 }}>
-                          <span style={{ fontSize:11,padding:'3px 8px',borderRadius:RADIUS.xs,fontWeight:700,
+                          <span style={{ fontSize:11,padding:'3px 8px',borderRadius:RADIUS.xs,fontWeight:600,
                             background: m.todayChecked ? ACCENT_GREEN_SOFT : SUBCARD_BG,
                             color: m.todayChecked ? ACCENT_GREEN_TEXT : TEXT_MUTED }}>
                             {m.todayChecked ? '今天打了' : '今天未打'}
                           </span>
                           {isCreator && m.user_id !== user.id && (
                             <button onClick={e => { e.stopPropagation(); setKickTarget(m) }}
-                              style={{ fontSize:10,color:DANGER,background:'none',
+                              style={{ fontSize:11,color:DANGER,background:'none',
                                 border:'none',cursor:'pointer',padding:0 }}>踢出</button>
                           )}
                         </div>
@@ -498,7 +498,7 @@ export default function Team() {
                           return (
                             <div key={d} style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3 }}
                               onClick={e => { e.stopPropagation(); if (!isFuture) handleDotClick(m.user_id, d) }}>
-                              <span style={{ fontSize:9,color: isT?PRIMARY:TEXT_MUTED }}>
+                              <span style={{ fontSize:11,color: isT?PRIMARY:TEXT_MUTED }}>
                                 {DAYS_ZH[new Date(d+'T00:00:00').getDay()]}
                               </span>
                               <div style={{
@@ -517,8 +517,8 @@ export default function Team() {
                       <div style={{ display:'flex',gap:8,marginTop:10,paddingLeft:34,alignItems:'flex-end' }}>
                         <div style={{ flex:1 }}>
                           <div style={{ display:'flex',justifyContent:'space-between',
-                            fontSize:10,color:TEXT_MUTED,marginBottom:3 }}>
-                            <span style={{ color:weekBarColor(m.weekCheckinDays), fontWeight:700 }}>本週進度</span>
+                            fontSize:11,color:TEXT_MUTED,marginBottom:3 }}>
+                            <span style={{ color:weekBarColor(m.weekCheckinDays), fontWeight:600 }}>本週進度</span>
                             <span>{m.weekCheckinDays}/7</span>
                           </div>
                           <div style={{ height:4,background:BORDER,borderRadius:2,overflow:'hidden' }}>
@@ -527,8 +527,8 @@ export default function Team() {
                           </div>
                         </div>
                         <div style={{ flexShrink:0,textAlign:'right' }}>
-                          <div style={{ fontSize:10,color:TEXT_MUTED }}>週行動</div>
-                          <div style={{ fontSize:13,fontWeight:700,color:ACCENT_GREEN_TEXT }}>{m.weekActions}</div>
+                          <div style={{ fontSize:11,color:TEXT_MUTED }}>週行動</div>
+                          <div style={{ fontSize:13,fontWeight:600,color:ACCENT_GREEN_TEXT }}>{m.weekActions}</div>
                         </div>
                       </div>
                     </div>
@@ -543,7 +543,7 @@ export default function Team() {
 
                         {expandedDay?.memberId === m.user_id && expandedDay?.date && (
                           <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.sm,padding:'10px 12px' }}>
-                            <p style={{ fontSize:12,fontWeight:700,color:PRIMARY,margin:'0 0 8px' }}>
+                            <p style={{ fontSize:12,fontWeight:600,color:PRIMARY,margin:'0 0 8px' }}>
                               {DAYS_ZH[new Date(expandedDay.date+'T00:00:00').getDay()]}　{expandedDay.date.slice(5).replace('-','/')}
                             </p>
 
@@ -611,7 +611,7 @@ export default function Team() {
               {isCreator && (
                 <button onClick={() => setShowDisbandConfirm(true)}
                   style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:'none',
-                    background:DANGER_SOFT,color:DANGER,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+                    background:DANGER_SOFT,color:DANGER,fontSize:13,fontWeight:600,cursor:'pointer' }}>
                   解散戰隊
                 </button>
               )}
@@ -626,7 +626,7 @@ export default function Team() {
       {showLeaveConfirm && (
         <div style={overlayStyle} onClick={() => setShowLeaveConfirm(false)}>
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
               確定要退出「{team?.name}」？
             </p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px',textAlign:'center',lineHeight:1.6 }}>
@@ -639,7 +639,7 @@ export default function Team() {
                   fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleLeave} disabled={actionLoading}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 {actionLoading ? '處理中…' : '確認退出'}
               </button>
             </div>
@@ -651,7 +651,7 @@ export default function Team() {
       {showDisbandConfirm && (
         <div style={overlayStyle} onClick={() => setShowDisbandConfirm(false)}>
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
               確定要解散「{team?.name}」？
             </p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px',textAlign:'center',lineHeight:1.6 }}>
@@ -664,7 +664,7 @@ export default function Team() {
                   fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDisband} disabled={actionLoading}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 {actionLoading ? '處理中…' : '確認解散'}
               </button>
             </div>
@@ -676,7 +676,7 @@ export default function Team() {
       {kickTarget && (
         <div style={overlayStyle} onClick={() => setKickTarget(null)}>
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
               確定要將「{kickTarget.name}」踢出戰隊？
             </p>
             <div style={{ display:'flex',gap:10,marginTop:20 }}>
@@ -686,7 +686,7 @@ export default function Team() {
                   fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={() => handleKick(kickTarget.user_id)} disabled={actionLoading}
                 style={{ flex:1,padding:'12px',borderRadius:RADIUS.sm,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 {actionLoading ? '處理中…' : '確認踢出'}
               </button>
             </div>
@@ -698,7 +698,7 @@ export default function Team() {
 }
 
 const overlayStyle = {
-  position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+  position:'fixed',inset:0,background:'var(--overlay)',
   display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20,
 }
 const modalStyle = {

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
-  IconFlag, IconChevronRight, IconCheck,
+  IconFlag, IconChevronRight, IconCheck, IconHelpCircle,
 } from '@tabler/icons-react'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -137,6 +137,7 @@ export default function Settings() {
     { label:'試用品追蹤', path:'/samples', Icon: IconFlask },
     { label:'我的夥伴', path:'/partners', Icon: IconUsersGroup },
     { label:'戰隊', path:'/team', Icon: IconFlag },
+    { label:'使用說明', path:'/help', Icon: IconHelpCircle },
   ]
 
   return (
@@ -151,7 +152,7 @@ export default function Settings() {
       <div style={{ background:'var(--hero)',
         padding:'52px 0 24px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
-          <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0 }}>設定</h1>
+          <h1 style={{ fontSize:20,fontWeight:600,color:'#fff',margin:0 }}>設定</h1>
         </div>
       </div>
 
@@ -163,10 +164,10 @@ export default function Settings() {
         <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.xl, padding:'18px 20px',
           borderLeft:`4px solid ${PRIMARY}` }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-            <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:0, letterSpacing:0.5 }}>我為什麼留在這裡</p>
+            <p style={{ fontSize:12, fontWeight:600, color:PRIMARY, margin:0, letterSpacing:0.5 }}>我為什麼留在這裡</p>
             {!editingWhy && (
               <button onClick={openEditWhy}
-                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700 }}>
+                style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>
                 {whyHere ? '編輯' : '寫下初衷'}
               </button>
             )}
@@ -188,7 +189,7 @@ export default function Settings() {
                 {WHY_STARTERS.map(s => (
                   <button key={s} onClick={() => fillWhyStarter(s)}
                     style={{ padding:'5px 12px', borderRadius:RADIUS.pill, border:`1px solid var(--border2)`,
-                      background:'var(--card)', color:PRIMARY, fontSize:11, cursor:'pointer' }}>
+                      background:'var(--card)', color:PRIMARY, fontSize:12, cursor:'pointer' }}>
                     {s}＿
                   </button>
                 ))}
@@ -208,7 +209,7 @@ export default function Settings() {
                   <button onClick={saveWhy} disabled={whySaving || !whyDraft.trim()}
                     style={{ padding:'7px 16px', borderRadius:RADIUS.sm, border:'none',
                       background: whySaving ? '#9BBBF2' : PRIMARY, color:'#fff',
-                      fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                      fontSize:12, fontWeight:600, cursor:'pointer' }}>
                     {whySaving ? '儲存中…' : '儲存'}
                 </button>
                 </div>
@@ -222,11 +223,11 @@ export default function Settings() {
           <div style={{ display:'flex',alignItems:'center',gap:14,marginBottom:16 }}>
             <div style={{ width:52,height:52,borderRadius:'50%',background:PRIMARY,
               display:'flex',alignItems:'center',justifyContent:'center',
-              color:'#fff',fontWeight:700,fontSize:20 }}>
+              color:'#fff',fontWeight:600,fontSize:20 }}>
               {name?name[0]:user?.email?.[0]?.toUpperCase()||'U'}
             </div>
             <div>
-              <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{name||'未設定名稱'}</p>
+              <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{name||'未設定名稱'}</p>
               <p style={{ fontSize:13,color:TEXT_MUTED,margin:'2px 0 0' }}>{user?.email}</p>
             </div>
           </div>
@@ -240,7 +241,7 @@ export default function Settings() {
             <button onClick={handleSaveName} disabled={saving}
               style={{ display:'flex',alignItems:'center',gap:4,padding:'10px 16px',borderRadius:RADIUS.md,border:'none',
                 background:saved?ACCENT_GREEN:PRIMARY,color:'#fff',
-                fontWeight:700,fontSize:13,cursor:'pointer' }}>
+                fontWeight:600,fontSize:13,cursor:'pointer' }}>
               {saved && <IconCheck size={14} stroke={2.4} />} {saved?'已存':'儲存'}
             </button>
           </div>
@@ -248,7 +249,7 @@ export default function Settings() {
 
         {/* 外觀：跟隨手機／永遠白天／永遠夜晚 */}
         <div style={card}>
-          <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 10px' }}>外觀</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 10px' }}>外觀</p>
           <div style={{ display:'flex',gap:4,padding:4,background:'var(--sub2)',borderRadius:RADIUS.md }}>
             {[['system','跟隨手機'],['light','白天'],['dark','夜晚']].map(([k,label]) => (
               <button key={k} onClick={() => { setThemeMode(k); setThemeModeState(k) }}
@@ -268,9 +269,9 @@ export default function Settings() {
         {/* 密碼修改 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom: editingPassword?12:0 }}>
-            <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:0 }}>帳號安全</p>
+            <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:0 }}>帳號安全</p>
             <button onClick={() => { setEditingPassword(!editingPassword); setPasswordMsg(''); setNewPassword(''); setConfirmPassword('') }}
-              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:700 }}>
+              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',fontWeight:600 }}>
               {editingPassword ? '取消' : '修改密碼'}
             </button>
           </div>
@@ -303,7 +304,7 @@ export default function Settings() {
               <button onClick={handleSavePassword} disabled={passwordSaving}
                 style={{ width:'100%',padding:'11px',borderRadius:RADIUS.md,border:'none',
                   background: passwordSaved?ACCENT_GREEN:passwordSaving?'#9BBBF2':PRIMARY,
-                  color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 {passwordSaved ? '✓ 密碼已更新' : passwordSaving ? '更新中…' : '確認修改'}
               </button>
             </div>
@@ -312,12 +313,12 @@ export default function Settings() {
 
         {/* 推薦關係 */}
         <div style={card}>
-          <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 12px' }}>推薦關係</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 12px' }}>推薦關係</p>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
             <span style={{ fontSize:14,color:TEXT_MAIN }}>推薦人</span>
             <button onClick={() => { setEditingReferrer(!editingReferrer); setReferrerMsg('') }}
               style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',
-                cursor:'pointer',fontWeight:700 }}>
+                cursor:'pointer',fontWeight:600 }}>
               {editingReferrer ? '取消' : '修改'}
             </button>
           </div>
@@ -337,7 +338,7 @@ export default function Settings() {
               </p>
               <button onClick={handleSaveReferrer}
                 style={{ width:'100%',padding:'10px',borderRadius:RADIUS.md,border:'none',
-                  background:PRIMARY,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>
+                  background:PRIMARY,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
                 儲存推薦人
               </button>
             </div>
@@ -346,7 +347,7 @@ export default function Settings() {
 
         {/* 其他功能入口 */}
         <div style={card}>
-          <p style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 8px' }}>功能</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 8px' }}>功能</p>
           {FUNCTION_ITEMS.map(item => (
             <button key={item.path} onClick={() => navigate(item.path)}
               style={{ width:'100%',display:'flex',alignItems:'center',gap:10,
@@ -362,7 +363,7 @@ export default function Settings() {
         {/* 登出 */}
         <button onClick={handleSignOut}
           style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
-            background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:700,cursor:'pointer' }}>
+            background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:600,cursor:'pointer' }}>
           登出
         </button>
 

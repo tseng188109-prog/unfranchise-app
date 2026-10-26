@@ -104,7 +104,7 @@ export default function TransactionNew() {
       <div className="dash-container" style={{ padding:'0 16px', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate(-1)}
           style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-        <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>新增業績</h1>
+        <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>新增業績</h1>
       </div>
       </div>
 
@@ -162,7 +162,7 @@ export default function TransactionNew() {
         {/* 快速建檔 */}
         {showQuickCreate && (
           <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:RADIUS.lg, padding:14, marginBottom:16 }}>
-            <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:'0 0 4px' }}>
+            <p style={{ fontSize:13, fontWeight:600, color:ACCENT_GREEN_TEXT, margin:'0 0 4px' }}>
               快速建檔
             </p>
             <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:'0 0 10px' }}>
@@ -186,7 +186,7 @@ export default function TransactionNew() {
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={handleQuickCreate}
                 style={{ flex:1, padding:'9px', borderRadius:RADIUS.sm, border:'none',
-                  background:ACCENT_GREEN_TEXT, color:'#fff', fontWeight:700,
+                  background:ACCENT_GREEN_TEXT, color:'#fff', fontWeight:600,
                   cursor:'pointer', fontSize:13 }}>
                 建檔並繼續
               </button>

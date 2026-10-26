@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { CloseBtn } from './ui'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -34,9 +35,15 @@ function daysUntil(dateStr) {
   const b = new Date(dateStr + 'T00:00:00')
   return Math.floor((b - a) / 86400000)
 }
-function birthdayThisYear(mmdd) {
+// 生日存成 MM-DD；算「還有幾天」，跨年也算得到（12 月看到 1 月初的生日）
+function birthdayDays(mmdd) {
   if (!mmdd) return null
-  return `${new Date().getFullYear()}-${String(mmdd).slice(-5)}`
+  const md = String(mmdd).slice(-5)
+  const y = new Date().getFullYear()
+  const a = daysUntil(`${y}-${md}`)
+  if (a !== null && !Number.isNaN(a) && a >= 0) return a
+  const b = daysUntil(`${y + 1}-${md}`)
+  return b !== null && !Number.isNaN(b) ? b : null
 }
 function whenText(n) { return n === 0 ? '今天' : n === 1 ? '明天' : `${n} 天後` }
 
@@ -76,7 +83,7 @@ export default function NotificationBell({ userId }) {
       supabase.from('customers').select('id,name,birthday').eq('user_id', userId),
     ])
     ;(contacts || []).forEach(c => {
-      const nb = daysUntil(birthdayThisYear(c.birthday))
+      const nb = birthdayDays(c.birthday)
       if (nb !== null && nb >= 0 && nb <= 3) {
         items.push({ key: 'cb' + c.id, days: nb, Icon: IconCake, tone: 'pink',
           title: `${c.name} 生日`, sub: `${whenText(nb)}・互動名單`, path: `/contacts/${c.id}` })
@@ -88,7 +95,7 @@ export default function NotificationBell({ userId }) {
       }
     })
     ;(customers || []).forEach(c => {
-      const nb = daysUntil(birthdayThisYear(c.birthday))
+      const nb = birthdayDays(c.birthday)
       if (nb !== null && nb >= 0 && nb <= 3) {
         items.push({ key: 'kb' + c.id, days: nb, Icon: IconCake, tone: 'pink',
           title: `${c.name} 生日`, sub: `${whenText(nb)}・老顧客`, path: `/customers/${c.id}` })
@@ -114,8 +121,8 @@ export default function NotificationBell({ userId }) {
     })
 
     const sevenDaysAgo = toDateStr(new Date(Date.now() - 7 * 86400000))
-    const { data: partners } = await supabase.from('profiles')
-      .select('id,name,email,created_at')
+    const { data: partners } = await supabase.from('users')
+      .select('id,name,created_at')
       .eq('referrer_id', userId)
       .gte('created_at', sevenDaysAgo + 'T00:00:00+00:00')
     ;(partners || []).forEach(p => {
@@ -185,10 +192,7 @@ export default function NotificationBell({ userId }) {
                 <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: RADIUS.pill,
                   background: 'var(--danger-soft)', color: 'var(--danger-text)' }}>{total} 則</span>
               )}
-              <button onClick={() => setOpen(false)} aria-label="關閉"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 2 }}>
-                <IconX size={20} stroke={1.9} color={TEXT_MUTED} />
-              </button>
+              <CloseBtn onClick={() => setOpen(false)} size={36} />
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 24px' }}>

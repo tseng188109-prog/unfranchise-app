@@ -128,14 +128,14 @@ export default function SampleSection({ contactId = null, customerId = null, onC
   return (
     <div style={{ ...cardStyle, padding: 14, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight:600, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconFlask size={14} stroke={1.9} color={TEXT_SECONDARY} /> 試用品
           {totalCost > 0 && (
             <span style={{ fontSize: 11, fontWeight: 600, color: TEXT_MUTED }}>成本合計 NT${totalCost.toLocaleString()}</span>
           )}
         </span>
         <button onClick={() => setShowForm(v => !v)}
-          style={{ fontSize: 12, color: PRIMARY, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+          style={{ fontSize: 12, color: PRIMARY, background: 'none', border: 'none', cursor: 'pointer', fontWeight:600 }}>
           {showForm ? '取消' : '+ 發送試用品'}
         </button>
       </div>
@@ -157,7 +157,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
             onChange={e => setForm(p => ({ ...p, cost: e.target.value }))} style={inp} />
           <button onClick={handleAdd} disabled={saving}
             style={{ width: '100%', padding: '9px', borderRadius: RADIUS.xs, border: 'none', marginTop: 8,
-              background: saving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              background: saving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 13, fontWeight:600, cursor: 'pointer' }}>
             {saving ? '儲存中…' : '儲存'}
           </button>
         </div>
@@ -180,7 +180,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     {s.result && (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: RADIUS.pill,
+                      <span style={{ fontSize: 11, fontWeight:600, padding: '2px 8px', borderRadius: RADIUS.pill,
                         background: badgeColor.bg, color: badgeColor.text }}>{s.result}</span>
                     )}
                     <button onClick={() => openEdit(s)}
@@ -200,7 +200,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                       {SAMPLE_STEPS.map(step => (
                         <button key={step.field} onClick={() => toggleStep(s.id, step.field, s[step.field])}
                           style={{ flex: 1, padding: '5px 4px', borderRadius: RADIUS.xs, border: 'none',
-                            fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                            fontSize:11, fontWeight: 600, cursor: 'pointer',
                             background: s[step.field] ? ACCENT_GREEN : 'var(--card)',
                             color: s[step.field] ? '#fff' : TEXT_SECONDARY }}>
                           {s[step.field] ? '✓ ' : ''}{step.label}
@@ -212,7 +212,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                         {SAMPLE_RESULTS.map(r => (
                           <button key={r} onClick={() => setResult(s.id, r)}
                             style={{ flex: 1, padding: '5px 4px', borderRadius: RADIUS.xs, border: 'none',
-                              fontSize: 10, fontWeight: 600, cursor: 'pointer', background: 'var(--card)', color: TEXT_SECONDARY }}>{r}</button>
+                              fontSize:11, fontWeight: 600, cursor: 'pointer', background: 'var(--card)', color: TEXT_SECONDARY }}>{r}</button>
                         ))}
                       </div>
                     )}
@@ -232,7 +232,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                     {SAMPLE_RESULTS.map(r => (
                       <button key={r} onClick={() => setResult(s.id, r)}
                         style={{ flex: 1, padding: '5px 4px', borderRadius: RADIUS.xs, border: 'none',
-                          fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                          fontSize:11, fontWeight: 600, cursor: 'pointer',
                           background: s.result === r ? PRIMARY : 'var(--card)',
                           color: s.result === r ? '#fff' : TEXT_SECONDARY }}>{r}</button>
                     ))}
@@ -245,13 +245,13 @@ export default function SampleSection({ contactId = null, customerId = null, onC
       )}
 
       {editTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,42,77,0.4)',
+        <div style={{ position: 'fixed', inset: 0, background:'var(--overlay)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 300 }}
           onClick={() => setEditTarget(null)}>
           <div style={{ background: 'var(--card)', borderRadius: '22px 22px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: 480 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700, color: TEXT_MAIN, margin: 0 }}>編輯試用品紀錄</h2>
+              <h2 style={{ fontSize: 17, fontWeight:600, color: TEXT_MAIN, margin: 0 }}>編輯試用品紀錄</h2>
               <button onClick={() => setEditTarget(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED }}><IconX size={22} /></button>
             </div>
@@ -271,7 +271,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
               style={{ ...inp, padding: '10px 12px', fontSize: 14, marginBottom: 16 }} />
             <button onClick={saveEdit} disabled={editSaving}
               style={{ width: '100%', padding: '13px 0', borderRadius: RADIUS.lg, border: 'none',
-                background: editSaving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                background: editSaving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 15, fontWeight:600, cursor: 'pointer' }}>
               {editSaving ? '儲存中…' : '儲存'}
             </button>
           </div>
@@ -279,13 +279,13 @@ export default function SampleSection({ contactId = null, customerId = null, onC
       )}
 
       {deleteTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(19,42,77,0.4)',
+        <div style={{ position: 'fixed', inset: 0, background:'var(--overlay)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
           <div style={{ background: 'var(--card)', borderRadius: RADIUS.xl, padding: 24, width: 280, textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, margin: '0 0 8px' }}>確定刪除這筆試用品紀錄？</p>
+            <p style={{ fontSize: 16, fontWeight:600, color: TEXT_MAIN, margin: '0 0 8px' }}>確定刪除這筆試用品紀錄？</p>
             <p style={{ fontSize: 13, color: TEXT_MUTED, margin: '0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setDeleteTarget(null)}
@@ -293,7 +293,7 @@ export default function SampleSection({ contactId = null, customerId = null, onC
                   background: 'var(--card)', fontSize: 14, cursor: 'pointer', color: TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete} disabled={deleting}
                 style={{ flex: 1, padding: '10px 0', borderRadius: RADIUS.md, border: 'none',
-                  background: DANGER, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  background: DANGER, color: '#fff', fontSize: 14, fontWeight:600, cursor: 'pointer' }}>
                 {deleting ? '刪除中…' : '刪除'}
               </button>
             </div>

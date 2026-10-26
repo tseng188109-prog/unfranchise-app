@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { markDaily312 } from './followUp'
+import { trackUsage } from './usage'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, SUBCARD_BG, RADIUS,
   ACCENT_GREEN_TEXT, ACCENT_GREEN_SOFT, DANGER,
@@ -216,6 +217,8 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
     if (error) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
     // 成功＝真的約到下一次（有內容、有日期），才算今天的 3-1-2 有推進
     if (planText && planDate) await markDaily312(supabase, userId, dt)
+    trackUsage('after_meet_saved')
+    if (planText && planDate) trackUsage('next_booked')
     setSaving(false)
     onSaved?.()
     onClose()
@@ -395,7 +398,7 @@ function TagRows({ kind, items, tags }) {
 export function TagManager({ userId, cardStyle }) {
   const tags = useTagLists(userId)
   const [more, setMore] = useState(getShowMore())
-  const head = { fontSize: 13, fontWeight: 700, color: TEXT_SECONDARY, margin: '0 0 6px' }
+  const head = { fontSize: 13, fontWeight:600, color: TEXT_SECONDARY, margin: '0 0 6px' }
   return (
     <div style={cardStyle}>
       <p style={{ ...head, margin: '0 0 4px' }}>見完了的標籤</p>

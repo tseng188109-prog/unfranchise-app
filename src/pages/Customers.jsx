@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -111,7 +112,7 @@ export default function Customers() {
     if (!deleteTarget) return
     await supabase.from('transactions').update({ customer_id: null }).eq('customer_id', deleteTarget.id)
     const { error } = await supabase.from('customers').delete().eq('id', deleteTarget.id)
-    if (error) { alert('刪除失敗：' + error.message); return }
+    if (error) { await askConfirm({ title:'刪除失敗', message:error.message, okText:'知道了', hideCancel:true }); return }
     if (selectedId === deleteTarget.id) setSelectedId(null)
     setDeleteTarget(null); setMenuTarget(null); fetchCustomers()
   }
@@ -234,13 +235,13 @@ export default function Customers() {
           borderBottom:`1px solid ${BORDER}`, cursor:'pointer', userSelect:'none' }}>
         <div style={{ width:44, height:44, borderRadius:RADIUS.circle, background:avatarBg(c.name),
           display:'flex', alignItems:'center', justifyContent:'center',
-          color:'#fff', fontWeight:700, fontSize:17, flexShrink:0 }}>
+          color:'#fff', fontWeight:600, fontSize:17, flexShrink:0 }}>
           {c.name[0]}
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             {c.is_pinned && <IconPin size={12} stroke={2} color={TEXT_MUTED} />}
-            <span style={{ fontSize:15, fontWeight:700, color: showArchived ? TEXT_MUTED : TEXT_MAIN }}>{c.name}</span>
+            <span style={{ fontSize:15, fontWeight:600, color: showArchived ? TEXT_MUTED : TEXT_MAIN }}>{c.name}</span>
             {c.repurchase_reminder && c.repurchase_reminder >= today && (
               <IconBell size={14} stroke={1.9} color={ACCENT_PINK} />
             )}
@@ -254,7 +255,7 @@ export default function Customers() {
           <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>封存中</span>
         ) : (
           <div style={{ textAlign:'right' }}>
-            <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:0 }}>
+            <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:0 }}>
               {c.totalBV.toFixed(0)} BV
             </p>
             {c.lastDate && (
@@ -313,7 +314,7 @@ export default function Customers() {
       <div style={{ background:'var(--card)', padding:'52px 0 0', borderBottom:`1px solid ${BORDER}` }}>
       <div className="dash-container" style={{ padding:'0 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <h1 style={{ fontSize:20, fontWeight:700, color:TEXT_MAIN, margin:0 }}>顧客檔案</h1>
+          <h1 style={{ fontSize:20, fontWeight:600, color:TEXT_MAIN, margin:0 }}>顧客檔案</h1>
           {!showArchived && (
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={e => { e.stopPropagation(); setShowImport(true); resetImport() }}
@@ -395,7 +396,7 @@ export default function Customers() {
       </div>
 
       {showImport && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.5)',
+        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
           <div style={{ background:'var(--card)', borderRadius:'22px 22px 0 0',
@@ -404,7 +405,7 @@ export default function Customers() {
             onClick={e => e.stopPropagation()}>
 
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h2 style={{ fontSize:17, fontWeight:700, color:TEXT_MAIN, margin:0 }}>批量匯入顧客</h2>
+              <h2 style={{ fontSize:17, fontWeight:600, color:TEXT_MAIN, margin:0 }}>批量匯入顧客</h2>
               <button onClick={() => { setShowImport(false); resetImport() }}
                 style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
@@ -415,13 +416,13 @@ export default function Customers() {
                 background:ACCENT_GREEN_SOFT, marginBottom:16, cursor:'pointer' }}>
               <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
-                <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>下載 CSV 範本</p>
+                <p style={{ fontSize:13, fontWeight:600, color:ACCENT_GREEN_TEXT, margin:0 }}>下載 CSV 範本</p>
                 <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:0 }}>日期支援 YYYY/MM/DD、民國年、Excel 格式</p>
               </div>
             </button>
 
             <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:14 }}>
-              <p style={{ fontSize:12, fontWeight:700, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
+              <p style={{ fontSize:12, fontWeight:600, color:PRIMARY, margin:'0 0 4px' }}>日期格式說明</p>
               <p style={{ fontSize:11, color:'var(--text2)', margin:'2px 0' }}>• 回購日期：2025-08-01 或 2025/8/1 都可以</p>
               <p style={{ fontSize:11, color:'var(--text2)', margin:'2px 0' }}>• 生日：06-15 或 6/15 都可以</p>
               <p style={{ fontSize:11, color:'var(--text2)', margin:'2px 0' }}>• Excel 空白日期會自動忽略</p>
@@ -440,12 +441,12 @@ export default function Customers() {
 
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+                <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
                   偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
                   <div style={{ background:DANGER_SOFT, borderRadius:RADIUS.md, padding:'10px 14px', marginBottom:10 }}>
-                    <p style={{ fontSize:12, fontWeight:700, color:DANGER, margin:'0 0 4px' }}>
+                    <p style={{ fontSize:12, fontWeight:600, color:DANGER, margin:'0 0 4px' }}>
                       發現 {importErrors.length} 個問題：
                     </p>
                     {importErrors.map((e,i) => (
@@ -461,11 +462,11 @@ export default function Customers() {
                         background: i%2===0 ? 'var(--card)' : SUBCARD_BG }}>
                         <div style={{ width:28, height:28, borderRadius:RADIUS.circle,
                           background:avatarBg(r.name), display:'flex', alignItems:'center',
-                          justifyContent:'center', color:'#fff', fontSize:12, fontWeight:700 }}>
+                          justifyContent:'center', color:'#fff', fontSize:12, fontWeight:600 }}>
                           {r.name[0]}
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>{r.name}</span>
+                          <span style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>{r.name}</span>
                           {r.phone && <span style={{ fontSize:12, color:TEXT_MUTED }}> · {r.phone}</span>}
                         </div>
                         <div style={{ textAlign:'right' }}>
@@ -487,7 +488,7 @@ export default function Customers() {
 
             {importDone && (
               <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:RADIUS.md, padding:'12px 16px', marginBottom:16 }}>
-                <p style={{ fontSize:14, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0 }}>
+                <p style={{ fontSize:14, fontWeight:600, color:ACCENT_GREEN_TEXT, margin:0 }}>
                   匯入完成！成功 {importDone.success} 筆
                   {importDone.skip > 0 && `，跳過重複 ${importDone.skip} 筆`}
                 </p>
@@ -498,14 +499,14 @@ export default function Customers() {
               <button onClick={handleImport} disabled={importing}
                 style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
                   background: importing ? '#9BBBF2' : PRIMARY,
-                  color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                  color:'#fff', fontSize:15, fontWeight:600, cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
               </button>
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
                 style={{ width:'100%', padding:'13px 0', borderRadius:RADIUS.lg, border:'none',
-                  background:PRIMARY, color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                  background:PRIMARY, color:'#fff', fontSize:15, fontWeight:600, cursor:'pointer' }}>
                 完成
               </button>
             )}
@@ -514,13 +515,13 @@ export default function Customers() {
       )}
 
       {menuTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}
           onClick={() => setMenuTarget(null)}>
           <div style={{ background:'var(--card)', borderRadius:'22px 22px 0 0',
             padding:'20px 16px 36px', width:'100%', maxWidth:480 }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN,
+            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN,
               margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
             {showArchived ? (
               <>
@@ -568,13 +569,13 @@ export default function Customers() {
       )}
 
       {archiveTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
           <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconArchive size={30} stroke={1.6} color={DANGER} />
             </div>
-            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
               確定封存「{archiveTarget.name}」？
             </p>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
@@ -584,20 +585,20 @@ export default function Customers() {
                   background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleArchive}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>封存</button>
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>封存</button>
             </div>
           </div>
         </div>
       )}
 
       {restoreTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
           <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
             </div>
-            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
               復原「{restoreTarget.name}」？
             </p>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>將移回一般顧客檔案</p>
@@ -607,20 +608,20 @@ export default function Customers() {
                   background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleRestore}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>復原</button>
+                  background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>復原</button>
             </div>
           </div>
         </div>
       )}
 
       {deleteTarget && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
           <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
-            <p style={{ fontSize:16, fontWeight:700, color:TEXT_MAIN, margin:'0 0 8px' }}>
+            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
               確定永久刪除「{deleteTarget.name}」？
             </p>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
@@ -632,7 +633,7 @@ export default function Customers() {
                   background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDeletePermanent}
                 style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>永久刪除</button>
+                  background:DANGER, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>永久刪除</button>
             </div>
           </div>
         </div>

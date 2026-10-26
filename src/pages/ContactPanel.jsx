@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -162,7 +163,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
     fetchContact()
   }
   async function deleteLog(logId) {
-    if (!confirm('確定刪除這筆互動紀錄？')) return
+    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message:'刪除後無法復原。', okText:'刪除', danger:true }))) return
     await supabase.from('contact_logs').delete().eq('id', logId)
     fetchContact()
     onChanged?.()
@@ -210,7 +211,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   }
 
   async function handleArchive() {
-    if (!confirm(`確定要封存「${contact.name}」嗎？`)) return
+    if (!(await askConfirm({ title:`封存「${contact.name}」？`, message:'之後可以從封存名單復原。', okText:'封存', danger:true }))) return
     await supabase.from('contacts').update({ is_archived: true }).eq('id', id)
     onChanged?.()
     if (onArchived) onArchived()
@@ -250,12 +251,12 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
         <div style={{ display:'flex', alignItems:'center', gap:14, paddingBottom:16, flexWrap:'wrap' }}>
           <div style={{ width: embedded ? 48 : 56, height: embedded ? 48 : 56, borderRadius:RADIUS.circle,
             background:avatarBg(contact.name), display:'flex', alignItems:'center', justifyContent:'center',
-            color:'#fff', fontWeight:700, fontSize: embedded ? 19 : 22, flexShrink:0 }}>
+            color:'#fff', fontWeight:600, fontSize: embedded ? 19 : 22, flexShrink:0 }}>
             {contact.name[0]}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-              <span style={{ fontSize: embedded ? 17 : 20, fontWeight:700, color:TEXT_MAIN }}>{contact.name}</span>
+              <span style={{ fontSize: embedded ? 17 : 20, fontWeight:600, color:TEXT_MAIN }}>{contact.name}</span>
               {contact.egg_type && (
                 <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:RADIUS.xs,
                   background:getEggBg(contact.egg_type), color:getEggColor(contact.egg_type) }}>
@@ -300,7 +301,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 background:SUBCARD_BG, borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14 }}>
                 <span style={{ fontSize:13, color:TEXT_MUTED, fontWeight:600 }}>時機未到</span>
                 <button onClick={handleToggleMute} disabled={muteSaving}
-                  style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:700 }}>
+                  style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>
                   恢復排進今天
                 </button>
               </div>
@@ -309,7 +310,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 {suggestedAction && (
                   <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
                     <p style={{ margin:'0 0 3px', fontSize:11, color:TEXT_SECONDARY, fontWeight:600 }}>現在最適合這樣接觸</p>
-                    <p style={{ margin:0, fontSize:16, fontWeight:700, color:TEXT_MAIN }}>{getSuggestion(contact)}</p>
+                    <p style={{ margin:0, fontSize:16, fontWeight:600, color:TEXT_MAIN }}>{getSuggestion(contact)}</p>
                     <p style={{ margin:'4px 0 0', fontSize:11, color:TEXT_SECONDARY }}>
                       依據：{contact.egg_type}{contact.need_level ? ' · 需求度'+contact.need_level : ''}
                     </p>
@@ -335,7 +336,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
 
             {/* 消費狀況：路徑視覺，標注永遠由使用者自己點 */}
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
+              <div style={{ fontSize:13, fontWeight:600, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
               <div style={{ display:'flex', alignItems:'center' }}>
                 {RELATIONSHIP_STAGES.map((s, i) => {
                   const curIdx = RELATIONSHIP_STAGES.indexOf(contact.relationship_stage)
@@ -350,7 +351,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                           background: reached ? PRIMARY : 'var(--border2)',
                           border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
                           boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
-                        <span style={{ fontSize:9, color: reached ? (isCurrent?PRIMARY:TEXT_MUTED) : 'var(--border2)',
+                        <span style={{ fontSize:11, color: reached ? (isCurrent?PRIMARY:TEXT_MUTED) : 'var(--border2)',
                           fontWeight: isCurrent?700:400, whiteSpace:'nowrap' }}>{s}</span>
                       </button>
                       {i < RELATIONSHIP_STAGES.length-1 && (
@@ -368,11 +369,11 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
                 background:SUBCARD_BG, borderRadius:RADIUS.md, padding:'10px 14px' }}>
                 <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                  <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:700 }}>合作意願</span>
-                  <span style={{ fontSize:14, color:TEXT_MAIN, fontWeight:700 }}>{contact.referral_stage || '尚未聊過'}</span>
+                  <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>合作意願</span>
+                  <span style={{ fontSize:14, color:TEXT_MAIN, fontWeight:600 }}>{contact.referral_stage || '尚未聊過'}</span>
                 </div>
                 <button onClick={() => setShowReferralOptions(v => !v)}
-                  style={{ background:'none', border:'none', color:PRIMARY, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                  style={{ background:'none', border:'none', color:PRIMARY, fontSize:13, fontWeight:600, cursor:'pointer' }}>
                   {showReferralOptions ? '收起' : '調整 ›'}
                 </button>
               </div>
@@ -396,7 +397,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 新的故事只會從下面「記錄一筆新互動」順便勾選加入，這裡不再有獨立的輸入框。 */}
             {contactNotes.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, marginBottom:10 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, marginBottom:10 }}>
                   認識{contact.name}的故事 <span style={{ fontSize:12, color:TEXT_MUTED, fontWeight:400 }}>已經累積 {contactNotes.length} 件事</span>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column' }}>
@@ -446,7 +447,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 </label>
                 <button onClick={handleQuickAdd} disabled={quickSaving}
                   style={{ padding:'9px 16px', borderRadius:RADIUS.sm, border:'none',
-                    background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                    background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                   {quickSaving ? '新增中…' : '新增'}
                 </button>
               </div>
@@ -513,7 +514,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
                 <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ fontSize:11, color:TEXT_SECONDARY, margin:'0 0 4px', fontWeight:600 }}>顧客消費紀錄</p>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:13, color:TEXT_MAIN, fontWeight:700 }}>{linkedCustomer.totalBV.toFixed(0)} BV</span>
+                    <span style={{ fontSize:13, color:TEXT_MAIN, fontWeight:600 }}>{linkedCustomer.totalBV.toFixed(0)} BV</span>
                     <span style={{ fontSize:12, color:ACCENT_GREEN_TEXT }}>NT${linkedCustomer.totalProfit.toLocaleString()} 獲利</span>
                   </div>
                 </div>

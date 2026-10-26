@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
@@ -139,11 +140,7 @@ export default function ContactEdit() {
     navigate(`/contacts/${id}`)
   }
 
-  if (!form) return (
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh' }}>
-      <p style={{ color:TEXT_MUTED }}>載入中…</p>
-    </div>
-  )
+  if (!form) return <LoadingSpinner />
 
   return (
     <div style={{ background:'var(--page)',minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
@@ -159,7 +156,7 @@ export default function ContactEdit() {
       <div className="dash-container" style={{ padding:'0 16px',display:'flex',alignItems:'center',gap:12 }}>
         <button onClick={() => navigate(-1)}
           style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-        <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯聯絡人</h1>
+        <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯聯絡人</h1>
       </div>
       </div>
 
@@ -259,7 +256,7 @@ export default function ContactEdit() {
         <button onClick={handleSave} disabled={saving}
           style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
             background:saving?'#9BBBF2':PRIMARY,color:'#fff',
-            fontSize:16,fontWeight:700,cursor:'pointer',marginTop:8 }}>
+            fontSize:16,fontWeight:600,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
       </div>

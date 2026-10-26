@@ -37,6 +37,7 @@ export default function Onboarding({ user, onComplete }) {
   const [why, setWhy] = useState('')
   const [saving, setSaving] = useState(false)
   const [activeDaily, setActiveDaily] = useState(null)
+  const [referrerMsg, setReferrerMsg] = useState('')
 
   const totalSteps = STEPS.length
   const currentStep = STEPS[step]
@@ -45,18 +46,21 @@ export default function Onboarding({ user, onComplete }) {
     if (currentStep === 'name') {
       if (!name.trim()) return
       setSaving(true)
-      await supabase.from('profiles').update({ name: name.trim() }).eq('id', user.id)
       await supabase.from('users').update({ name: name.trim() }).eq('id', user.id)
       setSaving(false)
     }
 
     if (currentStep === 'referrer' && referrer.trim()) {
       setSaving(true)
-      // 用 email 找推薦人
-      const { data } = await supabase
-        .from('profiles').select('id').eq('email', referrer.trim()).single()
-      if (data) {
-        await supabase.from('users').update({ referrer_id: data.id }).eq('id', user.id)
+      // 用 email 找推薦人（跟註冊頁同一個方式）
+      const { data: refId } = await supabase.rpc('get_user_id_by_email', { p_email: referrer.trim() })
+      if (refId && refId !== user.id) {
+        await supabase.from('users').update({ referrer_id: refId }).eq('id', user.id)
+        setReferrerMsg('')
+      } else {
+        setSaving(false)
+        setReferrerMsg('找不到這個 Email，請確認推薦人註冊時用的信箱；也可以先按「跳過」，之後再補。')
+        return
       }
       setSaving(false)
     }
@@ -141,8 +145,8 @@ export default function Onboarding({ user, onComplete }) {
           }}>
             {currentStep === 'welcome' && (
               <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, margin: '0 0 8px' }}>
-                  歡迎加入超連鎖行動計畫！👋
+                <p style={{ fontSize: 16, fontWeight:600, color: TEXT_MAIN, margin: '0 0 8px' }}>
+                  歡迎加入超連鎖行動計畫！
                 </p>
                 <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   我是你的小助手，花 2 分鐘完成設定，讓 App 陪你從第一天就走在正確的軌道上。
@@ -151,8 +155,8 @@ export default function Onboarding({ user, onComplete }) {
             )}
             {currentStep === 'name' && (
               <>
-                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 4px', fontWeight: 700 }}>
-                  先確認一下你的名字 😊
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 4px', fontWeight:600 }}>
+                  先確認一下你的名字
                 </p>
                 <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0 }}>
                   這會顯示在你的個人頁面上
@@ -161,7 +165,7 @@ export default function Onboarding({ user, onComplete }) {
             )}
             {currentStep === 'referrer' && (
               <>
-                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 4px', fontWeight: 700 }}>
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 4px', fontWeight:600 }}>
                   你的推薦人是誰？
                 </p>
                 <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0 }}>
@@ -171,8 +175,8 @@ export default function Onboarding({ user, onComplete }) {
             )}
             {currentStep === 'why' && (
               <>
-                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 6px', fontWeight: 700 }}>
-                  你為什麼加入美安？✍️
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 6px', fontWeight:600 }}>
+                  你為什麼加入美安？
                 </p>
                 <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   寫下你的 Why。它會一直顯示在首頁最上面，遇到困難的時候，提醒你為什麼出發。
@@ -181,7 +185,7 @@ export default function Onboarding({ user, onComplete }) {
             )}
             {currentStep === 'daily' && (
               <>
-                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 6px', fontWeight: 700 }}>
+                <p style={{ fontSize: 14, color: TEXT_MAIN, margin: '0 0 6px', fontWeight:600 }}>
                   這是你每天要做的 7 件事
                 </p>
                 <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
@@ -191,8 +195,8 @@ export default function Onboarding({ user, onComplete }) {
             )}
             {currentStep === 'done' && (
               <>
-                <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, margin: '0 0 8px' }}>
-                  設定完成！🎉
+                <p style={{ fontSize: 16, fontWeight:600, color: TEXT_MAIN, margin: '0 0 8px' }}>
+                  設定完成！
                 </p>
                 <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
                   接下來去新增你的第一批名單吧，起步指南說：第一週就要有首選 10 人名單！
@@ -223,9 +227,10 @@ export default function Onboarding({ user, onComplete }) {
           )}
 
           {currentStep === 'referrer' && (
+            <>
             <input
               value={referrer}
-              onChange={e => setReferrer(e.target.value)}
+              onChange={e => { setReferrer(e.target.value); setReferrerMsg('') }}
               placeholder="推薦人 Email（可略過）"
               type="email"
               style={{
@@ -237,6 +242,8 @@ export default function Onboarding({ user, onComplete }) {
                 boxShadow: '0 4px 14px rgba(19,42,77,0.15)',
               }}
             />
+            {referrerMsg && <p style={{ color: '#fff', fontSize: 13, lineHeight: 1.6, margin: '10px 4px 0' }}>{referrerMsg}</p>}
+            </>
           )}
 
           {currentStep === 'why' && (
@@ -305,7 +312,7 @@ export default function Onboarding({ user, onComplete }) {
               background: 'rgba(255,255,255,0.15)',
               borderRadius: 14, padding: 14,
             }}>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: '0 0 8px', fontWeight: 700 }}>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', margin: '0 0 8px', fontWeight:600 }}>
                 你的新手起步任務
               </p>
               {STARTER_TASKS.map((t) => (
@@ -334,7 +341,7 @@ export default function Onboarding({ user, onComplete }) {
               flex: 1, padding: '13px', borderRadius: 14, border: 'none',
               background: canNext ? 'var(--card)' : 'rgba(255,255,255,0.3)',
               color: canNext ? PRIMARY : 'rgba(255,255,255,0.5)',
-              fontWeight: 700, fontSize: 15, cursor: canNext ? 'pointer' : 'default',
+              fontWeight:600, fontSize: 15, cursor: canNext ? 'pointer' : 'default',
               transition: 'all 0.2s',
             }}>
             {saving ? '儲存中…' :

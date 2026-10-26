@@ -53,10 +53,23 @@ export function SoftBtn({ children, onClick, bg, color, solid = false, style }) 
 
 export function Tag({ children, bg, color }) {
   return (
-    <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 8px', borderRadius: RADIUS.pill,
+    <span style={{ fontSize:11, fontWeight: 600, padding: '1px 8px', borderRadius: RADIUS.pill,
       background: bg, color, whiteSpace: 'nowrap' }}>
       {children}
     </span>
   )
 }
 
+
+// 彈出視窗右上角的關閉鈕：44px 圓形，好按，白天夜晚都清楚
+export function CloseBtn({ onClick, size = 44 }) {
+  return (
+    <button onClick={onClick} aria-label="關閉"
+      style={{ width: size, height: size, borderRadius: '50%', border: 'none', background: 'var(--sub2)', color: 'var(--text2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12" />
+      </svg>
+    </button>
+  )
+}

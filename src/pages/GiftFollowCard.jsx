@@ -89,14 +89,14 @@ export default function GiftFollowCard({ userId, year, month }) {
   return (
     <div className="dash-container" style={{ padding: '12px 16px 0' }}>
       <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14 }}>
-        <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight:600, color: TEXT_MAIN, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconGift size={16} stroke={1.9} color={ACCENT_YELLOW_TEXT} /> {month} 月送出的贈品
         </p>
         <p style={{ margin: '0 0 8px', fontSize: 12, color: TEXT_SECONDARY }}>{totalCount} 份，成本 {fmt(totalCost)}</p>
         {rows.map(r => (
           <div key={r.customer_id + r.date} style={{ padding: '8px 0', borderTop: `1px solid ${BORDER}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN, minWidth: 0, wordBreak: 'break-word' }}>{r.name}</span>
+              <span style={{ fontSize: 14, fontWeight:600, color: TEXT_MAIN, minWidth: 0, wordBreak: 'break-word' }}>{r.name}</span>
               <span style={{ fontSize: 12, color: TEXT_MUTED, flexShrink: 0 }}>{r.items.join('、')}　{shortDate(r.date)}</span>
             </div>
             <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, padding: '2px 8px', borderRadius: RADIUS.pill, background: tones[r.tone].bg, color: tones[r.tone].fg }}>

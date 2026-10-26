@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import LoadingSpinner from './LoadingSpinner'
+import { CloseBtn } from './ui'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -141,11 +143,7 @@ export default function ResourceLinks({ type, title, icon }) {
     window.open(url, '_blank')
   }
 
-  if (loading) return (
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'var(--page)' }}>
-      <p style={{ color:TEXT_MUTED }}>載入中…</p>
-    </div>
-  )
+  if (loading) return <LoadingSpinner />
 
   return (
     <div style={{ background:'var(--page)',minHeight:'100vh',paddingBottom:80 }}>
@@ -163,7 +161,7 @@ export default function ResourceLinks({ type, title, icon }) {
           <div style={{ display:'flex',alignItems:'center',gap:12 }}>
             <button onClick={() => navigate(-1)}
               style={{ background:'none',border:'none',color:'#fff',cursor:'pointer',padding:0,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-            <h1 style={{ fontSize:20,fontWeight:700,color:'#fff',margin:0,display:'flex',alignItems:'center',gap:8 }}>
+            <h1 style={{ fontSize:20,fontWeight:600,color:'#fff',margin:0,display:'flex',alignItems:'center',gap:8 }}>
               {(() => { const I = ICONS[iconKeyOf(icon)].Icon; return <I size={22} stroke={1.9} /> })()} {title}
             </h1>
           </div>
@@ -178,13 +176,13 @@ export default function ResourceLinks({ type, title, icon }) {
         {/* 公共連結區塊 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-            <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:6 }}>
+            <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:6 }}>
               <IconPin size={15} stroke={1.9} color={PRIMARY} /> 公共資源
             </span>
             {isAdmin && (
               <button onClick={() => openAdd('public')}
                 style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',
-                  cursor:'pointer',fontWeight:700 }}>+ 新增</button>
+                  cursor:'pointer',fontWeight:600 }}>+ 新增</button>
             )}
           </div>
 
@@ -221,12 +219,12 @@ export default function ResourceLinks({ type, title, icon }) {
         {/* 個人連結區塊 */}
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-            <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:6 }}>
+            <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'flex',alignItems:'center',gap:6 }}>
               <IconStar size={15} stroke={1.9} color="#F45DA8" /> 我的收藏
             </span>
             <button onClick={() => openAdd('personal')}
               style={{ fontSize:12,color:PRIMARY,background:'none',border:'none',
-                cursor:'pointer',fontWeight:700 }}>+ 新增</button>
+                cursor:'pointer',fontWeight:600 }}>+ 新增</button>
           </div>
 
           {personalLinks.length === 0 ? (
@@ -265,11 +263,10 @@ export default function ResourceLinks({ type, title, icon }) {
           <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
+              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>
                 {modal.editId ? '編輯連結' : `新增${modal.scope === 'public' ? '公共' : '個人'}連結`}
               </h3>
-              <button onClick={() => setModal(null)}
-                style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,display:'flex' }}><IconX size={20} /></button>
+              <CloseBtn onClick={() => setModal(null)} />
             </div>
 
             {/* Emoji 選擇 */}
@@ -310,7 +307,7 @@ export default function ResourceLinks({ type, title, icon }) {
 
             <button onClick={handleSave} disabled={saving}
               style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
-                background:PRIMARY,color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                background:PRIMARY,color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
               {saving ? '儲存中…' : modal.editId ? '儲存修改' : '確認新增'}
             </button>
           </div>
@@ -322,7 +319,7 @@ export default function ResourceLinks({ type, title, icon }) {
         <div style={overlayStyle} onClick={() => setDeleteTarget(null)}>
           <div style={{ background:'var(--card)',borderRadius:18,padding:24,width:'100%',maxWidth:320,margin:'0 20px' }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
               確定要刪除？
             </p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px',textAlign:'center' }}>
@@ -334,7 +331,7 @@ export default function ResourceLinks({ type, title, icon }) {
                   background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
                 style={{ flex:1,padding:'12px',borderRadius:12,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>刪除</button>
             </div>
           </div>
         </div>
@@ -351,6 +348,6 @@ const inputStyle = {
   outline:'none',color:TEXT_MAIN,
 }
 const overlayStyle = {
-  position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+  position:'fixed',inset:0,background:'var(--overlay)',
   display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000,
 }

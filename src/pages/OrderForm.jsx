@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { IconX, IconPlus, IconTrash, IconRepeat, IconCircleCheck, IconCopy, IconChevronRight, IconChevronDown } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -114,10 +115,10 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     if (Object.keys(patch).length) setLine(line.key, patch)
   }
 
-  function applyLast() {
+  async function applyLast() {
     if (!last) return
     const hasContent = form.lines.some(l => l.product_name.trim())
-    if (hasContent && !window.confirm('這會取代目前填的產品，確定嗎？')) return
+    if (hasContent && !(await askConfirm({ title:'取代目前填的產品？', message:'會換成上一次的產品內容。', okText:'取代' }))) return
     setForm(f => ({
       ...f,
       lines: last.lines.map(t => ({
@@ -230,7 +231,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     return (
       <div>
         <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14, textAlign: 'center', marginBottom: 10 }}>
-          <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: TEXT_MAIN, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight:600, color: TEXT_MAIN, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <IconCircleCheck size={18} stroke={1.9} color={ACCENT_GREEN_TEXT} />
             {saved.edited ? '已儲存修改' : `已記下 ${customerName} 的訂單`}
           </p>
@@ -245,12 +246,12 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         {!saved.edited && names.length > 0 && saved.reminderState !== 'skip' && (
           <div style={{ background: ACCENT_PINK_SOFT, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10 }}>
             {saved.reminderState === 'set' ? (
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: ACCENT_PINK_TEXT }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight:600, color: ACCENT_PINK_TEXT }}>
                 已設好回購提醒：{shortDate(suggest)}
               </p>
             ) : (
               <>
-                <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: ACCENT_PINK_TEXT }}>
+                <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight:600, color: ACCENT_PINK_TEXT }}>
                   {suggest ? `大約 ${shortDate(suggest)} 會用完` : '要設回購提醒嗎？'}
                 </p>
                 <p style={{ margin: '0 0 10px', fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.6 }}>
@@ -268,7 +269,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                 ))}
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                   <button onClick={setReminder} disabled={!suggest}
-                    style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: suggest ? ACCENT_PINK : 'var(--pink-border)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: suggest ? 'pointer' : 'default' }}>
+                    style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: suggest ? ACCENT_PINK : 'var(--pink-border)', color: '#fff', fontSize: 14, fontWeight:600, cursor: suggest ? 'pointer' : 'default' }}>
                     設提醒
                   </button>
                   <button onClick={() => setSaved(s => ({ ...s, reminderState: 'skip' }))}
@@ -283,7 +284,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
 
         <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10 }}>
           <button onClick={() => setSaved(s => ({ ...s, copyOpen: !s.copyOpen }))}
-            style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: PRIMARY }}>
+            style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight:600, color: PRIMARY }}>
             <IconCopy size={16} stroke={1.9} /> 複製給 {customerName}
             <span style={{ marginLeft: 'auto', display: 'flex' }}>{saved.copyOpen ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}</span>
           </button>
@@ -294,7 +295,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                 onChange={e => setSaved(s => ({ ...s, copyText: e.target.value, copied: false }))}
                 style={{ ...inp, resize: 'vertical', lineHeight: 1.6, fontFamily: 'inherit' }} />
               <button onClick={doCopy}
-                style={{ width: '100%', marginTop: 8, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: PRIMARY, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ width: '100%', marginTop: 8, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: PRIMARY, color: '#fff', fontSize: 14, fontWeight:600, cursor: 'pointer' }}>
                 {saved.copied ? '已複製' : '複製'}
               </button>
               {saved.calc.missingPrice > 0 && (
@@ -305,7 +306,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         </div>
 
         <button onClick={() => onDone && onDone()}
-          style={{ width: '100%', padding: '12px', borderRadius: RADIUS.lg, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+          style={{ width: '100%', padding: '12px', borderRadius: RADIUS.lg, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight:600, cursor: 'pointer' }}>
           完成
         </button>
       </div>
@@ -323,7 +324,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <span style={lbl}>{orderId ? '編輯訂單' : '新增訂單'}</span>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: TEXT_MAIN, wordBreak: 'break-word' }}>{customerName}</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight:600, color: TEXT_MAIN, wordBreak: 'break-word' }}>{customerName}</p>
           </div>
           <div style={{ width: 140 }}>
             <span style={lbl}>日期</span>
@@ -350,7 +351,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         return (
           <div key={l.key} style={{ background: l.is_gift ? ACCENT_YELLOW_SOFT : 'var(--card)', border: `1px solid ${l.is_gift ? 'var(--yellow-soft)' : BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN }}>
+              <span style={{ fontSize: 13, fontWeight:600, color: TEXT_MAIN }}>
                 產品 {i + 1}
                 {l.is_gift && <span style={{ marginLeft: 8, fontSize: 11, padding: '2px 8px', borderRadius: RADIUS.pill, background: ACCENT_YELLOW, color: ACCENT_YELLOW_TEXT }}>贈品</span>}
               </span>
@@ -386,7 +387,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
               <div style={{ display: 'flex', gap: 6 }}>
                 {['BV', 'IBV'].map(t => (
                   <button key={t} onClick={() => setLine(l.key, { type: t })}
-                    style={{ padding: '5px 14px', borderRadius: RADIUS.pill, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    style={{ padding: '5px 14px', borderRadius: RADIUS.pill, border: 'none', fontSize: 12, fontWeight:600, cursor: 'pointer',
                       background: l.type === t ? (t === 'BV' ? ACCENT_YELLOW : PRIMARY) : SUBCARD_BG,
                       color: l.type === t ? (t === 'BV' ? '#5B3200' : '#fff') : TEXT_SECONDARY }}>{t}</button>
                 ))}
@@ -409,7 +410,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       {/* 調整：折扣、運費 */}
       <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
         <button onClick={() => setShowAdj(v => !v)}
-          style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>
+          style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight:600, color: TEXT_MAIN }}>
           調整（折扣／運費）
           {form.adjustments.length > 0 && <span style={{ fontSize: 12, fontWeight: 400, color: TEXT_SECONDARY }}>已加 {form.adjustments.length} 項</span>}
           <span style={{ marginLeft: 'auto', display: 'flex', color: TEXT_MUTED }}>{showAdj ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}</span>
@@ -504,7 +505,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       {error && <p style={{ margin: '0 0 10px', fontSize: 13, color: DANGER, wordBreak: 'break-word' }}>{error}</p>}
 
       <button onClick={handleSave} disabled={saving}
-        style={{ width: '100%', padding: '14px', borderRadius: RADIUS.lg, border: 'none', background: saving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+        style={{ width: '100%', padding: '14px', borderRadius: RADIUS.lg, border: 'none', background: saving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 16, fontWeight:600, cursor: 'pointer' }}>
         {saving ? '儲存中…' : orderId ? '儲存修改' : '儲存訂單'}
       </button>
     </div>

@@ -308,12 +308,12 @@ export default function Transactions() {
         <div style={{ width:40,height:40,borderRadius:'50%',
           background: t.is_gift ? 'var(--border)' : avatarBg(name),
           display:'flex',alignItems:'center',justifyContent:'center',
-          color: t.is_gift ? TEXT_SECONDARY : '#fff',fontWeight:700,fontSize:15,flexShrink:0 }}>
+          color: t.is_gift ? TEXT_SECONDARY : '#fff',fontWeight:600,fontSize:15,flexShrink:0 }}>
           {t.is_gift ? <IconGift size={17} stroke={1.9} /> : name[0]}
         </div>
         <div style={{ flex:1,minWidth:0 }}>
           <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
-            <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{name}</span>
+            <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>{name}</span>
             <span style={{ fontSize:11,fontWeight:600,padding:'1px 6px',borderRadius:RADIUS.xs,
               background:t.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
               color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
@@ -323,7 +323,7 @@ export default function Transactions() {
           </p>
         </div>
         <div style={{ textAlign:'right',flexShrink:0 }}>
-          <p style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,margin:0 }}>
             {Number(t.points).toFixed(0)} 點
           </p>
           <p style={{ fontSize:12,margin:'2px 0 0',
@@ -373,7 +373,7 @@ export default function Transactions() {
                 <div style={{ width:'100%',height:2,background:BORDER,borderRadius:2 }} />
               )}
             </div>
-            <span style={{ fontSize:10,color:TEXT_MUTED,lineHeight:1 }}>
+            <span style={{ fontSize:11,color:TEXT_MUTED,lineHeight:1 }}>
               {d.day % 5 === 1 ? d.day : ''}
             </span>
           </div>
@@ -418,7 +418,7 @@ export default function Transactions() {
       <div className="dash-container" style={{ padding:'0 16px' }}>
 
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
+          <h1 style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
           <div style={{ display:'flex',gap:8 }}>
             <button onClick={searchMode ? exitSearch : enterSearch}
               style={{ width:36,height:36,borderRadius:RADIUS.md,
@@ -466,23 +466,23 @@ export default function Transactions() {
             <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:20,marginBottom:12 }}>
               <button onClick={prevMonth}
                 style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:TEXT_SECONDARY }}>‹</button>
-              <span style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
+              <span style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
               <button onClick={nextMonth}
                 style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:TEXT_SECONDARY }}>›</button>
             </div>
 
             <div style={{ display:'flex',gap:10,marginBottom:8 }}>
               <div style={{ flex:1,background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.lg,padding:'12px' }}>
-                <p style={{ fontSize:11,fontWeight:700,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
-                <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
+                <p style={{ fontSize:11,fontWeight:600,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
+                <p style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
               </div>
               <div style={{ flex:1,background:PRIMARY_SOFT,borderRadius:RADIUS.lg,padding:'12px' }}>
-                <p style={{ fontSize:11,fontWeight:700,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
-                <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
+                <p style={{ fontSize:11,fontWeight:600,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
+                <p style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
               </div>
               <div style={{ flex:1,background:ACCENT_GREEN_SOFT,borderRadius:RADIUS.lg,padding:'12px' }}>
-                <p style={{ fontSize:11,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
-                <p style={{ fontSize:18,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
+                <p style={{ fontSize:11,fontWeight:600,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
+                <p style={{ fontSize:18,fontWeight:600,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
               </div>
             </div>
             {giftCost > 0 && (
@@ -494,7 +494,7 @@ export default function Transactions() {
             {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
               <div style={{ background:SUBCARD_BG,borderRadius:RADIUS.lg,padding:'12px 8px 8px',marginTop:4 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
-                  <span style={{ fontSize:12,fontWeight:700,color:TEXT_SECONDARY }}>每日點數趨勢</span>
+                  <span style={{ fontSize:12,fontWeight:600,color:TEXT_SECONDARY }}>每日點數趨勢</span>
                   <div style={{ display:'flex',gap:10 }}>
                     <span style={{ fontSize:11,color:ACCENT_YELLOW_TEXT,display:'flex',alignItems:'center',gap:3 }}>
                       <span style={{ width:8,height:8,borderRadius:2,background:ACCENT_YELLOW,display:'inline-block' }}/>BV
@@ -524,11 +524,11 @@ export default function Transactions() {
       <div className="tx-desktop-wrap">
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:10 }}>
           <div style={{ display:'flex',alignItems:'center',gap:14 }}>
-            <h1 style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
+            <h1 style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>業績紀錄</h1>
             <div style={{ display:'flex',alignItems:'center',gap:8,background:SUBCARD_BG,borderRadius:RADIUS.sm,padding:'4px 10px' }}>
               <button onClick={prevMonth}
                 style={{ background:'none',border:'none',fontSize:16,cursor:'pointer',color:TEXT_SECONDARY }}>‹</button>
-              <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
+              <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>{year} 年 {month} 月</span>
               <button onClick={nextMonth}
                 style={{ background:'none',border:'none',fontSize:16,cursor:'pointer',color:TEXT_SECONDARY }}>›</button>
             </div>
@@ -544,7 +544,7 @@ export default function Transactions() {
             </div>
             {TYPE_FILTERS.map(f => (
               <button key={f} onClick={() => setTypeFilter(f)}
-                style={{ padding:'7px 14px',borderRadius:RADIUS.pill,border:'none',fontSize:12,fontWeight:700,cursor:'pointer',
+                style={{ padding:'7px 14px',borderRadius:RADIUS.pill,border:'none',fontSize:12,fontWeight:600,cursor:'pointer',
                   background: typeFilter===f ? (f==='BV'?ACCENT_YELLOW_SOFT:f==='IBV'?PRIMARY_SOFT:PRIMARY) : SUBCARD_BG,
                   color: typeFilter===f ? (f==='BV'?ACCENT_YELLOW_TEXT:f==='IBV'?PRIMARY:'#fff') : TEXT_SECONDARY }}>
                 {f}
@@ -552,13 +552,13 @@ export default function Transactions() {
             ))}
             <button onClick={() => { setShowImport(true); resetImport() }}
               style={{ padding:'8px 14px',borderRadius:RADIUS.sm,border:'none',background:ACCENT_GREEN_SOFT,
-                color:ACCENT_GREEN_TEXT,fontSize:12,fontWeight:700,cursor:'pointer',
+                color:ACCENT_GREEN_TEXT,fontSize:12,fontWeight:600,cursor:'pointer',
                 display:'flex',alignItems:'center',gap:6 }}>
               <IconDownload size={14} stroke={1.9} /> 匯入
             </button>
             <button onClick={() => navigate('/transactions/new')}
               style={{ padding:'8px 16px',borderRadius:RADIUS.sm,border:'none',background:PRIMARY,
-                color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer' }}>
+                color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
               + 新增
             </button>
           </div>
@@ -566,27 +566,27 @@ export default function Transactions() {
 
         <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16 }}>
           <div style={{ background:ACCENT_YELLOW_SOFT,borderRadius:RADIUS.md,padding:'12px 14px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
-            <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
+            <p style={{ fontSize:11,fontWeight:600,color:ACCENT_YELLOW_TEXT,margin:'0 0 4px' }}>BV</p>
+            <p style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{bvTotal.toFixed(0)}</p>
           </div>
           <div style={{ background:PRIMARY_SOFT,borderRadius:RADIUS.md,padding:'12px 14px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
-            <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
+            <p style={{ fontSize:11,fontWeight:600,color:PRIMARY,margin:'0 0 4px' }}>IBV</p>
+            <p style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>{ibvTotal.toFixed(0)}</p>
           </div>
           <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:RADIUS.md,padding:'12px 14px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
-            <p style={{ fontSize:20,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
+            <p style={{ fontSize:11,fontWeight:600,color:ACCENT_GREEN_TEXT,margin:'0 0 4px' }}>獲利</p>
+            <p style={{ fontSize:20,fontWeight:600,color:ACCENT_GREEN_TEXT,margin:0 }}>NT${profit.toLocaleString()}</p>
           </div>
           <div style={{ background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'12px 14px' }}>
-            <p style={{ fontSize:11,fontWeight:700,color:TEXT_SECONDARY,margin:'0 0 4px' }}>贈品成本</p>
-            <p style={{ fontSize:20,fontWeight:700,color:TEXT_MAIN,margin:0 }}>-NT${giftCost.toLocaleString()}</p>
+            <p style={{ fontSize:11,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>贈品成本</p>
+            <p style={{ fontSize:20,fontWeight:600,color:TEXT_MAIN,margin:0 }}>-NT${giftCost.toLocaleString()}</p>
           </div>
         </div>
 
         {chartData.length > 0 && chartData.some(d => d.bv > 0 || d.ibv > 0) && (
           <div style={{ background:SUBCARD_BG,borderRadius:RADIUS.lg,padding:'14px 14px 10px',marginBottom:16 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
-              <span style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY }}>每日點數趨勢</span>
+              <span style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY }}>每日點數趨勢</span>
               <div style={{ display:'flex',gap:12 }}>
                 <span style={{ fontSize:12,color:ACCENT_YELLOW_TEXT,display:'flex',alignItems:'center',gap:4 }}>
                   <span style={{ width:9,height:9,borderRadius:2,background:ACCENT_YELLOW,display:'inline-block' }}/>BV
@@ -663,7 +663,7 @@ export default function Transactions() {
                     <td style={{ ...tdStyle, fontWeight:600, color:TEXT_MAIN }}>{name}</td>
                     <td style={tdStyle}>
                       {t.product_name}
-                      {t.is_gift && <span style={{ marginLeft:6,fontSize:11,color:TEXT_MUTED }}>🎁贈品</span>}
+                      {t.is_gift && <span style={{ marginLeft:6,fontSize:11,color:TEXT_MUTED,display:'inline-flex',alignItems:'center',gap:3 }}><IconGift size={12} stroke={1.9} />贈品</span>}
                     </td>
                     <td style={tdStyle}>
                       <span style={{ fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:RADIUS.xs,
@@ -696,7 +696,7 @@ export default function Transactions() {
 
       {/* CSV 匯入 Modal */}
       {showImport && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.5)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:400 }}
           onClick={() => { setShowImport(false); resetImport() }}>
           <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',
@@ -704,7 +704,7 @@ export default function Transactions() {
             maxHeight:'85vh',overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>批量匯入業績</h2>
+              <h2 style={{ fontSize:17,fontWeight:600,color:TEXT_MAIN,margin:0 }}>批量匯入業績</h2>
               <button onClick={() => { setShowImport(false); resetImport() }}
                 style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
@@ -714,7 +714,7 @@ export default function Transactions() {
                 background:ACCENT_GREEN_SOFT,marginBottom:16,cursor:'pointer' }}>
               <IconFileTypeCsv size={20} stroke={1.8} color={ACCENT_GREEN_TEXT} />
               <div style={{ textAlign:'left' }}>
-                <p style={{ fontSize:13,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>下載 CSV 範本</p>
+                <p style={{ fontSize:13,fontWeight:600,color:ACCENT_GREEN_TEXT,margin:0 }}>下載 CSV 範本</p>
                 <p style={{ fontSize:11,color:TEXT_SECONDARY,margin:0 }}>date, customer_name, customer_phone, product_name, type, points, amount, cost, is_gift</p>
               </div>
             </button>
@@ -737,12 +737,12 @@ export default function Transactions() {
             </button>
             {importRows.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <p style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>
+                <p style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>
                   偵測到 {importRows.length} 筆資料
                 </p>
                 {importErrors.length > 0 && (
                   <div style={{ background:DANGER_SOFT,borderRadius:RADIUS.md,padding:'10px 14px',marginBottom:10 }}>
-                    <p style={{ fontSize:12,fontWeight:700,color:DANGER,margin:'0 0 4px' }}>
+                    <p style={{ fontSize:12,fontWeight:600,color:DANGER,margin:'0 0 4px' }}>
                       發現 {importErrors.length} 個問題：
                     </p>
                     {importErrors.map((e,i) => (
@@ -760,11 +760,11 @@ export default function Transactions() {
                           background:r.type==='BV'?ACCENT_YELLOW_SOFT:PRIMARY_SOFT,
                           color:r.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY,flexShrink:0 }}>{r.type}</span>
                         <div style={{ flex:1,minWidth:0 }}>
-                          <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{r.product_name}</span>
+                          <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>{r.product_name}</span>
                           {r.customer_name && <span style={{ fontSize:12,color:TEXT_MUTED }}> · {r.customer_name}</span>}
                         </div>
                         <div style={{ textAlign:'right',flexShrink:0 }}>
-                          <span style={{ fontSize:13,fontWeight:700,color:TEXT_SECONDARY }}>{r.points}點</span>
+                          <span style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY }}>{r.points}點</span>
                           <span style={{ fontSize:11,color:TEXT_MUTED,display:'block' }}>{r.date}</span>
                         </div>
                       </div>
@@ -781,7 +781,7 @@ export default function Transactions() {
             )}
             {importDone && (
               <div style={{ background:ACCENT_GREEN_SOFT,borderRadius:RADIUS.md,padding:'12px 16px',marginBottom:16 }}>
-                <p style={{ fontSize:14,fontWeight:700,color:ACCENT_GREEN_TEXT,margin:0 }}>
+                <p style={{ fontSize:14,fontWeight:600,color:ACCENT_GREEN_TEXT,margin:0 }}>
                   匯入完成！成功 {importDone.success} 筆
                 </p>
               </div>
@@ -790,14 +790,14 @@ export default function Transactions() {
               <button onClick={handleImport} disabled={importing}
                 style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                   background:importing?'#9BBBF2':PRIMARY,
-                  color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                  color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
                 {importing ? '匯入中…' : `確認匯入 ${importRows.length} 筆`}
               </button>
             )}
             {importDone && (
               <button onClick={() => { setShowImport(false); resetImport() }}
                 style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
-                  background:PRIMARY,color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                  background:PRIMARY,color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer' }}>
                 完成
               </button>
             )}
@@ -807,13 +807,13 @@ export default function Transactions() {
 
       {/* 刪除確認 */}
       {deleteTarget && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
           <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
             <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
               <IconTrash size={30} stroke={1.6} color={DANGER} />
             </div>
-            <p style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:'0 0 8px' }}>確定刪除？</p>
+            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>確定刪除？</p>
             <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>刪除後無法復原</p>
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}
@@ -821,7 +821,7 @@ export default function Transactions() {
                   background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
               <button onClick={handleDelete}
                 style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer' }}>刪除</button>
+                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>刪除</button>
             </div>
           </div>
         </div>
@@ -829,12 +829,12 @@ export default function Transactions() {
 
       {/* 編輯 Modal */}
       {editTarget && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200 }}>
           <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',
             padding:'24px 20px 36px',width:'100%',maxWidth:480 }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h2 style={{ fontSize:17,fontWeight:700,color:TEXT_MAIN,margin:0 }}>編輯業績紀錄</h2>
+              <h2 style={{ fontSize:17,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯業績紀錄</h2>
               <button onClick={() => setEditTarget(null)}
                 style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={22} /></button>
             </div>
@@ -849,7 +849,7 @@ export default function Transactions() {
             <div style={{ display:'flex',gap:8,marginBottom:14 }}>
               {['BV','IBV'].map(type => (
                 <button key={type} onClick={() => setEditForm(f => ({...f, type}))}
-                  style={{ flex:1,padding:'9px 0',borderRadius:RADIUS.md,fontWeight:700,fontSize:14,cursor:'pointer',
+                  style={{ flex:1,padding:'9px 0',borderRadius:RADIUS.md,fontWeight:600,fontSize:14,cursor:'pointer',
                     border: 'none',
                     background: editForm.type===type ? (type==='BV'?ACCENT_YELLOW:PRIMARY) : SUBCARD_BG,
                     color: editForm.type===type ? (type==='BV'?'#5B3200':'#fff') : TEXT_SECONDARY }}>{type}</button>
@@ -883,7 +883,7 @@ export default function Transactions() {
             <button onClick={handleSave} disabled={saving}
               style={{ width:'100%',padding:'13px 0',borderRadius:RADIUS.lg,border:'none',
                 background: saving ? '#9BBBF2' : PRIMARY,color:'#fff',
-                fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                fontSize:15,fontWeight:600,cursor:'pointer' }}>
               {saving ? '儲存中…' : '儲存'}
             </button>
           </div>
@@ -894,14 +894,14 @@ export default function Transactions() {
 }
 
 const labelStyle = {
-  display:'block', fontSize:12, fontWeight:700, color:TEXT_SECONDARY, marginBottom:4
+  display:'block', fontSize:12, fontWeight:600, color:TEXT_SECONDARY, marginBottom:4
 }
 const inputStyle = {
   width:'100%', padding:'10px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
   fontSize:14, color:TEXT_MAIN, marginBottom:14, boxSizing:'border-box', outline:'none'
 }
 const thStyle = {
-  textAlign:'left', padding:'10px 12px', fontSize:11, fontWeight:700, color:TEXT_SECONDARY,
+  textAlign:'left', padding:'10px 12px', fontSize:11, fontWeight:600, color:TEXT_SECONDARY,
 }
 const tdStyle = {
   padding:'10px 12px', fontSize:13, color:TEXT_MAIN,

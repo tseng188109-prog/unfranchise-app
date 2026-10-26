@@ -135,10 +135,10 @@ export default function ContactNew() {
           <div style={{ display:'flex',alignItems:'center',gap:12 }}>
             <button onClick={() => navigate(-1)}
               style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-            <h1 style={{ fontSize:18,fontWeight:700,color:TEXT_MAIN,margin:0 }}>新增聯絡人</h1>
+            <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>新增聯絡人</h1>
           </div>
           {savedCount > 0 && (
-            <span style={{ fontSize:12,color:ACCENT_GREEN_TEXT,fontWeight:700,
+            <span style={{ fontSize:12,color:ACCENT_GREEN_TEXT,fontWeight:600,
               background:ACCENT_GREEN_SOFT,padding:'4px 10px',borderRadius:RADIUS.pill }}>
               本次已新增 {savedCount} 位
             </span>
@@ -197,7 +197,7 @@ export default function ContactNew() {
                     style={{ flex:1,padding:'10px 8px',borderRadius:RADIUS.md,border:`2px solid ${selected?color:BORDER}`,
                       background: selected ? bg : 'var(--sub)',
                       cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
-                    <div style={{ fontSize:13,fontWeight:700,color: selected?color:TEXT_MAIN }}>{e.value}</div>
+                    <div style={{ fontSize:13,fontWeight:600,color: selected?color:TEXT_MAIN }}>{e.value}</div>
                     <div style={{ fontSize:11,color: selected?color:TEXT_MUTED,marginTop:2 }}>{e.desc}</div>
                   </button>
                 )
@@ -217,7 +217,7 @@ export default function ContactNew() {
                       border:`2px solid ${selected?PRIMARY:BORDER}`,
                       background: selected?PRIMARY_SOFT:'var(--sub)',
                       cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
-                    <div style={{ fontSize:13,fontWeight:700,color: selected?PRIMARY:TEXT_MAIN }}>{n.value}</div>
+                    <div style={{ fontSize:13,fontWeight:600,color: selected?PRIMARY:TEXT_MAIN }}>{n.value}</div>
                     <div style={{ fontSize:11,color: selected?PRIMARY:TEXT_MUTED,marginTop:2 }}>{n.desc}</div>
                   </button>
                 )
@@ -228,7 +228,7 @@ export default function ContactNew() {
           {/* 建議行動（自動帶入） */}
           {form.action_type && (
             <div className="cn-full" style={{ ...styles.fieldWrap, background:PRIMARY_SOFT,borderRadius:RADIUS.md,padding:12 }}>
-              <p style={{ margin:0,fontSize:13,color:PRIMARY,fontWeight:700 }}>
+              <p style={{ margin:0,fontSize:13,color:PRIMARY,fontWeight:600 }}>
                 建議行動：{form.action_type}
               </p>
             </div>
@@ -276,13 +276,13 @@ export default function ContactNew() {
             <button onClick={() => handleSave(true)} disabled={saving}
               style={{ flex:1,padding:'14px',borderRadius:RADIUS.lg,border:'none',
                 background:saving?'#9BBBF2':PRIMARY,color:'#fff',
-                fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                fontSize:15,fontWeight:600,cursor:'pointer' }}>
               {saving ? '儲存中…' : '儲存並新增下一位'}
             </button>
             <button onClick={() => handleSave(false)} disabled={saving}
               style={{ flex:1,padding:'14px',borderRadius:RADIUS.lg,border:`1.5px solid ${PRIMARY}`,
                 background:'var(--card)',color:PRIMARY,
-                fontSize:15,fontWeight:700,cursor:'pointer' }}>
+                fontSize:15,fontWeight:600,cursor:'pointer' }}>
               儲存並返回列表
             </button>
           </div>

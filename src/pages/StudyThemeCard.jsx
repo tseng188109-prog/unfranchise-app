@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
 import { IconBook, IconCheck } from '@tabler/icons-react'
 import { fetchMyTeam, toDateStr, today } from './teamStats'
@@ -103,15 +104,15 @@ export default function StudyThemeCard({ user }) {
     setMsg(okMsg)
     await load()
   }
-  function pauseThisWeek() {
-    if (!confirm('這個主題暫停一次，下週一接著繼續，確定嗎？')) return
+  async function pauseThisWeek() {
+    if (!(await askConfirm({ title:'這個主題暫停一次？', message:'下週一會接著繼續。', okText:'暫停' }))) return
     updateTeam({ study_cycle_anchor: addDays(anchor, 7), study_paused_week: thisMonday }, '已暫停這一次，下週一接著繼續。')
   }
   function resumeThisWeek() {
     updateTeam({ study_cycle_anchor: addDays(anchor, -7), study_paused_week: null }, '已取消暫停。')
   }
-  function restartFromNow() {
-    if (!confirm('從這週一重新開始第 1 個主題，確定嗎？')) return
+  async function restartFromNow() {
+    if (!(await askConfirm({ title:'重新開始第 1 個主題？', message:'從這週一重新開始。', okText:'重新開始' }))) return
     updateTeam({ study_cycle_anchor: thisMonday, study_paused_week: null }, '已從這週一重新開始。')
   }
 
@@ -131,7 +132,7 @@ export default function StudyThemeCard({ user }) {
   if (weeksSince < 0 && !pausedThisWeek) {
     return (
       <div style={cardStyle}>
-        <div style={{ fontSize:12, fontWeight:700, color:PRIMARY, marginBottom:4 }}>共學主題</div>
+        <div style={{ fontSize:12, fontWeight:600, color:PRIMARY, marginBottom:4 }}>共學主題</div>
         <div style={{ fontSize:13, color:TEXT_MAIN }}>{md(anchor)} 開始第一個主題。</div>
         {leaderControls()}
         {msg && <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:8 }}>{msg}</div>}
@@ -149,12 +150,12 @@ export default function StudyThemeCard({ user }) {
     return (
       <div style={cardStyle}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6, gap:8 }}>
-          <span style={{ fontSize:12, fontWeight:700, color:PRIMARY }}>
+          <span style={{ fontSize:12, fontWeight:600, color:PRIMARY }}>
             <IconBook size={13} stroke={2} style={{ verticalAlign:'-2px', marginRight:4 }} />共學主題
           </span>
           <span style={{ fontSize:11, color:TEXT_SECONDARY }}>{rangeText}</span>
         </div>
-        <div style={{ fontSize:14, fontWeight:700, color:TEXT_MAIN, marginBottom:4 }}>這次先休息</div>
+        <div style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN, marginBottom:4 }}>這次先休息</div>
         <div style={{ fontSize:12, color:TEXT_SECONDARY, lineHeight:1.6 }}>
           下週一接著第 {nextTheme.no} 個主題：{nextTheme.title}
         </div>
@@ -170,7 +171,7 @@ export default function StudyThemeCard({ user }) {
   return (
     <div style={cardStyle}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6, gap:8 }}>
-        <span style={{ fontSize:12, fontWeight:700, color:PRIMARY, minWidth:0 }}>
+        <span style={{ fontSize:12, fontWeight:600, color:PRIMARY, minWidth:0 }}>
           <IconBook size={13} stroke={2} style={{ verticalAlign:'-2px', marginRight:4 }} />
           共學主題 {theme.no} / {STUDY_THEME_COUNT}
           {lap > 1 && <span style={{ fontWeight:400, color:TEXT_SECONDARY }}>　第 {lap} 輪・進階</span>}
@@ -178,7 +179,7 @@ export default function StudyThemeCard({ user }) {
         <span style={{ fontSize:11, color:TEXT_SECONDARY, whiteSpace:'nowrap', flexShrink:0 }}>{rangeText}</span>
       </div>
 
-      <div style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN, marginBottom:4, wordBreak:'break-word', overflowWrap:'anywhere' }}>{theme.title}</div>
+      <div style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN, marginBottom:4, wordBreak:'break-word', overflowWrap:'anywhere' }}>{theme.title}</div>
       <div style={{ fontSize:12, color:TEXT_SECONDARY, lineHeight:1.6, marginBottom:10 }}>{theme.idea}</div>
 
       <div style={{ background:'var(--card)', borderRadius:RADIUS.sm, padding:'10px 12px' }}>
@@ -188,11 +189,11 @@ export default function StudyThemeCard({ user }) {
 
       <div style={{ display:'flex', gap:14, alignItems:'center', flexWrap:'wrap', marginTop:10 }}>
         <button onClick={() => toggleDone(theme.no)} disabled={busy}
-          style={{ ...linkBtn, fontWeight:700, color: iDone ? ACCENT_GREEN_TEXT : PRIMARY }}>
+          style={{ ...linkBtn, fontWeight:600, color: iDone ? ACCENT_GREEN_TEXT : PRIMARY }}>
           {iDone ? <><IconCheck size={13} stroke={2.4} style={{ verticalAlign:'-2px' }} /> 我試過了</> : '我試過了'}
         </button>
         <button onClick={() => setExpanded(v => !v)}
-          style={{ ...linkBtn, fontWeight:700, color:PRIMARY }}>
+          style={{ ...linkBtn, fontWeight:600, color:PRIMARY }}>
           {expanded ? '收起 ‹' : '看全部五個主題 ›'}
         </button>
       </div>
@@ -201,7 +202,7 @@ export default function StudyThemeCard({ user }) {
         <div style={{ fontSize:11, color:TEXT_SECONDARY, lineHeight:1.6, marginTop:10 }}>
           「本週」是業績結算週（週六到週五）。共學主題每週一換，跟結算週分開算。
           <button onClick={() => { writeSeen(); setExplainerSeen(true) }}
-            style={{ ...linkBtn, fontSize:11, color:PRIMARY, marginLeft:8, fontWeight:700 }}>知道了</button>
+            style={{ ...linkBtn, fontSize:11, color:PRIMARY, marginLeft:8, fontWeight:600 }}>知道了</button>
         </div>
       )}
 
@@ -219,7 +220,7 @@ export default function StudyThemeCard({ user }) {
                   background: isCurrent ? 'var(--sub)' : 'var(--card)' }}>
                   <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color: isCurrent ? PRIMARY : TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>
+                      <div style={{ fontSize:13, fontWeight:600, color: isCurrent ? PRIMARY : TEXT_MAIN, wordBreak:'break-word', overflowWrap:'anywhere' }}>
                         {t.no}　{t.title}
                         {isCurrent && <span style={{ fontWeight:400, fontSize:11, color:TEXT_SECONDARY }}>（這次）</span>}
                       </div>

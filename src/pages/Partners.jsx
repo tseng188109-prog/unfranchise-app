@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { CloseBtn } from './ui'
 import { supabase } from '../supabase'
 import {
   IconSpeakerphone, IconX, IconUsersGroup, IconChevronRight,
@@ -46,6 +47,55 @@ function getWeekMonday() {
   const monday = new Date(today)
   monday.setDate(today.getDate() + diff)
   return monday.toLocaleDateString('sv-SE')
+}
+
+// 需要被關心：只看夥伴「做了什麼」（打卡），不看對方的聯絡人內容
+function CareBoard({ partners, onOpen }) {
+  const t = new Date(todayTW() + 'T00:00:00+08:00').getTime()
+  const daysFrom = (d) => d ? Math.floor((t - new Date(d + 'T00:00:00+08:00').getTime()) / 86400000) : null
+  const items = []
+  partners.forEach(p => {
+    const joined = Math.floor((t - new Date(p.created_at).getTime()) / 86400000)
+    const gap = daysFrom(p.lastCheckin)
+    if (joined >= 7 && (gap === null || gap >= 3)) {
+      items.push({ p, level: 'red', text: gap === null ? '還沒有打卡紀錄' : `${gap} 天沒打卡` })
+    } else if (joined < 14) {
+      items.push({ p, level: 'green', text: `新夥伴，第 ${Math.max(joined, 0) + 1} 天，本週打卡 ${p.weekDays} 天` })
+    }
+  })
+  items.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1))
+  const moving = partners.filter(p => p.weekDays >= 1).length
+  const newOnes = items.filter(i => i.level === 'green').length
+  const careCount = items.filter(i => i.level === 'red').length
+  const dotColor = { red: DANGER, green: ACCENT_GREEN }
+  return (
+    <div style={{ background:'var(--card)', borderRadius:18, padding:14, border:`1px solid ${BORDER}` }}>
+      <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+        {[['本週有動', `${moving}/${partners.length}`], ['新夥伴', String(newOnes)], ['需要關心', String(careCount)]].map(([k, v]) => (
+          <div key={k} style={{ flex:1, background:SUBCARD_BG, borderRadius:12, padding:'8px 10px' }}>
+            <div style={{ fontSize:11, color:TEXT_MUTED }}>{k}</div>
+            <div style={{ fontSize:18, fontWeight:500, color:TEXT_MAIN, fontVariantNumeric:'tabular-nums' }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize:12, color:TEXT_SECONDARY, marginBottom:6 }}>這週先關心誰</div>
+      {items.length === 0 ? (
+        <div style={{ fontSize:13, color:ACCENT_GREEN_TEXT, padding:'6px 0' }}>這週大家都有動，不用特別關心。</div>
+      ) : items.slice(0, 6).map(({ p, level, text }) => (
+        <button key={p.id} onClick={() => onOpen(p)}
+          style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'10px 0', background:'none', border:'none',
+            borderTop:`1px solid ${BORDER}`, cursor:'pointer', textAlign:'left' }}>
+          <span style={{ width:9, height:9, borderRadius:'50%', background:dotColor[level], flexShrink:0 }} />
+          <span style={{ flex:1, minWidth:0 }}>
+            <span style={{ display:'block', fontSize:14, fontWeight:600, color:TEXT_MAIN }}>{p.name}</span>
+            <span style={{ display:'block', fontSize:12, color:TEXT_SECONDARY }}>{text}</span>
+          </span>
+          <span style={{ fontSize:12, color:TEXT_MUTED }}>查看 ›</span>
+        </button>
+      ))}
+      <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:8 }}>只看對方這週做了什麼，不看聯絡人內容。</div>
+    </div>
+  )
 }
 
 const MY_ID = '2a59a0ae-9877-45dd-b26b-66f8ed6dff74'
@@ -148,12 +198,18 @@ export default function Partners() {
         const { count } = await supabase.from('users')
           .select('id', { count:'exact', head:true }).eq('referrer_id', p.id)
 
+        // 最近一次有打卡的日期（用來判斷「幾天沒動」）
+        const { data: lastRows } = await supabase
+          .from('daily_checkins').select('date').eq('user_id', p.id).eq('is_done', true)
+          .order('date', { ascending: false }).limit(1)
+        const lastCheckin = lastRows && lastRows[0] ? lastRows[0].date : null
+
         const bvRate = Math.min(100, Math.round((bv / 1500) * 100))
         const ibvRate = Math.min(100, Math.round((ibv / 300) * 100))
         // 活躍判定：BV 達 30% 或本週打卡 >= 3 天
         const isActive = bvRate >= 30 || weekDays >= 3
 
-        return { ...p, bv, ibv, bvRate, ibvRate, weekDays, directCount: count||0, isActive }
+        return { ...p, bv, ibv, bvRate, ibvRate, weekDays, directCount: count||0, isActive, lastCheckin }
       }))
       setPartners(enriched)
     } else {
@@ -276,10 +332,10 @@ export default function Partners() {
       <div style={{ background:ACCENT_GREEN_SOFT, borderRadius:14, padding:14 }}>
         <div style={{ display:'flex', alignItems:'center',
           justifyContent:'space-between', marginBottom:8 }}>
-          <p style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT, margin:0, display:'flex', alignItems:'center', gap:5 }}>
+          <p style={{ fontSize:13, fontWeight:600, color:ACCENT_GREEN_TEXT, margin:0, display:'flex', alignItems:'center', gap:5 }}>
             <IconCheck size={14} stroke={2.4} /> 今日任務
           </p>
-          <span style={{ fontSize:13, fontWeight:700, color:ACCENT_GREEN_TEXT }}>
+          <span style={{ fontSize:13, fontWeight:600, color:ACCENT_GREEN_TEXT }}>
             {panelDetail.todayDoneCount} / {DAILY_TASKS.length}
           </span>
         </div>
@@ -305,7 +361,7 @@ export default function Partners() {
 
       {/* 本月數據 */}
       <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
-        <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 10px' }}>
+        <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 10px' }}>
           本月數據
         </p>
         <div style={{ display:'flex', gap:8 }}>
@@ -320,7 +376,7 @@ export default function Partners() {
               <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 4px', fontWeight:600 }}>
                 {m.label}
               </p>
-              <p style={{ fontSize:17, fontWeight:700, color:m.color, margin:0 }}>
+              <p style={{ fontSize:17, fontWeight:600, color:m.color, margin:0 }}>
                 {m.value}{m.unit||''}
               </p>
             </div>
@@ -330,7 +386,7 @@ export default function Partners() {
 
       {/* 達成率進度條 */}
       <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
-        <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 10px' }}>
+        <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 10px' }}>
           本月達成率
         </p>
         {[
@@ -343,7 +399,7 @@ export default function Partners() {
           <div key={m.label} style={{ marginBottom:10 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
               <span style={{ fontSize:12, color:TEXT_SECONDARY }}>{m.label}</span>
-              <span style={{ fontSize:12, fontWeight:700, color:m.color }}>{m.value}%</span>
+              <span style={{ fontSize:12, fontWeight:600, color:m.color }}>{m.value}%</span>
             </div>
             <div style={{ height:6, background:BORDER, borderRadius:99 }}>
               <div style={{ height:'100%', width:`${m.value}%`,
@@ -355,7 +411,7 @@ export default function Partners() {
 
       {/* 每日打卡月曆 */}
       <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
-        <p style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN, margin:'0 0 2px' }}>
+        <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 2px' }}>
           本月每日打卡
         </p>
         <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 10px' }}>
@@ -364,7 +420,7 @@ export default function Partners() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)',
           gap:3, marginBottom:4 }}>
           {DAYS_ZH.map(d => (
-            <div key={d} style={{ textAlign:'center', fontSize:10,
+            <div key={d} style={{ textAlign:'center', fontSize:11,
               color:TEXT_MUTED, fontWeight:600, padding:'2px 0' }}>{d}</div>
           ))}
         </div>
@@ -450,7 +506,7 @@ export default function Partners() {
       <div style={{ background:'var(--hero)',
         padding:'52px 0 20px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
-          <h1 style={{ fontSize:20, fontWeight:700, color:'#fff', margin:0 }}>我的夥伴</h1>
+          <h1 style={{ fontSize:20, fontWeight:600, color:'#fff', margin:0 }}>我的夥伴</h1>
           <p style={{ fontSize:13, color:'rgba(255,255,255,0.75)', margin:'4px 0 0' }}>直屬 {partners.length} 人</p>
         </div>
       </div>
@@ -458,18 +514,20 @@ export default function Partners() {
       <div className="partners-body">
         <div className="partners-list-col dash-container" style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
 
+          {partners.length > 0 && <CareBoard partners={partners} onOpen={openPanel} />}
+
           {/* 公告板 */}
           <div style={{ background:'var(--card)', borderRadius:18, padding:14, border:`1px solid ${BORDER}` }}>
             <div style={{ display:'flex', alignItems:'center',
               justifyContent:'space-between', marginBottom:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <IconSpeakerphone size={16} stroke={1.9} color={PRIMARY} />
-                <span style={{ fontSize:14, fontWeight:700, color:TEXT_MAIN }}>團隊公告</span>
+                <span style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN }}>團隊公告</span>
               </div>
               {isAdmin && (
                 <button onClick={() => setShowAnnForm(!showAnnForm)}
                   style={{ padding:'5px 12px', borderRadius:10, border:'none',
-                    background:PRIMARY, color:'#fff', fontWeight:700,
+                    background:PRIMARY, color:'#fff', fontWeight:600,
                     fontSize:12, cursor:'pointer' }}>
                   {showAnnForm ? '取消' : '+ 發公告'}
                 </button>
@@ -496,7 +554,7 @@ export default function Partners() {
                 </label>
                 <button onClick={postAnnouncement} disabled={annSaving}
                   style={{ padding:'8px', borderRadius:10, border:'none',
-                    background:PRIMARY, color:'#fff', fontWeight:700,
+                    background:PRIMARY, color:'#fff', fontWeight:600,
                     fontSize:13, cursor:'pointer' }}>
                   {annSaving ? '發布中…' : '發布'}
                 </button>
@@ -516,10 +574,10 @@ export default function Partners() {
                       <div style={{ flex:1 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:4, marginBottom:3 }}>
                           {a.is_pinned && (
-                            <span style={{ fontSize:10, background:ACCENT_YELLOW, color:'#5B3200',
-                              padding:'1px 5px', borderRadius:99, fontWeight:700 }}>置頂</span>
+                            <span style={{ fontSize:11, background:ACCENT_YELLOW, color:'#5B3200',
+                              padding:'1px 5px', borderRadius:99, fontWeight:600 }}>置頂</span>
                           )}
-                          <span style={{ fontSize:13, fontWeight:700, color:TEXT_MAIN }}>{a.title}</span>
+                          <span style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN }}>{a.title}</span>
                         </div>
                         <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 3px', lineHeight:1.5 }}>
                           {a.content}
@@ -563,15 +621,15 @@ export default function Partners() {
                     <div style={{ width:44, height:44, borderRadius:'50%',
                       background:avatarBg(p.name||'?'),
                       display:'flex', alignItems:'center', justifyContent:'center',
-                      color:'#fff', fontWeight:700, fontSize:17, flexShrink:0 }}>
+                      color:'#fff', fontWeight:600, fontSize:17, flexShrink:0 }}>
                       {(p.name||'?')[0]}
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                        <span style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN }}>
+                        <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
                           {p.name||'未命名'}
                         </span>
-                        <span style={{ fontSize:11, fontWeight:700, padding:'2px 7px',
+                        <span style={{ fontSize:11, fontWeight:600, padding:'2px 7px',
                           borderRadius:99,
                           background:p.isActive?ACCENT_GREEN_SOFT:ACCENT_YELLOW_SOFT,
                           color:p.isActive?ACCENT_GREEN_TEXT:ACCENT_YELLOW_TEXT }}>
@@ -596,7 +654,7 @@ export default function Partners() {
                         <p style={{ fontSize:11, color:m.color, margin:'0 0 4px', fontWeight:600 }}>
                           {m.label}
                         </p>
-                        <p style={{ fontSize:16, fontWeight:700, color:m.color, margin:0 }}>
+                        <p style={{ fontSize:16, fontWeight:600, color:m.color, margin:0 }}>
                           {m.value}%
                         </p>
                       </div>
@@ -608,7 +666,7 @@ export default function Partners() {
                     <div style={{ display:'flex', justifyContent:'space-between',
                       alignItems:'center', marginBottom:5 }}>
                       <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>本週打卡</span>
-                      <span style={{ fontSize:12, fontWeight:700,
+                      <span style={{ fontSize:12, fontWeight:600,
                         color: weekBarColor(p.weekDays) }}>
                         {p.weekDays} / 7 天
                       </span>
@@ -629,7 +687,7 @@ export default function Partners() {
 
               {pending.length > 0 && (
                 <div style={{ background:ACCENT_YELLOW_SOFT, borderRadius:18, padding:14 }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:ACCENT_YELLOW_TEXT, margin:'0 0 10px' }}>
+                  <p style={{ fontSize:13, fontWeight:600, color:ACCENT_YELLOW_TEXT, margin:'0 0 10px' }}>
                     待確認串聯
                   </p>
                   {pending.map(p => (
@@ -646,7 +704,7 @@ export default function Partners() {
                       </div>
                       <button onClick={() => confirmPartner(p.id)}
                         style={{ padding:'7px 14px', borderRadius:10, border:'none',
-                          background:ACCENT_YELLOW, color:'#5B3200', fontWeight:700,
+                          background:ACCENT_YELLOW, color:'#5B3200', fontWeight:600,
                           fontSize:13, cursor:'pointer' }}>確認</button>
                     </div>
                   ))}
@@ -665,11 +723,11 @@ export default function Partners() {
                 <div style={{ width:52, height:52, borderRadius:'50%',
                   background:'rgba(255,255,255,0.3)',
                   display:'flex', alignItems:'center', justifyContent:'center',
-                  color:'#fff', fontWeight:700, fontSize:22, flexShrink:0 }}>
+                  color:'#fff', fontWeight:600, fontSize:22, flexShrink:0 }}>
                   {(selectedPartner.name||'?')[0]}
                 </div>
                 <div style={{ flex:1 }}>
-                  <p style={{ fontSize:17, fontWeight:700, color:'#fff', margin:0 }}>
+                  <p style={{ fontSize:17, fontWeight:600, color:'#fff', margin:0 }}>
                     {selectedPartner.name||'未命名'}
                   </p>
                   <p style={{ fontSize:12, color:'rgba(255,255,255,0.8)', margin:'2px 0 0' }}>
@@ -700,7 +758,7 @@ export default function Partners() {
       {selectedPartner && (
         <div className="partners-mobile-overlay">
           <div onClick={closePanel}
-            style={{ position:'fixed', inset:0, background:'rgba(19,42,77,0.4)', zIndex:100 }} />
+            style={{ position:'fixed', inset:0, background:'var(--overlay)', zIndex:100 }} />
           <div style={{ position:'fixed', top:0, right:0, bottom:0, width:'90%',
             maxWidth:400, background:'var(--card)', zIndex:101,
             display:'flex', flexDirection:'column',
@@ -719,11 +777,11 @@ export default function Partners() {
                 <div style={{ width:52, height:52, borderRadius:'50%',
                   background:'rgba(255,255,255,0.3)',
                   display:'flex', alignItems:'center', justifyContent:'center',
-                  color:'#fff', fontWeight:700, fontSize:22 }}>
+                  color:'#fff', fontWeight:600, fontSize:22 }}>
                   {(selectedPartner.name||'?')[0]}
                 </div>
                 <div>
-                  <p style={{ fontSize:17, fontWeight:700, color:'#fff', margin:0 }}>
+                  <p style={{ fontSize:17, fontWeight:600, color:'#fff', margin:0 }}>
                     {selectedPartner.name||'未命名'}
                   </p>
                   <p style={{ fontSize:12, color:'rgba(255,255,255,0.8)', margin:'2px 0 0' }}>
@@ -753,12 +811,10 @@ export default function Partners() {
             animation:'slideUp 0.2s ease' }}>
             <div style={{ display:'flex', justifyContent:'space-between',
               alignItems:'center', marginBottom:14 }}>
-              <p style={{ fontSize:15, fontWeight:700, color:TEXT_MAIN, margin:0 }}>
+              <p style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN, margin:0 }}>
                 {dayDetail.d} 日打卡明細
               </p>
-              <button onClick={() => setDayDetail(null)}
-                style={{ background:'none', border:'none',
-                  color:TEXT_MUTED, cursor:'pointer', display:'flex' }}><IconX size={20} /></button>
+              <CloseBtn onClick={() => setDayDetail(null)} />
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {dayDetail.tasks.map(t => (

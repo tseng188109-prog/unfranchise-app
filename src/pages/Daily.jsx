@@ -1,3 +1,5 @@
+import SocialModal from './socialModal'
+import { CloseBtn } from './ui'
 import GoalModal from './goalModal'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
@@ -375,7 +377,7 @@ export default function Daily() {
       `}</style>
 
       <div className="dash-container" style={{ padding:'20px 16px 0' }}>
-        <h1 style={{ fontSize:19,fontWeight:700,color:TEXT_MAIN,margin:0 }}>每日行動</h1>
+        <h1 style={{ fontSize:19,fontWeight:600,color:TEXT_MAIN,margin:0 }}>每日行動</h1>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:12,
           background:SUBCARD_BG,borderRadius:12,padding:'6px 10px' }}>
           <button onClick={() => changeDate(-1)}
@@ -383,7 +385,7 @@ export default function Daily() {
               width:28,height:28,fontSize:18,cursor:'pointer',
               display:'flex',alignItems:'center',justifyContent:'center' }}>‹</button>
           <div style={{ textAlign:'center' }}>
-            <p style={{ fontSize:13,color:PRIMARY,margin:0,fontWeight:700 }}>{formatDateLabel(viewDate)}</p>
+            <p style={{ fontSize:13,color:PRIMARY,margin:0,fontWeight:600 }}>{formatDateLabel(viewDate)}</p>
             {!isToday && <span style={{ fontSize:11,color:ACCENT_YELLOW_TEXT,fontWeight:600 }}>補打模式</span>}
           </div>
           <button onClick={() => changeDate(1)}
@@ -397,7 +399,7 @@ export default function Daily() {
           <div style={{ textAlign:'center',marginTop:8 }}>
             <button onClick={() => setViewDate(today())}
               style={{ background:PRIMARY_SOFT,border:'none',color:PRIMARY,
-                padding:'4px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:700 }}>
+                padding:'4px 14px',borderRadius:20,fontSize:12,cursor:'pointer',fontWeight:600 }}>
               回到今天
             </button>
           </div>
@@ -461,12 +463,12 @@ export default function Daily() {
                         {todayContacted.map((c,i) => (
                           <span key={c.id}
                             onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
-                            style={{ color:ACCENT_GREEN_TEXT,fontWeight:700,cursor:'pointer',
+                            style={{ color:ACCENT_GREEN_TEXT,fontWeight:600,cursor:'pointer',
                               textDecoration:'underline' }}>
                             {c.name}{i<todayContacted.length-1?'、':''}
                           </span>
                         ))}
-                        <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:700 }}>✓</span>
+                        <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:600 }}>✓</span>
                       </span>
                     )}
                   </span>
@@ -519,10 +521,10 @@ export default function Daily() {
               <div style={{ marginBottom:12, background: hitTarget ? ACCENT_GREEN_SOFT : SUBCARD_BG,
                 borderRadius:12, padding:'10px 12px' }}>
                 <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>每週2訪</span>
+                  <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>每週2訪</span>
                   <button onClick={() => openAddModal('week', today(), 'meetup')}
                     style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                      background:PRIMARY,color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer' }}>
+                      background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
                     <IconPlus size={12} stroke={2.2} /> 記錄見面
                   </button>
                 </div>
@@ -533,7 +535,7 @@ export default function Daily() {
                       background: hitTarget ? ACCENT_GREEN : ACCENT_YELLOW,
                       transition:'width 0.4s ease' }} />
                   </div>
-                  <span style={{ fontSize:12,fontWeight:700,
+                  <span style={{ fontSize:12,fontWeight:600,
                     color: hitTarget ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT }}>{meetupDone}/2</span>
                 </div>
                 {meetupPlanned > 0 && (
@@ -561,7 +563,7 @@ export default function Daily() {
                 <div key={d} onClick={() => setSelectedWeekDay(isSelected ? null : d)}
                   style={{ display:'flex',flexDirection:'column',alignItems:'center',
                     gap:2,cursor:'pointer' }}>
-                  <span style={{ fontSize:10,color: isT?PRIMARY:isFut?'var(--border2)':TEXT_MUTED,
+                  <span style={{ fontSize:11,color: isT?PRIMARY:isFut?'var(--border2)':TEXT_MUTED,
                     fontWeight: isT?700:600 }}>
                     {DAYS_ZH[new Date(d+'T00:00:00').getDay()]}<br/>{formatShortDate(d)}
                   </span>
@@ -574,7 +576,7 @@ export default function Daily() {
                       const c = WEEKLY_COUNTERS.find(x => x.key === log.counter_key)
                       const color = COUNTER_COLORS[log.counter_key] || TEXT_MUTED
                       return (
-                        <div key={log.id} style={{ fontSize:9,padding:'1px 3px',borderRadius:4,
+                        <div key={log.id} style={{ fontSize:11,padding:'1px 3px',borderRadius:4,
                           background: log.is_done ? `color-mix(in srgb, ${color} 14%, transparent)` : 'var(--yellow-soft)',
                           color: log.is_done ? color : 'var(--yellow-text)',
                           fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
@@ -583,7 +585,7 @@ export default function Daily() {
                       )
                     })}
                     {dayLogs.length > 3 && (
-                      <div style={{ fontSize:9,color:TEXT_MUTED,textAlign:'center' }}>+{dayLogs.length-3}</div>
+                      <div style={{ fontSize:11,color:TEXT_MUTED,textAlign:'center' }}>+{dayLogs.length-3}</div>
                     )}
                   </div>
                 </div>
@@ -594,12 +596,12 @@ export default function Daily() {
           {selectedWeekDay && (
             <div style={{ marginTop:12,borderTop:`1px solid ${BORDER}`,paddingTop:12 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
+                <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
                   {formatDateLabel(selectedWeekDay)}
                 </span>
                 <button onClick={() => openAddModal('week', selectedWeekDay)}
                   style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer' }}>
+                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
                   <IconPlus size={13} stroke={2.2} /> 新增
                 </button>
               </div>
@@ -623,8 +625,8 @@ export default function Daily() {
                         : <IconCalendar size={14} stroke={1.9} color={ACCENT_YELLOW_TEXT} />}
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                          <span style={{ fontSize:10,padding:'1px 6px',borderRadius:99,
-                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:700 }}>{c?.label}</span>
+                          <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,
+                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:600 }}>{c?.label}</span>
                           <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{displayName}</span>
                         </div>
                         {c?.mode === 'product' && log.product_name && (
@@ -636,12 +638,12 @@ export default function Daily() {
                         {!log.is_done && (
                           <button onClick={() => confirmDone(log)}
                             style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
-                              cursor:'pointer',fontWeight:700 }}>完成</button>
+                              cursor:'pointer',fontWeight:600 }}>完成</button>
                         )}
                         <button onClick={() => openEditModal('week', log)}
-                          style={{ fontSize:11,color:PRIMARY,background:'none',border:'none',cursor:'pointer' }}>編輯</button>
+                          style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
                         <button onClick={() => deleteLog(log.id, 'week')}
-                          style={{ fontSize:11,color:DANGER,background:'none',border:'none',cursor:'pointer' }}>刪除</button>
+                          style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
                       </div>
                     </div>
                   )
@@ -679,7 +681,7 @@ export default function Daily() {
 
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:5,marginBottom:3 }}>
             {DAYS_ZH.map(d => (
-              <div key={d} style={{ textAlign:'center',fontSize:10,color:TEXT_MUTED,padding:'2px 0' }}>{d}</div>
+              <div key={d} style={{ textAlign:'center',fontSize:11,color:TEXT_MUTED,padding:'2px 0' }}>{d}</div>
             ))}
           </div>
 
@@ -721,12 +723,12 @@ export default function Daily() {
           {selectedMonthDay && (
             <div style={{ borderTop:`1px solid ${BORDER}`,paddingTop:12 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
-                <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
+                <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
                   {formatDateLabel(selectedMonthDay)}
                 </span>
                 <button onClick={() => openAddModal('month', selectedMonthDay)}
                   style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer' }}>
+                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
                   <IconPlus size={13} stroke={2.2} /> 新增
                 </button>
               </div>
@@ -747,8 +749,8 @@ export default function Daily() {
                         : <IconCalendar size={14} stroke={1.9} color={ACCENT_YELLOW_TEXT} />}
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
-                          <span style={{ fontSize:10,padding:'1px 6px',borderRadius:99,
-                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:700 }}>{item?.label}</span>
+                          <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,
+                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:600 }}>{item?.label}</span>
                           <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>
                             {log.product_name || '—'}
                           </span>
@@ -759,12 +761,12 @@ export default function Daily() {
                         {!log.is_done && (
                           <button onClick={() => confirmDone(log)}
                             style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
-                              cursor:'pointer',fontWeight:700 }}>完成</button>
+                              cursor:'pointer',fontWeight:600 }}>完成</button>
                         )}
                         <button onClick={() => openEditModal('month', log)}
-                          style={{ fontSize:11,color:PRIMARY,background:'none',border:'none',cursor:'pointer' }}>編輯</button>
+                          style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
                         <button onClick={() => deleteLog(log.id, 'month')}
-                          style={{ fontSize:11,color:DANGER,background:'none',border:'none',cursor:'pointer' }}>刪除</button>
+                          style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
                       </div>
                     </div>
                   )
@@ -786,46 +788,19 @@ export default function Daily() {
           }} />
       )}
 
-      {socialModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
-          display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
-          onClick={e => { if (e.target===e.currentTarget) setSocialModal(false) }}>
-          <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430 }}>
-            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0,display:'flex',alignItems:'center',gap:6 }}>
-                <IconMessageCircle size={17} stroke={1.9} color={PRIMARY} /> 前往回應
-              </h3>
-              <button onClick={() => setSocialModal(false)}
-                style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={20} /></button>
-            </div>
-            <div style={{ display:'flex',gap:12 }}>
-              <button onClick={() => { window.open('https://www.facebook.com/groups/710836659091767/','_blank'); setSocialModal(false) }}
-                style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
-                  background:'#1877F2',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
-                臉書 IDEA
-              </button>
-              <button onClick={() => { window.open('https://line.me','_blank'); setSocialModal(false) }}
-                style={{ flex:1,padding:'16px 8px',borderRadius:16,border:'none',
-                  background:'#06C755',color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer' }}>
-                LINE
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {socialModal && <SocialModal onClose={() => setSocialModal(false)} />}
 
       {logModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(19,42,77,0.4)',
+        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
           display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:1000 }}
           onClick={e => { if (e.target===e.currentTarget) setLogModal(null) }}>
           <div style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,
             width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
-              <h3 style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN,margin:0 }}>
+              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>
                 {logModal.editId ? '編輯記錄' : '新增記錄'}
               </h3>
-              <button onClick={() => setLogModal(null)}
-                style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED }}><IconX size={20} /></button>
+              <CloseBtn onClick={() => setLogModal(null)} />
             </div>
 
             <div style={{ marginBottom:16 }}>
@@ -934,7 +909,7 @@ export default function Daily() {
             <button onClick={confirmLog} disabled={logSaving || !canConfirm()}
               style={{ width:'100%',padding:'14px',borderRadius:14,border:'none',
                 background: canConfirm()?PRIMARY:'var(--border2)',
-                color:'#fff',fontSize:15,fontWeight:700,
+                color:'#fff',fontSize:15,fontWeight:600,
                 cursor: canConfirm()?'pointer':'not-allowed' }}>
               {logSaving ? '儲存中…' : logModal.editId ? '儲存修改' : logDate > today() ? '預排' : '確認儲存'}
             </button>
@@ -947,7 +922,7 @@ export default function Daily() {
 }
 
 const card = { background:'var(--card)',borderRadius:18,padding:'16px',border:`1px solid ${BORDER}` }
-const sectionTitle = { fontSize:14,fontWeight:700,color:TEXT_MAIN }
+const sectionTitle = { fontSize:14,fontWeight:600,color:TEXT_MAIN }
 const navBtn = { background:'none',border:`1px solid ${BORDER}`,borderRadius:10,
   width:28,height:28,cursor:'pointer',fontSize:14,color:TEXT_SECONDARY,
   display:'flex',alignItems:'center',justifyContent:'center' }
