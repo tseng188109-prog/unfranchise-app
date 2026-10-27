@@ -21,7 +21,7 @@ const inp = {
   width: '100%', padding: '9px 10px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`,
   fontSize: 14, background: 'var(--card)', boxSizing: 'border-box', outline: 'none', color: TEXT_MAIN, minWidth: 0,
 }
-const lbl = { fontSize: 11, color: TEXT_SECONDARY, margin: '0 0 3px', display: 'block' }
+const lbl = { fontSize: 11, color: TEXT_SECONDARY, margin: '0 0 3px', display: 'block', whiteSpace: 'nowrap' }
 const ADJ_KIND_LABEL = { amount: '金額折扣', percent: '幾折', shipping: '運費' }
 
 // props:
@@ -274,12 +274,20 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     const filled = names.map(n => num(saved.days[n]) * ((saved.qty && saved.qty[n]) || 1)).filter(d => d > 0)
     const suggest = filled.length ? addDays(saved.date, Math.round(Math.min(...filled))) : null
     const setDays = (name, v) => setSaved(s => ({ ...s, days: { ...s.days, [name]: v } }))
+    // 填過的「一份幾天」一律記起來，下次同一個產品不用再填（不管有沒有按「設提醒」）
+    async function rememberDays() {
+      const map = {}
+      names.forEach(n => { if (num(saved.days[n]) > 0) map[n] = saved.days[n] })
+      if (Object.keys(map).length === 0) return null
+      const err = await saveUseDays(userId, map)
+      if (!err) setUseDays(u => ({ ...u, ...Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Math.round(Number(v))])) }))
+      else setSaved(s => ({ ...s, daysError: '天數沒記起來：' + err.message }))
+      return err
+    }
 
     async function setReminder() {
       if (!suggest) return
-      const map = {}
-      names.forEach(n => { map[n] = saved.days[n] })
-      await saveUseDays(userId, map)
+      await rememberDays()
       await supabase.from('customers').update({ repurchase_reminder: suggest }).eq('id', customerId)
       setSaved(s => ({ ...s, reminderState: 'set' }))
     }
@@ -363,6 +371,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                     設提醒
                   </button>
                   <button onClick={async () => {
+                      await rememberDays()
                       // 從「調整天數」進來的，按「不用」＝連自動設的提醒也還原
                       if (saved.adjusting) await supabase.from('customers').update({ repurchase_reminder: saved.prevReminder || null }).eq('id', customerId)
                       setSaved(s => ({ ...s, reminderState: 'skip' }))
@@ -399,7 +408,8 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
           )}
         </div>
 
-        <button onClick={() => onDone && onDone()}
+        {saved.daysError && <p style={{ margin: '0 0 10px', fontSize: 12, color: DANGER }}>{saved.daysError}</p>}
+        <button onClick={async () => { const err = await rememberDays(); if (err && !saved.daysError) return; onDone && onDone() }}
           style={{ width: '100%', padding: '12px', borderRadius: RADIUS.lg, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight:600, cursor: 'pointer' }}>
           完成
         </button>
@@ -475,17 +485,17 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
             {lq > 1 && <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>下面填「一份」的價錢，數量改了會自動乘</p>}
             <div style={{ display: 'grid', gridTemplateColumns: l.is_gift ? 'repeat(2, minmax(0,1fr))' : 'repeat(3, minmax(0,1fr))', gap: 8, marginTop: 8 }}>
               <div>
-                <span style={lbl}>{l.is_gift ? '成本價（選填）' : '成本價（每份）'}</span>
+                <span style={lbl}>{l.is_gift ? '成本價（選填）' : '成本價/份'}</span>
                 <input type="number" inputMode="decimal" value={l.cost} placeholder="0" onChange={e => setLine(l.key, { cost: e.target.value })} style={inp} />
               </div>
               {!l.is_gift && (
                 <div>
-                  <span style={lbl}>賣價（每份）</span>
+                  <span style={lbl}>賣價/份</span>
                   <input type="number" inputMode="decimal" value={l.amount} placeholder={priceHint} onChange={e => setLine(l.key, { amount: e.target.value })} style={inp} />
                 </div>
               )}
               <div>
-                <span style={lbl}>{l.is_gift ? '點數（每份，選填）' : '點數（每份）'}</span>
+                <span style={lbl}>{l.is_gift ? '點數/份（選填）' : '點數/份'}</span>
                 <input type="number" inputMode="decimal" value={l.points} placeholder="0" onChange={e => setLine(l.key, { points: e.target.value })} style={inp} />
               </div>
             </div>

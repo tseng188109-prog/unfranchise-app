@@ -330,8 +330,9 @@ export async function saveUseDays(userId, map) {
   const rows = Object.entries(map)
     .filter(([name, d]) => name && Number(d) > 0)
     .map(([name, d]) => ({ user_id: userId, product_name: name, use_days: Math.round(Number(d)), updated_at: new Date().toISOString() }))
-  if (rows.length === 0) return
-  await supabase.from('product_use_days').upsert(rows, { onConflict: 'user_id,product_name' })
+  if (rows.length === 0) return null
+  const { error } = await supabase.from('product_use_days').upsert(rows, { onConflict: 'user_id,product_name' })
+  return error || null
 }
 
 // ───────── 回購提醒自動串聯 ─────────
