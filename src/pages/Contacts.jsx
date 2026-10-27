@@ -68,7 +68,7 @@ export default function Contacts() {
   const [customerContactIds, setCustomerContactIds] = useState(() => new Set())
   const [search, setSearch] = useState('')
   const [eggFilter, setEggFilter] = useState(getStoredEggFilter)
-  const [sortBy, setSortBy] = useState(getStoredSortBy) // default | name | last_contact | due
+  const [sortBy, setSortBy] = useState(getStoredSortBy) // default | name | last_contact | created | due
   const [sortDir, setSortDir] = useState(getStoredSortDir) // desc | asc
   const [realLastContact, setRealLastContact] = useState({}) // { contact_id: 'YYYY-MM-DD' }
   const [showArchived, setShowArchived] = useState(false)
@@ -111,7 +111,7 @@ export default function Contacts() {
     setLoading(true)
     let query = supabase
       .from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,next_contact_date,last_contact_date,last_interacted_at,is_pinned')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,next_contact_date,last_contact_date,last_interacted_at,is_pinned,created_at')
       .eq('user_id', user.id)
       .eq('is_archived', showArchived)
 
@@ -330,10 +330,17 @@ async function handleImport() {
         return dirMul * -1 * da.localeCompare(db)
       })
     }
+    if (sortBy === 'created') {
+      // 新增時間：↓（預設）＝最近新增的在最上面，↑＝最早加進來的在最上面
+      return [...arr].sort((a,b) => {
+        const ca = a.created_at || '', cb = b.created_at || ''
+        return sortDir === 'desc' ? cb.localeCompare(ca) : ca.localeCompare(cb)
+      })
+    }
     return arr // default：保留原始查詢排序
   }
 
-  const isFlatSort = sortBy === 'last_contact'
+  const isFlatSort = sortBy === 'last_contact' || sortBy === 'created'
 
   const pinned = applySort(filtered.filter(c => c.is_pinned))
   const unpinnedAll = filtered.filter(c => !c.is_pinned)
@@ -407,6 +414,11 @@ async function handleImport() {
         {!showArchived && !c.is_muted && sortBy === 'last_contact' && (
           <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', color:ACCENT_GREEN_TEXT }}>
             {realLastContact[c.id] ? `互動於 ${realLastContact[c.id].slice(5).replace('-','/')}` : '尚無互動'}
+          </span>
+        )}
+        {!showArchived && !c.is_muted && sortBy === 'created' && c.created_at && (
+          <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', color:ACCENT_GREEN_TEXT }}>
+            {`新增於 ${new Date(c.created_at).toLocaleDateString('sv-SE', { timeZone:'Asia/Taipei' }).slice(5).replace('-','/')}`}
           </span>
         )}
         {showArchived && (
@@ -537,6 +549,7 @@ async function handleImport() {
               { key:'default', label:'依消費狀況' },
               { key:'name', label:'姓名' },
               { key:'last_contact', label:'最近互動' },
+              { key:'created', label:'最近新增' },
             ].map(s => (
               <button key={s.key} onClick={() => setSortBy(s.key)}
                 style={{ padding:'4px 12px', borderRadius:RADIUS.pill, border:'none',
@@ -590,7 +603,7 @@ async function handleImport() {
             <div style={{ background:'var(--card)' }}>
               <Section title="釘選" count={pinned.length} items={pinned} />
               <Section
-                title={sortBy === 'last_contact' ? '依最近互動排序' : '依建議互動排序'}
+                title={sortBy === 'last_contact' ? '依最近互動排序' : sortBy === 'created' ? '依新增時間排序' : '依建議互動排序'}
                 count={flatUnpinned.length}
                 items={flatUnpinned}
               />
