@@ -123,6 +123,7 @@ export default function Dashboard() {
   const [skipMeeting, setSkipMeeting] = useState([])
   const [weekPlanned, setWeekPlanned] = useState(0)
   const [events, setEvents] = useState([])
+  const [showNewList, setShowNewList] = useState(false)
   const [today312, setToday312] = useState({ contacted: [], fresh: 0, planCount: 0 })
   const [trialStrips, setTrialStrips] = useState([])
   const [progTab, setProgTab] = useState('season')
@@ -438,7 +439,7 @@ export default function Dashboard() {
 
   async function fetchFollowUps() {
     const { data } = await supabase.from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
     if (data) { setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips) }
@@ -577,6 +578,18 @@ export default function Dashboard() {
   const meetingContact = pickMeetingContact(pickPool, undefined, skipMeeting)
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
   const weeklyMeetTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
+  // 這週新增的名單（不含自動建立的顧客檔案），今天新增的另外標出來
+  const weekStartMs = new Date(getWeekStart(today()) + 'T00:00:00+08:00').getTime()
+  const todayStartMs = new Date(today() + 'T00:00:00+08:00').getTime()
+  const newThisWeek = activeContacts
+    .filter(c => !c.source && c.created_at && new Date(c.created_at).getTime() >= weekStartMs)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+  const newToday = newThisWeek.filter(c => new Date(c.created_at).getTime() >= todayStartMs)
+  const newEarlier = newThisWeek.filter(c => new Date(c.created_at).getTime() < todayStartMs)
+  function goAllNewest() {
+    try { sessionStorage.setItem('contacts_sortBy', 'created'); sessionStorage.setItem('contacts_sortDir', 'desc'); sessionStorage.setItem('contacts_eggFilter', '全部') } catch { /* ignore */ }
+    navigate('/contacts')
+  }
   // 活動邀請：進了提醒範圍的活動列出可以邀的人，更遠的只顯示一行倒數
   const remindDays = resolveEventWeeks(profile?.tag_settings) * 7
   const nearEvents = events.filter(e => daysUntil(e.event_date) <= remindDays)
@@ -838,7 +851,7 @@ export default function Dashboard() {
                 <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次她說：「{meetingContact.last_quote}」</div>
               )}
               {weeklyMeetTarget > 0 && (
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:6 }}>
+                <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'4px 8px', marginTop:6 }}>
                   {weeklyMeetTarget <= 7
                     ? <div style={{ display:'flex', gap:4 }}>
                         {Array.from({ length: weeklyMeetTarget }).map((_, i) => (
@@ -848,7 +861,7 @@ export default function Dashboard() {
                     : <div style={{ width:90, height:6, borderRadius:3, background:'var(--border)', overflow:'hidden' }}>
                         <div style={{ width: Math.min(100, Math.round(weekPlanned / weeklyMeetTarget * 100)) + '%', height:'100%', background:ORANGE }} />
                       </div>}
-                  <span style={{ fontSize:11, color:TEXT_MUTED }}>{today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}</span>
+                  <span style={{ fontSize:11, color:TEXT_MUTED, whiteSpace:'nowrap' }}>{today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}</span>
                 </div>
               )}
               {nearEvents.map(ev => {
@@ -911,6 +924,34 @@ export default function Dashboard() {
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
                 去認識新朋友，不是從舊名單湊數。這週已新增 {newContactCount} 位
               </div>
+              {newThisWeek.length > 0 && (
+                <button onClick={() => setShowNewList(v => !v)}
+                  style={{ background:'none',border:'none',padding:'4px 0 0',cursor:'pointer',fontSize:12,fontWeight:600,color:ACCENT_GREEN_TEXT }}>
+                  {showNewList ? '收起 ‹' : '看是誰 ›'}
+                </button>
+              )}
+              {showNewList && (
+                <div style={{ marginTop:6 }}>
+                  {[['今天', newToday], ['這週稍早', newEarlier]].filter(g => g[1].length > 0).map(([label, list]) => (
+                    <div key={label} style={{ marginTop:4 }}>
+                      <div style={{ fontSize:11,color:TEXT_MUTED }}>{label} {list.length} 位</div>
+                      <div style={{ display:'flex',flexWrap:'wrap',gap:6,marginTop:4 }}>
+                        {list.map(c => (
+                          <button key={c.id} onClick={() => navigate(`/contacts/${c.id}`)}
+                            style={{ display:'inline-flex',alignItems:'center',gap:6,background:SUBCARD_BG,border:'none',
+                              borderRadius:RADIUS.pill,padding:'3px 12px 3px 3px',cursor:'pointer',fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
+                            <Avatar name={c.name} size={24} />{c.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={goAllNewest}
+                    style={{ background:'none',border:'none',padding:'8px 0 0',cursor:'pointer',fontSize:12,fontWeight:600,color:PRIMARY }}>
+                    依最近新增看全部名單 ›
+                  </button>
+                </div>
+              )}
             </div>
             <SoftBtn bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT} onClick={()=>navigate('/contacts/new')}>+ 新增</SoftBtn>
           </div>
