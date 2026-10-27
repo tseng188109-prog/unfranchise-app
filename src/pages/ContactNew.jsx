@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import { markDaily312 } from './followUp'
+import NeedLevelPicker from './needLevelPicker'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -15,12 +16,6 @@ const EGG_TYPES = [
   { value:'生雞蛋', desc:'不熟' },
   { value:'荷包蛋', desc:'半熟' },
   { value:'茶葉蛋', desc:'很熟' },
-]
-const NEED_LEVELS = [
-  { value:'大一', desc:'沒需求' },
-  { value:'大二', desc:'小抱怨' },
-  { value:'大三', desc:'想改變' },
-  { value:'大四', desc:'有行動' },
 ]
 const PLATFORMS = ['IG', 'FB', 'LINE', '其他']
 
@@ -207,22 +202,8 @@ export default function ContactNew() {
 
           {/* 需求度 */}
           <div style={styles.fieldWrap}>
-            <label style={styles.label}>需求度 <span style={styles.suggest}>建議填</span></label>
-            <div style={{ display:'flex',gap:8 }}>
-              {NEED_LEVELS.map(n => {
-                const selected = form.need_level === n.value
-                return (
-                  <button key={n.value} onClick={() => set('need_level', selected ? '' : n.value)}
-                    style={{ flex:1,padding:'10px 8px',borderRadius:RADIUS.md,
-                      border:`2px solid ${selected?PRIMARY:BORDER}`,
-                      background: selected?PRIMARY_SOFT:'var(--sub)',
-                      cursor:'pointer',textAlign:'center',transition:'all 0.15s' }}>
-                    <div style={{ fontSize:13,fontWeight:600,color: selected?PRIMARY:TEXT_MAIN }}>{n.value}</div>
-                    <div style={{ fontSize:11,color: selected?PRIMARY:TEXT_MUTED,marginTop:2 }}>{n.desc}</div>
-                  </button>
-                )
-              })}
-            </div>
+            <label style={styles.label}>需求度 <span style={styles.suggest}>選填</span></label>
+            <NeedLevelPicker value={form.need_level} onChange={v => set('need_level', v)} />
           </div>
 
           {/* 建議行動（自動帶入） */}

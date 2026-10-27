@@ -5,11 +5,11 @@ import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import NeedLevelPicker from './needLevelPicker'
 
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
 
 const EGG_TYPES = ['茶葉蛋', '荷包蛋', '生雞蛋']
-const NEED_LEVELS = ['大一', '大二', '大三', '大四']
 const PLATFORMS = ['IG', 'FB', 'LINE', '其他']
 const ACTION_TYPES = ['輕鬆互動', '軟性活動', '商機講座', '直接法']
 
@@ -164,15 +164,8 @@ export default function ContactEdit() {
         </div>
 
         <div style={fw}>
-          <label style={lb}>需求度</label>
-          <div style={{ display:'flex',gap:8 }}>
-            {NEED_LEVELS.map(n => (
-              <button key={n} onClick={() => set('need_level', form.need_level===n?'':n)}
-                style={{ ...chip, flex:1,
-                  background:form.need_level===n?PRIMARY:'var(--sub)',
-                  color:form.need_level===n?'#fff':TEXT_SECONDARY }}>{n}</button>
-            ))}
-          </div>
+          <label style={lb}>需求度 <span style={{ fontSize:11,fontWeight:400,color:TEXT_MUTED }}>選填</span></label>
+          <NeedLevelPicker value={form.need_level} onChange={v => set('need_level', v)} />
         </div>
 
         <div style={fw}>
