@@ -11,6 +11,7 @@ import LoadingSpinner from './LoadingSpinner'
 import SampleSection from './SampleSection'
 import OrderForm from './OrderForm'
 import OrderCard from './OrderCard'
+import HomeListRow from './homeList'
 import { groupPurchases } from './orderUtils'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
@@ -499,6 +500,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                 {editReminder ? '取消' : '設定'}
               </button>
             </div>
+
+            <HomeListRow customer={customer} />
 
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
               background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:'12px 14px', gap:8 }}>

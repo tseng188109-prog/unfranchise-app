@@ -4,6 +4,7 @@ import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
+import { HOME_LIST_OPTIONS, resolveHomeListMonths } from './homeList'
 import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting } from './dailyMode'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
@@ -18,6 +19,7 @@ export default function Settings() {
   const [user, setUser] = useState(null)
   const [modeKey, setModeKey] = useState('')
   const [favs, setFavs] = useState([])
+  const [homeMonths, setHomeMonths] = useState(3)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -57,6 +59,7 @@ export default function Settings() {
     if (!data) return
     setModeKey(resolveMode(data.tag_settings, data.created_at).key)
     setFavs(resolveFavProducts(data.tag_settings))
+    setHomeMonths(resolveHomeListMonths(data.tag_settings))
     setName(data.name)
     setReferrerPending(data.referrer_email_pending || '')
     setWhyHere(data.why_here || '')
@@ -76,6 +79,10 @@ export default function Settings() {
     if (!user) return
     const clean = list.map(f => ({ name: (f.name || '').trim(), note: (f.note || '').trim() })).filter(f => f.name).slice(0, 2)
     saveTagSetting(user.id, { fav_products: clean })
+  }
+  function chooseHomeMonths(n) {
+    setHomeMonths(n)
+    if (user) saveTagSetting(user.id, { home_list_months: n })
   }
   function setFav(i, patch) {
     setFavs(list => list.map((f, j) => (j === i ? { ...f, ...patch } : f)))
@@ -419,6 +426,27 @@ export default function Settings() {
               ＋ {favs.length === 0 ? '加一款' : '再加一款（最多 2 款）'}
             </button>
           )}
+        </div>
+
+        {/* 居家購物清單：給過之後隔多久，顧客頁那一列改成「可以再給一次」 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>居家購物清單</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
+            給過之後，隔多久把顧客頁那一列改成「可以再給一次」。
+          </p>
+          {HOME_LIST_OPTIONS.map(o => {
+            const on = homeMonths === o.months
+            return (
+              <button key={o.months} onClick={() => chooseHomeMonths(o.months)}
+                style={{ width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',cursor:'pointer',
+                  padding:'12px 14px',borderRadius:RADIUS.lg,marginTop:8,fontSize:14,
+                  border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+                  background: on ? PRIMARY_SOFT : 'transparent', color: on ? PRIMARY : TEXT_MAIN, fontWeight: on ? 600 : 400 }}>
+                <span>{o.label}</span>
+                {on && <IconCheck size={18} stroke={2} color={PRIMARY} />}
+              </button>
+            )
+          })}
         </div>
 
         {/* 其他功能入口 */}
