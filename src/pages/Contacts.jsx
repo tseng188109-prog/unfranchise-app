@@ -59,12 +59,13 @@ const EGG_VALID = ['茶葉蛋','荷包蛋','生雞蛋','']
 const NEED_VALID = ['大一','大二','大三','大四','']
 // ─────────────────────────────────────────────────────
 
-const EGG_FILTERS = ['全部','茶葉蛋','荷包蛋','生雞蛋']
+const EGG_FILTERS = ['全部','茶葉蛋','荷包蛋','生雞蛋','顧客']
 
 export default function Contacts() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [contacts, setContacts] = useState([])
+  const [customerContactIds, setCustomerContactIds] = useState(() => new Set())
   const [search, setSearch] = useState('')
   const [eggFilter, setEggFilter] = useState(getStoredEggFilter)
   const [sortBy, setSortBy] = useState(getStoredSortBy) // default | name | last_contact | due
@@ -124,6 +125,9 @@ export default function Contacts() {
 
     const { data } = await query
     if (data) setContacts(data)
+    const { data: custRows } = await supabase.from('customers')
+      .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
+    setCustomerContactIds(new Set((custRows || []).map(r => r.contact_id)))
     setLoading(false)
   }
 
@@ -301,7 +305,7 @@ async function handleImport() {
   // 搜尋不分大小寫：兩邊都轉小寫再比對
   const searchLower = search.trim().toLowerCase()
   const filtered = contacts.filter(c => {
-    const matchEgg = eggFilter === '全部' || c.egg_type === eggFilter
+    const matchEgg = eggFilter === '全部' || (eggFilter === '顧客' ? customerContactIds.has(c.id) : c.egg_type === eggFilter)
     const matchSearch = !searchLower
       || (c.name || '').toLowerCase().includes(searchLower)
       || (c.occupation || '').toLowerCase().includes(searchLower)
@@ -373,6 +377,12 @@ async function handleImport() {
               <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:RADIUS.xs,
                 background:getEggBg(c.egg_type), color:getEggColor(c.egg_type) }}>
                 {c.egg_type}
+              </span>
+            )}
+            {customerContactIds.has(c.id) && (
+              <span style={{ fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:RADIUS.xs,
+                background:PRIMARY_SOFT, color:PRIMARY }}>
+                顧客
               </span>
             )}
             {!showArchived && activeSampleContactIds.has(c.id) && (

@@ -7,6 +7,7 @@ import {
   IconPin, IconTrash, IconX, IconMail, IconBell, IconArchive, IconRefresh,
 } from '@tabler/icons-react'
 import CustomerPanel from './CustomerPanel'
+import { archiveContactOfCustomer, restoreContactOfCustomer } from './customerLink'
 import LoadingSpinner from './LoadingSpinner'
 
 // 設計系統色碼：統一從共用檔案 import
@@ -97,6 +98,7 @@ export default function Customers() {
   async function handleArchive() {
     if (!archiveTarget) return
     await supabase.from('customers').update({ is_archived: true }).eq('id', archiveTarget.id)
+    await archiveContactOfCustomer(supabase, archiveTarget.id)
     if (selectedId === archiveTarget.id) setSelectedId(null)
     setArchiveTarget(null); setMenuTarget(null); fetchCustomers()
   }
@@ -104,6 +106,7 @@ export default function Customers() {
   async function handleRestore() {
     if (!restoreTarget) return
     await supabase.from('customers').update({ is_archived: false }).eq('id', restoreTarget.id)
+    await restoreContactOfCustomer(supabase, restoreTarget.id)
     setRestoreTarget(null); setMenuTarget(null); fetchCustomers()
   }
 

@@ -47,7 +47,8 @@ function formatMD(d){
 // onBack    — called when back arrow pressed (mobile/full-page mode only); defaults to navigate(-1)
 // onArchived— called after archiving; if omitted, defaults to navigate('/contacts')
 // onChanged — called after any data change (log added/edited/deleted, archived) so a parent list can refetch
-export default function ContactPanel({ id, embedded=false, onBack, onArchived, onChanged }) {
+// bare     — true when embedded inside the customer page's 互動 tab: no header, no tabs, just the 互動紀錄 content
+export default function ContactPanel({ id, embedded=false, bare=false, onBack, onArchived, onChanged }) {
   const navigate = useNavigate()
   const [contact, setContact] = useState(null)
   const [logs, setLogs] = useState([])
@@ -135,7 +136,8 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
       const next = new Date(quickDate + 'T00:00:00')
       next.setDate(next.getDate() + days)
       contactUpdate.last_contact_date = quickDate
-      contactUpdate.next_contact_date = toDateStr(next)
+      // 自動建給顧客的互動檔案不排「下次聯絡日」：顧客的關心提醒由首頁老顧客關懷卡負責，避免兩邊重複提醒
+      if (contact.source !== 'customer') contactUpdate.next_contact_date = toDateStr(next)
     }
     await supabase.from('contacts').update(contactUpdate).eq('id', id)
 
@@ -233,10 +235,11 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
   ].filter(r => r.value)
 
   return (
-    <div style={{ background:PAGE_BG, minHeight: embedded ? 'auto' : '100vh', paddingBottom: embedded ? 0 : 40,
+    <div style={{ background: bare ? 'transparent' : PAGE_BG, minHeight: (embedded || bare) ? 'auto' : '100vh', paddingBottom: (embedded || bare) ? 0 : 40,
       overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
 
-      {/* Header */}
+      {/* Header（顧客頁的互動分頁不需要，頭像和名字在顧客頁最上面） */}
+      {!bare && (
       <div style={{ background:'var(--card)', padding: embedded ? '18px 20px 0' : '52px 16px 0', borderBottom:`1px solid ${BORDER}` }}>
         {!embedded && (
           <div style={{ marginBottom:12 }}>
@@ -288,8 +291,9 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
           ))}
         </div>
       </div>
+      )}
 
-      <div style={{ padding: embedded ? '16px 20px 24px' : '16px' }}>
+      <div style={{ padding: bare ? 0 : (embedded ? '16px 20px 24px' : '16px') }}>
 
         {tab === 'logs' && (
           <>

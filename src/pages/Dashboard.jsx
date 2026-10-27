@@ -34,6 +34,7 @@ import { fetchTrialStrips } from './trialRun'
 import { pickMeetingContact, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
+import { logCareInteraction } from './customerLink'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
 
 
@@ -116,6 +117,7 @@ export default function Dashboard() {
   const [ibvTotal, setIbvTotal] = useState(0)
   const [profit, setProfit] = useState(0)
   const [activeContacts, setActiveContacts] = useState([])
+  const [customerContactIds, setCustomerContactIds] = useState(() => new Set())
   const [skipMeeting, setSkipMeeting] = useState([])
   const [today312, setToday312] = useState({ contacted: [], fresh: 0, planCount: 0 })
   const [trialStrips, setTrialStrips] = useState([])
@@ -316,8 +318,9 @@ export default function Dashboard() {
 
   async function markCustomerCared(customerId) {
     setCareList(prev => prev.filter(c => c.id !== customerId))
-    await supabase.from('customers')
-      .update({ last_cared_at: new Date().toISOString(), care_snoozed_until: null }).eq('id', customerId)
+    // 記下最近一次關心，同時記成一筆互動（算進今天的 3 位互動）
+    await logCareInteraction(supabase, customerId)
+    fetchFollowUps()
   }
   async function snoozeCustomerCare(customerId) {
     setCareList(prev => prev.filter(c => c.id !== customerId))
@@ -435,11 +438,15 @@ export default function Dashboard() {
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
     if (data) { setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips) }
+    // 已是顧客的人：他們的互動照算，但不當「新名單」、也不被當成要邀約的對象
+    const { data: custRows } = await supabase.from('customers')
+      .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
+    setCustomerContactIds(new Set((custRows || []).map(r => r.contact_id)))
     // 「這週已經新增」＝本結算週（週六 00:00 起）新增的聯絡人，不是往前數 7 天
     const weekStartTaipei = new Date(getWeekStart(today()) + 'T00:00:00+08:00').toISOString()
     const { count } = await supabase.from('contacts')
       .select('id',{count:'exact',head:true})
-      .eq('user_id',user.id).gte('created_at',weekStartTaipei)
+      .eq('user_id',user.id).is('source', null).gte('created_at',weekStartTaipei)
     setNewContactCount(count || 0)
     // 今天的 3-1-2 進度：互動過幾位、新增幾位、有沒有定下碰面
     const t = today()
@@ -447,7 +454,7 @@ export default function Dashboard() {
       .select('contact_id,kind').eq('user_id', user.id).eq('date', t)
     const { count: freshToday } = await supabase.from('contacts')
       .select('id',{count:'exact',head:true})
-      .eq('user_id',user.id).gte('created_at', t + 'T00:00:00+08:00')
+      .eq('user_id',user.id).is('source', null).gte('created_at', t + 'T00:00:00+08:00')
     setToday312({
       contacted: [...new Set((logs || []).map(l => l.contact_id))],
       fresh: freshToday || 0,
@@ -554,12 +561,14 @@ export default function Dashboard() {
     const d=new Date()
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} 星期${DAYS_ZH[d.getDay()]}`
   })()
-  const meetingContact = pickMeetingContact(activeContacts, undefined, skipMeeting)
+  // 單純的顧客（沒有轉介紹進度）不被自動推薦；有轉介紹進度的才會進推薦
+  const pickPool = activeContacts.filter(c => !(customerContactIds.has(c.id) && !c.referral_stage))
+  const meetingContact = pickMeetingContact(pickPool, undefined, skipMeeting)
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
   const favProducts = resolveFavProducts(profile?.tag_settings)
   const doneContacts = today312.contacted.map(id => activeContacts.find(c => c.id === id)).filter(Boolean)
   const talkDone = today312.contacted.length
-  const interactionContacts = pickInteractionContacts(activeContacts, [meetingContact?.id, ...today312.contacted], Math.max(0, mode.talk - talkDone)).slice(0, 5)
+  const interactionContacts = pickInteractionContacts(pickPool, [meetingContact?.id, ...today312.contacted], Math.max(0, mode.talk - talkDone)).slice(0, 5)
   const all312 = talkDone >= mode.talk && today312.planCount >= mode.meet && today312.fresh >= mode.fresh
   const starterDoneCount = starterTasks ? Object.values(starterTasks).filter(Boolean).length : 0
   const starterAllDone = starterDoneCount === STARTER_TASKS.length

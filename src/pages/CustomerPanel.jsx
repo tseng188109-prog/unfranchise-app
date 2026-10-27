@@ -12,6 +12,8 @@ import SampleSection from './SampleSection'
 import OrderForm from './OrderForm'
 import OrderCard from './OrderCard'
 import HomeListRow from './homeList'
+import ContactPanel from './ContactPanel'
+import { createContactForCustomer, logCareInteraction, archiveLinkedPlainContact } from './customerLink'
 import { groupPurchases } from './orderUtils'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
@@ -54,7 +56,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [orders, setOrders] = useState([])
   const [showOrder, setShowOrder] = useState(false) // false | { orderId: null | 訂單 id }
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('info') // info | tx | sample — 先看「這個人」，不是先看帳本
+  const [tab, setTab] = useState('talk') // talk | info | tx | sample — 先看「互動」，也就是跟這個人最近聊了什麼、下一步是什麼
 
   const [editReminder, setEditReminder] = useState(false)
   const [reminderDate, setReminderDate] = useState('')
@@ -69,8 +71,9 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   // 只是「建議」，連不連由使用者自己按（標注不自動推導）。
   const [sameNameContact, setSameNameContact] = useState(null)
   const [careSaving, setCareSaving] = useState(false)
+  const [creatingTalk, setCreatingTalk] = useState(false)
 
-  useEffect(() => { if (id) fetchData() }, [id])
+  useEffect(() => { if (id) { setTab('talk'); fetchData() } }, [id])
 
   function suggestionDismissKey() { return `linkSuggestDismissed:${id}` }
   function isSuggestionDismissed() {
@@ -83,7 +86,6 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
 
   async function fetchData() {
     setLoading(true)
-    setTab('info')
     setShowForm(false)
     setLinkedContact(null)
     setSameNameContact(null)
@@ -126,20 +128,30 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     fetchData()
   }
 
-  // 「我關心過了」：不用連到互動名單也能記下最近一次關心，首頁顧客關心卡會參考這個時間
+  // 「我關心過了」：記下最近一次關心，同時記成一筆互動（算進今天的 3-1-2，首頁顧客關心卡也會參考）。
+  // 沒有同名的互動檔案時會順便建立一份；有同名的人就只記時間，等你按「是，連起來」。
   async function markCared() {
     if (careSaving) return
     setCareSaving(true)
-    const nowIso = new Date().toISOString()
-    await supabase.from('customers').update({ last_cared_at: nowIso, care_snoozed_until: null }).eq('id', id)
-    setCustomer(p => ({ ...p, last_cared_at: nowIso, care_snoozed_until: null }))
+    await logCareInteraction(supabase, id)
     setCareSaving(false)
     onChanged?.()
+    fetchData()
+  }
+
+  // 還沒有互動檔案的顧客：按「開始記錄互動」才建立，不會一開頁就偷偷建
+  async function startTalk() {
+    if (creatingTalk) return
+    setCreatingTalk(true)
+    const cid = await createContactForCustomer(supabase, customer)
+    setCreatingTalk(false)
+    if (cid) { onChanged?.(); fetchData() }
   }
 
   async function handleArchive() {
     if (!(await askConfirm({ title:`封存「${customer.name}」？`, message:'封存後可以在顧客檔案的「封存名單」找到並復原。', okText:'封存', danger:true }))) return
     await supabase.from('customers').update({ is_archived: true }).eq('id', id)
+    await archiveLinkedPlainContact(supabase, customer.contact_id)
     onChanged?.()
     if (onArchived) onArchived()
     else navigate('/customers')
@@ -282,7 +294,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           )}
         </div>
         <div style={{ display:'flex', gap:20 }}>
-          {[{ key:'info', label:'認識這個人' }, { key:'tx', label:'消費紀錄' }, { key:'sample', label:'試用品' }].map(t => (
+          {[{ key:'talk', label:'互動' }, { key:'info', label:'認識這個人' }, { key:'tx', label:'消費紀錄' }, { key:'sample', label:'試用品' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ background:'none', border:'none', cursor:'pointer', padding:'0 0 10px',
                 fontSize:13, fontWeight:600, color: tab===t.key ? PRIMARY : TEXT_MUTED,
@@ -294,6 +306,39 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
       </div>
 
       <div style={{ padding: embedded ? '16px 20px 24px' : '16px' }}>
+
+        {tab === 'talk' && (customer.contact_id ? (
+          <ContactPanel key={customer.contact_id} id={customer.contact_id} embedded bare onChanged={onChanged} />
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {sameNameContact ? (
+              <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.sm, padding:'10px 12px' }}>
+                <p style={{ fontSize:12, color:TEXT_MAIN, margin:'0 0 8px', lineHeight:1.6, wordBreak:'break-word', overflowWrap:'anywhere' }}>
+                  互動名單裡也有一位叫「{sameNameContact.name}」{sameNameContact.occupation ? `（${sameNameContact.occupation}）` : ''}，是同一位嗎？
+                </p>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={linkSameNameContact}
+                    style={{ fontSize:12, color:PRIMARY, background:'var(--card)', border:`1px solid ${BORDER}`,
+                      borderRadius:RADIUS.xs, padding:'6px 12px', cursor:'pointer', fontWeight:600 }}>是，連起來</button>
+                  <button onClick={() => { dismissSuggestion(); startTalk() }}
+                    style={{ fontSize:12, color:TEXT_MUTED, background:'none', border:'none', cursor:'pointer' }}>不是，另外建立</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.card, padding:'14px' }}>
+                <p style={{ fontSize:13, color:TEXT_MAIN, margin:'0 0 4px', fontWeight:600 }}>還沒有跟{customer.name}的互動紀錄</p>
+                <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 12px', lineHeight:1.6 }}>
+                  開始記錄後，可以記聊了什麼、約下一次，也會算進首頁今天的 3-1-2。
+                </p>
+                <button onClick={startTalk} disabled={creatingTalk}
+                  style={{ width:'100%', padding:'10px', borderRadius:RADIUS.sm, border:'none', background:PRIMARY, color:'#fff',
+                    fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  {creatingTalk ? '建立中…' : '開始記錄互動'}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
 
         {tab === 'tx' && (
           <>

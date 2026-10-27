@@ -36,11 +36,11 @@ async function loadWeek(userId) {
     supabase.from('contacts').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).or('is_muted.is.null,is_muted.eq.false').gte('next_plan_date', t),
     supabase.from('contacts').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
+      .eq('user_id', userId).is('source', null).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
     supabase.from('contact_logs').select('contact_id,date,kind')
       .eq('user_id', userId).gte('date', ws).lte('date', we),
     supabase.from('contacts').select('created_at')
-      .eq('user_id', userId).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
+      .eq('user_id', userId).is('source', null).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
   ])
 
   const seen = new Set()

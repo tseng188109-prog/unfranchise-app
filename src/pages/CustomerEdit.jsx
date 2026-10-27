@@ -4,6 +4,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft, IconArchive } from '@tabler/icons-react'
+import { archiveContactOfCustomer } from './customerLink'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -114,6 +115,7 @@ export default function CustomerEdit() {
   async function handleArchive() {
     setArchiving(true)
     await supabase.from('customers').update({ is_archived: true }).eq('id', id)
+    await archiveContactOfCustomer(supabase, id)
     clearDraft(`customerEdit:${id}`)
     setArchiving(false)
     navigate('/customers')
