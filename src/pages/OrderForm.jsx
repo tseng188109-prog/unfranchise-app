@@ -473,23 +473,21 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
               </div>
             </div>
             {lq > 1 && <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>下面填「一份」的價錢，數量改了會自動乘</p>}
-            <div style={{ display: 'grid', gridTemplateColumns: l.is_gift ? 'minmax(0,1fr)' : 'repeat(3, minmax(0,1fr))', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: l.is_gift ? 'repeat(2, minmax(0,1fr))' : 'repeat(3, minmax(0,1fr))', gap: 8, marginTop: 8 }}>
               <div>
                 <span style={lbl}>{l.is_gift ? '成本價（選填）' : '成本價（每份）'}</span>
                 <input type="number" inputMode="decimal" value={l.cost} placeholder="0" onChange={e => setLine(l.key, { cost: e.target.value })} style={inp} />
               </div>
               {!l.is_gift && (
-                <>
-                  <div>
-                    <span style={lbl}>賣價（每份）</span>
-                    <input type="number" inputMode="decimal" value={l.amount} placeholder={priceHint} onChange={e => setLine(l.key, { amount: e.target.value })} style={inp} />
-                  </div>
-                  <div>
-                    <span style={lbl}>點數（每份）</span>
-                    <input type="number" inputMode="decimal" value={l.points} placeholder="0" onChange={e => setLine(l.key, { points: e.target.value })} style={inp} />
-                  </div>
-                </>
+                <div>
+                  <span style={lbl}>賣價（每份）</span>
+                  <input type="number" inputMode="decimal" value={l.amount} placeholder={priceHint} onChange={e => setLine(l.key, { amount: e.target.value })} style={inp} />
+                </div>
               )}
+              <div>
+                <span style={lbl}>{l.is_gift ? '點數（每份，選填）' : '點數（每份）'}</span>
+                <input type="number" inputMode="decimal" value={l.points} placeholder="0" onChange={e => setLine(l.key, { points: e.target.value })} style={inp} />
+              </div>
             </div>
             {lq > 1 && (
               <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: RADIUS.sm, background: PRIMARY_SOFT, color: PRIMARY, fontSize: 12, fontWeight: 600 }}>
@@ -542,7 +540,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: TEXT_MAIN, cursor: 'pointer' }}>
                 <input type="checkbox" checked={l.is_gift}
-                  onChange={e => setLine(l.key, { is_gift: e.target.checked, ...(e.target.checked ? { amount: '', points: l.points === '' ? '0' : l.points } : {}) })} />
+                  onChange={e => setLine(l.key, { is_gift: e.target.checked, ...(e.target.checked ? { amount: '' } : {}) })} />
                 贈品
               </label>
             </div>
