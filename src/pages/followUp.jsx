@@ -2,6 +2,8 @@
 // 「標注不自動推導」：這個檔案裡的任何函式都只負責「建議」或「挑選」，
 // 真正寫入 relationship_stage / referral_stage 的動作，永遠只能來自使用者自己在畫面上點的那一下。
 
+import { loadDailyMode } from './dailyMode'
+
 // ---- 階段清單（消費狀況 / 合作意願）----
 // 消費狀況：這個人離「成交賺價差」走到哪一步了
 export const RELATIONSHIP_STAGES = [
@@ -150,43 +152,93 @@ export function isMeetingEligible(c) {
   return isMilestone || isDirect
 }
 
-// 挑出今天的「1個會議」人選：milestone 類別（b/c）優先於單純 action_type 判斷（a），
-// 同層再用最久沒互動的人排序（最老的優先），用建立時間做穩定排序。
-//
-// 對應 3-1-2 原意「3→1：跟互動的朋友約碰面」——milestone 資格裡，優先挑「最近真的有
-// 跟你互動過」的人，這樣「1」才是從「3」自然長出來的結果，不是另一條只看標注、
-// 脫鉤於實際互動狀況的規則。如果 milestone 裡沒有熱的人，還是會退回挑最久沒互動
-// 的那位（通常就是階段標注已經很久沒更新的重要名單），不會整個藏起來不顯示——
-// 只是 getSuggestion() 這時候會改成提醒「先暖身再約」，不會逼你對一個冷掉的人
-// 直接喊「約時間碰面」。
-export function pickMeetingContact(contacts, todayStr) {
-  const eligible = (contacts || []).filter(isMeetingEligible)
-  if (eligible.length === 0) return null
-  const milestoneOnes = eligible.filter(c => c.relationship_stage === '已登記但尚未消費' || c.referral_stage === '考慮中')
-  const pool = milestoneOnes.length > 0 ? milestoneOnes : eligible
+// 挑出今天的「1個會議」人選。
+// 依據：2025 領導者訓練大會簡報——3-1-2 的「1」＝定下一個碰面（約下午茶、跟朋友聊聊），
+// 是從「互動的朋友」（3）長出來的（3→1），忌「漫無目的的 1」。
+// 所以這裡不再只看「準備好簽約」的標籤，而是：
+//   先排除：靜音、暫時婉拒、已經約好下一次的人（他們已經在「下一次」卡裡了）、
+//           記為「沒興趣」且 30 天內才碰過的人（不打擾）
+//   再排序：興趣高優先（很有興趣 > 有點興趣 > 觀望中 > 看不出來／未記錄）→ 需求大四/大三優先
+//           → 階段（已登記未消費、考慮中）→ 最近有互動、還熱著的
+// skipIds：使用者按「換一位」跳過的人。
+const INTEREST_RANK = { '很有興趣': 4, '有點興趣': 3, '觀望中': 2, '看不出來': 1, '沒興趣': 0 }
+function interestRank(c) {
+  if (!c.interest_level) return 1
+  return INTEREST_RANK[c.interest_level] ?? 1
+}
+const NEED_RANK = { '大四': 3, '大三': 2, '大二': 1, '大一': 0 }
+export function pickMeetingContact(contacts, todayStr, skipIds = []) {
+  const today = todayStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+  const pool = (contacts || []).filter(c => {
+    if (!c || c.is_muted) return false
+    if (skipIds.includes(c.id)) return false
+    if (c.referral_stage === '暫時婉拒') return false
+    if (c.next_plan) return false
+    if (interestRank(c) === 0 && daysSince(c.last_contact_date || c.last_interacted_at, today) < 30) return false
+    return true
+  })
+  if (pool.length === 0) return null
+  const score = c => [
+    interestRank(c),
+    NEED_RANK[c.need_level] ?? 0,
+    (c.relationship_stage === '已登記但尚未消費' || c.referral_stage === '考慮中') ? 1 : 0,
+    isContactWarm(c, today) ? 1 : 0,
+  ]
   const sorted = [...pool].sort((a, b) => {
+    const sa = score(a), sb = score(b)
+    for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return sb[i] - sa[i]
     const ka = sortKey(a), kb = sortKey(b)
-    if (ka !== kb) return ka < kb ? -1 : 1
-    // 同一批 CSV 匯入的聯絡人 created_at 常常完全一樣，這裡再用一次 created_at 比較沒有意義
-    // （比較自己永遠不相等地互相判定對方比較大，排序結果會跟著查詢回來的原始順序亂跳）。
-    // 改用 id 當最後一層比較，id 一定不重複，才能保證「沒換資料就不換人選」。
+    if (ka !== kb) return ka > kb ? -1 : 1
     return (a.id || '') < (b.id || '') ? -1 : 1
   })
-  if (milestoneOnes.length > 0) {
-    const warmOnes = sorted.filter(c => isContactWarm(c, todayStr))
-    if (warmOnes.length > 0) return warmOnes[0]
-  }
   return sorted[0]
 }
 
-// 挑出今天的「3位互動」：排除靜音與今天已經當選「1個會議」的那位，
-// 依最久沒互動排序，確保「不要老是同樣那幾位」。
-export function pickInteractionContacts(contacts, excludeId, count = 3) {
-  const pool = (contacts || []).filter(c => !c.is_muted && c.id !== excludeId)
+// 卡片上的「為什麼是他」一行，給這個「1」一個理由（簡報：不要漫無目的）
+export function meetingReason(c, todayStr) {
+  if (!c) return ''
+  const warm = isContactWarm(c, todayStr)
+  const lv = c.interest_level
+  if (lv === '很有興趣') return warm ? '很有興趣，還沒約下一次，約一個一對一聊聊' : '很有興趣，但有一陣子沒聯絡了，先關心再約'
+  if (lv === '有點興趣') return warm ? '有點興趣，約一個輕鬆的碰面，體驗產品或聊聊她在意的事' : '有點興趣，先關心一下，再約個輕鬆的碰面'
+  if (lv === '觀望中') return warm ? '觀望中，約個輕鬆的聚餐聊聊，不急著介紹' : '觀望中，先保持聯絡，再約個輕鬆的聚餐'
+  if (c.relationship_stage === '已登記但尚未消費') return warm ? '已經登記了，約時間協助完成第一次消費' : '已經登記但好一陣子沒聯絡，先關心再約'
+  if (c.referral_stage === '考慮中') return warm ? '正在考慮，約時間深入聊聊' : '正在考慮，但一陣子沒聯絡，先暖身再約'
+  return warm ? '最近有聊到，約個下午茶聊近況，不談生意' : '好一陣子沒碰面了，先互動暖身，再約下午茶'
+}
+
+// 「新朋友」：加進來不到 14 天，而且還沒有記過任何一次互動（簡報：2→3，跟新加的朋友保持互動）
+export function isFreshFriend(c, todayStr) {
+  const today = todayStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+  return !!c.created_at && !c.last_contact_date && daysSince(c.created_at.slice(0, 10), today) <= 14
+}
+
+// 挑出今天的「3位互動」：排除靜音與 excludeId（單一 id 或 id 陣列），
+// 新朋友優先（2→3），其餘依最久沒互動排序，確保「不要老是同樣那幾位」。
+export function pickInteractionContacts(contacts, excludeId, count = 3, todayStr) {
+  const excl = Array.isArray(excludeId) ? excludeId : [excludeId]
+  const pool = (contacts || []).filter(c => !c.is_muted && !excl.includes(c.id))
   return [...pool].sort((a, b) => {
+    const fa = isFreshFriend(a, todayStr) ? 1 : 0, fb = isFreshFriend(b, todayStr) ? 1 : 0
+    if (fa !== fb) return fb - fa
     const ka = sortKey(a), kb = sortKey(b)
-    if (ka !== kb) return ka < kb ? -1 : 1
+    if (ka !== kb) return fa ? (ka > kb ? -1 : 1) : (ka < kb ? -1 : 1)
     // 同理：created_at 同批匯入常常完全相同，用 id 收尾才穩定
     return (a.id || '') < (b.id || '') ? -1 : 1
   }).slice(0, count)
+}
+
+// 「每日3互動」打勾：當天記過互動的人（不重複）達到自己選的每日節奏（起步 1／標準 3／加速 10）才自動打勾
+export async function syncDaily3(supabase, userId, dateStr) {
+  const date = dateStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+  const { data } = await supabase.from('contact_logs').select('contact_id').eq('user_id', userId).eq('date', date)
+  const n = new Set((data || []).map(r => r.contact_id)).size
+  const mode = await loadDailyMode(userId)
+  if (n >= mode.talk) {
+    await supabase.from('daily_checkins').upsert({
+      user_id: userId, date, task_key: 'daily_3_contacts', is_done: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,date,task_key' })
+  }
+  return n
 }

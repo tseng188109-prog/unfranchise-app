@@ -4,6 +4,7 @@ import { supabase } from '../supabase'
 import { IconChartBar, IconChevronRight, IconCopy, IconCheck } from '@tabler/icons-react'
 import { CloseBtn } from './ui'
 import { fmtPlanDate } from './meetingFlow'
+import { loadDailyMode } from './dailyMode'
 import {
   TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS, PRIMARY, PRIMARY_SOFT,
   ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT, SUBCARD_BG,
@@ -27,16 +28,19 @@ async function loadWeek(userId) {
   const ws = weekStartOf(t)
   const we = addDays(ws, 6)
 
-  const [logsRes, plansRes, newRes, chkRes] = await Promise.all([
+  const [mode, logsRes, plansRes, newRes, dayLogsRes, freshRowsRes] = await Promise.all([
+    loadDailyMode(userId),
     supabase.from('contact_logs')
       .select('contact_id,date,contacts(id,name,interest_level,next_plan,next_plan_date,is_muted)')
-      .eq('user_id', userId).eq('kind', 'meet').gte('date', ws).lte('date', we),
+      .eq('user_id', userId).in('kind', ['meet', 'meet_plan']).gte('date', ws).lte('date', we),
     supabase.from('contacts').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).or('is_muted.is.null,is_muted.eq.false').gte('next_plan_date', t),
     supabase.from('contacts').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
-    supabase.from('daily_checkins').select('date')
-      .eq('user_id', userId).eq('task_key', 'daily_3_contacts').eq('is_done', true).gte('date', ws).lte('date', we),
+    supabase.from('contact_logs').select('contact_id,date,kind')
+      .eq('user_id', userId).gte('date', ws).lte('date', we),
+    supabase.from('contacts').select('created_at')
+      .eq('user_id', userId).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
   ])
 
   const seen = new Set()
@@ -46,12 +50,27 @@ async function loadWeek(userId) {
     seen.add(l.contacts.id)
     met.push(l.contacts)
   })
-  const days312 = new Set((chkRes.data || []).map(r => r.date)).size
+  // 「做滿」：當天互動滿 3 位、定下 1 個碰面、新增 2 位，三項都到才算一天（2025 領導者訓練大會簡報）
+  const perDay = {}
+  ;(dayLogsRes.data || []).forEach(l => {
+    const d = (perDay[l.date] = perDay[l.date] || { people: new Set(), plan: 0, fresh: 0 })
+    d.people.add(l.contact_id)
+    if (l.kind === 'meet_plan') d.plan++
+  })
+  ;(freshRowsRes.data || []).forEach(r => {
+    const day = new Date(r.created_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+    const d = (perDay[day] = perDay[day] || { people: new Set(), plan: 0, fresh: 0 })
+    d.fresh++
+  })
+  const days312 = Object.values(perDay).filter(d => d.people.size >= mode.talk && d.plan >= mode.meet && d.fresh >= mode.fresh).length
+  // BASIC-5 每週目標：找 5–15 人談話、邀約 5 人、增加 10 名可能人選
+  const talkedWeek = new Set((dayLogsRes.data || []).map(l => l.contact_id)).size
+  const invitedWeek = new Set((dayLogsRes.data || []).filter(l => l.kind === 'meet_plan').map(l => l.contact_id)).size
   return {
     ws, we, met,
     planned: plansRes.count || 0,
     fresh: newRes.count || 0,
-    days312,
+    days312, mode, talkedWeek, invitedWeek,
     unplanned: met.filter(c => !c.next_plan && !c.is_muted),
   }
 }
@@ -102,11 +121,11 @@ function Stat({ label, value, unit }) {
 function WeeklyReviewSheet({ data, onClose }) {
   const [showAll, setShowAll] = useState(false)
   const [copied, setCopied] = useState(false)
-  const { ws, we, met, planned, fresh, days312, unplanned } = data
+  const { ws, we, met, planned, fresh, days312, unplanned, mode, talkedWeek, invitedWeek } = data
   const shown = showAll ? met : met.slice(0, 5)
 
   async function copyText() {
-    const txt = `本週（${md(ws)}–${md(we)}）\n見面 ${met.length} 位\n已約好下一次 ${planned} 位\n新認識 ${fresh} 位\n3-1-2 做滿 ${days312} 天`
+    const txt = `本週（${md(ws)}–${md(we)}）\n見面 ${met.length} 位\n已約好下一次 ${planned} 位\n新認識 ${fresh} 位\n${mode.label} 做滿 ${days312} 天`
     try {
       await navigator.clipboard.writeText(txt)
     } catch {
@@ -133,7 +152,21 @@ function WeeklyReviewSheet({ data, onClose }) {
           <Stat label="見面" value={met.length} unit="位" />
           <Stat label="已約好下一次" value={planned} unit="位" />
           <Stat label="新認識" value={fresh} unit="位" />
-          <Stat label="3-1-2 做滿" value={days312} unit="天" />
+          <Stat label={`${mode.label} 做滿`} value={days312} unit="天" />
+        </div>
+
+        <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: '18px 0 6px' }}>本週目標</p>
+        <div style={{ background: SUBCARD_BG, borderRadius: RADIUS.md, padding: '4px 12px' }}>
+          {[
+            ['談話', talkedWeek, '5–15 人'],
+            ['邀約', invitedWeek, '5 人'],
+            ['增加名單', fresh, '10 人'],
+          ].map(([k, v, g]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 14 }}>
+              <span style={{ color: TEXT_SECONDARY }}>{k}</span>
+              <span style={{ color: TEXT_MAIN }}>{v} <span style={{ color: TEXT_MUTED, fontSize: 12 }}>/ {g}</span></span>
+            </div>
+          ))}
         </div>
 
         <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: '18px 0 6px' }}>這週見的人</p>

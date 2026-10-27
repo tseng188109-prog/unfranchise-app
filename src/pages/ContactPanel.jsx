@@ -12,9 +12,10 @@ import SampleSection from './SampleSection'
 import {
   RELATIONSHIP_STAGES, REFERRAL_STAGES, getSuggestion,
   muteContact, unmuteContact, addContactNote, setStage, isStale, noteAgeOpacity,
-  markDaily312,
+  markDaily312, syncDaily3,
 } from './followUp'
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
+import TrialRunCard from './trialRun'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -124,11 +125,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
       contact_id: id, user_id: user.id,
       date: quickDate, note: trimmedNote || null,
     })
-    await supabase.from('daily_checkins').upsert({
-      user_id: user.id, date: quickDate,
-      task_key: 'daily_3_contacts', is_done: true,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,date,task_key' })
+    await syncDaily3(supabase, user.id, quickDate)
     if (quickDate === today()) await markDaily312(supabase, user.id, quickDate)
 
     const contactUpdate = { last_interacted_at: new Date().toISOString() }
@@ -327,6 +324,7 @@ export default function ContactPanel({ id, embedded=false, onBack, onArchived, o
             )}
 
             {!contact.is_muted && <NextPlanCard contact={contact} onOpen={() => setShowAfterMeet(true)} />}
+            {meUserId && <TrialRunCard contact={contact} userId={meUserId} />}
 
             {signedDays !== null && signedDays <= 14 && (
               <div style={{ background:'var(--green-soft)', borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14,

@@ -4,6 +4,7 @@ import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
+import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting } from './dailyMode'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
   IconFlag, IconChevronRight, IconCheck, IconHelpCircle,
@@ -15,6 +16,8 @@ import {
 export default function Settings() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
+  const [modeKey, setModeKey] = useState('')
+  const [favs, setFavs] = useState([])
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -50,8 +53,10 @@ export default function Settings() {
 
   async function fetchProfile(uid) {
     const { data } = await supabase.from('users')
-      .select('name,referrer_id,referrer_email_pending,why_here').eq('id', uid).single()
+      .select('name,referrer_id,referrer_email_pending,why_here,tag_settings,created_at').eq('id', uid).single()
     if (!data) return
+    setModeKey(resolveMode(data.tag_settings, data.created_at).key)
+    setFavs(resolveFavProducts(data.tag_settings))
     setName(data.name)
     setReferrerPending(data.referrer_email_pending || '')
     setWhyHere(data.why_here || '')
@@ -60,6 +65,25 @@ export default function Settings() {
         .select('name').eq('id', data.referrer_id).single()
       if (ref) setReferrerName(ref.name)
     }
+  }
+
+  async function chooseMode(key) {
+    setModeKey(key)
+    if (user) await saveDailyMode(user.id, key)
+  }
+
+  function saveFavs(list) {
+    if (!user) return
+    const clean = list.map(f => ({ name: (f.name || '').trim(), note: (f.note || '').trim() })).filter(f => f.name).slice(0, 2)
+    saveTagSetting(user.id, { fav_products: clean })
+  }
+  function setFav(i, patch) {
+    setFavs(list => list.map((f, j) => (j === i ? { ...f, ...patch } : f)))
+  }
+  function removeFav(i) {
+    const next = favs.filter((_, j) => j !== i)
+    setFavs(next)
+    saveFavs(next)
   }
 
   function fillWhyStarter(prefix) {
@@ -343,6 +367,57 @@ export default function Settings() {
                 儲存推薦人
               </button>
             </div>
+          )}
+        </div>
+
+        {/* 每日節奏：起步 / 標準 / 加速，只改首頁的目標數字，已經記的紀錄不變 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 10px' }}>每日節奏</p>
+          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+            {DAILY_MODE_LIST.map(m => {
+              const on = modeKey === m.key
+              return (
+                <button key={m.key} onClick={() => chooseMode(m.key)}
+                  style={{ textAlign:'left',cursor:'pointer',padding:'12px 14px',borderRadius:RADIUS.lg,
+                    border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+                    background: on ? PRIMARY_SOFT : 'transparent' }}>
+                  <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center' }}>
+                    <span style={{ fontSize:15,fontWeight:600,color: on ? PRIMARY : TEXT_MAIN }}>{m.title}</span>
+                    {on && <IconCheck size={18} stroke={2} color={PRIMARY} />}
+                  </div>
+                  <div style={{ fontSize:13,color: on ? PRIMARY : TEXT_SECONDARY,marginTop:2,lineHeight:1.6 }}>{m.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>隨時可以換，已經記的紀錄不會變。</p>
+        </div>
+
+        {/* 我的首選產品：自己先用的 1–2 款，見面提示會帶出來 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>我的首選產品</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
+            填 1–2 款你自己在用、有感覺的產品。約見面時會提醒你分享自己的使用心得。
+          </p>
+          {favs.map((f, i) => (
+            <div key={i} style={{ padding:'12px',borderRadius:RADIUS.lg,border:`1px solid ${BORDER}`,marginBottom:8 }}>
+              <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                <input value={f.name} onChange={e => setFav(i, { name: e.target.value })} onBlur={() => saveFavs(favs)}
+                  placeholder="產品名稱，例如 愛尚它®綜合維生素粉末"
+                  style={{ flex:1,minWidth:0,boxSizing:'border-box',padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:14,outline:'none',background:'transparent',color:TEXT_MAIN }} />
+                <button onClick={() => removeFav(i)} aria-label="移除這一款"
+                  style={{ width:44,height:44,border:'none',background:'none',cursor:'pointer',color:TEXT_MUTED,fontSize:20 }}>×</button>
+              </div>
+              <input value={f.note || ''} onChange={e => setFav(i, { note: e.target.value })} onBlur={() => saveFavs(favs)}
+                placeholder="一句心得，例如 喝了兩週，下午比較不累"
+                style={{ width:'100%',boxSizing:'border-box',marginTop:8,padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:13,outline:'none',background:'transparent',color:TEXT_MAIN }} />
+            </div>
+          ))}
+          {favs.length < 2 && (
+            <button onClick={() => setFavs(list => [...list, { name: '', note: '' }])}
+              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.lg,border:`1px dashed ${BORDER}`,background:'none',color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>
+              ＋ {favs.length === 0 ? '加一款' : '再加一款（最多 2 款）'}
+            </button>
           )}
         </div>
 

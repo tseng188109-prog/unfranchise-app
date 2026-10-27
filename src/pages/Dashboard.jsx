@@ -28,7 +28,10 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_TEXT, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { pickMeetingContact, pickInteractionContacts, getSuggestion, isContactWarm } from './followUp'
+import { resolveMode, resolveFavProducts, saveTagSetting } from './dailyMode'
+import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
+import { fetchTrialStrips } from './trialRun'
+import { pickMeetingContact, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
@@ -113,6 +116,11 @@ export default function Dashboard() {
   const [ibvTotal, setIbvTotal] = useState(0)
   const [profit, setProfit] = useState(0)
   const [activeContacts, setActiveContacts] = useState([])
+  const [skipMeeting, setSkipMeeting] = useState([])
+  const [today312, setToday312] = useState({ contacted: [], fresh: 0, planCount: 0 })
+  const [trialStrips, setTrialStrips] = useState([])
+  const [progTab, setProgTab] = useState('season')
+  const [showBvTarget, setShowBvTarget] = useState(false)
   const [newContactCount, setNewContactCount] = useState(0)
   const [checkins, setCheckins] = useState({})
   const [viewContacted, setViewContacted] = useState([])
@@ -319,7 +327,7 @@ export default function Dashboard() {
 
   async function fetchProfile() {
     const { data } = await supabase.from('users')
-      .select('name, onboarding_done, why_here, created_at')
+      .select('name, onboarding_done, why_here, created_at, tag_settings')
       .eq('id', user.id).single()
     if (data) {
       setProfile(data)
@@ -423,16 +431,28 @@ export default function Dashboard() {
 
   async function fetchFollowUps() {
     const { data } = await supabase.from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,next_plan,next_plan_date,need_tags,last_quote')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
-    if (data) setActiveContacts(data)
+    if (data) { setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips) }
     // 「這週已經新增」＝本結算週（週六 00:00 起）新增的聯絡人，不是往前數 7 天
     const weekStartTaipei = new Date(getWeekStart(today()) + 'T00:00:00+08:00').toISOString()
     const { count } = await supabase.from('contacts')
       .select('id',{count:'exact',head:true})
       .eq('user_id',user.id).gte('created_at',weekStartTaipei)
     setNewContactCount(count || 0)
+    // 今天的 3-1-2 進度：互動過幾位、新增幾位、有沒有定下碰面
+    const t = today()
+    const { data: logs } = await supabase.from('contact_logs')
+      .select('contact_id,kind').eq('user_id', user.id).eq('date', t)
+    const { count: freshToday } = await supabase.from('contacts')
+      .select('id',{count:'exact',head:true})
+      .eq('user_id',user.id).gte('created_at', t + 'T00:00:00+08:00')
+    setToday312({
+      contacted: [...new Set((logs || []).map(l => l.contact_id))],
+      fresh: freshToday || 0,
+      planCount: (logs || []).filter(l => l.kind === 'meet_plan').length,
+    })
   }
 
   async function fetchCheckin() {
@@ -534,8 +554,13 @@ export default function Dashboard() {
     const d=new Date()
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} 星期${DAYS_ZH[d.getDay()]}`
   })()
-  const meetingContact = pickMeetingContact(activeContacts)
-  const interactionContacts = pickInteractionContacts(activeContacts, meetingContact?.id, 3)
+  const meetingContact = pickMeetingContact(activeContacts, undefined, skipMeeting)
+  const mode = resolveMode(profile?.tag_settings, profile?.created_at)
+  const favProducts = resolveFavProducts(profile?.tag_settings)
+  const doneContacts = today312.contacted.map(id => activeContacts.find(c => c.id === id)).filter(Boolean)
+  const talkDone = today312.contacted.length
+  const interactionContacts = pickInteractionContacts(activeContacts, [meetingContact?.id, ...today312.contacted], Math.max(0, mode.talk - talkDone)).slice(0, 5)
+  const all312 = talkDone >= mode.talk && today312.planCount >= mode.meet && today312.fresh >= mode.fresh
   const starterDoneCount = starterTasks ? Object.values(starterTasks).filter(Boolean).length : 0
   const starterAllDone = starterDoneCount === STARTER_TASKS.length
   const showStarterCard = onboardingDone && starterTasks !== null && !starterAllDone
@@ -684,9 +709,20 @@ export default function Dashboard() {
 
         {/* 今天要做的：3-1-2，三張同規格的卡 */}
         <section className="area-todo">
-          <SectionHeader title="今天的 3-1-2" hint="查看全部聯絡人 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
+          <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部聯絡人 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
+          {trialStrips.map(ts => (
+            <div key={ts.contactId} onClick={()=>navigate(`/contacts/${ts.contactId}`)}
+              style={{ padding:'10px 14px', background:PRIMARY_SOFT, cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ fontSize:13,fontWeight:600,color:PRIMARY }}>{ts.text}</div>
+            </div>
+          ))}
+          {all312 && (
+            <div style={{ padding:'12px 14px', background:ACCENT_GREEN_SOFT, color:ACCENT_GREEN_TEXT, fontSize:14, fontWeight:600, borderBottom:'1px solid var(--border)' }}>
+              今天的 {mode.label} 做滿了
+            </div>
+          )}
           {upcomingPlans(activeContacts).map(c => (
             <div key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
               style={{ padding:'10px 14px', background:PRIMARY_SOFT, cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
@@ -699,20 +735,37 @@ export default function Dashboard() {
             </div>
           ))}
           <div style={{ padding:14, display:'flex', gap:12 }}>
-            <Tile bg={PRIMARY_SOFT} color={PRIMARY}>3</Tile>
+            <Tile bg={PRIMARY_SOFT} color={PRIMARY}>{mode.talk}</Tile>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
-                位互動<span style={{ fontSize:11,fontWeight:400,color:TEXT_MUTED,marginLeft:8 }}>不要老是同樣那幾位</span>
+                <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
+                  <span>位互動<span style={{ fontSize:11,fontWeight:400,color:TEXT_MUTED,marginLeft:8 }}>不要老是同樣那幾位</span></span>
+                  <span style={{ fontSize:13,fontWeight:600,color:PRIMARY,whiteSpace:'nowrap' }}>今天 {Math.min(talkDone,mode.talk)}/{mode.talk}</span>
+                </span>
               </div>
-              {interactionContacts.length===0
+              {mode.talk > 3 && (
+                <div style={{ height:6, background:SUBCARD_BG, borderRadius:3, marginTop:8 }}>
+                  <div style={{ width:`${Math.min(100, Math.round(talkDone / mode.talk * 100))}%`, height:6, background:PRIMARY, borderRadius:3 }} />
+                </div>
+              )}
+              {interactionContacts.length===0 && doneContacts.length===0
                 ? <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'6px 0 0' }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
                 : <div style={{ display:'flex',flexWrap:'wrap',gap:6,marginTop:8 }}>
+                    {doneContacts.map(c=>(
+                      <button key={'d'+c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
+                        style={{ display:'inline-flex',alignItems:'center',gap:6,background:SUBCARD_BG,border:'none',
+                          borderRadius:RADIUS.pill,padding:'3px 12px 3px 3px',cursor:'pointer',opacity:0.6,
+                          fontSize:12,fontWeight:600,color:TEXT_MUTED,textDecoration:'line-through' }}>
+                        <Avatar name={c.name} size={24} />{c.name}
+                      </button>
+                    ))}
                     {interactionContacts.map(c=>(
                       <button key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
                         style={{ display:'inline-flex',alignItems:'center',gap:6,background:SUBCARD_BG,border:'none',
                           borderRadius:RADIUS.pill,padding:'3px 12px 3px 3px',cursor:'pointer',
                           fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
                         <Avatar name={c.name} size={24} />{c.name}
+                        {isFreshFriend(c) && <span style={{ fontSize:11,fontWeight:400,color:ACCENT_GREEN_TEXT }}>新朋友</span>}
                       </button>
                     ))}
                   </div>
@@ -724,35 +777,52 @@ export default function Dashboard() {
           </div>
 
           <div style={{ padding:14, display:'flex', gap:12, alignItems:'center', borderTop:'1px solid var(--border)' }}>
-            <Tile bg={ORANGE_SOFT} color={ORANGE_TEXT}>1</Tile>
+            <Tile bg={ORANGE_SOFT} color={ORANGE_TEXT}>{mode.meet}</Tile>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
-                個會議{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}
+                <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
+                  <span>{mode.meet > 1 ? '個約會' : '個會議'}{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
+                  <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天已定下' : '還沒定下')}</span>
+                </span>
               </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
                 {meetingContact
-                  ? getSuggestion(meetingContact)
-                  : '目前沒有準備好約會議的人，先專心做 3 位互動就好'}
+                  ? (mode.meet > 1 ? '其中 1 個由你主持。建議：' + meetingContact.name + '，' : '') + meetingReason(meetingContact)
+                  : '今天沒有適合約的人，先把 ' + mode.talk + ' 位互動做完，聊出下一位'}
               </div>
+              {meetingContact && favProducts.length > 0 && (
+                <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2 }}>
+                  可以聊：你自己用{favProducts[0].name}{favProducts[0].note ? '，' + favProducts[0].note : ''}
+                </div>
+              )}
               {meetingContact && meetingContact.last_quote && (
                 <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次她說：「{meetingContact.last_quote}」</div>
               )}
-              {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>別漫無目的，挑最接近臨門一腳的人</div>}
+              {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>1 是定下一個碰面，不用急，也別漫無目的</div>}
             </div>
             {meetingContact && (
-              <SoftBtn solid color={ORANGE}
-                onClick={()=>navigate(`/contacts/${meetingContact.id}`)}>
-                {isContactWarm(meetingContact) ? '約下一次' : '先暖身'}
-              </SoftBtn>
+              <div style={{ display:'flex', flexDirection:'column', gap:6, alignItems:'stretch' }}>
+                <SoftBtn solid color={ORANGE}
+                  onClick={()=>navigate(`/contacts/${meetingContact.id}`)}>
+                  {isContactWarm(meetingContact) ? '約下一次' : '先暖身'}
+                </SoftBtn>
+                <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
+                  style={{ background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:'4px 0', cursor:'pointer' }}>
+                  換一位
+                </button>
+              </div>
             )}
           </div>
 
           <div style={{ padding:14, display:'flex', gap:12, alignItems:'center', borderTop:'1px solid var(--border)' }}>
-            <Tile bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT}>2</Tile>
+            <Tile bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT}>{mode.fresh}</Tile>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>位新名單</div>
+              <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN, display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
+                <span>位新名單</span>
+                <span style={{ fontSize:13,fontWeight:600,color:ACCENT_GREEN_TEXT,whiteSpace:'nowrap' }}>今天 {Math.min(today312.fresh,mode.fresh)}/{mode.fresh}</span>
+              </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
-                這週已經新增 {newContactCount} 位，去認識新朋友，不是從舊名單湊數
+                去認識新朋友，不是從舊名單湊數。這週已新增 {newContactCount} 位
               </div>
             </div>
             <SoftBtn bg={ACCENT_GREEN_SOFT} color={ACCENT_GREEN_TEXT} onClick={()=>navigate('/contacts/new')}>+ 新增</SoftBtn>
@@ -914,7 +984,25 @@ export default function Dashboard() {
         )}
         {!isNewbie && (
         <section className="area-stats">
-          <SectionHeader title="本季進度" hint="查看詳情 ›" onHint={()=>navigate('/transactions')} hintColor={PRIMARY} />
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, margin:'16px 4px 8px' }}>
+            <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
+              進度{progTab === 'season' && <span onClick={()=>navigate('/transactions')} style={{ fontSize:12, fontWeight:400, color:PRIMARY, marginLeft:10, cursor:'pointer' }}>查看詳情 ›</span>}
+            </span>
+            <div style={{ display:'flex', gap:4 }}>
+              {[['season','本季'],['month','本月顧客']].map(([k,label]) => (
+                <button key={k} onClick={()=>setProgTab(k)}
+                  style={{ border:'none', cursor:'pointer', padding:'4px 12px', borderRadius:RADIUS.pill, fontSize:12,
+                    fontWeight: progTab===k ? 600 : 400,
+                    background: progTab===k ? PRIMARY_SOFT : 'transparent', color: progTab===k ? PRIMARY : TEXT_SECONDARY }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {progTab === 'month' && user && (
+            <MonthBvCard userId={user.id} target={resolveBvTarget(profile?.tag_settings)} onEditTarget={()=>setShowBvTarget(true)} />
+          )}
+          {progTab !== 'month' && (
           <div style={{ ...cardStyle,padding:'18px 18px 16px',color:TEXT_MAIN }}>
             <div style={{ display:'flex',gap:16 }}>
               <div style={{ flex:1 }}>
@@ -957,6 +1045,7 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+          )}
           <div style={{ display:'flex',gap:8,marginTop:8 }}>
             <button onClick={() => navigate('/team')}
               style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
@@ -971,6 +1060,15 @@ export default function Dashboard() {
           </div>
         </section>
 
+        )}
+        {showBvTarget && (
+          <BvTargetSheet current={resolveBvTarget(profile?.tag_settings)}
+            onClose={()=>setShowBvTarget(false)}
+            onSave={async (n) => {
+              setShowBvTarget(false)
+              setProfile(p => ({ ...(p||{}), tag_settings: { ...((p&&p.tag_settings)||{}), bv_target: n } }))
+              await saveTagSetting(user.id, { bv_target: n })
+            }} />
         )}
 
         {user && onboardingDone && !isNewbie && (

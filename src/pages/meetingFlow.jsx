@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
-import { markDaily312 } from './followUp'
+import { markDaily312, syncDaily3 } from './followUp'
 import { trackUsage } from './usage'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, SUBCARD_BG, RADIUS,
@@ -83,7 +83,8 @@ export function useTagLists(userId) {
 
   async function persist(next) {
     setSaved(next)
-    await supabase.from('users').update({ tag_settings: next }).eq('id', userId)
+    const { data: cur } = await supabase.from('users').select('tag_settings').eq('id', userId).single()
+    await supabase.from('users').update({ tag_settings: { ...((cur && cur.tag_settings) || {}), ...next } }).eq('id', userId)
   }
 
   const needs = resolveTags(DEFAULT_NEEDS, saved.needs, 'n')
@@ -200,7 +201,7 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
     const note = quote.trim()
     const planText = plan.trim()
     await supabase.from('contact_logs').insert({
-      contact_id: contact.id, user_id: userId, date: dt, kind: 'meet', note: note || `見面：${lv.label}`,
+      contact_id: contact.id, user_id: userId, date: dt, kind: (planText && planDate) ? 'meet_plan' : 'meet', note: note || `見面：${lv.label}`,
     })
     const upd = {
       last_interacted_at: new Date().toISOString(),
@@ -218,6 +219,7 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
     if (error) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
     // 成功＝真的約到下一次（有內容、有日期），才算今天的 3-1-2 有推進
     if (planText && planDate) await markDaily312(supabase, userId, dt)
+    await syncDaily3(supabase, userId, dt)
     trackUsage('after_meet_saved')
     if (planText && planDate) trackUsage('next_booked')
     setSaving(false)
