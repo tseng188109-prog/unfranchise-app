@@ -71,3 +71,9 @@ export async function loadWeeklyMeet(userId) {
     return resolveWeeklyMeet(ts, resolveMode(ts, data && data.created_at))
   } catch { return 5 }
 }
+
+// 活動前幾週開始提醒我邀人：2–4 週，預設 3 週。存在 tag_settings.event_remind_weeks
+export function resolveEventWeeks(tagSettings) {
+  const v = tagSettings && tagSettings.event_remind_weeks
+  return typeof v === 'number' && v >= 2 && v <= 4 ? Math.round(v) : 3
+}

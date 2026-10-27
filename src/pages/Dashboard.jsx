@@ -28,13 +28,15 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_TEXT, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet } from './dailyMode'
+import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks } from './dailyMode'
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
-import { pickMeetingContact, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
+import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
+import { fetchUpcomingEvents, inviteToEvent, cancelInvite, isInvitedTo, daysUntil } from './eventInvite'
+import { askConfirm } from './confirmDialog'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
 
 
@@ -120,6 +122,7 @@ export default function Dashboard() {
   const [customerContactIds, setCustomerContactIds] = useState(() => new Set())
   const [skipMeeting, setSkipMeeting] = useState([])
   const [weekPlanned, setWeekPlanned] = useState(0)
+  const [events, setEvents] = useState([])
   const [today312, setToday312] = useState({ contacted: [], fresh: 0, planCount: 0 })
   const [trialStrips, setTrialStrips] = useState([])
   const [progTab, setProgTab] = useState('season')
@@ -462,6 +465,7 @@ export default function Dashboard() {
     const { data: weekPlans } = await supabase.from('contact_logs')
       .select('contact_id').eq('user_id', user.id).eq('kind', 'meet_plan').gte('date', wsDate).lte('date', weDate)
     setWeekPlanned(new Set((weekPlans || []).map(l => l.contact_id)).size)
+    setEvents(await fetchUpcomingEvents(supabase, 20))
     setToday312({
       contacted: [...new Set((logs || []).map(l => l.contact_id))],
       fresh: freshToday || 0,
@@ -573,6 +577,22 @@ export default function Dashboard() {
   const meetingContact = pickMeetingContact(pickPool, undefined, skipMeeting)
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
   const weeklyMeetTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
+  // 活動邀請：進了提醒範圍的活動列出可以邀的人，更遠的只顯示一行倒數
+  const remindDays = resolveEventWeeks(profile?.tag_settings) * 7
+  const nearEvents = events.filter(e => daysUntil(e.event_date) <= remindDays)
+  const farEvent = events.find(e => daysUntil(e.event_date) > remindDays)
+  async function handleInvite(c, ev) {
+    const ok = await askConfirm({ title: `邀請 ${c.name} 參加？`, message: `會記成「邀請參加 ${ev.title}」，約在 ${fmtPlanDate(ev.event_date)}。`, okText: '記下' })
+    if (!ok) return
+    await inviteToEvent(supabase, user.id, c, ev)
+    fetchFollowUps()
+  }
+  async function handleCancelInvite(c, ev) {
+    const ok = await askConfirm({ title: `取消邀請 ${c.name}？`, message: `會清掉「邀請參加 ${ev.title}」這個約定。`, okText: '取消邀請', danger: true })
+    if (!ok) return
+    await cancelInvite(supabase, c, ev)
+    fetchFollowUps()
+  }
   const favProducts = resolveFavProducts(profile?.tag_settings)
   const doneContacts = today312.contacted.map(id => activeContacts.find(c => c.id === id)).filter(Boolean)
   const talkDone = today312.contacted.length
@@ -829,6 +849,40 @@ export default function Dashboard() {
                         <div style={{ width: Math.min(100, Math.round(weekPlanned / weeklyMeetTarget * 100)) + '%', height:'100%', background:ORANGE }} />
                       </div>}
                   <span style={{ fontSize:11, color:TEXT_MUTED }}>{today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}</span>
+                </div>
+              )}
+              {nearEvents.map(ev => {
+                const invited = activeContacts.filter(c => isInvitedTo(c, ev))
+                const cands = pickInviteCandidates(pickPool, ev.id, 5)
+                const n = daysUntil(ev.event_date)
+                return (
+                  <div key={ev.id} style={{ marginTop:10, paddingTop:8, borderTop:'1px dashed var(--border)' }}>
+                    <div style={{ fontSize:12,fontWeight:600,color:ORANGE_TEXT }}>
+                      {fmtPlanDate(ev.event_date)} {ev.title}，{n === 0 ? '就是今天' : n === 1 ? '明天' : `還有 ${n} 天`}
+                    </div>
+                    <div style={{ display:'flex',flexWrap:'wrap',gap:6,marginTop:6 }}>
+                      {invited.map(c => (
+                        <button key={'i'+c.id} onClick={() => handleCancelInvite(c, ev)}
+                          style={{ background:ACCENT_GREEN_SOFT,border:'none',borderRadius:RADIUS.pill,padding:'4px 12px',cursor:'pointer',
+                            fontSize:12,fontWeight:600,color:ACCENT_GREEN_TEXT }}>
+                          {c.name} 已邀
+                        </button>
+                      ))}
+                      {cands.map(c => (
+                        <button key={c.id} onClick={() => handleInvite(c, ev)}
+                          style={{ background:SUBCARD_BG,border:'none',borderRadius:RADIUS.pill,padding:'4px 12px',cursor:'pointer',
+                            fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                    {cands.length > 0 && <div style={{ fontSize:11,color:TEXT_MUTED,marginTop:4 }}>點名字，記成邀請參加並約在那天</div>}
+                  </div>
+                )
+              })}
+              {farEvent && (
+                <div style={{ fontSize:11,color:TEXT_MUTED,marginTop:8 }}>
+                  {fmtPlanDate(farEvent.event_date)} {farEvent.title} · 還有 {daysUntil(farEvent.event_date)} 天
                 </div>
               )}
               {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>1 是定下一個碰面，不用急，也別漫無目的</div>}

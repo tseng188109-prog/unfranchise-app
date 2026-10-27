@@ -174,7 +174,7 @@ function interestRank(c) {
   return INTEREST_RANK[c.interest_level] ?? 1
 }
 const NEED_RANK = { '大四': 3, '大三': 2, '大二': 1, '大一': 0 }
-export function pickMeetingContact(contacts, todayStr, skipIds = []) {
+function rankMeetingPool(contacts, todayStr, skipIds = [], seedExtra = '') {
   const today = todayStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
   const pool = (contacts || []).filter(c => {
     if (!c || c.is_muted) return false
@@ -184,7 +184,7 @@ export function pickMeetingContact(contacts, todayStr, skipIds = []) {
     if (interestRank(c) === 0 && daysSince(c.last_contact_date || c.last_interacted_at, today) < 30) return false
     return true
   })
-  if (pool.length === 0) return null
+  if (pool.length === 0) return []
   const score = c => [
     interestRank(c),
     NEED_RANK[c.need_level] ?? 0,
@@ -195,11 +195,18 @@ export function pickMeetingContact(contacts, todayStr, skipIds = []) {
     const sa = score(a), sb = score(b)
     for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return sb[i] - sa[i]
     // 條件都一樣時，用「今天的日期」當種子輪流挑：同一天不會一直換，隔天會換一位，不會老是同一個人
-    const ha = seedHash((a.id || '') + today), hb = seedHash((b.id || '') + today)
+    const ha = seedHash((a.id || '') + today + seedExtra), hb = seedHash((b.id || '') + today + seedExtra)
     if (ha !== hb) return ha - hb
     return (a.id || '') < (b.id || '') ? -1 : 1
   })
-  return sorted[0]
+  return sorted
+}
+export function pickMeetingContact(contacts, todayStr, skipIds = []) {
+  return rankMeetingPool(contacts, todayStr, skipIds)[0] || null
+}
+// 活動邀請名單：用跟「1 個會議」同一套排序，排除已經有約定的人，依活動輪替不同的人
+export function pickInviteCandidates(contacts, eventId, count = 5, todayStr) {
+  return rankMeetingPool(contacts, todayStr, [], eventId || '').slice(0, count)
 }
 
 // 卡片上的「為什麼是他」一行，給這個「1」一個理由（簡報：不要漫無目的）
