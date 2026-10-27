@@ -5,7 +5,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPencil, IconArchive, IconCheck, IconX, IconTrash,
-  IconBriefcase, IconMapPin, IconMessageCircle, IconAlertCircle, IconShoppingBag, IconFlask,
+  IconBriefcase, IconMapPin, IconMessageCircle, IconAlertCircle, IconShoppingBag, IconFlask, IconStar, IconStarFilled,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import SampleSection from './SampleSection'
@@ -16,10 +16,11 @@ import {
 } from './followUp'
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
 import TrialRunCard from './trialRun'
+import { AutoTextarea, activeNotes, chainIds, NO_LONGER } from './keyPoints'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
-  ACCENT_GREEN, ACCENT_GREEN_TEXT, DANGER, BORDER, SUBCARD_BG, RADIUS,
+  ACCENT_GREEN, ACCENT_GREEN_TEXT, ACCENT_YELLOW, ACCENT_YELLOW_TEXT, DANGER, BORDER, SUBCARD_BG, RADIUS,
   getEggColor, getEggBg, avatarBg, PAGE_BG } from './designTokens'
 
 const ACTION_MAP = {
@@ -63,6 +64,8 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
 
   const [editingLogId, setEditingLogId] = useState(null)
   const [editNote, setEditNote] = useState('')
+  const [starBusy, setStarBusy] = useState(null)
+  const [starMsg, setStarMsg] = useState('')
   const [linkedCustomer, setLinkedCustomer] = useState(null)
 
   // 一句話日記（contact_notes）+ 階段標注（annotation only，使用者自己點才會改）
@@ -122,10 +125,10 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     setQuickSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     const trimmedNote = quickNote.trim()
-    await supabase.from('contact_logs').insert({
+    const { data: logRow } = await supabase.from('contact_logs').insert({
       contact_id: id, user_id: user.id,
       date: quickDate, note: trimmedNote || null,
-    })
+    }).select('id').single()
     await syncDaily3(supabase, user.id, quickDate)
     if (quickDate === today()) await markDaily312(supabase, user.id, quickDate)
 
@@ -142,7 +145,10 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     await supabase.from('contacts').update(contactUpdate).eq('id', id)
 
     if (addToStory && trimmedNote) {
-      await addContactNote(supabase, { contactId: id, userId: user.id, note: trimmedNote, touchInteraction: false })
+      // 記成重點：多存一筆到重點，並記住「這筆互動對應哪則重點」，互動旁邊的星星才會亮
+      const { data: n } = await supabase.from('contact_notes')
+        .insert({ contact_id: id, user_id: user.id, note: trimmedNote }).select('id').single()
+      if (n && logRow) await supabase.from('contact_logs').update({ story_note_id: n.id }).eq('id', logRow.id)
     }
 
     setQuickNote('')
@@ -158,13 +164,60 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     setEditNote(log.note || '')
   }
   async function saveEditLog(logId) {
-    await supabase.from('contact_logs').update({ note: editNote.trim() || null }).eq('id', logId)
+    const text = editNote.trim()
+    const log = logs.find(l => l.id === logId)
+    await supabase.from('contact_logs').update({ note: text || null }).eq('id', logId)
+    // 這筆如果已經標成重點：重點裡的字一起更新；字清空了就把重點拿掉
+    if (log && log.story_note_id) {
+      const ids = chainIds(contactNotes, log.story_note_id)
+      if (text) {
+        const targets = contactNotes.filter(n => ids.includes(n.id) && n.note !== NO_LONGER).map(n => n.id)
+        if (targets.length) await supabase.from('contact_notes').update({ note: text }).in('id', targets)
+      } else {
+        await supabase.from('contact_notes').delete().in('id', ids)
+        await supabase.from('contact_logs').update({ story_note_id: null }).eq('id', logId)
+      }
+    }
     setEditingLogId(null)
     fetchContact()
   }
-  async function deleteLog(logId) {
-    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message:'刪除後無法復原。', okText:'刪除', danger:true }))) return
-    await supabase.from('contact_logs').delete().eq('id', logId)
+  async function deleteLog(log) {
+    const starred = isStarred(log)
+    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message: starred ? '這筆也標成重點了，刪除後重點也會一起刪掉，無法復原。' : '刪除後無法復原。', okText:'刪除', danger:true }))) return
+    if (log.story_note_id) await supabase.from('contact_notes').delete().in('id', chainIds(contactNotes, log.story_note_id))
+    await supabase.from('contact_logs').delete().eq('id', log.id)
+    fetchContact()
+    onChanged?.()
+  }
+
+  // 重點現在還算數的（被「已經不是了」或「還是這樣」接續過的舊紀錄不算）
+  const keyNotes = activeNotes(contactNotes)
+  const keyIds = new Set(keyNotes.map(n => n.id))
+  function isStarred(log) {
+    return !!log.story_note_id && chainIds(contactNotes, log.story_note_id).some(i => keyIds.has(i))
+  }
+  // 互動旁邊的星星：點一下記成重點，再點一次取消
+  async function toggleStar(log) {
+    if (starBusy || !log.note) return
+    setStarBusy(log.id)
+    setStarMsg('')
+    const { data: { user } } = await supabase.auth.getUser()
+    if (isStarred(log)) {
+      await supabase.from('contact_notes').delete().in('id', chainIds(contactNotes, log.story_note_id))
+      await supabase.from('contact_logs').update({ story_note_id: null }).eq('id', log.id)
+    } else {
+      const { data: n, error } = await supabase.from('contact_notes')
+        .insert({ contact_id: id, user_id: user.id, note: log.note }).select('id').single()
+      if (error || !n) setStarMsg('沒有記起來，稍後再試一次')
+      else {
+        const { error: e2 } = await supabase.from('contact_logs').update({ story_note_id: n.id }).eq('id', log.id)
+        if (e2) {
+          await supabase.from('contact_notes').delete().eq('id', n.id)
+          setStarMsg('還沒完成設定：請先執行這次更新附的 SQL，再試一次')
+        }
+      }
+    }
+    setStarBusy(null)
     fetchContact()
     onChanged?.()
   }
@@ -406,21 +459,25 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
               )}
             </div>
 
-            {/* 認識故事時間軸：舊的自然變淡，過期的可以一鍵確認還是這樣嗎。
-                新的故事只會從下面「記錄一筆新互動」順便勾選加入，這裡不再有獨立的輸入框。 */}
-            {contactNotes.length > 0 && (
-              <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, marginBottom:10 }}>
-                  認識{contact.name}的故事 <span style={{ fontSize:12, color:TEXT_MUTED, fontWeight:400 }}>已經累積 {contactNotes.length} 件事</span>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column' }}>
-                  {contactNotes.map((n, i) => (
-                    <div key={n.id} style={{ display:'flex', gap:10, padding:'12px 0',
-                      borderBottom: i < contactNotes.length-1 ? `1px solid ${BORDER}` : 'none', opacity: noteAgeOpacity(n.created_at) }}>
-                      <span style={{ width:8, height:8, borderRadius:RADIUS.circle, background:PRIMARY, marginTop:6, flexShrink:0 }} />
+            {/* 重點（原本叫認識故事）：固定顯示，空的時候教你怎麼放。舊的自然變淡，過期的可以一鍵確認還是這樣嗎。
+                新的重點從下面互動紀錄旁邊的星星、或新增時的「這筆也記成重點」加入。 */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, marginBottom:8 }}>
+                認識{contact.name}的重點 {keyNotes.length > 0 && <span style={{ fontSize:12, color:TEXT_MUTED, fontWeight:400 }}>{keyNotes.length} 件事</span>}
+              </div>
+              {keyNotes.length === 0 ? (
+                <p style={{ fontSize:12, color:TEXT_MUTED, margin:0, lineHeight:1.6 }}>
+                  還沒有重點。點下面互動紀錄旁邊的星星，就會放到這裡。
+                </p>
+              ) : (
+                <div style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:'2px 14px' }}>
+                  {keyNotes.map((n, i) => (
+                    <div key={n.id} style={{ display:'flex', gap:10, padding:'11px 0',
+                      borderBottom: i < keyNotes.length-1 ? `1px solid ${BORDER}` : 'none', opacity: noteAgeOpacity(n.created_at) }}>
+                      <span style={{ width:8, height:8, borderRadius:RADIUS.circle, background:PRIMARY, marginTop:7, flexShrink:0 }} />
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:12, color:TEXT_MUTED }}>{formatDateDisplay(n.created_at?.slice(0,10))}</div>
-                        <div style={{ fontSize:14, color:TEXT_MAIN, lineHeight:1.5, margin:'2px 0', wordBreak:'break-word', overflowWrap:'anywhere' }}>{n.note}</div>
+                        <div style={{ fontSize:11, color:TEXT_MUTED }}>{formatMD(n.created_at?.slice(0,10))}</div>
+                        <div style={{ fontSize:14, color:TEXT_MAIN, lineHeight:1.5, margin:'2px 0', wordBreak:'break-word', overflowWrap:'anywhere', whiteSpace:'pre-wrap' }}>{n.note}</div>
                         {isStale(n.created_at) && (
                           <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
                             <span style={{ fontSize:12, color:TEXT_MUTED }}>還是這樣嗎？</span>
@@ -436,84 +493,93 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             <SampleSection key={id} contactId={id} customerId={linkedCustomer?.id || null} onChanged={onChanged} />
 
-            <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:16 }}>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+            <div style={{ background:SUBCARD_BG, border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:16 }}>
+              <div style={{ marginBottom:8 }}>
                 <DateField value={quickDate} max={today()}
                   onChange={e => setQuickDate(e.target.value)}
-                  style={{ width:130, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                    fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-                <input value={quickNote} onChange={e => setQuickNote(e.target.value)}
-                  placeholder="今天跟他發生了什麼事？（選填）"
-                  style={{ flex:1, minWidth:160, padding:'9px 12px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                    fontSize:13, background:SUBCARD_BG, boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+                  style={{ width:140, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                    fontSize:13, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
               </div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
-                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:TEXT_SECONDARY, cursor:'pointer' }}>
-                  <input type="checkbox" checked={addToStory} onChange={e => setAddToStory(e.target.checked)}
-                    style={{ width:15, height:15, cursor:'pointer' }} />
-                  順便記進認識故事
-                </label>
+              <AutoTextarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
+                placeholder="今天跟他發生了什麼事？（選填）" minRows={3} />
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:10 }}>
+                <button onClick={() => setAddToStory(v => !v)}
+                  style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: addToStory ? ACCENT_YELLOW_TEXT : TEXT_SECONDARY, background:'none', border:'none', padding:0, cursor:'pointer', fontWeight: addToStory ? 600 : 400 }}>
+                  {addToStory ? <IconStarFilled size={16} color={ACCENT_YELLOW} /> : <IconStar size={16} stroke={1.8} />}
+                  這筆也記成重點
+                </button>
                 <button onClick={handleQuickAdd} disabled={quickSaving}
-                  style={{ padding:'9px 16px', borderRadius:RADIUS.sm, border:'none',
+                  style={{ padding:'9px 18px', borderRadius:RADIUS.sm, border:'none',
                     background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                   {quickSaving ? '新增中…' : '新增'}
                 </button>
               </div>
             </div>
 
+            {starMsg && <p style={{ fontSize:12, color:DANGER, margin:'0 0 12px' }}>{starMsg}</p>}
+
             {logs.length === 0 ? (
               <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>還沒有互動紀錄</p>
             ) : (
               <div style={{ position:'relative', paddingLeft:20 }}>
                 <div style={{ position:'absolute', left:5, top:6, bottom:6, width:1, background:BORDER }} />
-                {logs.map((log, i) => (
+                {logs.map((log, i) => {
+                  const starred = isStarred(log)
+                  return (
                   <div key={log.id} style={{ position:'relative', marginBottom: i < logs.length-1 ? 16 : 0 }}>
                     <div style={{ position:'absolute', left:-20, top:2, width:10, height:10, borderRadius:RADIUS.circle,
-                      background: i===0 ? ACCENT_GREEN : 'var(--border2)', border:'2px solid var(--card)' }} />
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                      <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>
-                        {formatMD(log.date)}
-                        {i===0 && <span style={{ color:ACCENT_GREEN_TEXT, marginLeft:6 }}>最近</span>}
+                      background: editingLogId === log.id ? PRIMARY : (i===0 ? ACCENT_GREEN : 'var(--border2)'), border:'2px solid var(--card)' }} />
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4, minHeight:22 }}>
+                      <span style={{ fontSize:11, color: editingLogId === log.id ? PRIMARY : TEXT_MUTED, fontWeight:600 }}>
+                        {editingLogId === log.id ? '編輯中' : formatMD(log.date)}
+                        {editingLogId !== log.id && i===0 && <span style={{ color:ACCENT_GREEN_TEXT, marginLeft:6 }}>最近</span>}
                       </span>
                       {editingLogId !== log.id && (
-                        <div style={{ display:'flex', gap:6 }}>
-                          <button onClick={() => startEditLog(log)}
-                            style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex' }}>
-                            <IconPencil size={13} stroke={1.9} />
+                        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                          {log.note && (
+                            <button onClick={() => toggleStar(log)} disabled={starBusy === log.id}
+                              aria-label={starred ? '取消重點' : '記成重點'}
+                              style={{ background:'none', border:'none', cursor:'pointer', display:'flex', padding:0, color:TEXT_MUTED }}>
+                              {starred ? <IconStarFilled size={16} color={ACCENT_YELLOW} /> : <IconStar size={16} stroke={1.8} />}
+                            </button>
+                          )}
+                          <button onClick={() => startEditLog(log)} aria-label="編輯"
+                            style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex', padding:0 }}>
+                            <IconPencil size={14} stroke={1.9} />
                           </button>
-                          <button onClick={() => deleteLog(log.id)}
-                            style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, display:'flex' }}>
-                            <IconTrash size={13} stroke={1.9} />
+                          <button onClick={() => deleteLog(log)} aria-label="刪除"
+                            style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, display:'flex', padding:0 }}>
+                            <IconTrash size={14} stroke={1.9} />
                           </button>
                         </div>
                       )}
                     </div>
                     {editingLogId === log.id ? (
-                      <div style={{ display:'flex', gap:6 }}>
-                        <input value={editNote} onChange={e => setEditNote(e.target.value)}
-                          style={{ flex:1, padding:'7px 10px', borderRadius:RADIUS.xs, border:`1px solid ${BORDER}`,
-                            fontSize:13, outline:'none', color:TEXT_MAIN }} />
-                        <button onClick={() => saveEditLog(log.id)}
-                          style={{ background:'none', border:'none', cursor:'pointer', color:ACCENT_GREEN_TEXT, display:'flex' }}>
-                          <IconCheck size={17} stroke={2} />
-                        </button>
-                        <button onClick={() => setEditingLogId(null)}
-                          style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex' }}>
-                          <IconX size={17} stroke={1.9} />
-                        </button>
+                      <div>
+                        <AutoTextarea value={editNote} onChange={e => setEditNote(e.target.value)} minRows={2} autoFocus
+                          style={{ border:`1px solid ${PRIMARY}`, fontSize:13, lineHeight:1.7 }} />
+                        <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+                          <button onClick={() => setEditingLogId(null)}
+                            style={{ padding:'7px 16px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'var(--card)', color:TEXT_SECONDARY, fontSize:13, cursor:'pointer' }}>取消</button>
+                          <button onClick={() => saveEditLog(log.id)}
+                            style={{ padding:'7px 16px', borderRadius:RADIUS.sm, border:'none', background:PRIMARY, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>儲存</button>
+                        </div>
                       </div>
                     ) : (
-                      <p style={{ fontSize:13, color: log.note ? TEXT_MAIN : TEXT_MUTED, margin:0 }}>
+                      <div style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, padding:'10px 12px',
+                        fontSize:13, lineHeight:1.7, color: log.note ? (i===0 ? TEXT_MAIN : TEXT_SECONDARY) : TEXT_MUTED,
+                        whiteSpace:'pre-wrap', wordBreak:'break-word', overflowWrap:'anywhere' }}>
                         {log.note || '無備註'}
-                      </p>
+                      </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>

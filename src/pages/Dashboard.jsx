@@ -37,6 +37,7 @@ import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
 import { fetchUpcomingEvents, inviteToEvent, cancelInvite, isInvitedTo, daysUntil } from './eventInvite'
 import { askConfirm } from './confirmDialog'
+import { MeetingKeyNote } from './keyPoints'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
 
 
@@ -847,6 +848,7 @@ export default function Dashboard() {
                   可以聊：你自己用{favProducts[0].name}{favProducts[0].note ? '，' + favProducts[0].note : ''}
                 </div>
               )}
+              {meetingContact && <MeetingKeyNote contactId={meetingContact.id} color={ORANGE_TEXT} />}
               {meetingContact && meetingContact.last_quote && (
                 <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次她說：「{meetingContact.last_quote}」</div>
               )}
