@@ -28,7 +28,7 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_TEXT, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { resolveMode, resolveFavProducts, saveTagSetting } from './dailyMode'
+import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet } from './dailyMode'
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
 import { pickMeetingContact, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
@@ -119,6 +119,7 @@ export default function Dashboard() {
   const [activeContacts, setActiveContacts] = useState([])
   const [customerContactIds, setCustomerContactIds] = useState(() => new Set())
   const [skipMeeting, setSkipMeeting] = useState([])
+  const [weekPlanned, setWeekPlanned] = useState(0)
   const [today312, setToday312] = useState({ contacted: [], fresh: 0, planCount: 0 })
   const [trialStrips, setTrialStrips] = useState([])
   const [progTab, setProgTab] = useState('season')
@@ -455,6 +456,12 @@ export default function Dashboard() {
     const { count: freshToday } = await supabase.from('contacts')
       .select('id',{count:'exact',head:true})
       .eq('user_id',user.id).is('source', null).gte('created_at', t + 'T00:00:00+08:00')
+    // 本週（週六到週五）定下幾位碰面：同一位算一次，跟每週回顧算法一樣
+    const wsDate = getWeekStart(t)
+    const weDate = toDateStr(new Date(new Date(wsDate + 'T00:00:00').getTime() + 6 * 86400000))
+    const { data: weekPlans } = await supabase.from('contact_logs')
+      .select('contact_id').eq('user_id', user.id).eq('kind', 'meet_plan').gte('date', wsDate).lte('date', weDate)
+    setWeekPlanned(new Set((weekPlans || []).map(l => l.contact_id)).size)
     setToday312({
       contacted: [...new Set((logs || []).map(l => l.contact_id))],
       fresh: freshToday || 0,
@@ -565,6 +572,7 @@ export default function Dashboard() {
   const pickPool = activeContacts.filter(c => !(customerContactIds.has(c.id) && !c.referral_stage))
   const meetingContact = pickMeetingContact(pickPool, undefined, skipMeeting)
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
+  const weeklyMeetTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
   const favProducts = resolveFavProducts(profile?.tag_settings)
   const doneContacts = today312.contacted.map(id => activeContacts.find(c => c.id === id)).filter(Boolean)
   const talkDone = today312.contacted.length
@@ -791,7 +799,9 @@ export default function Dashboard() {
               <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
                 <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
                   <span>{mode.meet > 1 ? '個約會' : '個會議'}{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
-                  <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天已定下' : '還沒定下')}</span>
+                  {weeklyMeetTarget > 0
+                    ? <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: weekPlanned >= weeklyMeetTarget ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>本週 {weekPlanned}/{weeklyMeetTarget}</span>
+                    : <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天已定下' : '還沒定下')}</span>}
                 </span>
               </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
@@ -806,6 +816,20 @@ export default function Dashboard() {
               )}
               {meetingContact && meetingContact.last_quote && (
                 <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次她說：「{meetingContact.last_quote}」</div>
+              )}
+              {weeklyMeetTarget > 0 && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:6 }}>
+                  {weeklyMeetTarget <= 7
+                    ? <div style={{ display:'flex', gap:4 }}>
+                        {Array.from({ length: weeklyMeetTarget }).map((_, i) => (
+                          <span key={i} style={{ width:14, height:14, borderRadius:7, background: i < weekPlanned ? ORANGE : 'var(--border)' }} />
+                        ))}
+                      </div>
+                    : <div style={{ width:90, height:6, borderRadius:3, background:'var(--border)', overflow:'hidden' }}>
+                        <div style={{ width: Math.min(100, Math.round(weekPlanned / weeklyMeetTarget * 100)) + '%', height:'100%', background:ORANGE }} />
+                      </div>}
+                  <span style={{ fontSize:11, color:TEXT_MUTED }}>{today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}</span>
+                </div>
               )}
               {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>1 是定下一個碰面，不用急，也別漫無目的</div>}
             </div>

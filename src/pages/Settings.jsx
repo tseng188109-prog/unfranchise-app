@@ -5,14 +5,14 @@ import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
 import { HOME_LIST_OPTIONS, resolveHomeListMonths } from './homeList'
-import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting } from './dailyMode'
+import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet } from './dailyMode'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
   IconFlag, IconChevronRight, IconCheck, IconHelpCircle,
 } from '@tabler/icons-react'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
-  ACCENT_GREEN, ACCENT_YELLOW_TEXT, ACCENT_YELLOW_SOFT, DANGER, DANGER_SOFT, BORDER, RADIUS } from './designTokens'
+  ACCENT_GREEN, ACCENT_YELLOW_TEXT, ACCENT_YELLOW_SOFT, DANGER, DANGER_SOFT, BORDER, RADIUS, SUBCARD_BG } from './designTokens'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -20,6 +20,8 @@ export default function Settings() {
   const [modeKey, setModeKey] = useState('')
   const [favs, setFavs] = useState([])
   const [homeMonths, setHomeMonths] = useState(3)
+  const [weeklyMeet, setWeeklyMeet] = useState(5) // 0 = 不顯示本週進度
+  const [customMeet, setCustomMeet] = useState(false)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -58,6 +60,11 @@ export default function Settings() {
       .select('name,referrer_id,referrer_email_pending,why_here,tag_settings,created_at').eq('id', uid).single()
     if (!data) return
     setModeKey(resolveMode(data.tag_settings, data.created_at).key)
+    {
+      const wm = resolveWeeklyMeet(data.tag_settings, resolveMode(data.tag_settings, data.created_at))
+      setWeeklyMeet(wm)
+      setCustomMeet(wm > 0 && ![3, 5, 7].includes(wm))
+    }
     setFavs(resolveFavProducts(data.tag_settings))
     setHomeMonths(resolveHomeListMonths(data.tag_settings))
     setName(data.name)
@@ -75,6 +82,10 @@ export default function Settings() {
     if (user) await saveDailyMode(user.id, key)
   }
 
+  function chooseWeeklyMeet(n) {
+    setWeeklyMeet(n)
+    if (user) saveTagSetting(user.id, { weekly_meet: n === 0 ? 'off' : n })
+  }
   function saveFavs(list) {
     if (!user) return
     const clean = list.map(f => ({ name: (f.name || '').trim(), note: (f.note || '').trim() })).filter(f => f.name).slice(0, 2)
@@ -398,6 +409,46 @@ export default function Settings() {
             })}
           </div>
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>隨時可以換，已經記的紀錄不會變。</p>
+        </div>
+
+        {/* 約人的節奏：每週想定下幾場碰面，每個人的作息不同，自己調 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>約人的節奏</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
+            一週想定下幾場碰面？依你的作息自己決定，首頁「1 個會議」那一列會顯示本週進度。
+          </p>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
+            {[3, 5, 7].map(n => {
+              const on = !customMeet && weeklyMeet === n
+              return (
+                <button key={n} onClick={() => { setCustomMeet(false); chooseWeeklyMeet(n) }}
+                  style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                    background: on ? PRIMARY : SUBCARD_BG, color: on ? '#fff' : TEXT_SECONDARY }}>
+                  {n} 位
+                </button>
+              )
+            })}
+            <button onClick={() => { setCustomMeet(true); if (weeklyMeet === 0) chooseWeeklyMeet(5) }}
+              style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                background: customMeet ? PRIMARY : SUBCARD_BG, color: customMeet ? '#fff' : TEXT_SECONDARY }}>
+              自己填
+            </button>
+            <button onClick={() => { setCustomMeet(false); chooseWeeklyMeet(0) }}
+              style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                background: weeklyMeet === 0 ? PRIMARY : SUBCARD_BG, color: weeklyMeet === 0 ? '#fff' : TEXT_SECONDARY }}>
+              不顯示
+            </button>
+          </div>
+          {customMeet && (
+            <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:10 }}>
+              <input type="number" inputMode="numeric" min="1" max="50" value={weeklyMeet || ''}
+                onChange={e => { const n = Math.max(1, Math.min(50, parseInt(e.target.value, 10) || 0)); setWeeklyMeet(n) }}
+                onBlur={() => weeklyMeet >= 1 && chooseWeeklyMeet(weeklyMeet)}
+                style={{ width:80,boxSizing:'border-box',padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:14,outline:'none',background:'transparent',color:TEXT_MAIN }} />
+              <span style={{ fontSize:14,color:TEXT_SECONDARY }}>位／週</span>
+            </div>
+          )}
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>一週從週六算到週五。選「不顯示」就不會出現本週進度，也不影響每日節奏。</p>
         </div>
 
         {/* 我的首選產品：自己先用的 1–2 款，見面提示會帶出來 */}

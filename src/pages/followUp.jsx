@@ -135,6 +135,13 @@ export async function markDaily312(supabase, userId, dateStr) {
 
 // ---- 今天的 3-1-2 ----
 // 排序用的時間戳：沒有 last_interacted_at 就用建立時間，確保一定有東西可排
+function seedHash(str) {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
+  // 最後再攪拌一次，讓不同日期排出來的順序真的不一樣
+  h ^= h >>> 16; h = Math.imul(h, 2246822507); h ^= h >>> 13; h = Math.imul(h, 3266489909); h ^= h >>> 16
+  return h >>> 0
+}
 function sortKey(c) {
   return c.last_interacted_at || c.created_at || ''
 }
@@ -187,8 +194,9 @@ export function pickMeetingContact(contacts, todayStr, skipIds = []) {
   const sorted = [...pool].sort((a, b) => {
     const sa = score(a), sb = score(b)
     for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return sb[i] - sa[i]
-    const ka = sortKey(a), kb = sortKey(b)
-    if (ka !== kb) return ka > kb ? -1 : 1
+    // 條件都一樣時，用「今天的日期」當種子輪流挑：同一天不會一直換，隔天會換一位，不會老是同一個人
+    const ha = seedHash((a.id || '') + today), hb = seedHash((b.id || '') + today)
+    if (ha !== hb) return ha - hb
     return (a.id || '') < (b.id || '') ? -1 : 1
   })
   return sorted[0]
@@ -204,6 +212,8 @@ export function meetingReason(c, todayStr) {
   if (lv === '觀望中') return warm ? '觀望中，約個輕鬆的聚餐聊聊，不急著介紹' : '觀望中，先保持聯絡，再約個輕鬆的聚餐'
   if (c.relationship_stage === '已登記但尚未消費') return warm ? '已經登記了，約時間協助完成第一次消費' : '已經登記但好一陣子沒聯絡，先關心再約'
   if (c.referral_stage === '考慮中') return warm ? '正在考慮，約時間深入聊聊' : '正在考慮，但一陣子沒聯絡，先暖身再約'
+  if (c.egg_type === '生雞蛋') return '還不太熟，先多互動幾次，再約碰面'
+  if (c.egg_type === '荷包蛋') return warm ? '約個輕鬆的聚餐，或邀他來參加活動' : '好一陣子沒聯絡了，先關心一下，再約輕鬆的聚餐或活動'
   return warm ? '最近有聊到，約個下午茶聊近況，不談生意' : '好一陣子沒碰面了，先互動暖身，再約下午茶'
 }
 

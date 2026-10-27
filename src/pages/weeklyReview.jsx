@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import { IconChartBar, IconChevronRight, IconCopy, IconCheck } from '@tabler/icons-react'
 import { CloseBtn } from './ui'
 import { fmtPlanDate } from './meetingFlow'
-import { loadDailyMode } from './dailyMode'
+import { loadDailyMode, loadWeeklyMeet } from './dailyMode'
 import {
   TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS, PRIMARY, PRIMARY_SOFT,
   ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT, SUBCARD_BG,
@@ -28,8 +28,9 @@ async function loadWeek(userId) {
   const ws = weekStartOf(t)
   const we = addDays(ws, 6)
 
-  const [mode, logsRes, plansRes, newRes, dayLogsRes, freshRowsRes] = await Promise.all([
+  const [mode, weeklyMeet, logsRes, plansRes, newRes, dayLogsRes, freshRowsRes] = await Promise.all([
     loadDailyMode(userId),
+    loadWeeklyMeet(userId),
     supabase.from('contact_logs')
       .select('contact_id,date,contacts(id,name,interest_level,next_plan,next_plan_date,is_muted)')
       .eq('user_id', userId).in('kind', ['meet', 'meet_plan']).gte('date', ws).lte('date', we),
@@ -70,7 +71,7 @@ async function loadWeek(userId) {
     ws, we, met,
     planned: plansRes.count || 0,
     fresh: newRes.count || 0,
-    days312, mode, talkedWeek, invitedWeek,
+    days312, mode, talkedWeek, invitedWeek, weeklyMeet,
     unplanned: met.filter(c => !c.next_plan && !c.is_muted),
   }
 }
@@ -121,7 +122,7 @@ function Stat({ label, value, unit }) {
 function WeeklyReviewSheet({ data, onClose }) {
   const [showAll, setShowAll] = useState(false)
   const [copied, setCopied] = useState(false)
-  const { ws, we, met, planned, fresh, days312, unplanned, mode, talkedWeek, invitedWeek } = data
+  const { ws, we, met, planned, fresh, days312, unplanned, mode, talkedWeek, invitedWeek, weeklyMeet } = data
   const shown = showAll ? met : met.slice(0, 5)
 
   async function copyText() {
@@ -159,9 +160,9 @@ function WeeklyReviewSheet({ data, onClose }) {
         <div style={{ background: SUBCARD_BG, borderRadius: RADIUS.md, padding: '4px 12px' }}>
           {[
             ['談話', talkedWeek, '5–15 人'],
-            ['邀約', invitedWeek, '5 人'],
+            ['邀約', invitedWeek, weeklyMeet + ' 人'],
             ['增加名單', fresh, '10 人'],
-          ].map(([k, v, g]) => (
+          ].filter(r => r[0] !== '邀約' || weeklyMeet > 0).map(([k, v, g]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 14 }}>
               <span style={{ color: TEXT_SECONDARY }}>{k}</span>
               <span style={{ color: TEXT_MAIN }}>{v} <span style={{ color: TEXT_MUTED, fontSize: 12 }}>/ {g}</span></span>

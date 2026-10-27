@@ -53,3 +53,21 @@ export function resolveFavProducts(tagSettings) {
   const list = tagSettings && Array.isArray(tagSettings.fav_products) ? tagSettings.fav_products : []
   return list.filter(p => p && p.name).slice(0, 2)
 }
+
+// 每週想約幾位（「本週定下幾場碰面」的目標）。每個人的作息不同，所以可以自己調。
+// 存在 tag_settings.weekly_meet：數字，或 'off'（不顯示本週進度）。沒設定時跟著每日節奏：起步 5、標準 5、加速 15。
+export const WEEKLY_MEET_DEFAULT = { start: 5, std: 5, fast: 15 }
+// 回傳目標人數；0 代表不顯示本週進度
+export function resolveWeeklyMeet(tagSettings, mode) {
+  const v = tagSettings && tagSettings.weekly_meet
+  if (v === 'off') return 0
+  if (typeof v === 'number' && v >= 1 && v <= 50) return Math.round(v)
+  return WEEKLY_MEET_DEFAULT[mode && mode.key] || 5
+}
+export async function loadWeeklyMeet(userId) {
+  try {
+    const { data } = await supabase.from('users').select('tag_settings,created_at').eq('id', userId).single()
+    const ts = data && data.tag_settings
+    return resolveWeeklyMeet(ts, resolveMode(ts, data && data.created_at))
+  } catch { return 5 }
+}
