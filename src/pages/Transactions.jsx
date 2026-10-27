@@ -187,7 +187,7 @@ export default function Transactions() {
   function openEdit(t) {
     setMenuId(null); setEditTarget(t)
     const base = {
-      date: t.date || '', product_name: t.product_name || '',
+      date: t.date || '', product_name: t.product_name || '', quantity: String(t.quantity > 1 ? t.quantity : 1),
       type: t.type || 'BV', points: t.points || '',
       amount: t.amount || '', cost: t.cost || '', is_gift: t.is_gift || false,
     }
@@ -201,6 +201,7 @@ export default function Transactions() {
     setSaving(true)
     await supabase.from('transactions').update({
       date: editForm.date, product_name: editForm.product_name,
+      quantity: Math.max(1, Math.round(Number(editForm.quantity)) || 1),
       type: editForm.type, points: Number(editForm.points),
       amount: Number(editForm.amount), cost: Number(editForm.cost),
       is_gift: editForm.is_gift,
@@ -320,7 +321,7 @@ export default function Transactions() {
               color:t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>{t.type}</span>
           </div>
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>
-            {t.product_name} · {dense ? formatDate(t.date) : formatShortDate(t.date)}
+            {t.product_name}{t.quantity > 1 ? ` ×${t.quantity}` : ''} · {dense ? formatDate(t.date) : formatShortDate(t.date)}
           </p>
         </div>
         <div style={{ textAlign:'right',flexShrink:0 }}>
@@ -663,7 +664,7 @@ export default function Transactions() {
                     <td style={tdStyle}>{formatDate(t.date)}</td>
                     <td style={{ ...tdStyle, fontWeight:600, color:TEXT_MAIN }}>{name}</td>
                     <td style={tdStyle}>
-                      {t.product_name}
+                      {t.product_name}{t.quantity > 1 ? ` ×${t.quantity}` : ''}
                       {t.is_gift && <span style={{ marginLeft:6,fontSize:11,color:TEXT_MUTED,display:'inline-flex',alignItems:'center',gap:3 }}><IconGift size={12} stroke={1.9} />贈品</span>}
                     </td>
                     <td style={tdStyle}>
@@ -846,6 +847,13 @@ export default function Transactions() {
             <input type="text" value={editForm.product_name}
               onChange={e => setEditForm(f => ({...f, product_name: e.target.value}))}
               placeholder="商品名稱" style={inputStyle} />
+            <label style={labelStyle}>數量（幾份）</label>
+            <input type="number" inputMode="numeric" min="1" value={editForm.quantity}
+              onChange={e => setEditForm(f => ({...f, quantity: e.target.value}))}
+              placeholder="1" style={inputStyle} />
+            {Number(editForm.quantity) > 1 && (
+              <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'-8px 0 14px' }}>點數、售價、成本填 {Math.round(Number(editForm.quantity))} 份的合計</p>
+            )}
             <label style={labelStyle}>類型</label>
             <div style={{ display:'flex',gap:8,marginBottom:14 }}>
               {['BV','IBV'].map(type => (

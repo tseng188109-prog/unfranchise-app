@@ -21,8 +21,18 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
 export function blankLine() {
-  return { key: uid(), product_name: '', type: 'BV', points: '', amount: '', cost: '', is_gift: false }
+  return { key: uid(), product_name: '', quantity: '1', type: 'BV', points: '', amount: '', cost: '', is_gift: false }
 }
+// 數量（幾份）：點數、賣價、成本都是這一列「全部份數的合計」，數量只用來顯示和算回購日
+export function qtyOf(t) {
+  const n = Math.round(Number(t && t.quantity))
+  return Number.isFinite(n) && n >= 1 ? n : 1
+}
+export function qtyLabel(t) {
+  const q = qtyOf(t)
+  return q > 1 ? ` ×${q}` : ''
+}
+export function r2(x) { return Math.round((Number(x) || 0) * 100) / 100 }
 export function blankAdjustment(kind) {
   let value = ''
   if (kind === 'shipping') {
@@ -99,6 +109,7 @@ export function buildRows({ userId, customerId, orderId, date, lines, calc }) {
   const rows = calc.used.map(l => ({
     ...base,
     product_name: l.product_name.trim(),
+    quantity: qtyOf(l),
     type: l.type === 'IBV' ? 'IBV' : 'BV',
     points: num(l.points),
     amount: l.is_gift ? 0 : num(l.amount),
@@ -156,9 +167,9 @@ export function buildCopyText(customerName, lines, calc) {
   out.push(`${customerName} 你好，這次幫你準備了：`)
   calc.paid.forEach(l => {
     const p = num(l.amount)
-    out.push(`${l.product_name.trim()}　${p > 0 ? fmt(p) : '（價錢待確認）'}`)
+    out.push(`${l.product_name.trim()}${qtyLabel(l)}　${p > 0 ? fmt(p) : '（價錢待確認）'}`)
   })
-  calc.gifts.forEach(g => out.push(`另外送你 ${g.product_name.trim()}`))
+  calc.gifts.forEach(g => out.push(`另外送你 ${g.product_name.trim()}${qtyLabel(g)}`))
   calc.adjResults.forEach(a => {
     if (a.kind === 'discount') out.push(`${a.label}　-${fmt(a.amount)}`)
     if (a.kind === 'shipping_customer') out.push(`運費　${fmt(a.amount)}`)
@@ -191,7 +202,7 @@ export async function copyToClipboard(text) {
 // customerId：同一位顧客上次賣的價錢優先
 export async function fetchProductCatalog(userId, customerId) {
   const { data } = await supabase.from('transactions')
-    .select('product_name,type,points,amount,cost,date,customer_id,is_gift,line_kind')
+    .select('product_name,type,points,amount,cost,date,customer_id,is_gift,line_kind,quantity')
     .eq('user_id', userId).order('date', { ascending: false }).limit(1500)
   const map = {}
   const names = []
@@ -201,13 +212,15 @@ export async function fetchProductCatalog(userId, customerId) {
     if (!name) return
     if (!map[name]) { map[name] = { name, type: null, points: null, cost: null, lastPrice: null, custPrice: null }; names.push(name) }
     const m = map[name]
+    // 紀錄裡存的是合計，這裡換算成「一份」的數字，帶入新訂單時再乘上這次的數量
+    const q = qtyOf(t)
     if (!t.is_gift) {
-      if (m.type == null) { m.type = t.type; m.points = t.points }
-      if (m.cost == null && t.cost != null) m.cost = t.cost
-      if (m.lastPrice == null && Number(t.amount) > 0) m.lastPrice = Number(t.amount)
-      if (customerId && t.customer_id === customerId && m.custPrice == null && Number(t.amount) > 0) m.custPrice = Number(t.amount)
+      if (m.type == null) { m.type = t.type; m.points = t.points != null ? Number(t.points) / q : null }
+      if (m.cost == null && t.cost != null) m.cost = Number(t.cost) / q
+      if (m.lastPrice == null && Number(t.amount) > 0) m.lastPrice = Number(t.amount) / q
+      if (customerId && t.customer_id === customerId && m.custPrice == null && Number(t.amount) > 0) m.custPrice = Number(t.amount) / q
     } else if (m.cost == null && t.cost != null) {
-      m.cost = t.cost
+      m.cost = Number(t.cost) / q
     }
   })
   return { map, names }
@@ -216,7 +229,7 @@ export async function fetchProductCatalog(userId, customerId) {
 // 這位顧客上一次買的（不含贈品、折扣、運費），給「同上次再買」用
 export async function fetchLastPurchase(customerId) {
   const { data } = await supabase.from('transactions')
-    .select('id,order_id,date,product_name,type,points,amount,cost,is_gift,line_kind')
+    .select('id,order_id,date,product_name,type,points,amount,cost,is_gift,line_kind,quantity')
     .eq('customer_id', customerId).order('date', { ascending: false }).limit(200)
   const rows = (data || []).filter(t => !t.line_kind)
   if (rows.length === 0) return null

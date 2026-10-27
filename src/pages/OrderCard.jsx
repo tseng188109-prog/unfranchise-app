@@ -4,7 +4,7 @@ import {
   PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT, ACCENT_GREEN_TEXT, ACCENT_PINK_TEXT,
   DANGER, BORDER, PRIMARY_SOFT, RADIUS } from './designTokens'
-import { fmt, shortDate, computeOrder, buildCopyText, copyToClipboard } from './orderUtils'
+import { fmt, shortDate, computeOrder, buildCopyText, copyToClipboard, qtyOf, qtyLabel } from './orderUtils'
 
 // 顧客頁「消費紀錄」裡，一張訂單合在一起的樣子
 // group：orderUtils.groupPurchases 整理出來的訂單（有 order 與 lines、adjRows）
@@ -18,7 +18,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
 
   async function copy() {
     const lines = group.lines.map(t => ({
-      product_name: t.product_name || '', is_gift: !!t.is_gift, amount: t.amount, cost: t.cost,
+      product_name: t.product_name || '', quantity: qtyOf(t), is_gift: !!t.is_gift, amount: t.amount, cost: t.cost,
       points: t.points, type: t.type,
     }))
     const calc = computeOrder(lines, group.order?.adjustments || [])
@@ -40,7 +40,7 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
         {group.lines.map(t => (
           <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '3px 0', fontSize: 13 }}>
             <span style={{ minWidth: 0, color: TEXT_MAIN, wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {t.product_name}
+              {t.product_name}{qtyLabel(t)}
               {t.is_gift && (
                 <span style={{ fontSize:11, padding: '1px 6px', borderRadius: RADIUS.pill, background: ACCENT_YELLOW_SOFT, color: ACCENT_YELLOW_TEXT, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <IconGift size={10} stroke={1.9} /> 贈品

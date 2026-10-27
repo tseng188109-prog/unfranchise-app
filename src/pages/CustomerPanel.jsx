@@ -14,7 +14,7 @@ import OrderCard from './OrderCard'
 import HomeListRow from './homeList'
 import ContactPanel from './ContactPanel'
 import { createContactForCustomer, logCareInteraction, archiveLinkedPlainContact } from './customerLink'
-import { groupPurchases } from './orderUtils'
+import { groupPurchases, qtyOf, qtyLabel } from './orderUtils'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -36,7 +36,7 @@ function toDateStr(d) { return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/T
 function today() { return toDateStr(new Date()) }
 
 const EMPTY_FORM = {
-  date: today(), product_name: '', type: 'BV', points: '', amount: '', cost: '', is_gift: false,
+  date: today(), product_name: '', quantity: '1', type: 'BV', points: '', amount: '', cost: '', is_gift: false,
 }
 
 const formInput = {
@@ -169,7 +169,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   }
   function openEdit(tx) {
     const base = {
-      date: tx.date || today(), product_name: tx.product_name || '', type: tx.type || 'BV',
+      date: tx.date || today(), product_name: tx.product_name || '', quantity: String(qtyOf(tx)), type: tx.type || 'BV',
       points: tx.points != null ? String(tx.points) : '',
       amount: tx.amount != null ? String(tx.amount) : '',
       cost: tx.cost != null ? String(tx.cost) : '', is_gift: !!tx.is_gift,
@@ -192,7 +192,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       user_id: user.id, customer_id: id,
-      date: form.date, product_name: form.product_name.trim(), type: form.type,
+      date: form.date, product_name: form.product_name.trim(), quantity: qtyOf({ quantity: form.quantity }), type: form.type,
       points: parseFloat(form.points) || 0, amount: parseFloat(form.amount) || 0,
       cost: parseFloat(form.cost) || 0, is_gift: form.is_gift,
     }
@@ -398,8 +398,15 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                     ))}
                   </div>
                 </div>
-                <input placeholder="產品名稱" value={form.product_name}
-                  onChange={e => setF('product_name', e.target.value)} style={{ ...formInput, width:'100%', marginBottom:8 }} />
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <input placeholder="產品名稱" value={form.product_name}
+                    onChange={e => setF('product_name', e.target.value)} style={{ ...formInput, flex:1, minWidth:0 }} />
+                  <input type="number" inputMode="numeric" min="1" placeholder="數量" value={form.quantity}
+                    onChange={e => setF('quantity', e.target.value)} style={{ ...formInput, width:72, textAlign:'center' }} />
+                </div>
+                {qtyOf({ quantity: form.quantity }) > 1 && (
+                  <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 8px' }}>下面三格填 {qtyOf({ quantity: form.quantity })} 份的合計</p>
+                )}
                 <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
                   <input type="number" placeholder="點數" value={form.points}
                     onChange={e => setF('points', e.target.value)} style={{ ...formInput, flex:1, minWidth:80 }} />
@@ -433,7 +440,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                     borderBottom: i < purchaseGroups.length-1 ? `1px solid ${BORDER}` : 'none' }}>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                        <span style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN }}>{t.product_name}</span>
+                        <span style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN }}>{t.product_name}{qtyLabel(t)}</span>
                         <span style={{ fontSize:11, padding:'1px 6px', borderRadius:RADIUS.pill, fontWeight:600,
                           background: t.type==='BV'?'var(--yellow-soft)':'var(--primary-soft)', color: t.type==='BV'?ACCENT_YELLOW_TEXT:PRIMARY }}>
                           {t.type}
@@ -444,7 +451,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                           </span>
                         )}
                       </div>
-                      <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>{formatDate(t.date)}</p>
+                      <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>{formatDate(t.date)}{qtyOf(t) > 1 ? ` · 每份約 ${Math.round(Number(t.points || 0) / qtyOf(t))} 點` : ''}</p>
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0 }}>
                       <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:0 }}>{Number(t.points).toFixed(0)} 點</p>

@@ -12,7 +12,7 @@ import {
   ACCENT_PINK,ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
   DANGER, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
 import {
-  num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays,
+  num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays, qtyOf, r2,
   computeOrder, buildRows, adjustmentSpec, buildCopyText, copyToClipboard,
   fetchProductCatalog, fetchLastPurchase, fetchWeekPoints, fetchUseDays, saveUseDays,
 } from './orderUtils'
@@ -62,7 +62,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       setOldIds((rows || []).map(r => r.id))
       if (!loadDraft(draftKey) && o) {
         const lines = (rows || []).filter(r => !r.line_kind).map(r => ({
-          key: uid(), product_name: r.product_name || '', type: r.type || 'BV',
+          key: uid(), product_name: r.product_name || '', quantity: String(qtyOf(r)), type: r.type || 'BV',
           points: r.points != null ? String(r.points) : '',
           amount: Number(r.amount) > 0 ? String(r.amount) : '',
           cost: r.cost != null ? String(r.cost) : '',
@@ -100,12 +100,28 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     const m = catalog.map[name.trim()]
     const empty = line.points === '' && line.cost === '' && line.amount === ''
     if (!m || !empty) return {}
+    const q = qtyOf(line)
+    const auto = { points: m.points, cost: m.cost, amount: m.custPrice }
     return {
       type: m.type || line.type,
-      points: m.points != null ? String(m.points) : '',
-      cost: m.cost != null ? String(m.cost) : '',
-      amount: m.custPrice != null ? String(m.custPrice) : '',
+      points: m.points != null ? String(r2(m.points * q)) : '',
+      cost: m.cost != null ? String(r2(m.cost * q)) : '',
+      amount: m.custPrice != null ? String(r2(m.custPrice * q)) : '',
+      auto,
     }
+  }
+  // 改數量：如果點數、成本、賣價還是系統帶入的數字，就跟著數量一起換算；自己改過的不動
+  function onQtyChange(line, v) {
+    const oldQ = qtyOf(line)
+    const newQ = Math.round(Number(v))
+    const patch = { quantity: v }
+    if (line.auto && v !== '' && newQ >= 1) {
+      ;['points', 'cost', 'amount'].forEach(k => {
+        const u = line.auto[k]
+        if (u != null && line[k] !== '' && r2(num(line[k])) === r2(u * oldQ)) patch[k] = String(r2(u * newQ))
+      })
+    }
+    setLine(line.key, patch)
   }
   function onNameChange(line, name) {
     const jumped = name.length - line.product_name.length > 1
@@ -123,7 +139,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     setForm(f => ({
       ...f,
       lines: last.lines.map(t => ({
-        key: uid(), product_name: t.product_name || '', type: t.type || 'BV',
+        key: uid(), product_name: t.product_name || '', quantity: String(qtyOf(t)), type: t.type || 'BV',
         points: t.points != null ? String(t.points) : '',
         amount: Number(t.amount) > 0 ? String(t.amount) : '',
         cost: t.cost != null ? String(t.cost) : '',
@@ -195,12 +211,14 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     const week = await fetchWeekPoints(userId)
     const { data: cust } = await supabase.from('customers').select('repurchase_reminder').eq('id', customerId).single()
     const days = {}
+    const qty = {}
     c.paid.forEach(l => {
       const name = l.product_name.trim()
       days[name] = useDays[name] ? String(useDays[name]) : ''
+      qty[name] = (qty[name] || 0) + qtyOf(l)
     })
     setSaved({
-      edited: false, calc: c, copyText, week, date: form.date,
+      edited: false, calc: c, copyText, week, date: form.date, qty,
       existingReminder: cust?.repurchase_reminder || null,
       days, reminderState: null, copyOpen: false, copied: false,
     })
@@ -212,8 +230,9 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
   // ───────── 存檔後 ─────────
   if (saved) {
     const names = Object.keys(saved.days || {})
-    const filled = names.map(n => num(saved.days[n])).filter(d => d > 0)
-    const suggest = filled.length ? addDays(saved.date, Math.min(...filled)) : null
+    // 一份能用幾天 × 這次買幾份 ＝ 這個產品大概用到哪天；好幾個產品就取最早用完的
+    const filled = names.map(n => num(saved.days[n]) * ((saved.qty && saved.qty[n]) || 1)).filter(d => d > 0)
+    const suggest = filled.length ? addDays(saved.date, Math.round(Math.min(...filled))) : null
     const setDays = (name, v) => setSaved(s => ({ ...s, days: { ...s.days, [name]: v } }))
 
     async function setReminder() {
@@ -256,13 +275,13 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                   {suggest ? `大約 ${shortDate(suggest)} 會用完` : '要設回購提醒嗎？'}
                 </p>
                 <p style={{ margin: '0 0 10px', fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.6 }}>
-                  填每個產品大概用幾天，快用完前首頁會提醒你問問他用得順不順。
+                  填每個產品「一份」大概用幾天，買幾份會自動乘上去。快用完前首頁會提醒你問問他用得順不順。
                   {saved.existingReminder ? `（目前的提醒是 ${shortDate(saved.existingReminder)}，設了會換成新的）` : ''}
                 </p>
                 {names.map(n => (
                   <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: TEXT_MAIN, wordBreak: 'break-word' }}>{n}</span>
-                    <input type="number" inputMode="numeric" placeholder="幾天" value={saved.days[n]}
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: TEXT_MAIN, wordBreak: 'break-word' }}>{n}{saved.qty && saved.qty[n] > 1 ? ` ×${saved.qty[n]}` : ''}</span>
+                    <input type="number" inputMode="numeric" placeholder="一份幾天" value={saved.days[n]}
                       onChange={e => setDays(n, e.target.value)}
                       style={{ ...inp, width: 80, textAlign: 'right' }} />
                     <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>天</span>
@@ -348,7 +367,8 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
 
       {form.lines.map((l, i) => {
         const m = catalog.map[l.product_name.trim()]
-        const priceHint = m ? (m.custPrice != null ? `上次賣 ${fmt(m.custPrice)}` : m.lastPrice != null ? `一般賣 ${fmt(m.lastPrice)}` : '之後補') : '之後補'
+        const lq = qtyOf(l)
+        const priceHint = m ? (m.custPrice != null ? `上次賣 ${fmt(m.custPrice * lq)}` : m.lastPrice != null ? `一般賣 ${fmt(m.lastPrice * lq)}` : '之後補') : '之後補'
         return (
           <div key={l.key} style={{ background: l.is_gift ? ACCENT_YELLOW_SOFT : 'var(--card)', border: `1px solid ${l.is_gift ? 'var(--yellow-soft)' : BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -363,9 +383,19 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                 </button>
               )}
             </div>
-            <span style={lbl}>產品名</span>
-            <input list="ufa-products" value={l.product_name} placeholder="輸入或選擇產品"
-              onChange={e => onNameChange(l, e.target.value)} onBlur={() => onNameBlur(l)} style={inp} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={lbl}>產品名</span>
+                <input list="ufa-products" value={l.product_name} placeholder="輸入或選擇產品"
+                  onChange={e => onNameChange(l, e.target.value)} onBlur={() => onNameBlur(l)} style={inp} />
+              </div>
+              <div style={{ width: 76 }}>
+                <span style={lbl}>數量</span>
+                <input type="number" inputMode="numeric" min="1" value={l.quantity} placeholder="1"
+                  onChange={e => onQtyChange(l, e.target.value)} style={{ ...inp, textAlign: 'center' }} />
+              </div>
+            </div>
+            {lq > 1 && <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>下面三格填 {lq} 份的合計</p>}
             <div style={{ display: 'grid', gridTemplateColumns: l.is_gift ? 'minmax(0,1fr)' : 'repeat(3, minmax(0,1fr))', gap: 8, marginTop: 8 }}>
               <div>
                 <span style={lbl}>{l.is_gift ? '成本價（選填）' : '成本價'}</span>
