@@ -33,6 +33,24 @@ export function qtyLabel(t) {
   return q > 1 ? ` ×${q}` : ''
 }
 export function r2(x) { return Math.round((Number(x) || 0) * 100) / 100 }
+function r4(x) { return Math.round((Number(x) || 0) * 10000) / 10000 }
+// 表單裡成本、賣價、點數填的是「一份」的數字；存進資料庫、算合計都用「這一列全部份數的合計」
+// 資料庫存的合計 → 表單的每份（除不盡就留四位小數，乘回去再四捨五入還是原本的合計）
+export function unitStr(total, q) {
+  if (total == null || total === '') return ''
+  return String(r4(num(total) / (q || 1)))
+}
+export function totalStr(unit, q) {
+  if (unit === '' || unit == null) return ''
+  return String(r2(num(unit) * (q || 1)))
+}
+// 表單的產品列（每份）→ 合計版，給 computeOrder / buildRows / buildCopyText 用
+export function toTotalLines(lines) {
+  return lines.map(l => {
+    const q = qtyOf(l)
+    return { ...l, points: totalStr(l.points, q), amount: totalStr(l.amount, q), cost: totalStr(l.cost, q) }
+  })
+}
 export function blankAdjustment(kind) {
   let value = ''
   if (kind === 'shipping') {
@@ -70,9 +88,41 @@ export function computeOrder(lines, adjustments) {
   const costTotal = used.reduce((s, l) => s + num(l.cost), 0)
   const giftCost = gifts.reduce((s, l) => s + num(l.cost), 0)
 
+  // 單一產品的折扣（scope === 'line'）：只折那一個產品，先算好；整張訂單的幾折是從「扣掉單品折扣後」的金額算
+  const lineAmt = {}
+  let lineDiscTotal = 0
+  ;(adjustments || []).forEach(a => {
+    if (a.scope !== 'line') return
+    const v = num(a.value)
+    if (!(v > 0)) return
+    let target
+    if (a.lineKey) target = paid.find(l => l.key === a.lineKey)
+    else {
+      const nm = (a.product || '').trim()
+      target = paid.filter(l => (l.product_name || '').trim() === nm)[a.nth || 0]
+    }
+    if (!target) return
+    const base = num(target.amount)
+    let amt = 0
+    if (a.kind === 'percent') { if (v >= 10) return; amt = Math.round(base * (10 - v) / 10) }
+    else amt = Math.min(v, base)
+    if (!(amt > 0)) return
+    const nm = (target.product_name || '').trim()
+    lineAmt[a.id] = { amount: amt, label: a.kind === 'percent' ? `${nm} ${v} 折` : `${nm} 折扣` }
+    lineDiscTotal += amt
+  })
+
   let discountTotal = 0, shipMe = 0, shipCustomer = 0
   const adjResults = []
   ;(adjustments || []).forEach(a => {
+    if (a.scope === 'line') {
+      const r = lineAmt[a.id]
+      if (r) {
+        discountTotal += r.amount
+        adjResults.push({ id: a.id, kind: 'discount', label: r.label, amount: r.amount, scope: 'line' })
+      }
+      return
+    }
     const v = num(a.value)
     if (!(v > 0)) return
     if (a.kind === 'amount') {
@@ -80,7 +130,7 @@ export function computeOrder(lines, adjustments) {
       adjResults.push({ id: a.id, kind: 'discount', label: '折扣', amount: v })
     } else if (a.kind === 'percent') {
       if (v >= 10) return
-      const amt = Math.round(listTotal * (10 - v) / 10)
+      const amt = Math.round((listTotal - lineDiscTotal) * (10 - v) / 10)
       discountTotal += amt
       adjResults.push({ id: a.id, kind: 'discount', label: `${v} 折`, amount: amt })
     } else if (a.kind === 'shipping') {
@@ -130,10 +180,22 @@ export function buildRows({ userId, customerId, orderId, date, lines, calc }) {
 }
 
 // 折扣運費的設定只存「類型、數字、誰出」，算出來的金額每次重算
-export function adjustmentSpec(adjustments) {
+// lines：表單的產品列，單品折扣要靠它找出「是第幾個同名產品」，之後才能還原
+export function adjustmentSpec(adjustments, lines) {
   return (adjustments || [])
     .filter(a => num(a.value) > 0)
-    .map(a => ({ id: a.id, kind: a.kind, value: String(a.value), payer: a.payer || 'me' }))
+    .map(a => {
+      if (a.scope === 'line') {
+        const used = (lines || []).filter(l => (l.product_name || '').trim())
+        const target = used.find(l => l.key === a.lineKey)
+        if (!target) return null
+        const nm = target.product_name.trim()
+        const nth = used.filter(l => l.product_name.trim() === nm).indexOf(target)
+        return { id: a.id, kind: a.kind, value: String(a.value), scope: 'line', product: nm, nth: Math.max(0, nth) }
+      }
+      return { id: a.id, kind: a.kind, value: String(a.value), payer: a.payer || 'me' }
+    })
+    .filter(Boolean)
 }
 
 // 把 transactions 整理成「訂單 / 舊的單筆」，新的在前

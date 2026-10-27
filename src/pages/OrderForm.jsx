@@ -12,7 +12,7 @@ import {
   ACCENT_PINK,ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
   DANGER, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
 import {
-  num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays, qtyOf, r2,
+  num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays, qtyOf, unitStr, toTotalLines,
   computeOrder, buildRows, adjustmentSpec, buildCopyText, copyToClipboard,
   fetchProductCatalog, fetchLastPurchase, fetchWeekPoints, fetchUseDays, saveUseDays, autoRepurchase,
 } from './orderUtils'
@@ -32,7 +32,7 @@ const ADJ_KIND_LABEL = { amount: '金額折扣', percent: '幾折', shipping: '�
 // onCancel — 有給才會顯示右上角的 X
 export default function OrderForm({ userId, customerId, customerName, orderId = null, fromTxId = null, onDone, onCancel }) {
   const editing = !!orderId || !!fromTxId
-  const draftKey = `orderForm:${customerId}:${orderId || fromTxId || 'new'}`
+  const draftKey = `orderForm2:${customerId}:${orderId || fromTxId || 'new'}`
   const [form, setForm] = useState(() => loadDraft(draftKey) || {
     date: today(), lines: [blankLine()], adjustments: [], note: '',
   })
@@ -41,7 +41,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
   const [catalog, setCatalog] = useState({ map: {}, names: [] })
   const [useDays, setUseDays] = useState({})
   const [last, setLast] = useState(null)
-  const [showAdj, setShowAdj] = useState(() => (loadDraft(draftKey)?.adjustments || []).length > 0)
+  const [showAdj, setShowAdj] = useState(() => (loadDraft(draftKey)?.adjustments || []).filter(a => a.scope !== 'line').length > 0)
   const [showNote, setShowNote] = useState(() => !!(loadDraft(draftKey)?.note))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -64,13 +64,14 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         if (r) {
           setOldIds([r.id])
           if (!loadDraft(draftKey)) {
+            const q = qtyOf(r)
             setForm({
               date: r.date, adjustments: [], note: '',
               lines: [{
-                key: uid(), product_name: r.product_name || '', quantity: String(qtyOf(r)), type: r.type || 'BV',
-                points: r.points != null ? String(r.points) : '',
-                amount: Number(r.amount) > 0 ? String(r.amount) : '',
-                cost: r.cost != null ? String(r.cost) : '',
+                key: uid(), product_name: r.product_name || '', quantity: String(q), type: r.type || 'BV',
+                points: unitStr(r.points, q),
+                amount: Number(r.amount) > 0 ? unitStr(r.amount, q) : '',
+                cost: unitStr(r.cost, q),
                 is_gift: !!r.is_gift,
               }],
             })
@@ -84,16 +85,27 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       if (cancelled) return
       setOldIds((rows || []).map(r => r.id))
       if (!loadDraft(draftKey) && o) {
-        const lines = (rows || []).filter(r => !r.line_kind).map(r => ({
-          key: uid(), product_name: r.product_name || '', quantity: String(qtyOf(r)), type: r.type || 'BV',
-          points: r.points != null ? String(r.points) : '',
-          amount: Number(r.amount) > 0 ? String(r.amount) : '',
-          cost: r.cost != null ? String(r.cost) : '',
-          is_gift: !!r.is_gift,
-        }))
-        const adjustments = (o.adjustments || []).map(a => ({ id: a.id || uid(), kind: a.kind, value: a.value, payer: a.payer || 'me' }))
+        const lines = (rows || []).filter(r => !r.line_kind).map(r => {
+          const q = qtyOf(r)
+          return {
+            key: uid(), product_name: r.product_name || '', quantity: String(q), type: r.type || 'BV',
+            points: unitStr(r.points, q),
+            amount: Number(r.amount) > 0 ? unitStr(r.amount, q) : '',
+            cost: unitStr(r.cost, q),
+            is_gift: !!r.is_gift,
+          }
+        })
+        const adjustments = (o.adjustments || []).map(a => {
+          if (a.scope === 'line') {
+            const same = lines.filter(l => l.product_name.trim() === (a.product || '').trim())
+            const t = same[a.nth || 0]
+            if (!t) return null
+            return { id: a.id || uid(), kind: a.kind, value: a.value, scope: 'line', lineKey: t.key }
+          }
+          return { id: a.id || uid(), kind: a.kind, value: a.value, payer: a.payer || 'me' }
+        }).filter(Boolean)
         setForm({ date: o.date, lines: lines.length ? lines : [blankLine()], adjustments, note: o.note || '' })
-        setShowAdj(adjustments.length > 0)
+        setShowAdj(adjustments.filter(a => a.scope !== 'line').length > 0)
         setShowNote(!!o.note)
       }
       setLoading(false)
@@ -112,7 +124,9 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     setForm(f => ({ ...f, lines: f.lines.map(l => (l.key === key ? { ...l, ...patch } : l)) }))
   }
   function removeLine(key) {
-    setForm(f => ({ ...f, lines: f.lines.length > 1 ? f.lines.filter(l => l.key !== key) : f.lines }))
+    setForm(f => f.lines.length > 1
+      ? { ...f, lines: f.lines.filter(l => l.key !== key), adjustments: f.adjustments.filter(a => a.lineKey !== key) }
+      : f)
   }
   function addLine() {
     setForm(f => ({ ...f, lines: [...f.lines, blankLine()] }))
@@ -123,28 +137,16 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     const m = catalog.map[name.trim()]
     const empty = line.points === '' && line.cost === '' && line.amount === ''
     if (!m || !empty) return {}
-    const q = qtyOf(line)
-    const auto = { points: m.points, cost: m.cost, amount: m.custPrice }
+    // 表單填的是「每份」，目錄存的也是每份，直接帶入；改數量時合計自動乘
     return {
       type: m.type || line.type,
-      points: m.points != null ? String(r2(m.points * q)) : '',
-      cost: m.cost != null ? String(r2(m.cost * q)) : '',
-      amount: m.custPrice != null ? String(r2(m.custPrice * q)) : '',
-      auto,
+      points: m.points != null ? String(m.points) : '',
+      cost: m.cost != null ? String(m.cost) : '',
+      amount: m.custPrice != null ? String(m.custPrice) : '',
     }
   }
-  // 改數量：如果點數、成本、賣價還是系統帶入的數字，就跟著數量一起換算；自己改過的不動
   function onQtyChange(line, v) {
-    const oldQ = qtyOf(line)
-    const newQ = Math.round(Number(v))
-    const patch = { quantity: v }
-    if (line.auto && v !== '' && newQ >= 1) {
-      ;['points', 'cost', 'amount'].forEach(k => {
-        const u = line.auto[k]
-        if (u != null && line[k] !== '' && r2(num(line[k])) === r2(u * oldQ)) patch[k] = String(r2(u * newQ))
-      })
-    }
-    setLine(line.key, patch)
+    setLine(line.key, { quantity: v })
   }
   function onNameChange(line, name) {
     const jumped = name.length - line.product_name.length > 1
@@ -161,13 +163,17 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     if (hasContent && !(await askConfirm({ title:'取代目前填的產品？', message:'會換成上一次的產品內容。', okText:'取代' }))) return
     setForm(f => ({
       ...f,
-      lines: last.lines.map(t => ({
-        key: uid(), product_name: t.product_name || '', quantity: String(qtyOf(t)), type: t.type || 'BV',
-        points: t.points != null ? String(t.points) : '',
-        amount: Number(t.amount) > 0 ? String(t.amount) : '',
-        cost: t.cost != null ? String(t.cost) : '',
-        is_gift: false,
-      })),
+      adjustments: f.adjustments.filter(a => a.scope !== 'line'),
+      lines: last.lines.map(t => {
+        const q = qtyOf(t)
+        return {
+          key: uid(), product_name: t.product_name || '', quantity: String(q), type: t.type || 'BV',
+          points: unitStr(t.points, q),
+          amount: Number(t.amount) > 0 ? unitStr(t.amount, q) : '',
+          cost: unitStr(t.cost, q),
+          is_gift: false,
+        }
+      }),
     }))
   }
 
@@ -181,7 +187,15 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     setForm(f => ({ ...f, adjustments: f.adjustments.filter(a => a.id !== id) }))
   }
 
-  const calc = computeOrder(form.lines, form.adjustments)
+  // 單一產品的折扣：加、改、刪
+  function lineDiscOf(key) { return form.adjustments.find(a => a.scope === 'line' && a.lineKey === key) }
+  function addLineDisc(key) {
+    setForm(f => ({ ...f, adjustments: [...f.adjustments, { id: uid(), kind: 'percent', value: '', scope: 'line', lineKey: key }] }))
+  }
+
+  // 表單是「每份」，算合計、存檔、複製文字都用乘過份數的版本
+  const totalLines = toTotalLines(form.lines)
+  const calc = computeOrder(totalLines, form.adjustments)
 
   async function handleSave() {
     if (saving) return
@@ -194,11 +208,11 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     if (noPoints) { setError(`「${noPoints.product_name.trim()}」還沒填點數`); return }
 
     setSaving(true)
-    const c = computeOrder(form.lines, form.adjustments)
+    const c = computeOrder(totalLines, form.adjustments)
     const orderPayload = {
       date: form.date,
       note: form.note.trim() || null,
-      adjustments: adjustmentSpec(form.adjustments),
+      adjustments: adjustmentSpec(form.adjustments, form.lines),
     }
     let oid = orderId
     if (orderId) {
@@ -210,7 +224,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       if (e1 || !o) { setError('存檔失敗：' + (e1?.message || '')); setSaving(false); return }
       oid = o.id
     }
-    const rows = buildRows({ userId, customerId, orderId: oid, date: form.date, lines: form.lines, calc: c })
+    const rows = buildRows({ userId, customerId, orderId: oid, date: form.date, lines: totalLines, calc: c })
     const { error: e2 } = await supabase.from('transactions').insert(rows)
     if (e2) {
       if (!orderId) await supabase.from('orders').delete().eq('id', oid)
@@ -221,11 +235,11 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     // 新的列都寫進去了，才刪掉舊的，中途失敗不會把原本的資料弄丟
     if (oldIds.length) await supabase.from('transactions').delete().in('id', oldIds)
 
-    const ship = form.adjustments.find(a => a.kind === 'shipping' && num(a.value) > 0)
+    const ship = form.adjustments.find(a => !a.scope && a.kind === 'shipping' && num(a.value) > 0)
     if (ship) { try { localStorage.setItem('ufa_last_shipping', String(ship.value)) } catch {} }
     clearDraft(draftKey)
 
-    const copyText = buildCopyText(customerName, form.lines, c)
+    const copyText = buildCopyText(customerName, totalLines, c)
     // 回購提醒自動串聯：一份能用幾天 × 份數 → 設好這位顧客的回購提醒（規則寫在 autoRepurchase）
     let auto = { state: 'none' }
     try { auto = await autoRepurchase({ customerId, orderId: oid, date: form.date, calc: c, useDays, isEdit: editing }) } catch { /* 算不出來就不處理，不影響存檔 */ }
@@ -428,7 +442,10 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       {form.lines.map((l, i) => {
         const m = catalog.map[l.product_name.trim()]
         const lq = qtyOf(l)
-        const priceHint = m ? (m.custPrice != null ? `上次賣 ${fmt(m.custPrice * lq)}` : m.lastPrice != null ? `一般賣 ${fmt(m.lastPrice * lq)}` : '之後補') : '之後補'
+        const lt = totalLines[i]
+        const ld = lineDiscOf(l.key)
+        const ldr = ld ? calc.adjResults.find(x => x.id === ld.id) : null
+        const priceHint = m ? (m.custPrice != null ? `上次賣 ${fmt(m.custPrice)}` : m.lastPrice != null ? `一般賣 ${fmt(m.lastPrice)}` : '之後補') : '之後補'
         return (
           <div key={l.key} style={{ background: l.is_gift ? ACCENT_YELLOW_SOFT : 'var(--card)', border: `1px solid ${l.is_gift ? 'var(--yellow-soft)' : BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -455,25 +472,65 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                   onChange={e => onQtyChange(l, e.target.value)} style={{ ...inp, textAlign: 'center' }} />
               </div>
             </div>
-            {lq > 1 && <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>下面三格填 {lq} 份的合計</p>}
+            {lq > 1 && <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>下面填「一份」的價錢，數量改了會自動乘</p>}
             <div style={{ display: 'grid', gridTemplateColumns: l.is_gift ? 'minmax(0,1fr)' : 'repeat(3, minmax(0,1fr))', gap: 8, marginTop: 8 }}>
               <div>
-                <span style={lbl}>{l.is_gift ? '成本價（選填）' : '成本價'}</span>
+                <span style={lbl}>{l.is_gift ? '成本價（選填）' : '成本價（每份）'}</span>
                 <input type="number" inputMode="decimal" value={l.cost} placeholder="0" onChange={e => setLine(l.key, { cost: e.target.value })} style={inp} />
               </div>
               {!l.is_gift && (
                 <>
                   <div>
-                    <span style={lbl}>賣價</span>
+                    <span style={lbl}>賣價（每份）</span>
                     <input type="number" inputMode="decimal" value={l.amount} placeholder={priceHint} onChange={e => setLine(l.key, { amount: e.target.value })} style={inp} />
                   </div>
                   <div>
-                    <span style={lbl}>點數</span>
+                    <span style={lbl}>點數（每份）</span>
                     <input type="number" inputMode="decimal" value={l.points} placeholder="0" onChange={e => setLine(l.key, { points: e.target.value })} style={inp} />
                   </div>
                 </>
               )}
             </div>
+            {lq > 1 && (
+              <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: RADIUS.sm, background: PRIMARY_SOFT, color: PRIMARY, fontSize: 12, fontWeight: 600 }}>
+                {lq} 份合計：{l.is_gift ? `成本 ${fmt(lt.cost)}　點數 ${fmt(lt.points)}` : `成本 ${fmt(lt.cost)}　賣價 ${fmt(lt.amount)}　點數 ${fmt(lt.points)}`}
+              </div>
+            )}
+            {!l.is_gift && !ld && (
+              <button onClick={() => addLineDisc(l.key)}
+                style={{ marginTop: 8, padding: '6px 12px', borderRadius: RADIUS.sm, border: `1px dashed ${PRIMARY}`, background: 'var(--card)', color: PRIMARY, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                + 這個產品打折
+              </button>
+            )}
+            {!l.is_gift && ld && (
+              <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 10, paddingTop: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN }}>這個產品打折 <span style={{ fontSize: 11, fontWeight: 400, color: TEXT_SECONDARY }}>只折這一項</span></span>
+                  <button onClick={() => removeAdj(ld.id)} aria-label="取消這個產品的折扣"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: DANGER, display: 'flex', padding: 2 }}>
+                    <IconTrash size={15} stroke={1.9} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[['percent', '幾折'], ['amount', '折現金']].map(([k, t]) => (
+                      <button key={k} onClick={() => setAdj(ld.id, { kind: k, value: '' })}
+                        style={{ padding: '7px 12px', borderRadius: RADIUS.sm, border: ld.kind === k ? 'none' : `1px solid ${BORDER}`, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          background: ld.kind === k ? PRIMARY : 'var(--card)', color: ld.kind === k ? '#fff' : TEXT_SECONDARY }}>{t}</button>
+                    ))}
+                  </div>
+                  <input type="number" inputMode="decimal" value={ld.value} placeholder={ld.kind === 'percent' ? '例如 9' : '0'}
+                    onChange={e => setAdj(ld.id, { value: e.target.value })} style={{ ...inp, width: 90 }} />
+                  <span style={{ fontSize: 13, color: TEXT_SECONDARY }}>{ld.kind === 'percent' ? '折' : '元'}</span>
+                </div>
+                {ld.kind === 'percent' && num(ld.value) >= 10 && (
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: DANGER }}>幾折要小於 10，例如 9 折填 9</p>
+                )}
+                {ldr && (
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>折掉 {fmt(ldr.amount)}，這個產品實收 {fmt(num(lt.amount) - ldr.amount)}（點數不變）</p>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 {['BV', 'IBV'].map(t => (
@@ -503,12 +560,12 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
         <button onClick={() => setShowAdj(v => !v)}
           style={{ width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight:600, color: TEXT_MAIN }}>
           調整（折扣／運費）
-          {form.adjustments.length > 0 && <span style={{ fontSize: 12, fontWeight: 400, color: TEXT_SECONDARY }}>已加 {form.adjustments.length} 項</span>}
+          {form.adjustments.filter(a => !a.scope).length > 0 && <span style={{ fontSize: 12, fontWeight: 400, color: TEXT_SECONDARY }}>已加 {form.adjustments.filter(a => !a.scope).length} 項</span>}
           <span style={{ marginLeft: 'auto', display: 'flex', color: TEXT_MUTED }}>{showAdj ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}</span>
         </button>
         {showAdj && (
           <div style={{ marginTop: 10 }}>
-            {form.adjustments.map(a => {
+            {form.adjustments.filter(a => !a.scope).map(a => {
               const r = calc.adjResults.find(x => x.id === a.id)
               return (
                 <div key={a.id} style={{ border: `1px solid ${BORDER}`, borderRadius: RADIUS.sm, padding: 10, marginBottom: 8 }}>
