@@ -168,16 +168,10 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     setShowOrder({ orderId })
   }
   function openEdit(tx) {
-    const base = {
-      date: tx.date || today(), product_name: tx.product_name || '', quantity: String(qtyOf(tx)), type: tx.type || 'BV',
-      points: tx.points != null ? String(tx.points) : '',
-      amount: tx.amount != null ? String(tx.amount) : '',
-      cost: tx.cost != null ? String(tx.cost) : '', is_gift: !!tx.is_gift,
-    }
-    setForm(loadDraft(`customerTxEdit:${tx.id}`) || base)
-    setEditId(tx.id)
-    setShowOrder(false)
-    setShowForm(true)
+    // 單筆的舊紀錄：用「訂單」的表單開，可以一起加產品，存檔時變成一張訂單
+    setShowForm(false)
+    setEditId(null)
+    setShowOrder({ orderId: null, fromTxId: tx.id })
   }
 
   // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
@@ -360,11 +354,12 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
             {showOrder ? (
               <div style={{ border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, padding:12, marginBottom:16, background:SUBCARD_BG }}>
                 <OrderForm
-                  key={showOrder.orderId || 'new'}
+                  key={showOrder.orderId || showOrder.fromTxId || 'new'}
                   userId={customer.user_id}
                   customerId={id}
                   customerName={customer.name}
                   orderId={showOrder.orderId}
+                  fromTxId={showOrder.fromTxId || null}
                   onDone={() => { setShowOrder(false); fetchData(); onChanged?.() }}
                   onCancel={() => setShowOrder(false)}
                 />

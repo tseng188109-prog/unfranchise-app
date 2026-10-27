@@ -27,14 +27,16 @@ const ADJ_KIND_LABEL = { amount: '金額折扣', percent: '幾折', shipping: '�
 // props:
 // userId, customerId, customerName — 這張訂單屬於誰（必填）
 // orderId  — 有的話是「編輯這張訂單」，沒有就是新增
+// fromTxId — 有的話是「把一筆舊的單筆紀錄改成訂單」：讀進那一筆，可以再加產品，存檔時換成一張新訂單（舊的那一筆刪掉）
 // onDone   — 存檔後按「完成」
 // onCancel — 有給才會顯示右上角的 X
-export default function OrderForm({ userId, customerId, customerName, orderId = null, onDone, onCancel }) {
-  const draftKey = `orderForm:${customerId}:${orderId || 'new'}`
+export default function OrderForm({ userId, customerId, customerName, orderId = null, fromTxId = null, onDone, onCancel }) {
+  const editing = !!orderId || !!fromTxId
+  const draftKey = `orderForm:${customerId}:${orderId || fromTxId || 'new'}`
   const [form, setForm] = useState(() => loadDraft(draftKey) || {
     date: today(), lines: [blankLine()], adjustments: [], note: '',
   })
-  const [loading, setLoading] = useState(!!orderId)
+  const [loading, setLoading] = useState(editing)
   const [oldIds, setOldIds] = useState([])
   const [catalog, setCatalog] = useState({ map: {}, names: [] })
   const [useDays, setUseDays] = useState({})
@@ -48,14 +50,35 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
   useEffect(() => {
     fetchProductCatalog(userId, customerId).then(setCatalog)
     fetchUseDays(userId).then(setUseDays)
-    if (!orderId) fetchLastPurchase(customerId).then(setLast)
-  }, [userId, customerId, orderId])
+    if (!editing) fetchLastPurchase(customerId).then(setLast)
+  }, [userId, customerId, editing])
 
   // 編輯模式：把這張訂單原本的內容讀進來（有未完成的草稿就用草稿）
   useEffect(() => {
-    if (!orderId) return
+    if (!orderId && !fromTxId) return
     let cancelled = false
     async function load() {
+      if (!orderId) {
+        const { data: r } = await supabase.from('transactions').select('*').eq('id', fromTxId).single()
+        if (cancelled) return
+        if (r) {
+          setOldIds([r.id])
+          if (!loadDraft(draftKey)) {
+            setForm({
+              date: r.date, adjustments: [], note: '',
+              lines: [{
+                key: uid(), product_name: r.product_name || '', quantity: String(qtyOf(r)), type: r.type || 'BV',
+                points: r.points != null ? String(r.points) : '',
+                amount: Number(r.amount) > 0 ? String(r.amount) : '',
+                cost: r.cost != null ? String(r.cost) : '',
+                is_gift: !!r.is_gift,
+              }],
+            })
+          }
+        }
+        setLoading(false)
+        return
+      }
       const { data: o } = await supabase.from('orders').select('*').eq('id', orderId).single()
       const { data: rows } = await supabase.from('transactions').select('*').eq('order_id', orderId)
       if (cancelled) return
@@ -77,7 +100,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     }
     load()
     return () => { cancelled = true }
-  }, [orderId, draftKey])
+  }, [orderId, fromTxId, draftKey])
 
   // 填到一半 App 關掉重開，草稿自動補回來
   useEffect(() => {
@@ -196,7 +219,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       return
     }
     // 新的列都寫進去了，才刪掉舊的，中途失敗不會把原本的資料弄丟
-    if (orderId && oldIds.length) await supabase.from('transactions').delete().in('id', oldIds)
+    if (oldIds.length) await supabase.from('transactions').delete().in('id', oldIds)
 
     const ship = form.adjustments.find(a => a.kind === 'shipping' && num(a.value) > 0)
     if (ship) { try { localStorage.setItem('ufa_last_shipping', String(ship.value)) } catch {} }
@@ -205,13 +228,13 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     const copyText = buildCopyText(customerName, form.lines, c)
     // 回購提醒自動串聯：一份能用幾天 × 份數 → 設好這位顧客的回購提醒（規則寫在 autoRepurchase）
     let auto = { state: 'none' }
-    try { auto = await autoRepurchase({ customerId, orderId: oid, date: form.date, calc: c, useDays, isEdit: !!orderId }) } catch { /* 算不出來就不處理，不影響存檔 */ }
-    if (orderId && auto.state === 'none') {
+    try { auto = await autoRepurchase({ customerId, orderId: oid, date: form.date, calc: c, useDays, isEdit: editing }) } catch { /* 算不出來就不處理，不影響存檔 */ }
+    if (editing && auto.state === 'none') {
       setSaved({ edited: true, calc: c, copyText })
       setSaving(false)
       return
     }
-    const week = orderId ? null : await fetchWeekPoints(userId)
+    const week = editing ? null : await fetchWeekPoints(userId)
     const days = {}
     const qty = {}
     c.paid.forEach(l => {
@@ -220,7 +243,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       qty[name] = (qty[name] || 0) + qtyOf(l)
     })
     setSaved({
-      edited: !!orderId, calc: c, copyText, week, date: form.date, qty,
+      edited: editing, calc: c, copyText, week, date: form.date, qty,
       existingReminder: auto.existing || null,
       autoDate: auto.computed || null, prevReminder: auto.previous || null,
       days, reminderState: auto.state === 'ask' ? null : auto.state, copyOpen: false, copied: false,
@@ -380,7 +403,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={lbl}>{orderId ? '編輯訂單' : '新增訂單'}</span>
+            <span style={lbl}>{editing ? '編輯訂單' : '新增訂單'}</span>
             <p style={{ margin: 0, fontSize: 15, fontWeight:600, color: TEXT_MAIN, wordBreak: 'break-word' }}>{customerName}</p>
           </div>
           <div style={{ width: 140 }}>
@@ -573,7 +596,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
 
       <button onClick={handleSave} disabled={saving}
         style={{ width: '100%', padding: '14px', borderRadius: RADIUS.lg, border: 'none', background: saving ? '#9BBBF2' : PRIMARY, color: '#fff', fontSize: 16, fontWeight:600, cursor: 'pointer' }}>
-        {saving ? '儲存中…' : orderId ? '儲存修改' : '儲存訂單'}
+        {saving ? '儲存中…' : editing ? '儲存修改' : '儲存訂單'}
       </button>
     </div>
   )
