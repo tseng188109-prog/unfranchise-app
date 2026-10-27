@@ -21,7 +21,7 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
 export function blankLine() {
-  return { key: uid(), product_name: '', quantity: '1', type: 'BV', points: '', amount: '', cost: '', is_gift: false }
+  return { key: uid(), product_name: '', quantity: '1', type: 'BV', points: '', amount: '', cost: '', is_gift: false, days: '', unit: '', perServing: '', perDay: '' }
 }
 // 數量（幾份）：點數、賣價、成本都是這一列「全部份數的合計」，數量只用來顯示和算回購日
 export function qtyOf(t) {
@@ -318,12 +318,42 @@ export async function fetchWeekPoints(userId) {
   return { bv, ibv }
 }
 
+// 比對產品名時不分大小寫、空格，也忽略 ™ ® © —— 打得稍微不一樣還是當同一個產品
+export function normName(n) {
+  return String(n || '').replace(/[™®©\s\u3000]/g, '').toLowerCase()
+}
+
+// 回傳 { 比對用的名字: { name, days, unit, per_serving, per_day } }
+// 用 select('*')：就算資料庫還沒加單位那幾個欄位，也不會整個讀不到
 export async function fetchUseDays(userId) {
-  const { data } = await supabase.from('product_use_days')
-    .select('product_name,use_days').eq('user_id', userId)
+  const { data } = await supabase.from('product_use_days').select('*').eq('user_id', userId)
   const map = {}
-  ;(data || []).forEach(r => { map[r.product_name] = r.use_days })
+  ;(data || []).forEach(r => {
+    map[normName(r.product_name)] = {
+      name: r.product_name, days: r.use_days, unit: r.unit || '',
+      per_serving: r.per_serving != null ? r.per_serving : null,
+      per_day: r.per_day != null ? r.per_day : null,
+    }
+  })
   return map
+}
+
+// 訂單存檔時順便記下每個產品的「一份幾天」＋單位＋一份的量＋每天用量
+// 資料庫還沒加那幾個欄位的話，退回只存天數，不會讓存檔壞掉
+export async function saveUseInfo(userId, items) {
+  const now = new Date().toISOString()
+  const full = (items || []).filter(i => i.name && Number(i.days) > 0).map(i => ({
+    user_id: userId, product_name: i.name, use_days: Math.round(Number(i.days)),
+    unit: i.unit || null, per_serving: i.per_serving != null ? i.per_serving : null, per_day: i.per_day != null ? i.per_day : null,
+    updated_at: now,
+  }))
+  if (full.length === 0) return null
+  let { error } = await supabase.from('product_use_days').upsert(full, { onConflict: 'user_id,product_name' })
+  if (error) {
+    const basic = full.map(r => ({ user_id: r.user_id, product_name: r.product_name, use_days: r.use_days, updated_at: r.updated_at }))
+    ;({ error } = await supabase.from('product_use_days').upsert(basic, { onConflict: 'user_id,product_name' }))
+  }
+  return error || null
 }
 
 export async function saveUseDays(userId, map) {
@@ -360,7 +390,7 @@ export async function autoRepurchase({ customerId, orderId, date, calc, useDays,
   const qty = {}
   paid.forEach(l => { const n = l.product_name.trim(); qty[n] = (qty[n] || 0) + qtyOf(l) })
   const names = Object.keys(qty)
-  const perName = names.map(n => (Number(useDays && useDays[n]) > 0 ? Number(useDays[n]) * qty[n] : 0))
+  const perName = names.map(n => (Number(useDays && useDays[normName(n)]) > 0 ? Number(useDays[normName(n)]) * qty[n] : 0))
   const { data: cust } = await supabase.from('customers')
     .select('repurchase_reminder').eq('id', customerId).single()
   const existing = (cust && cust.repurchase_reminder) || null

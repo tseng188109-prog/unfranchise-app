@@ -12,7 +12,7 @@ import {
   ACCENT_PINK,ACCENT_PINK_SOFT, ACCENT_PINK_TEXT,
   DANGER, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
 import {
-  num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays, qtyOf, unitStr, toTotalLines,
+  num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays, qtyOf, unitStr, toTotalLines, normName, saveUseInfo,
   computeOrder, buildRows, adjustmentSpec, buildCopyText, copyToClipboard,
   fetchProductCatalog, fetchLastPurchase, fetchWeekPoints, fetchUseDays, saveUseDays, autoRepurchase,
 } from './orderUtils'
@@ -22,6 +22,7 @@ const inp = {
   fontSize: 14, background: 'var(--card)', boxSizing: 'border-box', outline: 'none', color: TEXT_MAIN, minWidth: 0,
 }
 const lbl = { fontSize: 11, color: TEXT_SECONDARY, margin: '0 0 3px', display: 'block', whiteSpace: 'nowrap' }
+const USE_UNITS = ['包', '顆', '瓶', '毫升', '公克']
 const ADJ_KIND_LABEL = { amount: '金額折扣', percent: '幾折', shipping: '運費' }
 
 // props:
@@ -39,7 +40,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
   const [loading, setLoading] = useState(editing)
   const [oldIds, setOldIds] = useState([])
   const [catalog, setCatalog] = useState({ map: {}, names: [] })
-  const [useDays, setUseDays] = useState({})
+  const [useInfo, setUseInfo] = useState({})
   const [last, setLast] = useState(null)
   const [showAdj, setShowAdj] = useState(() => (loadDraft(draftKey)?.adjustments || []).filter(a => a.scope !== 'line').length > 0)
   const [showNote, setShowNote] = useState(() => !!(loadDraft(draftKey)?.note))
@@ -49,7 +50,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
 
   useEffect(() => {
     fetchProductCatalog(userId, customerId).then(setCatalog)
-    fetchUseDays(userId).then(setUseDays)
+    fetchUseDays(userId).then(setUseInfo)
     if (!editing) fetchLastPurchase(customerId).then(setLast)
   }, [userId, customerId, editing])
 
@@ -148,14 +149,46 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
   function onQtyChange(line, v) {
     setLine(line.key, { quantity: v })
   }
+  // 這個產品以前填過「一份幾天」就帶入（天數、單位、一份的量、每天用量）；這一列自己已經填了就不動
+  function useFill(line, name) {
+    const m = useInfo[normName(name)]
+    if (!m || line.days || line.perServing || line.perDay) return {}
+    return {
+      days: String(m.days), unit: m.unit || '',
+      perServing: m.per_serving != null ? String(m.per_serving) : '',
+      perDay: m.per_day != null ? String(m.per_day) : '',
+    }
+  }
+  // 改「一份有幾個／每天用幾個」：兩個都有就自己算出天數
+  function setUse(line, patch) {
+    const next = { ...line, ...patch }
+    const ps = num(next.perServing), pd = num(next.perDay)
+    const out = { ...patch }
+    if (ps > 0 && pd > 0) out.days = String(Math.max(1, Math.round(ps / pd)))
+    setLine(line.key, out)
+  }
   function onNameChange(line, name) {
     const jumped = name.length - line.product_name.length > 1
-    setLine(line.key, { product_name: name, ...(jumped ? autofill(line, name) : {}) })
+    setLine(line.key, { product_name: name, ...(jumped ? { ...autofill(line, name), ...useFill(line, name) } : {}) })
   }
   function onNameBlur(line) {
-    const patch = autofill(line, line.product_name)
+    const patch = { ...autofill(line, line.product_name), ...useFill(line, line.product_name) }
     if (Object.keys(patch).length) setLine(line.key, patch)
   }
+  // 編輯舊訂單、或天數資料晚一點才讀到：補上還空著的
+  useEffect(() => {
+    if (loading || Object.keys(useInfo).length === 0) return
+    setForm(f => {
+      let changed = false
+      const lines = f.lines.map(l => {
+        if (!l.product_name.trim() || l.is_gift) return l
+        const p = useFill(l, l.product_name)
+        if (Object.keys(p).length) { changed = true; return { ...l, ...p } }
+        return l
+      })
+      return changed ? { ...f, lines } : f
+    })
+  }, [loading, useInfo])
 
   async function applyLast() {
     if (!last) return
@@ -241,8 +274,22 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
 
     const copyText = buildCopyText(customerName, totalLines, c)
     // 回購提醒自動串聯：一份能用幾天 × 份數 → 設好這位顧客的回購提醒（規則寫在 autoRepurchase）
+    // 這張訂單產品卡上填的「一份幾天」：記起來，也直接拿來算回購提醒
+    const dayInfo = {}
+    form.lines.forEach(l => {
+      const n = l.product_name.trim()
+      const d = Math.round(num(l.days))
+      if (!n || l.is_gift || !(d > 0) || dayInfo[normName(n)]) return
+      dayInfo[normName(n)] = { name: n, days: d, unit: (l.unit || '').trim().slice(0, 8), per_serving: num(l.perServing) > 0 ? num(l.perServing) : null, per_day: num(l.perDay) > 0 ? num(l.perDay) : null }
+    })
+    let dayErr = null
+    try { dayErr = await saveUseInfo(userId, Object.values(dayInfo)) } catch { dayErr = null }
+    const dayMap = {}
+    Object.entries(useInfo).forEach(([k, v]) => { dayMap[k] = v.days })
+    Object.entries(dayInfo).forEach(([k, v]) => { dayMap[k] = v.days })
+    if (!dayErr && Object.keys(dayInfo).length) setUseInfo(u => ({ ...u, ...dayInfo }))
     let auto = { state: 'none' }
-    try { auto = await autoRepurchase({ customerId, orderId: oid, date: form.date, calc: c, useDays, isEdit: editing }) } catch { /* 算不出來就不處理，不影響存檔 */ }
+    try { auto = await autoRepurchase({ customerId, orderId: oid, date: form.date, calc: c, useDays: dayMap, isEdit: editing }) } catch { /* 算不出來就不處理，不影響存檔 */ }
     if (editing && auto.state === 'none') {
       setSaved({ edited: true, calc: c, copyText })
       setSaving(false)
@@ -253,7 +300,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     const qty = {}
     c.paid.forEach(l => {
       const name = l.product_name.trim()
-      days[name] = useDays[name] ? String(useDays[name]) : ''
+      days[name] = dayMap[normName(name)] ? String(dayMap[normName(name)]) : ''
       qty[name] = (qty[name] || 0) + qtyOf(l)
     })
     setSaved({
@@ -280,7 +327,7 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       names.forEach(n => { if (num(saved.days[n]) > 0) map[n] = saved.days[n] })
       if (Object.keys(map).length === 0) return null
       const err = await saveUseDays(userId, map)
-      if (!err) setUseDays(u => ({ ...u, ...Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Math.round(Number(v))])) }))
+      if (!err) setUseInfo(u => ({ ...u, ...Object.fromEntries(Object.entries(map).map(([k, v]) => [normName(k), { ...(u[normName(k)] || {}), name: k, days: Math.round(Number(v)) }])) }))
       else setSaved(s => ({ ...s, daysError: '天數沒記起來：' + err.message }))
       return err
     }
@@ -499,6 +546,55 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                 <input type="number" inputMode="decimal" value={l.points} placeholder="0" onChange={e => setLine(l.key, { points: e.target.value })} style={inp} />
               </div>
             </div>
+            {!l.is_gift && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                  <div style={{ width: 110 }}>
+                    <span style={lbl}>一份可以用幾天</span>
+                    <input type="number" inputMode="numeric" min="1" value={l.days || ''} placeholder="選填"
+                      onChange={e => setLine(l.key, { days: e.target.value, perServing: '', perDay: '' })} style={inp} />
+                  </div>
+                  <span style={{ fontSize: 13, color: TEXT_SECONDARY, paddingBottom: 9 }}>天</span>
+                  <button onClick={() => setLine(l.key, { calcOpen: !l.calcOpen })}
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: PRIMARY, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2, padding: '0 0 9px' }}>
+                    用數量算 {l.calcOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                  </button>
+                </div>
+                {num(l.days) > 0 && (
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: TEXT_SECONDARY }}>
+                    {lq > 1 ? `買 ${lq} 份，約 ${fmt(num(l.days) * lq)} 天用完` : `約 ${fmt(num(l.days))} 天用完`}
+                  </p>
+                )}
+                {l.calcOpen && (
+                  <div style={{ background: SUBCARD_BG, borderRadius: RADIUS.md, padding: 10, marginTop: 8 }}>
+                    <span style={lbl}>單位</span>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                      {USE_UNITS.map(u => (
+                        <button key={u} onClick={() => setLine(l.key, { unit: u, unitEdit: false })}
+                          style={{ padding: '5px 14px', borderRadius: RADIUS.pill, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            background: l.unit === u && !l.unitEdit ? PRIMARY : 'var(--card)', color: l.unit === u && !l.unitEdit ? '#fff' : TEXT_SECONDARY }}>{u}</button>
+                      ))}
+                      {(l.unitEdit || (l.unit && !USE_UNITS.includes(l.unit)))
+                        ? <input value={l.unit || ''} maxLength={8} placeholder="例如 匙" autoFocus={!!l.unitEdit}
+                            onChange={e => setLine(l.key, { unit: e.target.value, unitEdit: true })}
+                            style={{ ...inp, width: 84, padding: '5px 10px', borderRadius: RADIUS.pill, fontSize: 12 }} />
+                        : <button onClick={() => setLine(l.key, { unitEdit: true })}
+                            style={{ padding: '5px 14px', borderRadius: RADIUS.pill, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: 'var(--card)', color: TEXT_SECONDARY }}>自己打</button>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13, color: TEXT_SECONDARY }}>
+                      <span>一份有</span>
+                      <input type="number" inputMode="decimal" value={l.perServing || ''} onChange={e => setUse(l, { perServing: e.target.value })} style={{ ...inp, width: 66 }} />
+                      <span>{l.unit || '單位'}，每天用</span>
+                      <input type="number" inputMode="decimal" value={l.perDay || ''} onChange={e => setUse(l, { perDay: e.target.value })} style={{ ...inp, width: 66 }} />
+                      <span>{l.unit || '單位'}</span>
+                    </div>
+                    {num(l.perServing) > 0 && num(l.perDay) > 0 && (
+                      <p style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 600, color: TEXT_MAIN }}>＝ 一份約 {fmt(num(l.days))} 天</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {lq > 1 && (
               <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: RADIUS.sm, background: PRIMARY_SOFT, color: PRIMARY, fontSize: 12, fontWeight: 600 }}>
                 {lq} 份合計：{l.is_gift ? `成本 ${fmt(lt.cost)}　點數 ${fmt(lt.points)}` : `成本 ${fmt(lt.cost)}　賣價 ${fmt(lt.amount)}　點數 ${fmt(lt.points)}`}
