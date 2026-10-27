@@ -271,3 +271,43 @@ export async function saveUseDays(userId, map) {
   if (rows.length === 0) return
   await supabase.from('product_use_days').upsert(rows, { onConflict: 'user_id,product_name' })
 }
+
+// ───────── 回購提醒自動串聯 ─────────
+// 訂單存好之後，用「一份能用幾天 × 份數」算出大概哪天用完，自動設成這位顧客的回購提醒。
+// 回傳 state：
+//   'auto'  已自動設好（previous 是原本的提醒，給「復原」用）
+//   'same'  算出來的日期和現在的提醒一樣，不用動
+//   'past'  算出來的日期已經過了，不設
+//   'ask'   有產品還沒記過天數、或現在已經有一個還沒到的提醒（可能是自己設的）→ 交給使用者決定
+//   'none'  不處理：沒有付費產品，或編輯的不是這位顧客最近一張訂單
+export async function autoRepurchase({ customerId, orderId, date, calc, useDays, isEdit }) {
+  const paid = (calc.paid || []).filter(l => (l.product_name || '').trim())
+  if (paid.length === 0) return { state: 'none' }
+
+  // 只處理「這位顧客最近一張訂單」：補登更早的訂單、或改舊訂單，不會把提醒往回改
+  const { data: others } = await supabase.from('transactions')
+    .select('date,order_id,line_kind').eq('customer_id', customerId)
+    .order('date', { ascending: false }).limit(60)
+  const maxOther = (others || [])
+    .filter(t => !t.line_kind && !(orderId && t.order_id === orderId))
+    .reduce((m, t) => (t.date > m ? t.date : m), '')
+  const isLatest = !maxOther || date >= maxOther
+  if (!isLatest) return { state: 'none' }
+
+  const qty = {}
+  paid.forEach(l => { const n = l.product_name.trim(); qty[n] = (qty[n] || 0) + qtyOf(l) })
+  const names = Object.keys(qty)
+  const perName = names.map(n => (Number(useDays && useDays[n]) > 0 ? Number(useDays[n]) * qty[n] : 0))
+  const { data: cust } = await supabase.from('customers')
+    .select('repurchase_reminder').eq('id', customerId).single()
+  const existing = (cust && cust.repurchase_reminder) || null
+  if (perName.some(d => !(d > 0))) return { state: 'ask', existing }
+
+  const computed = addDays(date, Math.round(Math.min(...perName)))
+  const today = toDateStr(new Date())
+  if (computed < today) return { state: 'past', computed, existing }
+  if (existing && existing === computed) return { state: 'same', computed, existing }
+  if (existing && existing >= today) return { state: 'ask', computed, existing }
+  await supabase.from('customers').update({ repurchase_reminder: computed }).eq('id', customerId)
+  return { state: 'auto', computed, previous: existing, existing }
+}

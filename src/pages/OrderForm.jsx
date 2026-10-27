@@ -14,7 +14,7 @@ import {
 import {
   num, fmt, uid, blankLine, blankAdjustment, shortDate, addDays, qtyOf, r2,
   computeOrder, buildRows, adjustmentSpec, buildCopyText, copyToClipboard,
-  fetchProductCatalog, fetchLastPurchase, fetchWeekPoints, fetchUseDays, saveUseDays,
+  fetchProductCatalog, fetchLastPurchase, fetchWeekPoints, fetchUseDays, saveUseDays, autoRepurchase,
 } from './orderUtils'
 
 const inp = {
@@ -203,13 +203,15 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
     clearDraft(draftKey)
 
     const copyText = buildCopyText(customerName, form.lines, c)
-    if (orderId) {
+    // 回購提醒自動串聯：一份能用幾天 × 份數 → 設好這位顧客的回購提醒（規則寫在 autoRepurchase）
+    let auto = { state: 'none' }
+    try { auto = await autoRepurchase({ customerId, orderId: oid, date: form.date, calc: c, useDays, isEdit: !!orderId }) } catch { /* 算不出來就不處理，不影響存檔 */ }
+    if (orderId && auto.state === 'none') {
       setSaved({ edited: true, calc: c, copyText })
       setSaving(false)
       return
     }
-    const week = await fetchWeekPoints(userId)
-    const { data: cust } = await supabase.from('customers').select('repurchase_reminder').eq('id', customerId).single()
+    const week = orderId ? null : await fetchWeekPoints(userId)
     const days = {}
     const qty = {}
     c.paid.forEach(l => {
@@ -218,9 +220,10 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
       qty[name] = (qty[name] || 0) + qtyOf(l)
     })
     setSaved({
-      edited: false, calc: c, copyText, week, date: form.date, qty,
-      existingReminder: cust?.repurchase_reminder || null,
-      days, reminderState: null, copyOpen: false, copied: false,
+      edited: !!orderId, calc: c, copyText, week, date: form.date, qty,
+      existingReminder: auto.existing || null,
+      autoDate: auto.computed || null, prevReminder: auto.previous || null,
+      days, reminderState: auto.state === 'ask' ? null : auto.state, copyOpen: false, copied: false,
     })
     setSaving(false)
   }
@@ -263,11 +266,41 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
           )}
         </div>
 
-        {!saved.edited && names.length > 0 && saved.reminderState !== 'skip' && (
+        {names.length > 0 && saved.reminderState !== 'skip' && saved.reminderState !== 'none' && (
           <div style={{ background: ACCENT_PINK_SOFT, borderRadius: RADIUS.lg, padding: 14, marginBottom: 10 }}>
             {saved.reminderState === 'set' ? (
               <p style={{ margin: 0, fontSize: 13, fontWeight:600, color: ACCENT_PINK_TEXT }}>
                 已設好回購提醒：{shortDate(suggest)}
+              </p>
+            ) : saved.reminderState === 'auto' ? (
+              <>
+                <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight:600, color: ACCENT_PINK_TEXT }}>
+                  已幫你設好回購提醒：{shortDate(saved.autoDate)}
+                </p>
+                <p style={{ margin: '0 0 10px', fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.6 }}>
+                  {names.map(n => `${n}${saved.qty[n] > 1 ? ` ×${saved.qty[n]}` : ''}（一份 ${saved.days[n]} 天）`).join('、')}，最早用完的那個。快用完前首頁會提醒你。
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setSaved(s => ({ ...s, reminderState: null, adjusting: true }))}
+                    style={{ flex: 1, padding: '9px', borderRadius: RADIUS.md, border: `1px solid ${BORDER}`, background: 'var(--card)', color: TEXT_SECONDARY, fontSize: 13, cursor: 'pointer' }}>
+                    調整天數
+                  </button>
+                  <button onClick={async () => {
+                      await supabase.from('customers').update({ repurchase_reminder: saved.prevReminder || null }).eq('id', customerId)
+                      setSaved(s => ({ ...s, reminderState: 'skip' }))
+                    }}
+                    style={{ flex: 1, padding: '9px', borderRadius: RADIUS.md, border: `1px solid ${BORDER}`, background: 'var(--card)', color: TEXT_SECONDARY, fontSize: 13, cursor: 'pointer' }}>
+                    不要這個提醒
+                  </button>
+                </div>
+              </>
+            ) : saved.reminderState === 'same' ? (
+              <p style={{ margin: 0, fontSize: 13, fontWeight:600, color: ACCENT_PINK_TEXT }}>
+                回購提醒維持 {shortDate(saved.autoDate)}
+              </p>
+            ) : saved.reminderState === 'past' ? (
+              <p style={{ margin: 0, fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.6 }}>
+                這張訂單算出來的用完日（{shortDate(saved.autoDate)}）已經過了，沒有設回購提醒。
               </p>
             ) : (
               <>
@@ -292,7 +325,11 @@ export default function OrderForm({ userId, customerId, customerName, orderId = 
                     style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: 'none', background: suggest ? ACCENT_PINK : 'var(--pink-border)', color: '#fff', fontSize: 14, fontWeight:600, cursor: suggest ? 'pointer' : 'default' }}>
                     設提醒
                   </button>
-                  <button onClick={() => setSaved(s => ({ ...s, reminderState: 'skip' }))}
+                  <button onClick={async () => {
+                      // 從「調整天數」進來的，按「不用」＝連自動設的提醒也還原
+                      if (saved.adjusting) await supabase.from('customers').update({ repurchase_reminder: saved.prevReminder || null }).eq('id', customerId)
+                      setSaved(s => ({ ...s, reminderState: 'skip' }))
+                    }}
                     style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, border: `1px solid ${BORDER}`, background: 'var(--card)', color: TEXT_SECONDARY, fontSize: 14, cursor: 'pointer' }}>
                     不用
                   </button>
