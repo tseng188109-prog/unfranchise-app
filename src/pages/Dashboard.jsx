@@ -852,7 +852,7 @@ export default function Dashboard() {
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
                 <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
-                  <span>{mode.meet > 1 ? '個約會' : '個會議'}{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
+                  <span>個邀約{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
                   {weeklyMeetTarget > 0
                     ? <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: weekPlanned >= weeklyMeetTarget ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>本週 定下 {weekPlanned}/{weeklyMeetTarget}</span>
                     : <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天已定下' : '還沒定下')}</span>}
@@ -931,7 +931,7 @@ export default function Dashboard() {
                   {fmtPlanDate(farEvent.event_date)} {farEvent.title} · 還有 {daysUntil(farEvent.event_date)} 天
                 </div>
               )}
-              {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>1 是定下一個碰面，不用急，也別漫無目的</div>}
+              {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>1 是定下一個邀約，不用急，也別漫無目的</div>}
             </div>
             {meetingContact && (
               <div style={{ display:'flex', flexDirection:'column', gap:6, alignItems:'stretch' }}>

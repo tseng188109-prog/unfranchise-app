@@ -7,15 +7,15 @@ import { supabase } from '../supabase'
 export const DAILY_MODES = {
   start: {
     key: 'start', label: '1-1-2', title: '1-1-2　起步', talk: 1, meet: 1, fresh: 2,
-    desc: '每天至少 1 位互動、定下 1 個碰面、新增 2 位名單。剛開始的人先從這個開始。',
+    desc: '每天至少 1 位互動、定下 1 個邀約、新增 2 位名單。剛開始的人先從這個開始。',
   },
   std: {
     key: 'std', label: '3-1-2', title: '3-1-2　標準', talk: 3, meet: 1, fresh: 2,
-    desc: '每天 3 位互動、定下 1 個碰面、新增 2 位名單。',
+    desc: '每天 3 位互動、定下 1 個邀約、新增 2 位名單。',
   },
   fast: {
     key: 'fast', label: '10-3-2', title: '10-3-2　加速', talk: 10, meet: 3, fresh: 2,
-    desc: '每天 10 位互動、定下 3 個約會（其中 1 個由你主持）、新增 2 位名單。全職、進階的人用。',
+    desc: '每天 10 位互動、定下 3 個邀約（其中 1 個由你主持）、新增 2 位名單。全職、進階的人用。',
   },
 }
 export const DAILY_MODE_LIST = [DAILY_MODES.start, DAILY_MODES.std, DAILY_MODES.fast]

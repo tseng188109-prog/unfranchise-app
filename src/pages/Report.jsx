@@ -175,7 +175,7 @@ export default function Report() {
     const ok = p.talk.size >= mode.talk && p.plan >= mode.meet && p.fresh >= mode.fresh
     if (ok) return { t: '完成', c: ACCENT_GREEN_TEXT }
     if (d === today) return { t: '進行中', c: TEXT_MUTED }
-    const miss = p.plan < mode.meet ? '會議' : p.talk.size < mode.talk ? '互動' : '新名單'
+    const miss = p.plan < mode.meet ? '邀約' : p.talk.size < mode.talk ? '互動' : '新名單'
     return { t: '缺' + miss, c: ACCENT_YELLOW_TEXT }
   }
 
@@ -185,7 +185,7 @@ export default function Report() {
     L.push(`【${(profile && profile.name) || ''}　報告 ${md(from)}–${md(to)}（${len} 天）】`)
     L.push(`括號是前 ${len} 天（${md(pFrom)}–${md(pTo)}）`, '')
     L.push('行動')
-    L.push(`見到 ${cur.met}${pr('met')}`, `定下會議 ${cur.plan}${pr('plan')}`, `新名單 ${cur.fresh}${pr('fresh')}`, `互動 ${cur.talk} 人次${pr('talk')}`)
+    L.push(`見到 ${cur.met}${pr('met')}`, `定下邀約 ${cur.plan}${pr('plan')}`, `新名單 ${cur.fresh}${pr('fresh')}`, `互動 ${cur.talk} 人次${pr('talk')}`)
     L.push(`BV 分享 ${cur.bvShare}${pr('bvShare')}　IBV 分享 ${cur.ibvShare}${pr('ibvShare')}`)
     L.push(`每週目標：見到 ${metTarget}、定下 ${planTarget}`, '')
     L.push(`每天 ${mode.label}`)
@@ -277,7 +277,7 @@ export default function Report() {
               <div style={grid}>
                 <span /><span style={th}>這段</span><span style={th}>前一段</span>
                 {row('見到', cur.met, prev.met)}
-                {row('定下會議', cur.plan, prev.plan)}
+                {row('定下邀約', cur.plan, prev.plan)}
                 {row('新名單', cur.fresh, prev.fresh)}
                 {row('互動人次', cur.talk, prev.talk)}
                 {row('BV 分享', cur.bvShare, prev.bvShare)}

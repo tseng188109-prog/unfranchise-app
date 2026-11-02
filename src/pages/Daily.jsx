@@ -600,7 +600,7 @@ export default function Daily() {
                     {is312 && (
                       <span style={{ display:'block',fontSize:12,fontWeight:600,marginTop:2,textDecoration:'none',
                         color: all312 ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>
-                        互動 {Math.min(d312.talk, mode.talk)}/{mode.talk}　會議 {Math.min(d312.plan, mode.meet)}/{mode.meet}　新名單 {Math.min(d312.fresh, mode.fresh)}/{mode.fresh}
+                        互動 {Math.min(d312.talk, mode.talk)}/{mode.talk}　邀約 {Math.min(d312.plan, mode.meet)}/{mode.meet}　新名單 {Math.min(d312.fresh, mode.fresh)}/{mode.fresh}
                       </span>
                     )}
                   </span>
@@ -944,7 +944,7 @@ export default function Daily() {
                     background:on?ACCENT_GREEN:'var(--card)',border:on?'none':'2px solid var(--border2)' }}>
                     {on && <IconCheck size={12} stroke={2.5} color="#fff" />}
                   </span>
-                  <span style={{ fontSize:14,color:TEXT_MAIN,fontWeight:600 }}>{t.key === 'daily_3_contacts' ? `${mode.label}（互動／會議／新名單）` : t.label}</span>
+                  <span style={{ fontSize:14,color:TEXT_MAIN,fontWeight:600 }}>{t.key === 'daily_3_contacts' ? `${mode.label}（互動／邀約／新名單）` : t.label}</span>
                 </button>
               )
             })}

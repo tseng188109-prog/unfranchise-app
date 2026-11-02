@@ -434,7 +434,7 @@ export default function Settings() {
         <div style={card}>
           <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>約人的節奏</p>
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
-            一週想定下幾場碰面？依你的作息自己決定，首頁「1 個會議」那一列會顯示本週進度。
+            一週想定下幾場邀約？依你的作息自己決定，首頁「1 個邀約」那一列會顯示本週進度。
           </p>
           <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
             {[3, 5, 7].map(n => {
@@ -498,7 +498,7 @@ export default function Settings() {
               </button>
             ))}
           </div>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'8px 0 0' }}>活動加在「我的活動」。進了提醒範圍，首頁「1 個會議」會列出可以邀的人。</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'8px 0 0' }}>活動加在「我的活動」。進了提醒範圍，首頁「1 個邀約」會列出可以邀的人。</p>
         </div>
 
         {/* 我的首選產品：自己先用的 1–2 款，見面提示會帶出來 */}
