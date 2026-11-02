@@ -77,3 +77,16 @@ export function resolveEventWeeks(tagSettings) {
   const v = tagSettings && tagSettings.event_remind_weeks
   return typeof v === 'number' && v >= 2 && v <= 4 ? Math.round(v) : 3
 }
+
+// 每週想「見到」幾位（約定那天到了就算）。每個人作息不同，所以可以自己調。
+// 存在 tag_settings.weekly_met：數字。沒設定時 2（原本的「每週2訪」）。
+export function resolveWeeklyMet(tagSettings) {
+  const v = tagSettings && tagSettings.weekly_met
+  return typeof v === 'number' && v >= 1 && v <= 50 ? Math.round(v) : 2
+}
+
+// 首頁藍色提示：往後幾天內的約會都顯示（1–7 天，預設 3 天）。存在 tag_settings.plan_ahead_days
+export function resolvePlanAhead(tagSettings) {
+  const v = tagSettings && tagSettings.plan_ahead_days
+  return typeof v === 'number' && v >= 1 && v <= 7 ? Math.round(v) : 3
+}

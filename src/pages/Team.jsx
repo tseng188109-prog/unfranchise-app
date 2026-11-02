@@ -91,12 +91,18 @@ export default function Team() {
     // 本週週行動總筆數（行為次數，不含業績金額）
     const { data: counterLogs } = await supabase
       .from('counter_logs').select('user_id,counter_key')
-      .in('user_id', userIds).in('date', weekDays)
-      .not('counter_key', 'in', '("new_product","gmtss")')
+      .in('user_id', userIds).in('date', weekDays).eq('is_done', true)
+      .not('counter_key', 'in', '("new_product","gmtss","stranger")')
+    // 陌生人互動併入「新名單」：本週新增的聯絡人也算一次行動
+    const { data: newContacts } = await supabase
+      .from('contacts').select('user_id')
+      .in('user_id', userIds).is('source', null)
+      .gte('created_at', weekDays[0] + 'T00:00:00+08:00')
+      .lt('created_at', weekDays[6] + 'T23:59:59+08:00')
 
     // 依加入時間排序顯示，不依表現排序（表現排序只在 fetchTeamRanking 內部用來算連續天數，不用於呈現順序）
     const result = ranked
-      .map(m => ({ ...m, weekActions: (counterLogs||[]).filter(l => l.user_id === m.user_id).length }))
+      .map(m => ({ ...m, weekActions: (counterLogs||[]).filter(l => l.user_id === m.user_id).length + (newContacts||[]).filter(c => c.user_id === m.user_id).length }))
       .sort((a,b) => (a.joined_at||'').localeCompare(b.joined_at||''))
 
     setMembers(result)
@@ -113,8 +119,8 @@ export default function Team() {
 
     const { data: counters } = await supabase
       .from('counter_logs').select('counter_key')
-      .eq('user_id', memberId).eq('date', date)
-      .not('counter_key', 'in', '("new_product","gmtss")')
+      .eq('user_id', memberId).eq('date', date).eq('is_done', true)
+      .not('counter_key', 'in', '("new_product","gmtss","stranger")')
 
     const taskMap = {}
     ;(checkins||[]).forEach(c => { taskMap[c.task_key] = c.is_done })

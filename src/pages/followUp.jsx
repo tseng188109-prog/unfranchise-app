@@ -180,7 +180,7 @@ function rankMeetingPool(contacts, todayStr, skipIds = [], seedExtra = '') {
     if (!c || c.is_muted) return false
     if (skipIds.includes(c.id)) return false
     if (c.referral_stage === '暫時婉拒') return false
-    if (c.next_plan) return false
+    if (c.next_plan && (!c.next_plan_date || c.next_plan_date >= today)) return false
     if (interestRank(c) === 0 && daysSince(c.last_contact_date || c.last_interacted_at, today) < 30) return false
     return true
   })

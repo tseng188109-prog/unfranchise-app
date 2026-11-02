@@ -48,6 +48,7 @@ function Avatar({ name, size=40 }) {
 }
 
 // ── CSV 工具：統一從共用檔案 import ──────────────────
+import { detachMeetingsBeforeDelete } from './meetings'
 import { parseCSV, parseDate, parseBirthday } from './csvUtils'
 
 const CONTACTS_TEMPLATE = `name,occupation,egg_type,need_level,action_type,birthday,next_contact_date
@@ -180,6 +181,7 @@ export default function Contacts() {
   async function handleDeletePermanent() {
     if (!deleteTarget) return
     setDeleting(true)
+    await detachMeetingsBeforeDelete(user.id, deleteTarget.id)
     await supabase.from('contact_logs').delete().eq('contact_id', deleteTarget.id)
     await supabase.from('sample_tracking').delete().eq('contact_id', deleteTarget.id)
     const { error } = await supabase.from('contacts').delete().eq('id', deleteTarget.id)
@@ -878,7 +880,7 @@ async function handleImport() {
               確定永久刪除「{deleteTarget.name}」？
             </p>
             <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
-              會一併刪除相關的互動紀錄與試用品追蹤紀錄，此動作無法復原
+              會一併刪除他的互動紀錄與試用品追蹤，無法復原。已經見過的「見面」紀錄會留在每日行動，只是名字會變成（已刪除的名單）。只是暫時不想看到他的話，建議用「封存」。
             </p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setDeleteTarget(null)}

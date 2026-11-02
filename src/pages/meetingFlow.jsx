@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
-import { markDaily312, syncDaily3 } from './followUp'
+import { syncDaily3 } from './followUp'
+import { recordMetNow, scheduleMeeting } from './meetings'
 import { trackUsage } from './usage'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, SUBCARD_BG, RADIUS,
@@ -35,7 +36,7 @@ export const INTEREST_LEVELS = [
   { key: 'unknown', label: '看不出來', dot: '#77726A', desc: '她說得不多', tip: '下次多問、多聽，別急著介紹', plans: ['約聚餐', '一對一聊聊'] },
 ]
 export const ABOUT_OPTIONS = ['產品', '生意機會', '還不確定']
-const ALL_PLANS = ['體驗產品', '逛網站', '一對一聊聊', '家庭事業說明會', '事業說明會', '三方通話', '看線上影片', '約聚餐']
+export const ALL_PLANS = ['體驗產品', '逛網站', '一對一聊聊', '家庭事業說明會', '事業說明會', '三方通話', '看線上影片', '約聚餐']
 
 // ---- 預設標籤 ----
 export const DEFAULT_NEEDS = ['睡眠精神', '省錢', '身體狀況', '皮膚保養', '家人照顧', '額外收入', '時間自由', '想轉變', '有能力沒舞台', '想學習成長', '孩子教養', '人脈社群']
@@ -127,7 +128,7 @@ export function useTagLists(userId) {
 }
 
 // ---- 小元件 ----
-function Chip({ on, onClick, children, dashed, tone }) {
+export function Chip({ on, onClick, children, dashed, tone }) {
   const green = tone === 'green'
   return (
     <button type="button" onClick={onClick}
@@ -175,7 +176,7 @@ function TagPicker({ title, items, picked, setPicked, onAdd, tone }) {
 }
 
 // ---- 見完了面板 ----
-export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
+export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
   const tags = useTagLists(userId)
   const [level, setLevel] = useState(null)
   const [about, setAbout] = useState([])
@@ -183,8 +184,9 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
   const [openMore, setOpenMore] = useState(false)
   const [needs, setNeeds] = useState(contact.need_tags || [])
   const [signals, setSignals] = useState([])
-  const [plan, setPlan] = useState(contact.next_plan || '')
-  const [planDate, setPlanDate] = useState(contact.next_plan_date || '')
+  const [plan, setPlan] = useState('')
+  const [planDate, setPlanDate] = useState('')
+  const [planTime, setPlanTime] = useState('')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
   const showMore = getShowMore()
@@ -200,9 +202,14 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
     const dt = todayStr()
     const note = quote.trim()
     const planText = plan.trim()
-    await supabase.from('contact_logs').insert({
-      contact_id: contact.id, user_id: userId, date: dt, kind: (planText && planDate) ? 'meet_plan' : 'meet', note: note || `見面：${lv.label}`,
+    // 1) 記這次見面（互動紀錄）
+    const { error: e0 } = await supabase.from('contact_logs').insert({
+      contact_id: contact.id, user_id: userId, date: dt, kind: 'meet', note: note || `見面：${lv.label}`,
     })
+    if (e0) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
+    // 2) 這次見面算在約定的那一筆上；沒有約定的話記一筆「已見到」
+    await recordMetNow(userId, contact.id, logId || null)
+    // 3) 她的狀況
     const upd = {
       last_interacted_at: new Date().toISOString(),
       last_contact_date: dt,
@@ -210,15 +217,15 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
       interest_about: about,
       need_tags: needs,
       signal_tags: signals,
-      next_plan: planText || null,
-      next_plan_date: planDate || null,
     }
     if (note) upd.last_quote = note
-    if (planDate) upd.next_contact_date = planDate
     const { error } = await supabase.from('contacts').update(upd).eq('id', contact.id)
     if (error) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
-    // 成功＝真的約到下一次（有內容、有日期），才算今天的 3-1-2 有推進
-    if (planText && planDate) await markDaily312(supabase, userId, dt)
+    // 4) 有約下一次（有內容、有日期）才建立新的約會，這也算今天的 3-1-2 有推進
+    if (planText && planDate) {
+      const res = await scheduleMeeting(userId, contact, { plan: planText, date: planDate, time: planTime })
+      if (res.error) { setSaving(false); setErr(res.error); return }
+    }
     await syncDaily3(supabase, userId, dt)
     trackUsage('after_meet_saved')
     if (planText && planDate) trackUsage('next_booked')
@@ -313,6 +320,8 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
             <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>哪天</span>
             <DateField value={planDate} min={todayStr()} onChange={e => setPlanDate(e.target.value)}
               style={{ padding: '7px 10px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none' }} />
+            <input type="time" value={planTime} onChange={e => setPlanTime(e.target.value)}
+              style={{ padding: '6px 8px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`, fontSize: 13, outline: 'none', background: 'var(--card)', color: TEXT_MAIN, width: 100 }} />
             <span style={{ fontSize: 11, color: TEXT_MUTED }}>還沒定可以空著</span>
           </div>
         </div>
@@ -327,10 +336,13 @@ export function AfterMeetSheet({ contact, userId, onClose, onSaved }) {
 }
 
 // ---- 聯絡人頁的「下一次」卡 ----
-export function NextPlanCard({ contact, onOpen }) {
-  const hasPlan = !!contact.next_plan
+// 還沒約：主按鈕是「定時間」，「見完了」降成小字。已約好：主按鈕才是「見完了，記一下」，旁邊可改時間。
+export function NextPlanCard({ contact, onOpen, onSchedule, onEdit }) {
+  const t = todayStr()
+  const hasPlan = !!contact.next_plan && (!contact.next_plan_date || contact.next_plan_date >= t)
   const needs = contact.need_tags || []
   const signals = contact.signal_tags || []
+  const link = { background: 'none', border: 'none', padding: 0, marginTop: 8, color: PRIMARY, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }
   return (
     <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: '12px 14px', marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -340,11 +352,14 @@ export function NextPlanCard({ contact, onOpen }) {
             {hasPlan ? `${contact.next_plan_date ? fmtPlanDate(contact.next_plan_date) + '　' : ''}${contact.next_plan}` : '還沒約下一次'}
           </div>
         </div>
-        <button onClick={onOpen}
+        <button onClick={hasPlan ? onOpen : onSchedule}
           style={{ border: 'none', background: PRIMARY, color: '#fff', borderRadius: RADIUS.sm, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          見完了，記一下
+          {hasPlan ? '見完了，記一下' : '定時間'}
         </button>
       </div>
+      <button onClick={hasPlan ? onEdit : onOpen} style={link}>
+        {hasPlan ? '改時間 ›' : '已經見過了？見完了，記一下 ›'}
+      </button>
       {needs.length > 0 && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6 }}>她在意：{needs.join('、')}</div>}
       {signals.length > 0 && <div style={{ fontSize: 12, color: ACCENT_GREEN_TEXT, marginTop: 2 }}>上次：{signals.join('、')}</div>}
       {contact.last_quote && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>上次她說：「{contact.last_quote}」</div>}
@@ -353,11 +368,11 @@ export function NextPlanCard({ contact, onOpen }) {
 }
 
 // ---- 見面前提示：只有今天或明天有約才出現 ----
-export function upcomingPlans(contacts) {
+export function upcomingPlans(contacts, days = 3) {
   const t = todayStr()
-  const tm = addDays(t, 1)
+  const last = addDays(t, Math.max(1, days) - 1)
   return (contacts || [])
-    .filter(c => !c.is_muted && c.next_plan_date && (c.next_plan_date === t || c.next_plan_date === tm))
+    .filter(c => !c.is_muted && c.next_plan_date && c.next_plan_date >= t && c.next_plan_date <= last)
     .sort((a, b) => (a.next_plan_date < b.next_plan_date ? -1 : 1))
 }
 

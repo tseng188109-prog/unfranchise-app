@@ -12,7 +12,7 @@ import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
-  IconFlag, IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp, IconX,
+  IconFlag, IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp, IconX, IconCheck,
 } from '@tabler/icons-react'
 
 const BV_GOAL = 1500
@@ -28,7 +28,8 @@ import {
   DANGER, DANGER_SOFT, CARD_BG, PAGE_BG, SUBCARD_BG, RADIUS, ORANGE, ORANGE_TEXT, ORANGE_SOFT,
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
-import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks } from './dailyMode'
+import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks, resolveWeeklyMet, resolvePlanAhead } from './dailyMode'
+import { ScheduleSheet, settleMeetings, backfillPlans, MEET_KEY } from './meetings'
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
 import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
@@ -153,6 +154,8 @@ export default function Dashboard() {
 
   // 本週訪談狀態（本週見面次數/2，教練語氣，跟自己比不跟別人比）
   const [meetupCard, setMeetupCard] = useState(null)
+  const [sched, setSched] = useState(null) // null | { contact }
+  const [futureMeets, setFutureMeets] = useState([])
 
   // 我為什麼留在這裡：首頁安靜預覽一行，沒寫過就不顯示，不主動邀請填寫
   const [whyHerePreview, setWhyHerePreview] = useState('')
@@ -362,6 +365,8 @@ export default function Dashboard() {
   // 本週訪談狀態：本週見面次數（counter_logs, counter_key='meetup', is_done=true）跟連續達標週數
   // 跟自己比，不跟隊友比——這是 Dashboard 唯一保留的「訪談狀態」教練語氣卡片
   async function fetchMeetupCard() {
+    // 約定那天到了就自動算見到，所以先結算一次
+    await settleMeetings(user.id)
     const currentWeekStart = getWeekStart(today())
     // 抓最近 12 週的資料，夠算連續達標週數
     const twelveWeeksAgo = (() => {
@@ -371,8 +376,10 @@ export default function Dashboard() {
     })()
     const { data } = await supabase.from('counter_logs')
       .select('date')
-      .eq('user_id', user.id).eq('counter_key', 'meetup').eq('is_done', true)
+      .eq('user_id', user.id).eq('counter_key', MEET_KEY).eq('is_done', true)
       .gte('date', twelveWeeksAgo)
+    const { data: u } = await supabase.from('users').select('tag_settings').eq('id', user.id).single()
+    const target = resolveWeeklyMet(u && u.tag_settings)
     const weeklyCounts = {}
     ;(data || []).forEach(l => {
       const wk = getWeekStart(l.date)
@@ -381,13 +388,22 @@ export default function Dashboard() {
     const count = weeklyCounts[currentWeekStart] || 0
     let streak = 0
     let cursor = currentWeekStart
-    while ((weeklyCounts[cursor] || 0) >= 2) {
+    while ((weeklyCounts[cursor] || 0) >= target) {
       streak++
       const d = new Date(cursor + 'T00:00:00')
       d.setDate(d.getDate() - 7)
       cursor = toDateStr(d)
     }
-    setMeetupCard({ count, streak })
+    setMeetupCard({ count, streak, target })
+    loadFutureMeets()
+  }
+
+  // 今天以後的約會（找活動邀請用）
+  async function loadFutureMeets() {
+    const { data } = await supabase.from('counter_logs')
+      .select('id,contact_id,planned_date,note')
+      .eq('user_id', user.id).eq('counter_key', MEET_KEY).gte('planned_date', today()).limit(300)
+    setFutureMeets(data || [])
   }
 
   async function fetchGoalText() {
@@ -443,7 +459,11 @@ export default function Dashboard() {
       .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
-    if (data) { setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips) }
+    if (data) {
+      setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips)
+      // 更新前已經約好的，補進每日行動（只補沒有對應記錄的）
+      backfillPlans(user.id, data).then(n => { if (n) loadFutureMeets() })
+    }
     // 已是顧客的人：他們的互動照算，但不當「新名單」、也不被當成要邀約的對象
     const { data: custRows } = await supabase.from('customers')
       .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
@@ -599,13 +619,13 @@ export default function Dashboard() {
     const ok = await askConfirm({ title: `邀請 ${c.name} 參加？`, message: `會記成「邀請參加 ${ev.title}」，約在 ${fmtPlanDate(ev.event_date)}。`, okText: '記下' })
     if (!ok) return
     await inviteToEvent(supabase, user.id, c, ev)
-    fetchFollowUps()
+    fetchFollowUps(); loadFutureMeets()
   }
   async function handleCancelInvite(c, ev) {
     const ok = await askConfirm({ title: `取消邀請 ${c.name}？`, message: `會清掉「邀請參加 ${ev.title}」這個約定。`, okText: '取消邀請', danger: true })
     if (!ok) return
-    await cancelInvite(supabase, c, ev)
-    fetchFollowUps()
+    await cancelInvite(supabase, c, ev, user.id)
+    fetchFollowUps(); loadFutureMeets()
   }
   const favProducts = resolveFavProducts(profile?.tag_settings)
   const doneContacts = today312.contacted.map(id => activeContacts.find(c => c.id === id)).filter(Boolean)
@@ -774,7 +794,7 @@ export default function Dashboard() {
               今天的 {mode.label} 做滿了
             </div>
           )}
-          {upcomingPlans(activeContacts).map(c => (
+          {upcomingPlans(activeContacts, resolvePlanAhead(profile?.tag_settings)).map(c => (
             <div key={c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
               style={{ padding:'10px 14px', background:PRIMARY_SOFT, cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
               <div style={{ fontSize:13,fontWeight:600,color:PRIMARY }}>
@@ -834,7 +854,7 @@ export default function Dashboard() {
                 <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
                   <span>{mode.meet > 1 ? '個約會' : '個會議'}{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
                   {weeklyMeetTarget > 0
-                    ? <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: weekPlanned >= weeklyMeetTarget ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>本週 {weekPlanned}/{weeklyMeetTarget}</span>
+                    ? <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: weekPlanned >= weeklyMeetTarget ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>本週 定下 {weekPlanned}/{weeklyMeetTarget}</span>
                     : <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天已定下' : '還沒定下')}</span>}
                 </span>
               </div>
@@ -856,18 +876,29 @@ export default function Dashboard() {
                 <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'4px 8px', marginTop:6 }}>
                   {weeklyMeetTarget <= 7
                     ? <div style={{ display:'flex', gap:4 }}>
-                        {Array.from({ length: weeklyMeetTarget }).map((_, i) => (
-                          <span key={i} style={{ width:14, height:14, borderRadius:7, background: i < weekPlanned ? ORANGE : 'var(--border)' }} />
-                        ))}
+                        {Array.from({ length: weeklyMeetTarget }).map((_, i) => {
+                          const met = meetupCard ? meetupCard.count : 0
+                          const filled = Math.max(weekPlanned, met)
+                          const isMet = i < met
+                          return (
+                            <span key={i} style={{ width:16, height:16, borderRadius:8, display:'inline-flex', alignItems:'center', justifyContent:'center',
+                              background: isMet ? ACCENT_GREEN_TEXT : i < filled ? ORANGE : 'var(--border)' }}>
+                              {isMet && <IconCheck size={10} stroke={3} color="#fff" />}
+                            </span>
+                          )
+                        })}
                       </div>
                     : <div style={{ width:90, height:6, borderRadius:3, background:'var(--border)', overflow:'hidden' }}>
                         <div style={{ width: Math.min(100, Math.round(weekPlanned / weeklyMeetTarget * 100)) + '%', height:'100%', background:ORANGE }} />
                       </div>}
-                  <span style={{ fontSize:11, color:TEXT_MUTED, whiteSpace:'nowrap' }}>{today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}</span>
+                  <span style={{ fontSize:11, color:TEXT_MUTED }}>
+                    {today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}
+                    {meetupCard && `　見到 ${meetupCard.count}/${meetupCard.target}${meetupCard.streak >= 2 ? `・連續 ${meetupCard.streak} 週` : ''}`}
+                  </span>
                 </div>
               )}
               {nearEvents.map(ev => {
-                const invited = activeContacts.filter(c => isInvitedTo(c, ev))
+                const invited = activeContacts.filter(c => isInvitedTo(c, ev, futureMeets))
                 const cands = pickInviteCandidates(pickPool, ev.id, 5)
                 const n = daysUntil(ev.event_date)
                 return (
@@ -905,8 +936,8 @@ export default function Dashboard() {
             {meetingContact && (
               <div style={{ display:'flex', flexDirection:'column', gap:6, alignItems:'stretch' }}>
                 <SoftBtn solid color={ORANGE}
-                  onClick={()=>navigate(`/contacts/${meetingContact.id}`)}>
-                  {isContactWarm(meetingContact) ? '約下一次' : '先暖身'}
+                  onClick={()=> isContactWarm(meetingContact) ? setSched({ contact: meetingContact }) : navigate(`/contacts/${meetingContact.id}`)}>
+                  {isContactWarm(meetingContact) ? '定時間' : '先暖身'}
                 </SoftBtn>
                 <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
                   style={{ background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:'4px 0', cursor:'pointer' }}>
@@ -1155,18 +1186,6 @@ export default function Dashboard() {
                 <div style={{ fontSize:11,color:'var(--text2)' }}>本月獲利</div>
                 <div style={{ fontSize:15,fontWeight:600 }}>NT${profit.toLocaleString()}</div>
               </div>
-              <div style={{ flex:1,borderLeft:'1px solid var(--border)',paddingLeft:12 }}>
-                <div style={{ fontSize:11,color:'var(--text2)' }}>本週訪談</div>
-                <div style={{ fontSize:15,fontWeight:600 }}>
-                  {meetupCard ? meetupCard.count : '–'}<span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/2</span>
-                </div>
-                {meetupCard && (
-                  <div style={{ fontSize:11,color:'var(--text2)' }}>
-                    {meetupCard.count === 0 ? '想約誰？' : meetupCard.count === 1 ? '只差一位' : '達標了'}
-                    {meetupCard.streak >= 2 && `・連續 ${meetupCard.streak} 週`}
-                  </div>
-                )}
-              </div>
               {teamCard && (
                 <div style={{ flex:1,borderLeft:'1px solid var(--border)',paddingLeft:12 }}>
                   <div style={{ fontSize:11,color:'var(--text2)' }}>戰隊打卡率</div>
@@ -1190,6 +1209,10 @@ export default function Dashboard() {
           </div>
         </section>
 
+        )}
+        {sched && user && (
+          <ScheduleSheet userId={user.id} contact={sched.contact} onClose={() => setSched(null)}
+            onSaved={() => { fetchFollowUps(); fetchMeetupCard() }} />
         )}
         {showBvTarget && (
           <BvTargetSheet current={resolveBvTarget(profile?.tag_settings)}

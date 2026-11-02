@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
 import { HOME_LIST_OPTIONS, resolveHomeListMonths } from './homeList'
-import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks } from './dailyMode'
+import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks, resolveWeeklyMet, resolvePlanAhead } from './dailyMode'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
   IconFlag, IconChevronRight, IconCheck, IconHelpCircle, IconCalendarEvent,
@@ -20,6 +20,8 @@ export default function Settings() {
   const [modeKey, setModeKey] = useState('')
   const [favs, setFavs] = useState([])
   const [homeMonths, setHomeMonths] = useState(3)
+  const [weeklyMet, setWeeklyMet] = useState(2)
+  const [planAhead, setPlanAhead] = useState(3)
   const [weeklyMeet, setWeeklyMeet] = useState(5) // 0 = 不顯示本週進度
   const [customMeet, setCustomMeet] = useState(false)
   const [eventWeeks, setEventWeeks] = useState(3)
@@ -62,6 +64,8 @@ export default function Settings() {
     if (!data) return
     setModeKey(resolveMode(data.tag_settings, data.created_at).key)
     setEventWeeks(resolveEventWeeks(data.tag_settings))
+    setWeeklyMet(resolveWeeklyMet(data.tag_settings))
+    setPlanAhead(resolvePlanAhead(data.tag_settings))
     {
       const wm = resolveWeeklyMeet(data.tag_settings, resolveMode(data.tag_settings, data.created_at))
       setWeeklyMeet(wm)
@@ -87,6 +91,14 @@ export default function Settings() {
   function chooseEventWeeks(n) {
     setEventWeeks(n)
     if (user) saveTagSetting(user.id, { event_remind_weeks: n })
+  }
+  function chooseWeeklyMet(n) {
+    setWeeklyMet(n)
+    if (user) saveTagSetting(user.id, { weekly_met: n })
+  }
+  function choosePlanAhead(n) {
+    setPlanAhead(n)
+    if (user) saveTagSetting(user.id, { plan_ahead_days: n })
   }
   function chooseWeeklyMeet(n) {
     setWeeklyMeet(n)
@@ -456,6 +468,26 @@ export default function Settings() {
             </div>
           )}
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>一週從週六算到週五。選「不顯示」就不會出現本週進度，也不影響每日節奏。</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見到幾位（約定那天到了就算見到）</p>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
+            {[2, 3, 5, 7, 10].map(n => (
+              <button key={n} onClick={() => chooseWeeklyMet(n)}
+                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                  background: weeklyMet === n ? PRIMARY : SUBCARD_BG, color: weeklyMet === n ? '#fff' : TEXT_SECONDARY }}>
+                {n} 位
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>首頁往後幾天提示我要見的人</p>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
+            {[1, 2, 3, 5, 7].map(n => (
+              <button key={n} onClick={() => choosePlanAhead(n)}
+                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                  background: planAhead === n ? PRIMARY : SUBCARD_BG, color: planAhead === n ? '#fff' : TEXT_SECONDARY }}>
+                {n} 天
+              </button>
+            ))}
+          </div>
           <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>活動前幾週開始提醒我邀人</p>
           <div style={{ display:'flex',gap:8 }}>
             {[2, 3, 4].map(n => (

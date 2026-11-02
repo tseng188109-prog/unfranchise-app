@@ -11,6 +11,11 @@ import {
   IconCheck, IconPlus, IconPencil, IconTrash,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { loadDailyMode, saveTagSetting, resolveMode, resolveWeeklyMeet, resolveWeeklyMet } from './dailyMode'
+import { AfterMeetSheet } from './meetingFlow'
+import {
+  ScheduleSheet, fetchMeetings, settleMeetings, removeMeeting, isMet, splitTime, taipeiToday,
+} from './meetings'
 import { DAILY_TASKS, WEEKLY_TASKS, WEEKLY_COUNTERS, MONTH_ITEMS, COUNTER_COLORS } from './taskDefinitions'
 
 // 設計系統色碼
@@ -27,6 +32,9 @@ const ACCENT_GREEN_TEXT = 'var(--green-text)'
 const DANGER = '#E0454A'
 const BORDER = 'var(--border)'
 const SUBCARD_BG = 'var(--sub)'
+const PINK = 'var(--pink-text)'
+const ORANGE = '#F97316'
+const DAYS_LONG = ['日','一','二','三','四','五','六']
 
 const DAYS_ZH = ['日','一','二','三','四','五','六']
 function toDateStr(d) {
@@ -78,7 +86,16 @@ export default function Daily() {
   const [checkins, setCheckins] = useState({})
   const [weekTaskCheckins, setWeekTaskCheckins] = useState({})
   const [weekStatus, setWeekStatus] = useState([])
-  const [todayContacted, setTodayContacted] = useState([])
+  const [d312, setD312] = useState({ talk: 0, plan: 0, fresh: 0 })
+  const [profile, setProfile] = useState(null)
+  const [weekMeets, setWeekMeets] = useState([])
+  const [monthMeets, setMonthMeets] = useState([])
+  const [todayMeets, setTodayMeets] = useState([])
+  const [weekPlanned, setWeekPlanned] = useState(0)
+  const [allContacts, setAllContacts] = useState([])
+  const [sched, setSched] = useState(null)
+  const [afterMeet, setAfterMeet] = useState(null)
+  const [hideSheet, setHideSheet] = useState(false)
   const [weekLogs, setWeekLogs] = useState([])
   const [monthLogs, setMonthLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -111,6 +128,13 @@ export default function Daily() {
   useEffect(() => { if (user) fetchWeekLogs() }, [user, weekViewDate])
   useEffect(() => { if (user) fetchMonthLogs() }, [user, monthViewDate])
   useEffect(() => {
+    if (!user) return
+    settleMeetings(user.id).then(() => reloadMeets())
+    supabase.from('contacts').select('id,name,interest_level,need_tags,last_quote')
+      .eq('user_id', user.id).eq('is_archived', false).order('name').limit(500)
+      .then(({ data }) => setAllContacts(data || []))
+  }, [user])
+  useEffect(() => {
     if (goalModal && goalTextareaRef.current) {
       const el = goalTextareaRef.current
       el.style.height = 'auto'
@@ -121,7 +145,7 @@ export default function Daily() {
   async function fetchAll() {
     setLoading(true)
     await Promise.all([
-      fetchCheckins(), fetchWeekStatus(), fetchTodayContacted(),
+      fetchCheckins(), fetchWeekStatus(), fetch312(),
       fetchGoalText(), fetchWeekLogs(), fetchMonthLogs()
     ])
     setLoading(false)
@@ -155,26 +179,25 @@ export default function Daily() {
     setWeekStatus(days.map(d => ({ date: d, status: sm[d] || 'none' })))
   }
 
-  async function fetchTodayContacted() {
-    const { data } = await supabase.from('contact_logs')
-      .select('contact_id,contacts(id,name)')
-      .eq('user_id', user.id).eq('date', viewDate)
-    if (data) {
-      const seen = new Set()
-      const list = []
-      data.forEach(l => {
-        if (l.contacts && !seen.has(l.contacts.id)) {
-          seen.add(l.contacts.id)
-          list.push({ id: l.contacts.id, name: l.contacts.name })
-        }
-      })
-      setTodayContacted(list.slice(0, 5))
-    }
+  async function fetch312() {
+    const t = viewDate
+    const nextDay = toDateStr(new Date(new Date(t + 'T00:00:00').getTime() + 86400000))
+    const { data: logs } = await supabase.from('contact_logs')
+      .select('contact_id,kind').eq('user_id', user.id).eq('date', t)
+    const { count } = await supabase.from('contacts').select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).is('source', null)
+      .gte('created_at', t + 'T00:00:00+08:00').lt('created_at', nextDay + 'T00:00:00+08:00')
+    setD312({
+      talk: new Set((logs || []).map(l => l.contact_id)).size,
+      plan: (logs || []).filter(l => l.kind === 'meet_plan').length,
+      fresh: count || 0,
+    })
   }
 
   async function fetchGoalText() {
-    const { data } = await supabase.from('users').select('goal_declaration').eq('id', user.id).single()
+    const { data } = await supabase.from('users').select('goal_declaration,tag_settings,created_at').eq('id', user.id).single()
     if (data?.goal_declaration) setGoalText(data.goal_declaration)
+    if (data) setProfile(data)
   }
 
   async function fetchWeekLogs() {
@@ -184,12 +207,16 @@ export default function Daily() {
     const { data } = await supabase.from('counter_logs')
       .select('id,counter_key,date,planned_date,is_done,product_name,note,contact_id,contacts(name)')
       .eq('user_id', user.id)
-      .not('counter_key', 'in', '("new_product","gmtss")')
+      .not('counter_key', 'in', '("new_product","gmtss","meetup","stranger")')
     const filtered = (data || []).filter(l => {
       const d = l.planned_date || l.date
       return d >= ws && d <= we
     })
     setWeekLogs(filtered)
+    setWeekMeets(await fetchMeetings(user.id, ws, we))
+    const { data: pl } = await supabase.from('contact_logs')
+      .select('contact_id').eq('user_id', user.id).eq('kind', 'meet_plan').gte('date', ws).lte('date', we)
+    setWeekPlanned(new Set((pl || []).map(l => l.contact_id)).size)
   }
 
   async function fetchMonthLogs() {
@@ -205,6 +232,35 @@ export default function Daily() {
       return d >= ms && d <= me
     })
     setMonthLogs(filtered)
+    setMonthMeets(await fetchMeetings(user.id, ms, me))
+  }
+
+  async function fetchTodayMeets() {
+    if (!user) return
+    const t = today()
+    setTodayMeets(await fetchMeetings(user.id, t, t))
+  }
+
+  function reloadMeets() {
+    fetchWeekLogs(); fetchMonthLogs(); fetchTodayMeets(); fetch312()
+  }
+
+  async function openMet(m) {
+    if (!m.contact_id) return
+    const { data } = await supabase.from('contacts').select('*').eq('id', m.contact_id).single()
+    if (data) setAfterMeet({ contact: data, logId: m.id })
+  }
+
+  async function deleteMeet(m) {
+    await removeMeeting(user.id, m)
+    reloadMeets()
+  }
+
+  async function toggleHidden(key) {
+    const cur = (profile?.tag_settings?.hidden_daily_tasks) || []
+    const next = cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key]
+    setProfile(p => ({ ...p, tag_settings: { ...(p?.tag_settings || {}), hidden_daily_tasks: next } }))
+    await saveTagSetting(user.id, { hidden_daily_tasks: next })
   }
 
   async function saveGoalText() {
@@ -346,7 +402,16 @@ export default function Daily() {
     setSelectedMonthDay(null)
   }
 
-  const doneCount = DAILY_TASKS.filter(t => checkins[t.key]).length
+  const mode = resolveMode(profile?.tag_settings, profile?.created_at)
+  const hidden = profile?.tag_settings?.hidden_daily_tasks || []
+  const visibleTasks = DAILY_TASKS.filter(t => !hidden.includes(t.key))
+  const all312 = d312.talk >= mode.talk && d312.plan >= mode.meet && d312.fresh >= mode.fresh
+  const isDone = t => (t.key === 'daily_3_contacts' ? (all312 || !!checkins[t.key]) : !!checkins[t.key])
+  const doneCount = visibleTasks.filter(isDone).length
+  const planTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
+  const metTarget = resolveWeeklyMet(profile?.tag_settings)
+  const weekMet = weekMeets.filter(isMet).length
+  const dotN = Math.min(Math.max(planTarget, metTarget), 15)
   const isToday = viewDate === today()
   const weekDays = getWeekDays(weekViewDate)
 
@@ -359,11 +424,52 @@ export default function Daily() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${yearNum}-${String(monthNum+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const logs = monthLogs.filter(l => (l.planned_date || l.date) === dateStr)
-    const hasDone = logs.some(l => l.is_done)
-    const hasPlan = logs.some(l => !l.is_done)
+    const ms2 = monthMeets.filter(m => m.eff === dateStr)
+    const hasMeet = ms2.length > 0
+    const hasDone = logs.some(l => l.is_done) || ms2.some(isMet)
+    const hasPlan = logs.some(l => !l.is_done) || ms2.some(m => !isMet(m))
     const hasProduct = logs.some(l => l.counter_key === 'new_product')
     const hasGmtss = logs.some(l => l.counter_key === 'gmtss')
-    calDays.push({ d, dateStr, logs, hasDone, hasPlan, hasProduct, hasGmtss })
+    calDays.push({ d, dateStr, logs, hasDone, hasPlan, hasProduct, hasGmtss, hasMeet })
+  }
+
+  function MeetRow({ m }) {
+    const { time, label } = splitTime(m.note)
+    const t = today()
+    const isT = m.eff === t
+    const past = m.eff < t
+    const met = isMet(m)
+    return (
+      <div style={{ display:'flex',alignItems:'center',gap:10,borderRadius:10,padding:'8px 10px',marginBottom:6,
+        background: isT ? PRIMARY_SOFT : 'var(--card)', border:`1px solid ${BORDER}` }}>
+        <div style={{ width:46,flexShrink:0,textAlign:'center' }}>
+          {time && <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{time}</div>}
+          <div style={{ fontSize:11,color:TEXT_MUTED }}>{formatShortDate(m.eff)}（{DAYS_LONG[new Date(m.eff+'T00:00:00').getDay()]}）</div>
+        </div>
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
+            <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,fontWeight:600,
+              background:`color-mix(in srgb, ${PINK} 14%, transparent)`,color:PINK }}>見面</span>
+            <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{m.contacts?.name || '（已刪除的名單）'}</span>
+            {met && <IconCheck size={13} stroke={2.6} color={ACCENT_GREEN_TEXT} />}
+          </div>
+          {label && <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>{label}</div>}
+        </div>
+        <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end',flexShrink:0 }}>
+          {past ? (
+            <>
+              <button onClick={() => setSched({ log: m })} style={miniLink(TEXT_SECONDARY)}>沒見成？改時間</button>
+              <button onClick={() => deleteMeet(m)} style={miniLink(DANGER)}>刪除</button>
+            </>
+          ) : (
+            <>
+              {isT && m.contact_id && <button onClick={() => openMet(m)} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了</button>}
+              <button onClick={() => setSched({ log: m })} style={softBtn(SUBCARD_BG, TEXT_SECONDARY)}>改時間</button>
+            </>
+          )}
+        </div>
+      </div>
+    )
   }
 
   if (loading) return <LoadingSpinner />
@@ -409,10 +515,41 @@ export default function Daily() {
 
       <div className="dash-container" style={{ padding:'14px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
+        {isToday && todayMeets.length > 0 && (
+          <div style={{ background:PRIMARY_SOFT,borderRadius:18,padding:'14px 16px',border:`1px solid ${BORDER}` }}>
+            <div style={{ fontSize:13,fontWeight:700,color:PRIMARY,marginBottom:8 }}>今天的約會</div>
+            {todayMeets.map(m => {
+              const { time, label } = splitTime(m.note)
+              const needs = (m.contacts?.need_tags || []).slice(0, 3)
+              return (
+                <div key={m.id} style={{ background:'var(--card)',borderRadius:12,padding:'10px 12px',marginBottom:8 }}>
+                  <div style={{ display:'flex',alignItems:'baseline',gap:8 }}>
+                    {time && <span style={{ fontSize:16,fontWeight:700,color:TEXT_MAIN }}>{time}</span>}
+                    <span style={{ fontSize:14,fontWeight:700,color:TEXT_MAIN }}>{m.contacts?.name || '（已刪除的名單）'}</span>
+                    {label && <span style={{ fontSize:12,color:TEXT_SECONDARY }}>{label}</span>}
+                  </div>
+                  {needs.length > 0 && (
+                    <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:4 }}>她在意：{needs.join('、')}</div>
+                  )}
+                  {m.contacts?.last_quote && (
+                    <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>上次說：「{m.contacts.last_quote}」</div>
+                  )}
+                  <div style={{ display:'flex',gap:8,marginTop:10 }}>
+                    {m.contact_id && (
+                      <button onClick={() => openMet(m)} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了，記一下</button>
+                    )}
+                    <button onClick={() => setSched({ log: m })} style={softBtn(SUBCARD_BG, TEXT_SECONDARY)}>改時間</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每日任務</span>
-            <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{doneCount}/{DAILY_TASKS.length}</span>
+            <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{doneCount}/{visibleTasks.length}</span>
           </div>
 
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
@@ -437,8 +574,9 @@ export default function Daily() {
             })}
           </div>
 
-          {DAILY_TASKS.map(task => {
-            const done = !!checkins[task.key]
+          {visibleTasks.map(task => {
+            const done = isDone(task)
+            const is312 = task.key === 'daily_3_contacts'
             const hasAction = task.url || task.internalPath || task.social || task.toContacts || task.key === 'goal_declaration'
             const TaskIcon = task.Icon
             return (
@@ -457,19 +595,12 @@ export default function Daily() {
                     cursor: hasAction?'pointer':'default',padding:0,
                     display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                   <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
-                    textDecoration:done?'line-through':'none' }}>
-                    {task.label}
-                    {task.special&&todayContacted.length>0&&(
-                      <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
-                        {todayContacted.map((c,i) => (
-                          <span key={c.id}
-                            onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`) }}
-                            style={{ color:ACCENT_GREEN_TEXT,fontWeight:600,cursor:'pointer',
-                              textDecoration:'underline' }}>
-                            {c.name}{i<todayContacted.length-1?'、':''}
-                          </span>
-                        ))}
-                        <span style={{ color:ACCENT_GREEN_TEXT,fontWeight:600 }}>✓</span>
+                    textDecoration:done&&!is312?'line-through':'none' }}>
+                    {is312 ? `${isToday ? '今天' : '這天'}的 ${mode.label}` : task.label}
+                    {is312 && (
+                      <span style={{ display:'block',fontSize:12,fontWeight:600,marginTop:2,textDecoration:'none',
+                        color: all312 ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>
+                        互動 {Math.min(d312.talk, mode.talk)}/{mode.talk}　會議 {Math.min(d312.plan, mode.meet)}/{mode.meet}　新名單 {Math.min(d312.fresh, mode.fresh)}/{mode.fresh}
                       </span>
                     )}
                   </span>
@@ -478,14 +609,19 @@ export default function Daily() {
               </div>
             )
           })}
+          <button onClick={() => setHideSheet(true)}
+            style={{ background:'none',border:'none',color:TEXT_MUTED,fontSize:12,cursor:'pointer',
+              padding:'10px 0 0',width:'100%',textAlign:'center' }}>
+            調整要顯示的項目 ›
+          </button>
         </div>
 
         <div style={card}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12 }}>
+          <div style={{ marginBottom:12 }}>
             <span style={sectionTitle}>每週行動</span>
-            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:12,marginTop:8 }}>
               <button onClick={() => changeWeekViewDate(-1)} style={navBtn}>‹</button>
-              <span style={{ fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
+              <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
                 {formatShortDate(weekDays[0])} 週六 — {formatShortDate(weekDays[6])} 週五
               </span>
               <button onClick={() => changeWeekViewDate(1)} style={navBtn}>›</button>
@@ -513,151 +649,136 @@ export default function Daily() {
             })}
           </div>
 
-          {(() => {
-            const meetupLogs = weekLogs.filter(l => l.counter_key === 'meetup')
-            const meetupDone = meetupLogs.filter(l => l.is_done).length
-            const meetupPlanned = meetupLogs.filter(l => !l.is_done).length
-            const hitTarget = meetupDone >= 2
-            return (
-              <div style={{ marginBottom:12, background: hitTarget ? ACCENT_GREEN_SOFT : SUBCARD_BG,
-                borderRadius:12, padding:'10px 12px' }}>
-                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>每週2訪</span>
-                  <button onClick={() => openAddModal('week', today(), 'meetup')}
-                    style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                      background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
-                    <IconPlus size={12} stroke={2.2} /> 記錄見面
-                  </button>
+          <div style={{ marginBottom:12, background: weekMet >= metTarget ? ACCENT_GREEN_SOFT : SUBCARD_BG,
+            borderRadius:12, padding:'10px 12px' }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
+              <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>每週見面</span>
+              <button onClick={() => setSched({ log: null, date: selectedWeekDay || '' })}
+                style={{ display:'flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:10,border:'none',
+                  background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                <IconPlus size={12} stroke={2.2} /> 定時間
+              </button>
+            </div>
+            <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:6 }}>
+              {Array.from({ length: dotN }).map((_, i) => (
+                <div key={i} style={{ width:16,height:16,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
+                  background: i < weekMet ? ACCENT_GREEN : i < weekPlanned ? ORANGE : BORDER }}>
+                  {i < weekMet && <IconCheck size={10} stroke={3} color="#fff" />}
                 </div>
-                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                  <div style={{ flex:1,height:6,background:BORDER,borderRadius:99,overflow:'hidden' }}>
-                    <div style={{ height:'100%',borderRadius:99,
-                      width:`${Math.min((meetupDone/2)*100,100)}%`,
-                      background: hitTarget ? ACCENT_GREEN : ACCENT_YELLOW,
-                      transition:'width 0.4s ease' }} />
-                  </div>
-                  <span style={{ fontSize:12,fontWeight:600,
-                    color: hitTarget ? ACCENT_GREEN_TEXT : ACCENT_YELLOW_TEXT }}>{meetupDone}/2</span>
-                </div>
-                {meetupPlanned > 0 && (
-                  <p style={{ fontSize:11,color:TEXT_MUTED,margin:'6px 0 0' }}>
-                    另有 {meetupPlanned} 筆已預排待完成
-                  </p>
-                )}
-              </div>
-            )
-          })()}
+              ))}
+            </div>
+            <div style={{ fontSize:12,color:TEXT_SECONDARY }}>
+              定下 {weekPlanned}/{planTarget}　見到 {weekMet}/{metTarget}
+              <span style={{ color:TEXT_MUTED }}>（目標可在設定調整）</span>
+            </div>
+          </div>
 
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:4 }}>
-            {weekDays.map((d,i) => {
+            {weekDays.map(d => {
               const isT = d === today()
               const isFut = d > today()
               const dayLogs = weekLogs.filter(l => (l.planned_date || l.date) === d)
-              const hasDone = dayLogs.some(l => l.is_done)
-              const hasPlan = dayLogs.some(l => !l.is_done)
+              const dayMeets = weekMeets.filter(m => m.eff === d)
+              const hasDone = dayLogs.some(l => l.is_done) || dayMeets.some(isMet)
+              const hasPlan = dayLogs.some(l => !l.is_done) || dayMeets.some(m => !isMet(m))
               const isSelected = selectedWeekDay === d
               let bg = 'var(--card)', border = BORDER
               if (hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
               else if (hasPlan) { bg = 'var(--yellow-soft)'; border = 'var(--yellow-border)' }
               if (isSelected) border = PRIMARY
+              const dots = []
+              if (dayMeets.length) dots.push(PINK)
+              dayLogs.forEach(l => { const c = COUNTER_COLORS[l.counter_key] || TEXT_MUTED; if (!dots.includes(c)) dots.push(c) })
               return (
                 <div key={d} onClick={() => setSelectedWeekDay(isSelected ? null : d)}
-                  style={{ display:'flex',flexDirection:'column',alignItems:'center',
-                    gap:2,cursor:'pointer' }}>
+                  style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:2,cursor:'pointer' }}>
                   <span style={{ fontSize:11,color: isT?PRIMARY:isFut?'var(--border2)':TEXT_MUTED,
-                    fontWeight: isT?700:600 }}>
+                    fontWeight: isT?700:600,textAlign:'center' }}>
                     {DAYS_ZH[new Date(d+'T00:00:00').getDay()]}<br/>{formatShortDate(d)}
                   </span>
-                  <div style={{ width:'100%',minHeight:52,borderRadius:10,
+                  <div style={{ width:'100%',height:44,borderRadius:10,boxSizing:'border-box',
                     background:bg, border:`1.5px solid ${border}`,
-                    padding:3,display:'flex',flexDirection:'column',gap:2,
-                    outline: isSelected?`2px solid ${PRIMARY}`:'none',
-                    outlineOffset:1 }}>
-                    {dayLogs.slice(0,3).map(log => {
-                      const c = WEEKLY_COUNTERS.find(x => x.key === log.counter_key)
-                      const color = COUNTER_COLORS[log.counter_key] || TEXT_MUTED
-                      return (
-                        <div key={log.id} style={{ fontSize:11,padding:'1px 3px',borderRadius:4,
-                          background: log.is_done ? `color-mix(in srgb, ${color} 14%, transparent)` : 'var(--yellow-soft)',
-                          color: log.is_done ? color : 'var(--yellow-text)',
-                          fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                          {c?.label || ''}
-                        </div>
-                      )
-                    })}
-                    {dayLogs.length > 3 && (
-                      <div style={{ fontSize:11,color:TEXT_MUTED,textAlign:'center' }}>+{dayLogs.length-3}</div>
-                    )}
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:3,
+                    outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:1 }}>
+                    {hasDone && dayMeets.some(isMet) && <IconCheck size={13} stroke={2.6} color={ACCENT_GREEN_TEXT} />}
+                    {dots.slice(0,3).map((c, i) => (
+                      <div key={i} style={{ width:6,height:6,borderRadius:'50%',background:c }} />
+                    ))}
                   </div>
                 </div>
               )
             })}
           </div>
 
-          {selectedWeekDay && (
-            <div style={{ marginTop:12,borderTop:`1px solid ${BORDER}`,paddingTop:12 }}>
-              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
-                <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
-                  {formatDateLabel(selectedWeekDay)}
-                </span>
-                <button onClick={() => openAddModal('week', selectedWeekDay)}
-                  style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
-                  <IconPlus size={13} stroke={2.2} /> 新增
-                </button>
-              </div>
-              {weekLogs.filter(l => (l.planned_date || l.date) === selectedWeekDay).length === 0 ? (
-                <p style={{ fontSize:12,color:TEXT_MUTED,textAlign:'center',padding:'8px 0' }}>
-                  這天沒有記錄，點「+ 新增」來新增
-                </p>
-              ) : (
-                weekLogs.filter(l => (l.planned_date || l.date) === selectedWeekDay).map(log => {
-                  const c = WEEKLY_COUNTERS.find(x => x.key === log.counter_key)
-                  const color = COUNTER_COLORS[log.counter_key] || TEXT_MUTED
-                  const displayName = c?.mode === 'stranger'
-                    ? (log.product_name || '陌生人')
-                    : (log.contacts?.name || '—')
-                  return (
-                    <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
-                      background: log.is_done?ACCENT_GREEN_SOFT:'var(--yellow-soft)',
-                      borderRadius:10,padding:'8px 10px',marginBottom:6 }}>
-                      {log.is_done
-                        ? <IconCheck size={14} stroke={2.2} color={ACCENT_GREEN_TEXT} />
-                        : <IconCalendar size={14} stroke={1.9} color={ACCENT_YELLOW_TEXT} />}
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                          <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,
-                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:600 }}>{c?.label}</span>
-                          <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{displayName}</span>
-                        </div>
-                        {c?.mode === 'product' && log.product_name && (
-                          <span style={{ fontSize:12,color:TEXT_SECONDARY }}>{log.product_name}</span>
-                        )}
-                        {log.note && <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>{log.note}</p>}
-                      </div>
-                      <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end' }}>
-                        {!log.is_done && (
-                          <button onClick={() => confirmDone(log)}
-                            style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
-                              cursor:'pointer',fontWeight:600 }}>完成</button>
-                        )}
-                        <button onClick={() => openEditModal('week', log)}
-                          style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
-                        <button onClick={() => deleteLog(log.id, 'week')}
-                          style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
+          <div style={{ marginTop:14,borderTop:`1px solid ${BORDER}`,paddingTop:12 }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
+              <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
+                {selectedWeekDay ? formatDateLabel(selectedWeekDay) : '本週安排'}
+              </span>
+              <button onClick={() => openAddModal('week', selectedWeekDay || today(), 'bv_share')}
+                style={{ background:'none',border:'none',color:PRIMARY,fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                + 記錄其他行動
+              </button>
             </div>
-          )}
+            {(() => {
+              const meetsShown = weekMeets.filter(m => !selectedWeekDay || m.eff === selectedWeekDay)
+              const othersShown = weekLogs.filter(l => !selectedWeekDay || (l.planned_date || l.date) === selectedWeekDay)
+              if (meetsShown.length === 0 && othersShown.length === 0) {
+                return (
+                  <p style={{ fontSize:12,color:TEXT_MUTED,textAlign:'center',padding:'8px 0' }}>
+                    {selectedWeekDay ? '這天沒有安排，點上面的「+ 定時間」安排一個' : '這週還沒有安排，點上面的「+ 定時間」'}
+                  </p>
+                )
+              }
+              return (
+                <>
+                  {meetsShown.map(m => <MeetRow key={m.id} m={m} />)}
+                  {othersShown.map(log => {
+                    const c = WEEKLY_COUNTERS.find(x => x.key === log.counter_key)
+                    const color = COUNTER_COLORS[log.counter_key] || TEXT_MUTED
+                    return (
+                      <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
+                        background: log.is_done?ACCENT_GREEN_SOFT:'var(--yellow-soft)',
+                        borderRadius:10,padding:'8px 10px',marginBottom:6 }}>
+                        {log.is_done
+                          ? <IconCheck size={14} stroke={2.2} color={ACCENT_GREEN_TEXT} />
+                          : <IconCalendar size={14} stroke={1.9} color={ACCENT_YELLOW_TEXT} />}
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
+                            <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,
+                              background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:600 }}>{c?.label}</span>
+                            <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{log.contacts?.name || '—'}</span>
+                            <span style={{ fontSize:11,color:TEXT_MUTED }}>{formatShortDate(log.planned_date || log.date)}</span>
+                          </div>
+                          {c?.mode === 'product' && log.product_name && (
+                            <span style={{ fontSize:12,color:TEXT_SECONDARY }}>{log.product_name}</span>
+                          )}
+                          {log.note && <p style={{ fontSize:12,color:TEXT_MUTED,margin:'2px 0 0' }}>{log.note}</p>}
+                        </div>
+                        <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end' }}>
+                          {!log.is_done && (
+                            <button onClick={() => confirmDone(log)}
+                              style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
+                                cursor:'pointer',fontWeight:600 }}>完成</button>
+                          )}
+                          <button onClick={() => openEditModal('week', log)}
+                            style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
+                          <button onClick={() => deleteLog(log.id, 'week')}
+                            style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </>
+              )
+            })()}
+          </div>
         </div>
 
         <div style={card}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12 }}>
+          <div style={{ marginBottom:12 }}>
             <span style={sectionTitle}>每月目標</span>
-            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:12,marginTop:8 }}>
               <button onClick={() => changeMonthViewDate(-1)} style={navBtn}>‹</button>
               <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
                 {monthYear.toLocaleDateString('zh-TW',{year:'numeric',month:'long'})}
@@ -666,12 +787,12 @@ export default function Daily() {
             </div>
           </div>
 
-          <div style={{ display:'flex',gap:10,marginBottom:10,padding:'6px 10px',
+          <div style={{ display:'flex',gap:10,marginBottom:6,padding:'6px 10px',
             background:SUBCARD_BG,borderRadius:10,flexWrap:'wrap' }}>
             {[
-              { color:PRIMARY, label:'新產品（完成）' },
-              { color:ACCENT_GREEN_TEXT, label:'GMTSS（完成）' },
-              { color:ACCENT_YELLOW_TEXT, label:'預排' },
+              { color:PRIMARY, label:'新產品' },
+              { color:ACCENT_GREEN_TEXT, label:'GMTSS' },
+              { color:PINK, label:'見面' },
             ].map(l => (
               <div key={l.label} style={{ display:'flex',alignItems:'center',gap:4 }}>
                 <div style={{ width:8,height:8,borderRadius:'50%',background:l.color }} />
@@ -679,6 +800,7 @@ export default function Daily() {
               </div>
             ))}
           </div>
+          <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>黃底是預排，綠底是已完成</div>
 
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:5,marginBottom:3 }}>
             {DAYS_ZH.map(d => (
@@ -709,11 +831,11 @@ export default function Daily() {
                     color: day.hasDone?ACCENT_GREEN_TEXT:day.hasPlan?ACCENT_YELLOW_TEXT:isFut?TEXT_MUTED:TEXT_MAIN }}>
                     {day.d}
                   </span>
-                  {(day.hasProduct || day.hasGmtss || day.hasPlan) && (
+                  {(day.hasProduct || day.hasGmtss || day.hasMeet) && (
                     <div style={{ display:'flex',gap:2 }}>
+                      {day.hasMeet && <div style={{ width:5,height:5,borderRadius:'50%',background:PINK }} />}
                       {day.hasProduct && <div style={{ width:5,height:5,borderRadius:'50%',background:PRIMARY }} />}
                       {day.hasGmtss && <div style={{ width:5,height:5,borderRadius:'50%',background:ACCENT_GREEN_TEXT }} />}
-                      {day.hasPlan && !day.hasDone && <div style={{ width:5,height:5,borderRadius:'50%',background:ACCENT_YELLOW_TEXT }} />}
                     </div>
                   )}
                 </div>
@@ -721,63 +843,108 @@ export default function Daily() {
             })}
           </div>
 
-          {selectedMonthDay && (
-            <div style={{ borderTop:`1px solid ${BORDER}`,paddingTop:12 }}>
-              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
-                <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
-                  {formatDateLabel(selectedMonthDay)}
-                </span>
-                <button onClick={() => openAddModal('month', selectedMonthDay)}
-                  style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
-                  <IconPlus size={13} stroke={2.2} /> 新增
-                </button>
-              </div>
-              {monthLogs.filter(l => (l.planned_date || l.date) === selectedMonthDay).length === 0 ? (
-                <p style={{ fontSize:12,color:TEXT_MUTED,textAlign:'center',padding:'8px 0' }}>
-                  這天沒有記錄，點「+ 新增」來新增
-                </p>
-              ) : (
-                monthLogs.filter(l => (l.planned_date || l.date) === selectedMonthDay).map(log => {
-                  const item = MONTH_ITEMS.find(x => x.key === log.counter_key)
-                  const color = log.counter_key === 'new_product' ? PRIMARY : ACCENT_GREEN_TEXT
-                  return (
-                    <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
-                      background: log.is_done?ACCENT_GREEN_SOFT:'var(--yellow-soft)',
-                      borderRadius:10,padding:'8px 10px',marginBottom:6 }}>
-                      {log.is_done
-                        ? <IconCheck size={14} stroke={2.2} color={ACCENT_GREEN_TEXT} />
-                        : <IconCalendar size={14} stroke={1.9} color={ACCENT_YELLOW_TEXT} />}
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
-                          <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,
-                            background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:600 }}>{item?.label}</span>
-                          <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>
-                            {log.product_name || '—'}
-                          </span>
-                        </div>
-                        {log.note && <p style={{ fontSize:12,color:TEXT_MUTED,margin:0 }}>{log.note}</p>}
-                      </div>
-                      <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end' }}>
-                        {!log.is_done && (
-                          <button onClick={() => confirmDone(log)}
-                            style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
-                              cursor:'pointer',fontWeight:600 }}>完成</button>
-                        )}
-                        <button onClick={() => openEditModal('month', log)}
-                          style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
-                        <button onClick={() => deleteLog(log.id, 'month')}
-                          style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
+          <div style={{ borderTop:`1px solid ${BORDER}`,paddingTop:12 }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
+              <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
+                {selectedMonthDay ? formatDateLabel(selectedMonthDay) : '這個月的安排'}
+              </span>
+              <button onClick={() => openAddModal('month', selectedMonthDay || today())}
+                style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
+                  background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                <IconPlus size={13} stroke={2.2} /> 新增學習
+              </button>
             </div>
-          )}
+            {(() => {
+              const dayOf = l => l.planned_date || l.date
+              const meetsShown = monthMeets.filter(m => !selectedMonthDay || m.eff === selectedMonthDay)
+              const logsShown = monthLogs.filter(l => !selectedMonthDay || dayOf(l) === selectedMonthDay)
+              if (meetsShown.length === 0 && logsShown.length === 0) {
+                return (
+                  <p style={{ fontSize:12,color:TEXT_MUTED,textAlign:'center',padding:'8px 0' }}>
+                    {selectedMonthDay ? '這天沒有安排' : '這個月還沒有安排'}
+                  </p>
+                )
+              }
+              const items = [
+                ...meetsShown.map(m => ({ kind: 'meet', date: m.eff, m })),
+                ...logsShown.map(l => ({ kind: 'log', date: dayOf(l), l })),
+              ].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+              return items.map(it => {
+                if (it.kind === 'meet') return <MeetRow key={it.m.id} m={it.m} />
+                const log = it.l
+                const item = MONTH_ITEMS.find(x => x.key === log.counter_key)
+                const color = log.counter_key === 'new_product' ? PRIMARY : ACCENT_GREEN_TEXT
+                return (
+                  <div key={log.id} style={{ display:'flex',alignItems:'center',gap:8,
+                    background: log.is_done?ACCENT_GREEN_SOFT:'var(--yellow-soft)',
+                    borderRadius:10,padding:'8px 10px',marginBottom:6 }}>
+                    {log.is_done
+                      ? <IconCheck size={14} stroke={2.2} color={ACCENT_GREEN_TEXT} />
+                      : <IconCalendar size={14} stroke={1.9} color={ACCENT_YELLOW_TEXT} />}
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2,flexWrap:'wrap' }}>
+                        <span style={{ fontSize:11,color:TEXT_MUTED }}>{formatShortDate(it.date)}</span>
+                        <span style={{ fontSize:11,padding:'1px 6px',borderRadius:99,
+                          background:`color-mix(in srgb, ${color} 14%, transparent)`,color,fontWeight:600 }}>{item?.label}</span>
+                        <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{log.product_name || '—'}</span>
+                      </div>
+                      {log.note && <p style={{ fontSize:12,color:TEXT_MUTED,margin:0 }}>{log.note}</p>}
+                    </div>
+                    <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end' }}>
+                      {!log.is_done && (
+                        <button onClick={() => confirmDone(log)}
+                          style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
+                            cursor:'pointer',fontWeight:600 }}>完成</button>
+                      )}
+                      <button onClick={() => openEditModal('month', log)}
+                        style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
+                      <button onClick={() => deleteLog(log.id, 'month')}
+                        style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
+                    </div>
+                  </div>
+                )
+              })
+            })()}
+          </div>
         </div>
 
       </div>
+
+      {sched && (
+        <ScheduleSheet userId={user.id} contact={sched.log ? sched.log.contacts : null} contacts={allContacts}
+          log={sched.log} initialDate={sched.date} onClose={() => setSched(null)} onSaved={reloadMeets} />
+      )}
+      {afterMeet && (
+        <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId}
+          onClose={() => setAfterMeet(null)} onSaved={reloadMeets} />
+      )}
+      {hideSheet && (
+        <div onClick={() => setHideSheet(false)}
+          style={{ position:'fixed',inset:0,background:'var(--overlay)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6 }}>
+              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>要顯示哪些每日任務</h3>
+              <CloseBtn onClick={() => setHideSheet(false)} />
+            </div>
+            <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 12px' }}>不需要的可以關掉，只影響你自己</p>
+            {DAILY_TASKS.map(t => {
+              const on = !hidden.includes(t.key)
+              return (
+                <button key={t.key} onClick={() => toggleHidden(t.key)}
+                  style={{ display:'flex',alignItems:'center',gap:10,width:'100%',padding:'12px 4px',background:'none',border:'none',
+                    borderBottom:`1px solid ${BORDER}`,cursor:'pointer',textAlign:'left' }}>
+                  <span style={{ width:20,height:20,borderRadius:6,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+                    background:on?ACCENT_GREEN:'var(--card)',border:on?'none':'2px solid var(--border2)' }}>
+                    {on && <IconCheck size={12} stroke={2.5} color="#fff" />}
+                  </span>
+                  <span style={{ fontSize:14,color:TEXT_MAIN,fontWeight:600 }}>{t.key === 'daily_3_contacts' ? `${mode.label}（互動／會議／新名單）` : t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {goalModal && (
         <GoalModal text={goalText} setText={setGoalText} saving={goalSaving} saved={goalSaved}
@@ -818,7 +985,7 @@ export default function Daily() {
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>行動類型</label>
                 <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
-                  {WEEKLY_COUNTERS.map(c => (
+                  {WEEKLY_COUNTERS.filter(c => c.key !== 'meetup' && c.key !== 'stranger').map(c => (
                     <button key={c.key} onClick={() => setLogCounterKey(c.key)}
                       style={{ padding:'6px 12px',borderRadius:10,fontSize:13,fontWeight:600,cursor:'pointer',
                         border:`1.5px solid ${logCounterKey===c.key?COUNTER_COLORS[c.key]:BORDER}`,
@@ -881,14 +1048,6 @@ export default function Daily() {
               </div>
             )}
 
-            {getCounterMode() === 'stranger' && (
-              <div style={{ marginBottom:16 }}>
-                <label style={labelStyle}>姓名 <span style={{ color:TEXT_MUTED,fontSize:12 }}>選填</span></label>
-                <input placeholder="例：捷運旁的阿姨…" value={logStrangerName}
-                  onChange={e => setLogStrangerName(e.target.value)} style={inputStyle} />
-              </div>
-            )}
-
             {getCounterMode() === 'month_item' && (
               <div style={{ marginBottom:16 }}>
                 <label style={labelStyle}>
@@ -925,8 +1084,12 @@ export default function Daily() {
 const card = { background:'var(--card)',borderRadius:18,padding:'16px',border:`1px solid ${BORDER}` }
 const sectionTitle = { fontSize:14,fontWeight:600,color:TEXT_MAIN }
 const navBtn = { background:'none',border:`1px solid ${BORDER}`,borderRadius:10,
-  width:28,height:28,cursor:'pointer',fontSize:14,color:TEXT_SECONDARY,
+  width:36,height:36,cursor:'pointer',fontSize:16,color:TEXT_SECONDARY,
   display:'flex',alignItems:'center',justifyContent:'center' }
 const labelStyle = { fontSize:13,color:TEXT_MAIN,fontWeight:600,display:'block',marginBottom:6 }
 const inputStyle = { width:'100%',padding:'10px 12px',borderRadius:12,
   border:`1px solid ${BORDER}`,fontSize:15,boxSizing:'border-box',outline:'none' }
+
+const softBtn = (bg, color) => ({ background:bg,color,border:'none',borderRadius:10,padding:'7px 12px',
+  fontSize:12,fontWeight:600,cursor:'pointer' })
+const miniLink = color => ({ background:'none',border:'none',color,fontSize:12,cursor:'pointer',padding:'4px 2px' })

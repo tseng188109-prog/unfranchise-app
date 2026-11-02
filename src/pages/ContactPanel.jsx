@@ -15,6 +15,7 @@ import {
   markDaily312, syncDaily3,
 } from './followUp'
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
+import { ScheduleSheet, taipeiToday, MEET_KEY } from './meetings'
 import TrialRunCard from './trialRun'
 import { AutoTextarea, activeNotes, chainIds, NO_LONGER } from './keyPoints'
 
@@ -73,6 +74,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   const [noteSaving, setNoteSaving] = useState(false)
   const [muteSaving, setMuteSaving] = useState(false)
   const [showAfterMeet, setShowAfterMeet] = useState(false)
+  const [sched, setSched] = useState(null) // null | { log }
   const [signedDays, setSignedDays] = useState(null) // 簽約後第幾天（只在 已簽約 時有值）
   const [meUserId, setMeUserId] = useState(null)
 
@@ -197,6 +199,15 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     return !!log.story_note_id && chainIds(contactNotes, log.story_note_id).some(i => keyIds.has(i))
   }
   // 互動旁邊的星星：點一下記成重點，再點一次取消
+  // 改時間：找這個人最近一筆還沒到的約會；找不到（舊的約定）就當成新的來定
+  async function openEditPlan() {
+    if (!meUserId) return
+    const { data } = await supabase.from('counter_logs')
+      .select('id,contact_id,planned_date,is_done,note').eq('user_id', meUserId).eq('counter_key', MEET_KEY)
+      .eq('contact_id', contact.id).gte('planned_date', taipeiToday()).order('planned_date', { ascending: true }).limit(1)
+    setSched({ log: (data && data[0]) || null })
+  }
+
   async function toggleStar(log) {
     if (starBusy || !log.note) return
     setStarBusy(log.id)
@@ -380,7 +391,8 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
               </>
             )}
 
-            {!contact.is_muted && <NextPlanCard contact={contact} onOpen={() => setShowAfterMeet(true)} />}
+            {!contact.is_muted && <NextPlanCard contact={contact} onOpen={() => setShowAfterMeet(true)}
+              onSchedule={() => setSched({ log: null })} onEdit={openEditPlan} />}
             {meUserId && <TrialRunCard contact={contact} userId={meUserId} />}
 
             {signedDays !== null && signedDays <= 14 && (
@@ -619,6 +631,10 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
           </div>
         )}
       </div>
+      {sched && meUserId && (
+        <ScheduleSheet userId={meUserId} contact={contact} log={sched.log} onClose={() => setSched(null)}
+          onSaved={() => { fetchContact(); onChanged?.() }} />
+      )}
       {showAfterMeet && meUserId && (
         <AfterMeetSheet contact={contact} userId={meUserId} onClose={() => setShowAfterMeet(false)}
           onSaved={() => { fetchContact(); onChanged?.() }} />
