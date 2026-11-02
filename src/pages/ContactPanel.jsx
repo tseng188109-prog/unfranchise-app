@@ -15,6 +15,7 @@ import {
   markDaily312, syncDaily3,
 } from './followUp'
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
+import { ToolRow, ToolTag } from './tools'
 import { ScheduleSheet, taipeiToday, MEET_KEY } from './meetings'
 import TrialRunCard from './trialRun'
 import { AutoTextarea, activeNotes, chainIds, NO_LONGER } from './keyPoints'
@@ -60,6 +61,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
 
   const [quickDate, setQuickDate] = useState(today())
   const [quickNote, setQuickNote] = useState('')
+  const [quickTool, setQuickTool] = useState('')
   const [quickSaving, setQuickSaving] = useState(false)
   const [addToStory, setAddToStory] = useState(false) // 這筆互動要不要順便存進認識故事時間軸
 
@@ -130,6 +132,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     const { data: logRow } = await supabase.from('contact_logs').insert({
       contact_id: id, user_id: user.id,
       date: quickDate, note: trimmedNote || null,
+      ...(quickTool ? { tool: quickTool } : {}),
     }).select('id').single()
     await syncDaily3(supabase, user.id, quickDate)
     if (quickDate === today()) await markDaily312(supabase, user.id, quickDate)
@@ -154,6 +157,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     }
 
     setQuickNote('')
+    setQuickTool('')
     setQuickDate(today())
     setAddToStory(false)
     setQuickSaving(false)
@@ -519,6 +523,10 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
               </div>
               <AutoTextarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
                 placeholder="今天跟他發生了什麼事？（選填）" minRows={3} />
+              <div style={{ marginTop:10 }}>
+                <ToolRow value={quickTool} onChange={setQuickTool} contact={contact}
+                  customer={contact.source === 'customer' || !!linkedCustomer} />
+              </div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:10 }}>
                 <button onClick={() => setAddToStory(v => !v)}
                   style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: addToStory ? ACCENT_YELLOW_TEXT : TEXT_SECONDARY, background:'none', border:'none', padding:0, cursor:'pointer', fontWeight: addToStory ? 600 : 400 }}>
@@ -549,6 +557,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4, minHeight:22 }}>
                       <span style={{ fontSize:11, color: editingLogId === log.id ? PRIMARY : TEXT_MUTED, fontWeight:600 }}>
                         {editingLogId === log.id ? '編輯中' : formatMD(log.date)}
+                        {editingLogId !== log.id && <ToolTag tool={log.tool} />}
                         {editingLogId !== log.id && i===0 && <span style={{ color:ACCENT_GREEN_TEXT, marginLeft:6 }}>最近</span>}
                       </span>
                       {editingLogId !== log.id && (

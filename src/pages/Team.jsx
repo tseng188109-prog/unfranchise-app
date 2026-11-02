@@ -53,6 +53,7 @@ export default function Team() {
   const [dayDetail, setDayDetail] = useState(null) // { tasks: [], counters: [] }
   const [dayDetailLoading, setDayDetailLoading] = useState(false)
 
+  const [toolStats, setToolStats] = useState([])
   const [mode, setMode] = useState(null)
   const [teamNameInput, setTeamNameInput] = useState('')
   const [joinCodeInput, setJoinCodeInput] = useState('')
@@ -78,6 +79,12 @@ export default function Team() {
     setTeam(teamData)
     setIsCreator(teamData.creator_id === user.id)
     await fetchMembers(teamData.id)
+    // 我這週用了哪些工具（只算自己的互動紀錄，只看次數）
+    const { data: tl } = await supabase.from('contact_logs').select('tool')
+      .eq('user_id', user.id).in('date', weekDays).not('tool', 'is', null)
+    const cnt = {}
+    ;(tl || []).forEach(r => { if (r.tool) cnt[r.tool] = (cnt[r.tool] || 0) + 1 })
+    setToolStats(Object.entries(cnt).sort((a, b) => b[1] - a[1]))
     setLoading(false)
   }
 
@@ -346,6 +353,16 @@ export default function Team() {
           </>
         ) : (
           <>
+            {toolStats.length > 0 && (
+              <div style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.xl, padding:'16px 20px', marginBottom:12 }}>
+                <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>我這週用的工具</p>
+                {toolStats.map(([t, n]) => (
+                  <div key={t} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:`1px solid ${BORDER}`, fontSize:13, color:TEXT_MAIN }}>
+                    <span>{t}</span><b>{n}</b>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* 戰隊旅程：集體進度視覺化，取代原本的排行榜。不顯示任何個人名次或排序。 */}
             <div style={{ background:SUBCARD_BG, borderRadius:RADIUS.xl, padding:'20px', marginBottom:4 }}>
               <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 4px' }}>戰隊本週旅程</p>

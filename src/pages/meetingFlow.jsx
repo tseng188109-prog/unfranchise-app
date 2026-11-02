@@ -6,6 +6,7 @@ import { supabase } from '../supabase'
 import { syncDaily3 } from './followUp'
 import { recordMetNow, scheduleMeeting } from './meetings'
 import { trackUsage } from './usage'
+import { ToolRow } from './tools'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, SUBCARD_BG, RADIUS,
   ACCENT_GREEN_TEXT, ACCENT_GREEN_SOFT, DANGER,
@@ -29,14 +30,14 @@ export function fmtPlanDate(dateStr) {
 
 // ---- 興趣程度 ----
 export const INTEREST_LEVELS = [
-  { key: 'very', label: '很有興趣', dot: '#3ECF8E', desc: '她自己想多了解', tip: '約下一次：一對一或說明會', plans: ['一對一聊聊', '事業說明會', '三方通話'] },
+  { key: 'very', label: '很有興趣', dot: '#3ECF8E', desc: '她自己想多了解', tip: '約下一次：一對一或說明會', plans: ['一對一會談', '事業說明會', '三方通話'] },
   { key: 'some', label: '有點興趣', dot: '#8FCBA8', desc: '問了幾句、想看看', tip: '約下一次：體驗產品，或聊她在意的事', plans: ['體驗產品', '逛網站', '家庭事業說明會'] },
-  { key: 'watch', label: '觀望中', dot: '#FFD166', desc: '不排斥，但還沒想動', tip: '先保持聯絡，分享一則對她有用的資訊', plans: ['看線上影片', '約聚餐'] },
+  { key: 'watch', label: '觀望中', dot: '#FFD166', desc: '不排斥，但還沒想動', tip: '先保持聯絡，分享一則對她有用的資訊', plans: ['線上影片', '約聚餐'] },
   { key: 'none', label: '沒興趣', dot: '#E8A06B', desc: '這次聽完沒有火花', tip: '先放著，維持朋友關係，不打擾', plans: [] },
-  { key: 'unknown', label: '看不出來', dot: '#77726A', desc: '她說得不多', tip: '下次多問、多聽，別急著介紹', plans: ['約聚餐', '一對一聊聊'] },
+  { key: 'unknown', label: '看不出來', dot: '#77726A', desc: '她說得不多', tip: '下次多問、多聽，別急著介紹', plans: ['約聚餐', '一對一會談'] },
 ]
 export const ABOUT_OPTIONS = ['產品', '生意機會', '還不確定']
-export const ALL_PLANS = ['體驗產品', '逛網站', '一對一聊聊', '家庭事業說明會', '事業說明會', '三方通話', '看線上影片', '約聚餐']
+export const ALL_PLANS = ['體驗產品', '逛網站', '一對一會談', '二對一會談', '三方通話', '線上影片', '家庭事業說明會', '事業說明會', '約聚餐']
 
 // ---- 預設標籤 ----
 export const DEFAULT_NEEDS = ['睡眠精神', '省錢', '身體狀況', '皮膚保養', '家人照顧', '額外收入', '時間自由', '想轉變', '有能力沒舞台', '想學習成長', '孩子教養', '人脈社群']
@@ -187,6 +188,7 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
   const [plan, setPlan] = useState('')
   const [planDate, setPlanDate] = useState('')
   const [planTime, setPlanTime] = useState('')
+  const [tool, setTool] = useState('')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
   const showMore = getShowMore()
@@ -205,6 +207,7 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
     // 1) 記這次見面（互動紀錄）
     const { error: e0 } = await supabase.from('contact_logs').insert({
       contact_id: contact.id, user_id: userId, date: dt, kind: 'meet', note: note || `見面：${lv.label}`,
+      ...(tool ? { tool } : {}),
     })
     if (e0) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
     // 2) 這次見面算在約定的那一筆上；沒有約定的話記一筆「已見到」
@@ -277,6 +280,10 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
               <Chip key={a} on={about.includes(a)} onClick={() => setAbout(about.includes(a) ? about.filter(x => x !== a) : about.concat([a]))}>{a}</Chip>
             ))}
           </div>
+        </div>
+
+        <div style={sec}>
+          <ToolRow value={tool} onChange={setTool} customer={contact.source === 'customer'} contact={{ ...contact, interest_level: lv ? lv.label : contact.interest_level }} />
         </div>
 
         <div style={sec}>

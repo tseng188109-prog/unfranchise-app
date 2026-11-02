@@ -214,7 +214,7 @@ export function meetingReason(c, todayStr) {
   if (!c) return ''
   const warm = isContactWarm(c, todayStr)
   const lv = c.interest_level
-  if (lv === '很有興趣') return warm ? '很有興趣，還沒約下一次，約一個一對一聊聊' : '很有興趣，但有一陣子沒聯絡了，先關心再約'
+  if (lv === '很有興趣') return warm ? '很有興趣，還沒約下一次，約一個一對一會談' : '很有興趣，但有一陣子沒聯絡了，先關心再約'
   if (lv === '有點興趣') return warm ? '有點興趣，約一個輕鬆的碰面，體驗產品或聊聊她在意的事' : '有點興趣，先關心一下，再約個輕鬆的碰面'
   if (lv === '觀望中') return warm ? '觀望中，約個輕鬆的聚餐聊聊，不急著介紹' : '觀望中，先保持聯絡，再約個輕鬆的聚餐'
   if (c.relationship_stage === '已登記但尚未消費') return warm ? '已經登記了，約時間協助完成第一次消費' : '已經登記但好一陣子沒聯絡，先關心再約'
