@@ -10,6 +10,7 @@ import ContactNew from './pages/ContactNew'
 import ContactDetail from './pages/ContactDetail'
 import ContactEdit from './pages/ContactEdit'
 import Daily from './pages/Daily'
+import Report from './pages/Report'
 import Transactions from './pages/Transactions'
 import TransactionNew from './pages/TransactionNew'
 import Customers from './pages/Customers'
@@ -105,6 +106,7 @@ function App() {
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/contacts/:id/edit" element={<ContactEdit />} />
           <Route path="/daily" element={<Daily />} />
+          <Route path="/report" element={<Report />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/transactions/new" element={<TransactionNew />} />
           <Route path="/customers" element={<Customers />} />

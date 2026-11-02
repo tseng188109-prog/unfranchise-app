@@ -618,7 +618,13 @@ export default function Daily() {
 
         <div style={card}>
           <div style={{ marginBottom:12 }}>
-            <span style={sectionTitle}>每週行動</span>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+              <span style={sectionTitle}>每週行動</span>
+              <button onClick={() => navigate('/report')}
+                style={{ background:'none',border:'none',color:PRIMARY,fontSize:12,fontWeight:600,cursor:'pointer',padding:'4px 0' }}>
+                給帶領者的報告 ›
+              </button>
+            </div>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:12,marginTop:8 }}>
               <button onClick={() => changeWeekViewDate(-1)} style={navBtn}>‹</button>
               <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>
