@@ -94,9 +94,9 @@ function buildPeople(logs, today) {
     const lastDate = [p.c.last_contact_date, p.last].filter(Boolean).sort().pop()
     const n = dayDiff(lastDate, today)
     const hasNext = p.c.next_plan && p.c.next_plan_date && p.c.next_plan_date >= today
-    let next = '未定'
+    let next = '還沒約'
     if (hasNext) { const { time, label } = splitTime(p.c.next_plan); next = `${md(p.c.next_plan_date)}${time ? ' ' + time : ''}${label ? ' ' + label : ''}` }
-    return { id: p.c.id, name: p.c.name, level: p.c.interest_level || '未記錄', rank: RANK[p.c.interest_level] ?? 1,
+    return { id: p.c.id, name: p.c.name, level: p.c.interest_level || '還沒記興趣程度', rank: RANK[p.c.interest_level] ?? 1,
       next, ago: n <= 0 ? '今天' : `${n} 天前`, lines: p.lines, last: p.last }
   })
   list.sort((a, b) => b.rank - a.rank || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0))
@@ -198,7 +198,7 @@ export default function Report() {
     }
     L.push('', `這段時間接觸的人（共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}）`)
     shown.forEach(p => {
-      L.push('', `${p.name}　${p.level}　下一次${p.next === '未定' ? '未定' : ' ' + p.next}　上次聯絡 ${p.ago}`)
+      L.push('', `${p.name}　${p.level}　下一次約會：${p.next}　上次聯絡 ${p.ago}`)
       if (showText) p.lines.forEach(l => L.push(`${md(l.date)}${l.tool ? ' ' + l.tool : ''}：${l.note || ''}`))
     })
     if (topics.trim()) L.push('', '想討論', topics.trim())
@@ -328,7 +328,7 @@ export default function Report() {
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>
-                    下一次：{p.next}　上次聯絡 {p.ago}{showText && !open[p.id] && p.lines.length > 0 ? `　共 ${p.lines.length} 筆互動` : ''}
+                    下一次約會：{p.next}　上次聯絡 {p.ago}{showText && !open[p.id] && p.lines.length > 0 ? `　共 ${p.lines.length} 筆互動` : ''}
                   </div>
                   {showText && open[p.id] && (
                     <div style={{ background: SUBCARD_BG, borderRadius: 10, padding: '8px 10px', marginTop: 6 }}>
