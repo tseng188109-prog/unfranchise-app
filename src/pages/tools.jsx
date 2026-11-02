@@ -18,7 +18,16 @@ const BY_LEVEL = {
 }
 export function suggestTools(contact, isCustomer) {
   if (isCustomer) return { tools: ['分享我的使用經驗'], text: '用得不錯的話，問她要不要介紹朋友來試用' }
-  return BY_LEVEL[contact && contact.interest_level] || { tools: [], text: '' }
+  if (contact && contact.interest_level && BY_LEVEL[contact.interest_level]) return BY_LEVEL[contact.interest_level]
+  // 還沒見過面、沒有興趣程度時，用熟悉度＋需求度判斷
+  const egg = contact && contact.egg_type, need = contact && contact.need_level
+  if (!egg && !need) return { tools: [], text: '' }
+  const high = need === '大三' || need === '大四'
+  if (high && egg !== '生雞蛋') return { tools: ['一對一會談', '三方通話'], text: '需求夠高、也熟：直接約一對一會談，想更了解就拉三方通話' }
+  if (high) return { tools: ['線上影片', '一對一會談'], text: '需求高但還不熟：先給一支線上影片，再約一對一會談' }
+  if (need === '大二') return { tools: ['線上影片', '社群媒體工具'], text: '他有些抱怨：用影片或社群分享，讓他看到另一種可能' }
+  if (need === '大一') return { tools: ['社群媒體工具'], text: '他目前沒需求：用社群保持聯絡，先不急著介紹' }
+  return { tools: ['社群媒體工具'], text: '還不確定他的需求：先用社群保持聯絡，多聊多聽' }
 }
 
 export function ToolRow({ value, onChange, customer, contact }) {

@@ -16,6 +16,7 @@ import {
 } from './followUp'
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
 import { ToolRow, ToolTag } from './tools'
+import { QuickTags, ACTION_MAP, DAYS_MAP } from './contactQuick'
 import { ScheduleSheet, taipeiToday, MEET_KEY } from './meetings'
 import TrialRunCard from './trialRun'
 import { AutoTextarea, activeNotes, chainIds, NO_LONGER } from './keyPoints'
@@ -25,12 +26,6 @@ import {
   ACCENT_GREEN, ACCENT_GREEN_TEXT, ACCENT_YELLOW, ACCENT_YELLOW_TEXT, DANGER, BORDER, SUBCARD_BG, RADIUS,
   getEggColor, getEggBg, avatarBg, PAGE_BG } from './designTokens'
 
-const ACTION_MAP = {
-  '茶葉蛋':{'大一':'軟性活動','大二':'商機講座','大三':'直接法','大四':'直接法'},
-  '荷包蛋':{'大一':'輕鬆互動','大二':'軟性活動','大三':'商機講座','大四':'直接法'},
-  '生雞蛋':{'大一':'輕鬆互動','大二':'輕鬆互動','大三':'軟性活動','大四':'商機講座'},
-}
-const DAYS_MAP = {'輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5}
 function toDateStr(d){ return d.toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'}) }
 function today(){ return toDateStr(new Date()) }
 function formatDateDisplay(d){
@@ -326,14 +321,9 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
               <span style={{ fontSize: embedded ? 17 : 20, fontWeight:600, color:TEXT_MAIN }}>{contact.name}</span>
-              {contact.egg_type && (
-                <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:RADIUS.xs,
-                  background:getEggBg(contact.egg_type), color:getEggColor(contact.egg_type) }}>
-                  {contact.egg_type}{contact.need_level ? ' · '+contact.need_level : ''}
-                </span>
-              )}
             </div>
             {contact.occupation && <p style={{ fontSize:13, color:TEXT_MUTED, margin:'2px 0 0' }}>{contact.occupation}</p>}
+            <QuickTags contact={contact} onSaved={upd => { setContact(c => ({ ...c, ...upd })); onChanged?.() }} />
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0 }}>
             <button onClick={() => navigate(`/contacts/${id}/edit`)}

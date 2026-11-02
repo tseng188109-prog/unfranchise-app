@@ -14,6 +14,8 @@ import {
   ACCENT_GREEN_TEXT, ACCENT_YELLOW_TEXT,
 } from './designTokens'
 
+const NEED_RANK = { '大四': 4, '大三': 3, '大二': 2, '大一': 1 }
+const NEED_DESC = { '大一': '沒需求', '大二': '小抱怨', '大三': '想改變', '大四': '有行動' }
 const RANK = { '很有興趣': 4, '有點興趣': 3, '觀望中': 2, '看不出來': 1, '沒興趣': 0 }
 const WD = ['日', '一', '二', '三', '四', '五', '六']
 const md = ds => { const [, m, d] = ds.split('-'); return `${+m}/${+d}` }
@@ -35,7 +37,7 @@ async function loadFacts(userId, from, to) {
   const endIso = addDaysStr(to, 1) + 'T00:00:00+08:00'
   const [logsR, meetR, cntR, newR, txR, custR] = await Promise.all([
     supabase.from('contact_logs')
-      .select('contact_id,date,kind,note,tool,contacts(id,name,interest_level,next_plan,next_plan_date,last_contact_date)')
+      .select('contact_id,date,kind,note,tool,contacts(id,name,egg_type,need_level,interest_level,next_plan,next_plan_date,last_contact_date)')
       .eq('user_id', userId).gte('date', from).lte('date', to),
     supabase.from('counter_logs').select('id,date')
       .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).gte('date', from).lte('date', to),
@@ -79,7 +81,7 @@ async function loadFacts(userId, from, to) {
   }
 }
 
-// 這段時間接觸的人：很有興趣排前面，同程度看最近互動
+// 這段時間接觸的人：需求度高的排前面，同需求度看興趣程度（有記才算），再看最近互動
 function buildPeople(logs, today) {
   const map = new Map()
   logs.forEach(l => {
@@ -96,11 +98,20 @@ function buildPeople(logs, today) {
     const hasNext = p.c.next_plan && p.c.next_plan_date && p.c.next_plan_date >= today
     let next = '還沒約'
     if (hasNext) { const { time, label } = splitTime(p.c.next_plan); next = `${md(p.c.next_plan_date)}${time ? ' ' + time : ''}${label ? ' ' + label : ''}` }
-    return { id: p.c.id, name: p.c.name, level: p.c.interest_level || '還沒記興趣程度', rank: RANK[p.c.interest_level] ?? 1,
+    return { id: p.c.id, name: p.c.name, egg: p.c.egg_type || '', need: p.c.need_level ? p.c.need_level + '（' + (NEED_DESC[p.c.need_level] || '') + '）' : '',
+      interest: p.c.interest_level || '', nrank: NEED_RANK[p.c.need_level] || 0, rank: p.c.interest_level ? (RANK[p.c.interest_level] ?? 1) : -1,
       next, ago: n <= 0 ? '今天' : `${n} 天前`, lines: p.lines, last: p.last }
   })
-  list.sort((a, b) => b.rank - a.rank || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0))
+  list.sort((a, b) => b.nrank - a.nrank || b.rank - a.rank || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0))
   return list
+}
+
+function tagsOf(p) {
+  const t = []
+  if (p.egg) t.push(p.egg)
+  if (p.need) t.push(p.need)
+  if (p.interest) t.push('興趣：' + p.interest)
+  return t
 }
 
 export default function Report() {
@@ -174,7 +185,7 @@ export default function Report() {
     const p = cur.perDay[d]
     const ok = p.talk.size >= mode.talk && p.plan >= mode.meet && p.fresh >= mode.fresh
     if (ok) return { t: '完成', c: ACCENT_GREEN_TEXT }
-    if (d === today) return { t: '進行中', c: TEXT_MUTED }
+    if (d === today) return { t: '今天還沒結束', c: TEXT_MUTED }
     const miss = p.plan < mode.meet ? '邀約' : p.talk.size < mode.talk ? '互動' : '新名單'
     return { t: '缺' + miss, c: ACCENT_YELLOW_TEXT }
   }
@@ -198,7 +209,7 @@ export default function Report() {
     }
     L.push('', `這段時間接觸的人（共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}）`)
     shown.forEach(p => {
-      L.push('', `${p.name}　${p.level}　下一次約會：${p.next}　上次聯絡 ${p.ago}`)
+      L.push('', `${p.name}　${tagsOf(p).join('　')}${tagsOf(p).length ? '　' : ''}下一次約會：${p.next}　上次聯絡 ${p.ago}`)
       if (showText) p.lines.forEach(l => L.push(`${md(l.date)}${l.tool ? ' ' + l.tool : ''}：${l.note || ''}`))
     })
     if (topics.trim()) L.push('', '想討論', topics.trim())
@@ -275,7 +286,7 @@ export default function Report() {
             <div style={card}>
               <p style={h}>行動</p>
               <div style={grid}>
-                <span /><span style={th}>這段</span><span style={th}>前一段</span>
+                <span /><span style={th}>這段</span><span style={th}>前 {len} 天</span>
                 {row('見到', cur.met, prev.met)}
                 {row('定下邀約', cur.plan, prev.plan)}
                 {row('新名單', cur.fresh, prev.fresh)}
@@ -301,7 +312,7 @@ export default function Report() {
               <div style={card}>
                 <p style={h}>顧客交易</p>
                 <div style={grid}>
-                  <span /><span style={th}>這段</span><span style={th}>前一段</span>
+                  <span /><span style={th}>這段</span><span style={th}>前 {len} 天</span>
                   {row('新顧客', `${cur.newCust} 位`, prev.newCust)}
                   {row('BV', cur.bv, prev.bv)}
                   {row('IBV', cur.ibv, prev.ibv)}
@@ -313,13 +324,15 @@ export default function Report() {
             )}
 
             <div style={card}>
-              <p style={h}>這段時間接觸的人（共 {people.length} 位，很有興趣排前面）</p>
+              <p style={h}>這段時間接觸的人（共 {people.length} 位，需求度高的排前面）</p>
               {people.length === 0 && <div style={{ fontSize: 13, color: TEXT_MUTED }}>這段時間沒有互動紀錄</div>}
               {shown.map((p, i) => (
                 <div key={p.id} style={{ padding: '10px 0', borderTop: i ? `1px solid ${BORDER}` : 'none', fontSize: 13 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 600, color: TEXT_MAIN }}>{p.name}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: PRIMARY_SOFT, color: PRIMARY }}>{p.level}</span>
+                    {tagsOf(p).map(t => (
+                      <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: PRIMARY_SOFT, color: PRIMARY }}>{t}</span>
+                    ))}
                     {showText && p.lines.length > 0 && (
                       <button onClick={() => setOpen(o => ({ ...o, [p.id]: !o[p.id] }))}
                         style={{ background: 'none', border: 'none', color: PRIMARY, fontSize: 12, cursor: 'pointer', padding: 0 }}>

@@ -152,7 +152,7 @@ export default function ContactEdit() {
         </div>
 
         <div style={fw}>
-          <label style={lb}>蛋型</label>
+          <label style={lb}>熟悉度</label>
           <div style={{ display:'flex',gap:8 }}>
             {EGG_TYPES.map(e => (
               <button key={e} onClick={() => set('egg_type', form.egg_type===e?'':e)}

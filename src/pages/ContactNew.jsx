@@ -181,7 +181,7 @@ export default function ContactNew() {
 
           {/* 蛋型 */}
           <div style={styles.fieldWrap}>
-            <label style={styles.label}>關係（蛋型）<span style={styles.suggest}>建議填</span></label>
+            <label style={styles.label}>熟悉度（茶葉蛋／荷包蛋／生雞蛋）<span style={styles.suggest}>建議填</span></label>
             <div style={{ display:'flex',gap:8 }}>
               {EGG_TYPES.map(e => {
                 const selected = form.egg_type === e.value
