@@ -281,9 +281,11 @@ async function handleImport() {
     console.log('第一筆資料:', JSON.stringify(toInsert[0]))
 
     if (toInsert.length > 0) {
-      const { data, error } = await supabase.from('contacts').insert(toInsert)
-      console.log('insert result:', data)
-      console.log('insert error:', JSON.stringify(error))
+      // 匯入的名單標成 source='import'，不算進今天／本週的「新名單」（那是記你今天新認識的人）。
+      // 萬一資料庫不接受這個標記，退回原本的寫法，匯入照樣成功。
+      let { error } = await supabase.from('contacts').insert(toInsert.map(r => ({ ...r, source: 'import' })))
+      if (error) ({ error } = await supabase.from('contacts').insert(toInsert))
+      if (error) console.log('insert error:', JSON.stringify(error))
     }
 
     setImporting(false)

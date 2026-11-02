@@ -96,7 +96,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
       setReminderDate(c.repurchase_reminder || '')
       if (c.contact_id) {
         const { data: ct } = await supabase.from('contacts')
-          .select('id,name,egg_type,need_level,action_type,occupation')
+          .select('id,name,egg_type,need_level,action_type,occupation,last_interacted_at,last_contact_date')
           .eq('id', c.contact_id).single()
         if (ct) setLinkedContact(ct)
       } else if (c.name && !isSuggestionDismissed()) {
@@ -220,6 +220,13 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     return <LoadingSpinner fullPage={false} />
   }
   if (!customer) return null
+
+  // 最近一次關心：按「我關心過了」、或在互動紀錄寫過，取最新的那天
+  const lastCareDate = [
+    customer.last_cared_at ? toDateStr(new Date(customer.last_cared_at)) : '',
+    linkedContact?.last_interacted_at ? toDateStr(new Date(linkedContact.last_interacted_at)) : '',
+    linkedContact?.last_contact_date || '',
+  ].filter(Boolean).sort().pop() || ''
 
   const purchaseGroups = groupPurchases(transactions, orders)
   const totalBV = transactions.filter(t=>t.type==='BV').reduce((s,t) => s + Number(t.points), 0)
@@ -556,8 +563,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                 <IconHeart size={16} stroke={1.8} color={TEXT_SECONDARY} style={{ marginTop:1, flexShrink:0 }} />
                 <div>
                   <p style={{ fontSize:11, color:TEXT_MUTED, margin:'0 0 2px' }}>最近一次關心</p>
-                  <p style={{ fontSize:13, color: customer.last_cared_at ? TEXT_MAIN : TEXT_MUTED, margin:0 }}>
-                    {customer.last_cared_at ? formatDate(toDateStr(new Date(customer.last_cared_at))) : '還沒記錄'}
+                  <p style={{ fontSize:13, color: lastCareDate ? TEXT_MAIN : TEXT_MUTED, margin:0 }}>
+                    {lastCareDate ? formatDate(lastCareDate) : '還沒記錄'}
                   </p>
                 </div>
               </div>

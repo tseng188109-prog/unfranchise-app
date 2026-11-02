@@ -35,9 +35,9 @@ async function loadFacts(userId, from, to) {
   const days = eachDay(from, to)
   const startIso = from + 'T00:00:00+08:00'
   const endIso = addDaysStr(to, 1) + 'T00:00:00+08:00'
-  const [logsR, meetR, cntR, newR, txR, custR] = await Promise.all([
+  const [logsR, meetR, cntR, newR, txR, custR, allCustR, orderR, ctR] = await Promise.all([
     supabase.from('contact_logs')
-      .select('contact_id,date,kind,note,tool,contacts(id,name,egg_type,need_level,interest_level,next_plan,next_plan_date,last_contact_date)')
+      .select('contact_id,date,kind,note,tool,contacts(id,name,source,egg_type,need_level,interest_level,next_plan,next_plan_date,last_contact_date)')
       .eq('user_id', userId).gte('date', from).lte('date', to),
     supabase.from('counter_logs').select('id,date')
       .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).gte('date', from).lte('date', to),
@@ -49,8 +49,34 @@ async function loadFacts(userId, from, to) {
       .eq('user_id', userId).gte('date', from).lte('date', to),
     supabase.from('customers').select('id,created_at')
       .eq('user_id', userId).gte('created_at', startIso).lt('created_at', endIso),
+    supabase.from('customers').select('id,name,contact_id,last_cared_at')
+      .eq('user_id', userId).eq('is_archived', false).limit(500),
+    supabase.from('transactions').select('customer_id,date,is_gift,line_kind,product_name')
+      .eq('user_id', userId).not('customer_id', 'is', null).order('date', { ascending: false }).limit(3000),
+    supabase.from('contacts').select('id,last_interacted_at,last_contact_date').eq('user_id', userId).limit(2000),
   ])
-  const logs = logsR.data || []
+  const allLogs = logsR.data || []
+  const custs = allCustR.data || []
+  const custByContact = new Map(custs.filter(c => c.contact_id).map(c => [c.contact_id, c]))
+  const isCare = l => custByContact.has(l.contact_id) || (l.contacts && l.contacts.source === 'customer')
+  const logs = allLogs.filter(l => !isCare(l))
+  const careLogs = allLogs.filter(isCare)
+  const care = buildCare(careLogs, custByContact, custs, from, to, to)
+  const careIds = new Set(care.map(c => c.cid))
+  const lastOrder = {}
+  ;(orderR.data || []).forEach(t => { if (!t.is_gift && !t.line_kind && !lastOrder[t.customer_id]) lastOrder[t.customer_id] = { date: t.date, name: t.product_name } })
+  const ctMap = new Map((ctR.data || []).map(c => [c.id, c]))
+  const lapsed = []
+  custs.forEach(c => {
+    if (careIds.has(c.id) || !lastOrder[c.id]) return
+    const ct = c.contact_id ? ctMap.get(c.contact_id) : null
+    const times = [c.last_cared_at ? tpDate(c.last_cared_at) : '', ct && ct.last_interacted_at ? tpDate(ct.last_interacted_at) : '', ct && ct.last_contact_date ? ct.last_contact_date : ''].filter(Boolean).sort()
+    const lastCare = times.pop() || ''
+    const days = lastCare ? dayDiff(lastCare, to) : null
+    if (days !== null && days <= 30) return
+    lapsed.push({ id: c.id, name: c.name, days, order: lastOrder[c.id] })
+  })
+  lapsed.sort((a, b) => (b.days === null ? 9999 : b.days) - (a.days === null ? 9999 : a.days))
   const perDay = {}
   days.forEach(d => { perDay[d] = { talk: new Set(), plan: 0, fresh: 0 } })
   logs.forEach(l => {
@@ -69,7 +95,7 @@ async function loadFacts(userId, from, to) {
     if (!t.is_gift) profit += (t.amount || 0) - (t.cost || 0)
   })
   return {
-    days, logs, perDay,
+    days, logs, perDay, care, lapsed,
     met: (meetR.data || []).length,
     plan: planned.size,
     fresh: (newR.data || []).length,
@@ -79,6 +105,32 @@ async function loadFacts(userId, from, to) {
     newCust: (custR.data || []).length,
     bv, ibv, sale, profit,
   }
+}
+
+// 這段時間關心過的顧客：互動紀錄 + 「我關心過了」。同一位顧客合併成一筆
+function buildCare(logs, custByContact, custs, from, to, today) {
+  const map = new Map()
+  const get = (cid, name) => { if (!map.has(cid)) map.set(cid, { cid, name, lines: [], last: '' }); return map.get(cid) }
+  logs.forEach(l => {
+    const c = custByContact.get(l.contact_id)
+    const p = get(c ? c.id : 'k' + l.contact_id, c ? c.name : (l.contacts && l.contacts.name) || '')
+    if (l.date > p.last) p.last = l.date
+    if (l.kind !== 'meet_plan' && (l.note || l.tool)) p.lines.push({ date: l.date, tool: l.tool, note: l.note })
+  })
+  custs.forEach(c => {
+    if (!c.last_cared_at) return
+    const d = tpDate(c.last_cared_at)
+    if (d < from || d > to) return
+    const p = get(c.id, c.name)
+    if (d > p.last) p.last = d
+  })
+  const list = [...map.values()].map(p => {
+    p.lines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    const n = dayDiff(p.last, today)
+    return { ...p, id: 'care' + p.cid, ago: n <= 0 ? '今天' : `${n} 天前` }
+  })
+  list.sort((a, b) => (a.last < b.last ? 1 : a.last > b.last ? -1 : 0))
+  return list
 }
 
 // 這段時間接觸的人：需求度高的排前面，同需求度看興趣程度（有記才算），再看最近互動
@@ -190,6 +242,38 @@ export default function Report() {
     return { t: '缺' + miss, c: ACCENT_YELLOW_TEXT }
   }
 
+  function personRow(p, i, isCare) {
+    return (
+      <div key={p.id} style={{ padding: '10px 0', borderTop: i ? `1px solid ${BORDER}` : 'none', fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 600, color: TEXT_MAIN }}>{p.name}</span>
+          {!isCare && tagsOf(p).map(t => (
+            <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: PRIMARY_SOFT, color: PRIMARY }}>{t}</span>
+          ))}
+          {showText && p.lines.length > 0 && (
+            <button onClick={() => setOpen(o => ({ ...o, [p.id]: !o[p.id] }))}
+              style={{ background: 'none', border: 'none', color: PRIMARY, fontSize: 12, cursor: 'pointer', padding: 0 }}>
+              {open[p.id] ? '收合 ▴' : '展開 ▾'}
+            </button>
+          )}
+        </div>
+        <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>
+          {isCare ? `上次關心 ${p.ago}` : `下一次約會：${p.next}　上次聯絡 ${p.ago}`}{showText && !open[p.id] && p.lines.length > 0 ? `　共 ${p.lines.length} 筆互動` : ''}
+        </div>
+        {showText && open[p.id] && (
+          <div style={{ background: SUBCARD_BG, borderRadius: 10, padding: '8px 10px', marginTop: 6 }}>
+            {p.lines.map((l, k) => (
+              <div key={k} style={{ fontSize: 12, lineHeight: 1.6, marginTop: k ? 6 : 0, color: TEXT_MAIN }}>
+                <b style={{ color: TEXT_SECONDARY }}>{md(l.date)}{l.tool ? `　${l.tool}` : ''}</b>
+                {l.note ? <><br />{l.note}</> : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function buildText() {
     const pr = k => `（${prev[k]}）`
     const L = []
@@ -207,11 +291,23 @@ export default function Report() {
       L.push(`BV ${cur.bv}（${prev.bv}）　IBV ${cur.ibv}（${prev.ibv}）`)
       L.push(`金額 ${nt(cur.sale)}（${nt(prev.sale)}）`, `利潤 ${nt(cur.profit)}（${nt(prev.profit)}）`)
     }
-    L.push('', `這段時間接觸的人（共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}）`)
+    L.push('', `潛在夥伴互動（共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}）`)
     shown.forEach(p => {
       L.push('', `${p.name}　${tagsOf(p).join('　')}${tagsOf(p).length ? '　' : ''}下一次約會：${p.next}　上次聯絡 ${p.ago}`)
       if (showText) p.lines.forEach(l => L.push(`${md(l.date)}${l.tool ? ' ' + l.tool : ''}：${l.note || ''}`))
     })
+    if (cur.care.length || cur.lapsed.length) {
+      L.push('', `顧客關心（共 ${cur.care.length} 位）`)
+      cur.care.forEach(p => {
+        L.push('', `${p.name}　上次關心 ${p.ago}`)
+        if (showText) p.lines.forEach(l => L.push(`${md(l.date)}${l.tool ? ' ' + l.tool : ''}：${l.note || ''}`))
+      })
+      if (cur.lapsed.length) {
+        L.push('', `超過 30 天沒關心的顧客：${cur.lapsed.length} 位`)
+        cur.lapsed.slice(0, 5).forEach(c => L.push(`${c.name}　${c.days === null ? '還沒關心過' : c.days + ' 天沒關心'}　最近一次訂單 ${md(c.order.date)}${c.order.name ? ' ' + c.order.name : ''}`))
+        if (cur.lapsed.length > 5) L.push(`還有 ${cur.lapsed.length - 5} 位`)
+      }
+    }
     if (topics.trim()) L.push('', '想討論', topics.trim())
     if (when.trim()) L.push('', `希望${when.trim()}一起看`)
     return L.join('\n')
@@ -324,42 +420,32 @@ export default function Report() {
             )}
 
             <div style={card}>
-              <p style={h}>這段時間接觸的人（共 {people.length} 位，需求度高的排前面）</p>
+              <p style={h}>潛在夥伴互動（共 {people.length} 位，需求度高的排前面）</p>
               {people.length === 0 && <div style={{ fontSize: 13, color: TEXT_MUTED }}>這段時間沒有互動紀錄</div>}
-              {shown.map((p, i) => (
-                <div key={p.id} style={{ padding: '10px 0', borderTop: i ? `1px solid ${BORDER}` : 'none', fontSize: 13 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, color: TEXT_MAIN }}>{p.name}</span>
-                    {tagsOf(p).map(t => (
-                      <span key={t} style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: PRIMARY_SOFT, color: PRIMARY }}>{t}</span>
-                    ))}
-                    {showText && p.lines.length > 0 && (
-                      <button onClick={() => setOpen(o => ({ ...o, [p.id]: !o[p.id] }))}
-                        style={{ background: 'none', border: 'none', color: PRIMARY, fontSize: 12, cursor: 'pointer', padding: 0 }}>
-                        {open[p.id] ? '收合 ▴' : '展開 ▾'}
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>
-                    下一次約會：{p.next}　上次聯絡 {p.ago}{showText && !open[p.id] && p.lines.length > 0 ? `　共 ${p.lines.length} 筆互動` : ''}
-                  </div>
-                  {showText && open[p.id] && (
-                    <div style={{ background: SUBCARD_BG, borderRadius: 10, padding: '8px 10px', marginTop: 6 }}>
-                      {p.lines.map((l, k) => (
-                        <div key={k} style={{ fontSize: 12, lineHeight: 1.6, marginTop: k ? 6 : 0, color: TEXT_MAIN }}>
-                          <b style={{ color: TEXT_SECONDARY }}>{md(l.date)}{l.tool ? `　${l.tool}` : ''}</b>
-                          {l.note ? <><br />{l.note}</> : null}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {shown.map((p, i) => personRow(p, i, false))}
               {people.length > 15 && (
                 <button onClick={() => setTop10(v => !v)}
                   style={{ marginTop: 8, background: 'none', border: 'none', color: PRIMARY, fontSize: 12, cursor: 'pointer', padding: 0 }}>
                   {top10 ? '改成全部列出' : '人數較多，只列前 10 位？'}
                 </button>
+              )}
+            </div>
+
+            <div style={card}>
+              <p style={h}>顧客關心（共 {cur.care.length} 位）</p>
+              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: -4, marginBottom: 4 }}>這段時間關心過的顧客，內容是你在互動紀錄寫的</div>
+              {cur.care.length === 0 && <div style={{ fontSize: 13, color: TEXT_MUTED }}>這段時間沒有關心顧客的紀錄</div>}
+              {cur.care.map((p, i) => personRow(p, i, true))}
+              {cur.lapsed.length > 0 && (
+                <div style={{ borderTop: cur.care.length ? `1px solid ${BORDER}` : 'none', marginTop: cur.care.length ? 6 : 0, paddingTop: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_MAIN }}>超過 30 天沒關心的顧客：{cur.lapsed.length} 位</div>
+                  {cur.lapsed.slice(0, 5).map(c => (
+                    <div key={c.id} style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+                      {c.name}　{c.days === null ? '還沒關心過' : `${c.days} 天沒關心`}　最近一次訂單 {md(c.order.date)}{c.order.name ? ' ' + c.order.name : ''}
+                    </div>
+                  ))}
+                  {cur.lapsed.length > 5 && <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>還有 {cur.lapsed.length - 5} 位</div>}
+                </div>
               )}
             </div>
           </>
