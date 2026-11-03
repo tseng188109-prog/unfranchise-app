@@ -196,10 +196,10 @@ export default function ContactEdit() {
           <>
             {[
               { key:'occupation', label:'職業', placeholder:'輸入職業...' },
-              { key:'region', label:'居住地區', placeholder:'例：高雄市左營區' },
-              { key:'note', label:'認識管道／備註', placeholder:'例：福氣教會' },
+              { key:'region', label:'居住地區', placeholder:'例：台北市大安區' },
+              { key:'note', label:'認識管道／備註', placeholder:'例：朋友介紹、社團、同事' },
               { key:'pain_point', label:'痛點／現況', placeholder:'關鍵字...' },
-              { key:'asked_products', label:'詢問過的產品', placeholder:'例：益生十菌' },
+              { key:'asked_products', label:'詢問過的產品', placeholder:'例：愛尚它®綜合維生素粉末' },
             ].map(f => (
               <div key={f.key} style={fw}>
                 <label style={lb}>{f.label}</label>

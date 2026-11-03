@@ -233,12 +233,12 @@ export default function ContactNew() {
               <div style={styles.fieldWrap}>
                 <label style={styles.label}>居住地區</label>
                 <input value={form.region} onChange={e=>set('region',e.target.value)}
-                  placeholder="例：高雄市左營區" style={styles.input} />
+                  placeholder="例：台北市大安區" style={styles.input} />
               </div>
               <div className="cn-full" style={styles.fieldWrap}>
                 <label style={styles.label}>認識管道／備註</label>
                 <input value={form.note} onChange={e=>set('note',e.target.value)}
-                  placeholder="例：福氣教會" style={styles.input} />
+                  placeholder="例：朋友介紹、社團、同事" style={styles.input} />
               </div>
               <div style={styles.fieldWrap}>
                 <label style={styles.label}>痛點／現況</label>
@@ -248,7 +248,7 @@ export default function ContactNew() {
               <div style={styles.fieldWrap}>
                 <label style={styles.label}>詢問過的產品</label>
                 <input value={form.asked_products} onChange={e=>set('asked_products',e.target.value)}
-                  placeholder="例：益生十菌、蘆薈粉" style={styles.input} />
+                  placeholder="例：愛尚它®綜合維生素粉末" style={styles.input} />
               </div>
             </>
           )}
