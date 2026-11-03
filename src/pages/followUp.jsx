@@ -3,6 +3,7 @@
 // 真正寫入 relationship_stage / referral_stage 的動作，永遠只能來自使用者自己在畫面上點的那一下。
 
 import { loadDailyMode } from './dailyMode'
+import { top10Exit } from './top10'
 
 // ---- 階段清單（消費狀況 / 合作意願）----
 // 消費狀況：這個人離「成交賺價差」走到哪一步了
@@ -186,6 +187,7 @@ function rankMeetingPool(contacts, todayStr, skipIds = [], seedExtra = '') {
   })
   if (pool.length === 0) return []
   const score = c => [
+    (c.is_top10 && !top10Exit(c)) ? 1 : 0,   // 首選 10 的人先排
     interestRank(c),
     NEED_RANK[c.need_level] ?? 0,
     (c.relationship_stage === '已登記但尚未消費' || c.referral_stage === '考慮中') ? 1 : 0,
@@ -212,6 +214,10 @@ export function pickInviteCandidates(contacts, eventId, count = 5, todayStr) {
 // 卡片上的「為什麼是他」一行，給這個「1」一個理由（簡報：不要漫無目的）
 export function meetingReason(c, todayStr) {
   if (!c) return ''
+  const r = meetingReasonBase(c, todayStr)
+  return (c.is_top10 && !top10Exit(c)) ? '首選 10：' + r : r
+}
+function meetingReasonBase(c, todayStr) {
   const warm = isContactWarm(c, todayStr)
   const lv = c.interest_level
   if (lv === '很有興趣') return warm ? '很有興趣，還沒約下一次，約一個一對一會談' : '很有興趣，但有一陣子沒聯絡了，先關心再約'
@@ -230,19 +236,39 @@ export function isFreshFriend(c, todayStr) {
   return !!c.created_at && !c.last_contact_date && daysSince(c.created_at.slice(0, 10), today) <= 14
 }
 
-// 挑出今天的「3位互動」：排除靜音與 excludeId（單一 id 或 id 陣列），
-// 新朋友優先（2→3），其餘依最久沒互動排序，確保「不要老是同樣那幾位」。
+// 挑出今天的「3位互動」，分三個來源，避免只剩新名單：
+//   首選 10（最先要邀約的人，最久沒聊的先）→ 新名單（加進來 14 天內、還沒互動，有名額上限）→ 好久沒聊的
+// 名額依今天要幾位（count）分配：1 位→首選 10 優先；3 位→各 1；10 位→首選 10 最多 4、新名單最多 2。
+// 哪個來源不夠人，空出的名額補給其他來源。每個人帶 pickReason：'top10' | 'fresh' | 'stale'。
 export function pickInteractionContacts(contacts, excludeId, count = 3, todayStr) {
   const excl = Array.isArray(excludeId) ? excludeId : [excludeId]
-  const pool = (contacts || []).filter(c => !c.is_muted && !excl.includes(c.id))
-  return [...pool].sort((a, b) => {
-    const fa = isFreshFriend(a, todayStr) ? 1 : 0, fb = isFreshFriend(b, todayStr) ? 1 : 0
-    if (fa !== fb) return fb - fa
+  const pool = (contacts || []).filter(c => !c.is_muted && !excl.includes(c.id) && c.referral_stage !== '暫時婉拒')
+  const oldFirst = (a, b) => {
     const ka = sortKey(a), kb = sortKey(b)
-    if (ka !== kb) return fa ? (ka > kb ? -1 : 1) : (ka < kb ? -1 : 1)
-    // 同理：created_at 同批匯入常常完全相同，用 id 收尾才穩定
+    if (ka !== kb) return ka < kb ? -1 : 1
     return (a.id || '') < (b.id || '') ? -1 : 1
-  }).slice(0, count)
+  }
+  const isTop = c => c.is_top10 && !top10Exit(c)
+  const top = pool.filter(isTop).sort(oldFirst)
+  const fresh = pool.filter(c => !isTop(c) && isFreshFriend(c, todayStr)).sort((a, b) => oldFirst(b, a))
+  const stale = pool.filter(c => !isTop(c) && !isFreshFriend(c, todayStr)).sort(oldFirst)
+  const qTop = count <= 1 ? 1 : count <= 3 ? 1 : Math.min(4, Math.ceil(count * 0.4))
+  const qFresh = count <= 1 ? 0 : count <= 3 ? 1 : Math.min(2, Math.ceil(count * 0.2))
+  const out = []
+  const take = (list, n, reason) => {
+    for (const c of list) {
+      if (n <= 0 || out.length >= count) break
+      if (out.some(o => o.id === c.id)) continue
+      out.push({ ...c, pickReason: reason }); n--
+    }
+  }
+  take(top, qTop, 'top10')
+  take(fresh, qFresh, 'fresh')
+  take(stale, count - out.length, 'stale')
+  // 還沒滿：把其餘來源剩下的人補進來
+  take(top, count - out.length, 'top10')
+  take(fresh, count - out.length, 'fresh')
+  return out.slice(0, count)
 }
 
 // 「每日3互動」打勾：當天記過互動的人（不重複）達到自己選的每日節奏（起步 1／標準 3／加速 10）才自動打勾

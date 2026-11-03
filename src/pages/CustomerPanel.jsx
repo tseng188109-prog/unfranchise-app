@@ -1,3 +1,5 @@
+import { Top10Star } from './top10'
+import { actionLabel } from './contactQuick'
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
@@ -96,7 +98,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
       setReminderDate(c.repurchase_reminder || '')
       if (c.contact_id) {
         const { data: ct } = await supabase.from('contacts')
-          .select('id,name,egg_type,need_level,action_type,occupation,last_interacted_at,last_contact_date')
+          .select('id,user_id,name,egg_type,need_level,action_type,occupation,last_interacted_at,last_contact_date')
           .eq('id', c.contact_id).single()
         if (ct) setLinkedContact(ct)
       } else if (c.name && !isSuggestionDismissed()) {
@@ -515,10 +517,11 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                       <span style={{ fontSize:12, color:TEXT_MAIN }}>{linkedContact.need_level}</span>
                     )}
                     {linkedContact.action_type && (
-                      <span style={{ fontSize:12, color:TEXT_MUTED }}>· {linkedContact.action_type}</span>
+                      <span style={{ fontSize:12, color:TEXT_MUTED }}>· {actionLabel(linkedContact.action_type)}</span>
                     )}
                   </div>
                 </div>
+                <Top10Star contact={linkedContact} />
                 <button onClick={() => navigate(`/contacts/${linkedContact.id}`)}
                   style={{ fontSize:12, color:PRIMARY, background:'var(--card)', border:`1px solid ${BORDER}`,
                     borderRadius:RADIUS.xs, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>

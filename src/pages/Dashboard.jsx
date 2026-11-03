@@ -32,7 +32,8 @@ import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, res
 import { ScheduleSheet, settleMeetings, backfillPlans, MEET_KEY } from './meetings'
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
-import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm, isFreshFriend } from './followUp'
+import { fetchTop10 } from './top10'
+import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm } from './followUp'
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
@@ -455,11 +456,16 @@ export default function Dashboard() {
   }
 
   async function fetchFollowUps() {
-    const { data } = await supabase.from('contacts')
+    let { data } = await supabase.from('contacts')
       .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
       .eq('user_id',user.id).eq('is_archived',false)
       .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
     if (data) {
+      // 首選 10：欄位還沒建好時查詢會失敗，這裡安靜略過，首頁照常
+      let list = data
+      const t10 = await fetchTop10(user.id)
+      if (t10.ok) { const ids = new Set(t10.rows.map(r => r.id)); list = data.map(c => ids.has(c.id) ? { ...c, is_top10: true } : c) }
+      data = list
       setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips)
       // 更新前已經約好的，補進每日行動（只補沒有對應記錄的）
       backfillPlans(user.id, data).then(n => { if (n) loadFutureMeets() })
@@ -595,7 +601,7 @@ export default function Dashboard() {
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} 星期${DAYS_ZH[d.getDay()]}`
   })()
   // 單純的顧客（沒有轉介紹進度）不被自動推薦；有轉介紹進度的才會進推薦
-  const pickPool = activeContacts.filter(c => !(customerContactIds.has(c.id) && !c.referral_stage))
+  const pickPool = activeContacts.filter(c => !(customerContactIds.has(c.id) && !c.referral_stage && !c.is_top10))
   const meetingContact = pickMeetingContact(pickPool, undefined, skipMeeting)
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
   const weeklyMeetTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
@@ -836,7 +842,9 @@ export default function Dashboard() {
                           borderRadius:RADIUS.pill,padding:'3px 12px 3px 3px',cursor:'pointer',
                           fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
                         <Avatar name={c.name} size={24} />{c.name}
-                        {isFreshFriend(c) && <span style={{ fontSize:11,fontWeight:400,color:ACCENT_GREEN_TEXT }}>新名單</span>}
+                        {c.pickReason === 'top10' && <span style={{ fontSize:11,fontWeight:400,color:PRIMARY }}>首選 10</span>}
+                        {c.pickReason === 'fresh' && <span style={{ fontSize:11,fontWeight:400,color:ACCENT_GREEN_TEXT }}>新名單</span>}
+                        {c.pickReason === 'stale' && <span style={{ fontSize:11,fontWeight:400,color:TEXT_MUTED }}>好久沒聊</span>}
                       </button>
                     ))}
                   </div>

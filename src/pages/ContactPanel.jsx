@@ -17,6 +17,7 @@ import {
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
 import { ToolRow, ToolTag } from './tools'
 import { QuickTags, ACTION_MAP, DAYS_MAP } from './contactQuick'
+import { Top10Star } from './top10'
 import { ScheduleSheet, taipeiToday, MEET_KEY } from './meetings'
 import TrialRunCard from './trialRun'
 import { AutoTextarea, activeNotes, chainIds, NO_LONGER } from './keyPoints'
@@ -223,7 +224,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
         const { error: e2 } = await supabase.from('contact_logs').update({ story_note_id: n.id }).eq('id', log.id)
         if (e2) {
           await supabase.from('contact_notes').delete().eq('id', n.id)
-          setStarMsg('還沒完成設定：請先執行這次更新附的 SQL，再試一次')
+          setStarMsg('這個功能還沒開通，請聯絡 YU（開發者）')
         }
       }
     }
@@ -326,6 +327,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
             <QuickTags contact={contact} onSaved={upd => { setContact(c => ({ ...c, ...upd })); onChanged?.() }} />
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+            <Top10Star contact={contact} onChanged={() => onChanged?.()} />
             <button onClick={() => navigate(`/contacts/${id}/edit`)}
               style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'var(--card)',
                 display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_SECONDARY }}>
@@ -392,7 +394,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
             {signedDays !== null && signedDays <= 14 && (
               <div style={{ background:'var(--green-soft)', borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14,
                 fontSize:13, color:'var(--green-text)', lineHeight:1.5 }}>
-                簽約第 {signedDays} 天。簽約後 3–7 天內約一次跟進會面，幫她把起步做順。
+                簽約第 {signedDays} 天。簽約後 3–7 天內約一次跟進會面，幫對方把起步做順。
               </div>
             )}
 

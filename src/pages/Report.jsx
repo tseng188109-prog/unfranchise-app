@@ -2,6 +2,7 @@
 // 入口：每日行動 → 每週行動卡片右上角「給帶領者的報告 ›」。
 // 選最近 3／5／7 天或自選日期（最多 31 天），括號比的是「往前同樣天數」。
 // 兩個開關（顧客交易、互動內容）和討論事項存在 users.tag_settings，不用另外建表。
+import { fetchTop10, top10NeedsAction, TOP10_MAX } from './top10'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
@@ -77,6 +78,20 @@ async function loadFacts(userId, from, to) {
     lapsed.push({ id: c.id, name: c.name, days, order: lastOrder[c.id] })
   })
   lapsed.sort((a, b) => (b.days === null ? 9999 : b.days) - (a.days === null ? 9999 : a.days))
+  // 首選 10：欄位還沒建好時 ok=false，報告不顯示這一段
+  const t10 = await fetchTop10(userId)
+  let pick10 = { ok: false }
+  if (t10.ok) {
+    const touchedIds = new Set(allLogs.map(l => l.contact_id))
+    const plannedIds = new Set(allLogs.filter(l => l.kind === 'meet_plan').map(l => l.contact_id))
+    pick10 = {
+      ok: true, total: t10.rows.length,
+      touched: t10.rows.filter(r => touchedIds.has(r.id)).map(r => r.name),
+      untouched: t10.rows.filter(r => !touchedIds.has(r.id)).map(r => r.name),
+      planned: t10.rows.filter(r => plannedIds.has(r.id)).length,
+      swap: t10.rows.map(r => ({ name: r.name, reason: top10NeedsAction(r) })).filter(x => x.reason),
+    }
+  }
   const perDay = {}
   days.forEach(d => { perDay[d] = { talk: new Set(), plan: 0, fresh: 0 } })
   logs.forEach(l => {
@@ -95,7 +110,7 @@ async function loadFacts(userId, from, to) {
     if (!t.is_gift) profit += (t.amount || 0) - (t.cost || 0)
   })
   return {
-    days, logs, perDay, care, lapsed,
+    days, logs, perDay, care, lapsed, pick10,
     met: (meetR.data || []).length,
     plan: planned.size,
     fresh: (newR.data || []).length,
@@ -330,6 +345,15 @@ export default function Report() {
       L.push('')
     }
 
+    const pk = cur.pick10
+    if (pk && pk.ok && pk.total > 0) {
+      L.push(`【首選 10，目前 ${pk.total}/${TOP10_MAX} 位】`)
+      L.push(`這段時間聯絡了 ${pk.touched.length} 位${pk.touched.length ? '：' + pk.touched.join('、') : ''}，定下邀約 ${pk.planned} 位。`)
+      if (pk.untouched.length) L.push(`還沒聯絡：${pk.untouched.join('、')}`)
+      if (pk.swap.length) L.push(`想換人：${pk.swap.map(x => `${x.name}（${x.reason}）`).join('、')}`)
+      L.push('')
+    }
+
     if (topics.trim()) L.push('【想討論】', topics.trim())
     if (when.trim()) L.push(`希望${when.trim()}一起看`)
     while (L.length && L[L.length - 1] === '') L.pop()
@@ -453,6 +477,21 @@ export default function Report() {
                 </button>
               )}
             </div>
+
+            {cur.pick10 && cur.pick10.ok && cur.pick10.total > 0 && (
+              <div style={card}>
+                <p style={h}>首選 10（目前 {cur.pick10.total}/{TOP10_MAX} 位）</p>
+                <div style={{ fontSize: 13, color: TEXT_MAIN }}>
+                  這段時間聯絡了 {cur.pick10.touched.length} 位，定下邀約 {cur.pick10.planned} 位
+                </div>
+                {cur.pick10.untouched.length > 0 && (
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6 }}>還沒聯絡：{cur.pick10.untouched.join('、')}</div>
+                )}
+                {cur.pick10.swap.length > 0 && (
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6 }}>想換人：{cur.pick10.swap.map(x => `${x.name}（${x.reason}）`).join('、')}</div>
+                )}
+              </div>
+            )}
 
             <div style={card}>
               <p style={h}>顧客關心（共 {cur.care.length} 位）</p>
