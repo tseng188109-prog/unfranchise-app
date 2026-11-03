@@ -1,3 +1,4 @@
+import { actionLabel } from './contactQuick'
 import { useState, useEffect, useRef } from 'react'
 import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
@@ -409,7 +410,7 @@ async function handleImport() {
             {c.occupation && (c.relationship_stage || c.action_type) && <span>·</span>}
             {c.relationship_stage
               ? <span>{c.relationship_stage}</span>
-              : c.action_type && <span>{c.action_type}</span>}
+              : c.action_type && <span>{actionLabel(c.action_type)}</span>}
           </div>
         </div>
         {!showArchived && c.is_muted && (
@@ -524,7 +525,7 @@ async function handleImport() {
               background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
               color: showArchived ? '#fff' : TEXT_SECONDARY,
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-            <IconArchive size={13} stroke={2} /> {showArchived ? '查看一般' : '封存名單'}
+            <IconArchive size={13} stroke={2} /> {showArchived ? '回到名單' : '封存名單'}
           </button>
           {!showArchived && mutedCount > 0 && (
             <button onClick={() => setShowMuted(v => !v)}
@@ -584,7 +585,7 @@ async function handleImport() {
             <div style={{ background:'var(--yellow-soft)', padding:'10px 16px',
               fontSize:13, color:'var(--yellow-text)', display:'flex', alignItems:'center', gap:6 }}>
               <IconArchive size={15} stroke={1.9} />
-              <span>封存名單 · 點擊可復原聯絡人</span>
+              <span>封存名單 · 點擊可復原</span>
             </div>
           )}
 
@@ -596,7 +597,7 @@ async function handleImport() {
                 {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconUsers size={36} stroke={1.5} />}
               </div>
               <p style={{ fontSize:15 }}>
-                {showArchived ? '沒有封存的聯絡人' : '還沒有聯絡人，點 + 新增第一位吧！'}
+                {showArchived ? '沒有封存的名單' : '名單上還沒有人，點 + 新增第一位吧！'}
               </p>
             </div>
           ) : showArchived ? (

@@ -132,7 +132,7 @@ export default function TrialRunCard({ contact, userId }) {
   let nextTitle = '', nextText = ''
   if (!next) {
     nextTitle = '6 步都做完了'
-    nextText = '可以到下一位聯絡人，開始新的試做。'
+    nextText = '可以到下一位，開始新的試做。'
   } else if (next.n === 3) {
     if (t < day3) { nextTitle = `下一步：${md(day3)} 第三天聯繫他`; nextText = next.hint }
     else { nextTitle = '下一步：第三天了，聯繫他'; nextText = next.hint }

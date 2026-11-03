@@ -276,40 +276,63 @@ export default function Report() {
 
   function buildText() {
     const pr = k => `（${prev[k]}）`
+    const name = (profile && profile.name) || ''
     const L = []
-    L.push(`【${(profile && profile.name) || ''}　報告 ${md(from)}–${md(to)}（${len} 天）】`)
-    L.push(`括號是前 ${len} 天（${md(pFrom)}–${md(pTo)}）`, '')
-    L.push('行動')
-    L.push(`見到 ${cur.met}${pr('met')}`, `定下邀約 ${cur.plan}${pr('plan')}`, `新名單 ${cur.fresh}${pr('fresh')}`, `互動 ${cur.talk} 人次${pr('talk')}`)
-    L.push(`BV 分享 ${cur.bvShare}${pr('bvShare')}　IBV 分享 ${cur.ibvShare}${pr('ibvShare')}`)
-    L.push(`每週目標：見到 ${metTarget}、定下 ${planTarget}`, '')
-    L.push(`每天 ${mode.label}`)
-    cur.days.forEach(d => { L.push(`${wday(d)} ${md(d)} ${dayStatus(d).t}`) })
+    L.push(`${name ? name + ' 的' : ''}報告　${md(from)}–${md(to)}（${len} 天）`)
+    L.push(`括號裡是前 ${len} 天（${md(pFrom)}–${md(pTo)}）`, '')
+
+    L.push(`【這 ${len} 天做了什麼】`)
+    L.push(`見到 ${cur.met} 位${pr('met')}，定下 ${cur.plan} 個邀約${pr('plan')}，新增 ${cur.fresh} 個名單${pr('fresh')}，互動 ${cur.talk} 人次${pr('talk')}。`)
+    L.push(`BV 分享 ${cur.bvShare} 次${pr('bvShare')}，IBV 分享 ${cur.ibvShare} 次${pr('ibvShare')}。`)
+    L.push(`每週目標：見到 ${metTarget} 位、定下 ${planTarget} 個邀約。`, '')
+
+    const st = cur.days.map(d => ({ d, s: dayStatus(d).t }))
+    const full = st.filter(x => x.s === '完成')
+    const pending = st.filter(x => x.s === '今天還沒結束')
+    const miss = {}
+    st.forEach(x => { if (x.s.startsWith('缺')) (miss[x.s] = miss[x.s] || []).push(md(x.d)) })
+    L.push(`【每天 ${mode.label} 的狀況】`)
+    L.push(`${len} 天裡有 ${full.length} 天做滿。`)
+    Object.keys(miss).forEach(k => L.push(`${k}：${miss[k].join('、')}`))
+    if (pending.length) L.push(`${md(pending[0].d)} 今天還沒結束。`)
+    L.push('')
+
     if (showBiz) {
-      L.push('', '顧客交易')
-      L.push(`新顧客 ${cur.newCust} 位（${prev.newCust}）`)
-      L.push(`BV ${cur.bv}（${prev.bv}）　IBV ${cur.ibv}（${prev.ibv}）`)
-      L.push(`金額 ${nt(cur.sale)}（${nt(prev.sale)}）`, `利潤 ${nt(cur.profit)}（${nt(prev.profit)}）`)
+      L.push('【顧客交易】')
+      L.push(`新增顧客 ${cur.newCust} 位（${prev.newCust}）。BV ${cur.bv}（${prev.bv}），IBV ${cur.ibv}（${prev.ibv}）。`)
+      L.push(`金額 ${nt(cur.sale)}（${nt(prev.sale)}），利潤 ${nt(cur.profit)}（${nt(prev.profit)}）。`, '')
     }
-    L.push('', `潛在夥伴互動（共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}）`)
-    shown.forEach(p => {
-      L.push('', `${p.name}　${tagsOf(p).join('　')}${tagsOf(p).length ? '　' : ''}下一次約會：${p.next}　上次聯絡 ${p.ago}`)
-      if (showText) p.lines.forEach(l => L.push(`${md(l.date)}${l.tool ? ' ' + l.tool : ''}：${l.note || ''}`))
+
+    const lineOf = l => `　${md(l.date)}${l.tool ? ' ' + l.tool : ''}${l.note ? '　' + l.note : ''}`
+    L.push(`【接觸的潛在夥伴，共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}】`)
+    if (people.length === 0) L.push('這段時間沒有互動紀錄。')
+    shown.forEach((p, i) => {
+      const tg = tagsOf(p)
+      if (i) L.push('')
+      L.push(`${i + 1}. ${p.name}${tg.length ? '　' + tg.join('，') : ''}`)
+      L.push(`　下一次約會：${p.next}　上次聯絡：${p.ago}`)
+      if (showText) p.lines.forEach(l => L.push(lineOf(l)))
     })
+    L.push('')
+
     if (cur.care.length || cur.lapsed.length) {
-      L.push('', `顧客關心（共 ${cur.care.length} 位）`)
-      cur.care.forEach(p => {
-        L.push('', `${p.name}　上次關心 ${p.ago}`)
-        if (showText) p.lines.forEach(l => L.push(`${md(l.date)}${l.tool ? ' ' + l.tool : ''}：${l.note || ''}`))
+      L.push(`【關心的顧客，共 ${cur.care.length} 位】`)
+      cur.care.forEach((p, i) => {
+        if (i) L.push('')
+        L.push(`${i + 1}. ${p.name}　上次關心：${p.ago}`)
+        if (showText) p.lines.forEach(l => L.push(lineOf(l)))
       })
       if (cur.lapsed.length) {
-        L.push('', `超過 30 天沒關心的顧客：${cur.lapsed.length} 位`)
-        cur.lapsed.slice(0, 5).forEach(c => L.push(`${c.name}　${c.days === null ? '還沒關心過' : c.days + ' 天沒關心'}　最近一次訂單 ${md(c.order.date)}${c.order.name ? ' ' + c.order.name : ''}`))
-        if (cur.lapsed.length > 5) L.push(`還有 ${cur.lapsed.length - 5} 位`)
+        const one = c => `${c.name}（${c.days === null ? '還沒關心過' : c.days + ' 天'}，最近一次訂單 ${md(c.order.date)}${c.order.name ? ' ' + c.order.name : ''}）`
+        if (cur.care.length) L.push('')
+        L.push(`超過 30 天沒關心：${cur.lapsed.slice(0, 5).map(one).join('、')}${cur.lapsed.length > 5 ? `，另有 ${cur.lapsed.length - 5} 位` : ''}`)
       }
+      L.push('')
     }
-    if (topics.trim()) L.push('', '想討論', topics.trim())
-    if (when.trim()) L.push('', `希望${when.trim()}一起看`)
+
+    if (topics.trim()) L.push('【想討論】', topics.trim())
+    if (when.trim()) L.push(`希望${when.trim()}一起看`)
+    while (L.length && L[L.length - 1] === '') L.pop()
     return L.join('\n')
   }
 

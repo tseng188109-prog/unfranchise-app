@@ -64,8 +64,8 @@ async function loadWeek(userId) {
     d.fresh++
   })
   const days312 = Object.values(perDay).filter(d => d.people.size >= mode.talk && d.plan >= mode.meet && d.fresh >= mode.fresh).length
-  // BASIC-5 每週目標：找 5–15 人談話、邀約 5 人、增加 10 名可能人選
-  const talkedWeek = new Set((dayLogsRes.data || []).map(l => l.contact_id)).size
+  // 每週目標跟著每日模式走（每天的目標 × 7）；互動算人次（每天不同的人加起來），跟報告頁同一個算法
+  const talkedWeek = Object.values(perDay).reduce((s, d) => s + d.people.size, 0)
   const invitedWeek = new Set((dayLogsRes.data || []).filter(l => l.kind === 'meet_plan').map(l => l.contact_id)).size
   return {
     ws, we, met,
@@ -126,7 +126,7 @@ function WeeklyReviewSheet({ data, onClose }) {
   const shown = showAll ? met : met.slice(0, 5)
 
   async function copyText() {
-    const txt = `本週（${md(ws)}–${md(we)}）\n見面 ${met.length} 位\n已約好下一次 ${planned} 位\n新認識 ${fresh} 位\n${mode.label} 做滿 ${days312} 天`
+    const txt = `本週（${md(ws)}–${md(we)}）\n見面 ${met.length} 位\n已約好下一次 ${planned} 位\n新名單 ${fresh} 位\n${mode.label} 做滿 ${days312} 天`
     try {
       await navigator.clipboard.writeText(txt)
     } catch {
@@ -152,16 +152,16 @@ function WeeklyReviewSheet({ data, onClose }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
           <Stat label="見面" value={met.length} unit="位" />
           <Stat label="已約好下一次" value={planned} unit="位" />
-          <Stat label="新認識" value={fresh} unit="位" />
+          <Stat label="新名單" value={fresh} unit="位" />
           <Stat label={`${mode.label} 做滿`} value={days312} unit="天" />
         </div>
 
         <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: '18px 0 6px' }}>本週目標</p>
         <div style={{ background: SUBCARD_BG, borderRadius: RADIUS.md, padding: '4px 12px' }}>
           {[
-            ['談話', talkedWeek, '5–15 人'],
+            ['互動', talkedWeek, (mode.talk * 7) + ' 人次'],
             ['邀約', invitedWeek, weeklyMeet + ' 人'],
-            ['增加名單', fresh, '10 人'],
+            ['新名單', fresh, (mode.fresh * 7) + ' 人'],
           ].filter(r => r[0] !== '邀約' || weeklyMeet > 0).map(([k, v, g]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 14 }}>
               <span style={{ color: TEXT_SECONDARY }}>{k}</span>

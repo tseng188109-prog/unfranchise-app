@@ -780,7 +780,7 @@ export default function Dashboard() {
 
         {/* 今天要做的：3-1-2，三張同規格的卡 */}
         <section className="area-todo">
-          <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部聯絡人 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
+          <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部名單 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
           {trialStrips.map(ts => (
@@ -801,7 +801,7 @@ export default function Dashboard() {
                 {fmtPlanDate(c.next_plan_date)} 和{c.name}　{c.next_plan}
               </div>
               {(c.need_tags||[]).length>0 && (
-                <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2 }}>她在意：{c.need_tags.join('、')}</div>
+                <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2 }}>對方在意：{c.need_tags.join('、')}</div>
               )}
             </div>
           ))}
@@ -820,7 +820,7 @@ export default function Dashboard() {
                 </div>
               )}
               {interactionContacts.length===0 && doneContacts.length===0
-                ? <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'6px 0 0' }}>還沒有可以互動的聯絡人，先去新增幾位吧</p>
+                ? <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'6px 0 0' }}>名單上還沒有可以互動的人，先去新增幾位吧</p>
                 : <div style={{ display:'flex',flexWrap:'wrap',gap:6,marginTop:8 }}>
                     {doneContacts.map(c=>(
                       <button key={'d'+c.id} onClick={()=>navigate(`/contacts/${c.id}`)}
@@ -836,7 +836,7 @@ export default function Dashboard() {
                           borderRadius:RADIUS.pill,padding:'3px 12px 3px 3px',cursor:'pointer',
                           fontSize:12,fontWeight:600,color:TEXT_MAIN }}>
                         <Avatar name={c.name} size={24} />{c.name}
-                        {isFreshFriend(c) && <span style={{ fontSize:11,fontWeight:400,color:ACCENT_GREEN_TEXT }}>新朋友</span>}
+                        {isFreshFriend(c) && <span style={{ fontSize:11,fontWeight:400,color:ACCENT_GREEN_TEXT }}>新名單</span>}
                       </button>
                     ))}
                   </div>
@@ -870,7 +870,7 @@ export default function Dashboard() {
               )}
               {meetingContact && <MeetingKeyNote contactId={meetingContact.id} color={ORANGE_TEXT} />}
               {meetingContact && meetingContact.last_quote && (
-                <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次她說：「{meetingContact.last_quote}」</div>
+                <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次對方說：「{meetingContact.last_quote}」</div>
               )}
               {weeklyMeetTarget > 0 && (
                 <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'4px 8px', marginTop:6 }}>

@@ -93,7 +93,7 @@ function CareBoard({ partners, onOpen }) {
           <span style={{ fontSize:12, color:TEXT_MUTED }}>查看 ›</span>
         </button>
       ))}
-      <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:8 }}>只看對方這週做了什麼，不看聯絡人內容。</div>
+      <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:8 }}>只看對方這週做了什麼，不看名單內容。</div>
     </div>
   )
 }

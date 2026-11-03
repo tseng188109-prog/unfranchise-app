@@ -178,7 +178,7 @@ export default function CustomerEdit() {
           ) : (
             <input value={contactSearch}
               onChange={e => setContactSearch(e.target.value)}
-              placeholder="搜尋互動名單裡的聯絡人姓名..." style={inp} />
+              placeholder="搜尋互動名單裡的姓名..." style={inp} />
           )}
           {contactSearch && !linkedContactId && (
             <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--card)',

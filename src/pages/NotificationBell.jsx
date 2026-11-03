@@ -13,7 +13,7 @@ import {
   DANGER_SOFT,
 } from './designTokens'
 
-// 鈴鐺只放「首頁沒有處理」的事：生日、約好的碰面、試用品跟進、新夥伴、業績進度。
+// 鈴鐺只放「首頁沒有處理」的事：生日、約好的見面、試用品跟進、新夥伴、業績進度。
 // 久未互動 → 首頁「今天的 3-1-2」；回購、久沒消費 → 首頁「老顧客，問問用得好不好」。
 const BV_GOAL = 1500
 const IBV_GOAL = 300
@@ -201,7 +201,7 @@ export default function NotificationBell({ userId }) {
               ) : total === 0 ? (
                 <div style={{ textAlign: 'center', padding: '36px 0' }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>目前沒有要處理的事</div>
-                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>有生日、碰面或試用品要跟進時，會出現在這裡。</div>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>有生日、見面或試用品要跟進時，會出現在這裡。</div>
                 </div>
               ) : (
                 <>

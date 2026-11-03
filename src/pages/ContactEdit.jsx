@@ -7,6 +7,7 @@ import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import NeedLevelPicker from './needLevelPicker'
 
+import { actionLabel } from './contactQuick'
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
 
 const EGG_TYPES = ['茶葉蛋', '荷包蛋', '生雞蛋']
@@ -125,7 +126,7 @@ export default function ContactEdit() {
       <div className="dash-container" style={{ padding:'0 16px',display:'flex',alignItems:'center',gap:12 }}>
         <button onClick={() => navigate(-1)}
           style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-        <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯聯絡人</h1>
+        <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯名單</h1>
       </div>
       </div>
 
@@ -175,7 +176,7 @@ export default function ContactEdit() {
               <button key={a} onClick={() => set('action_type', a)}
                 style={{ ...chip,
                   background:form.action_type===a?PRIMARY:'var(--sub)',
-                  color:form.action_type===a?'#fff':TEXT_SECONDARY }}>{a}</button>
+                  color:form.action_type===a?'#fff':TEXT_SECONDARY }}>{actionLabel(a)}</button>
             ))}
           </div>
           {form.action_type !== originalActionType && (

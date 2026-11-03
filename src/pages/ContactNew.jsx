@@ -1,3 +1,4 @@
+import { actionLabel } from './contactQuick'
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
@@ -130,7 +131,7 @@ export default function ContactNew() {
           <div style={{ display:'flex',alignItems:'center',gap:12 }}>
             <button onClick={() => navigate(-1)}
               style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
-            <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>新增聯絡人</h1>
+            <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>新增名單</h1>
           </div>
           {savedCount > 0 && (
             <span style={{ fontSize:12,color:ACCENT_GREEN_TEXT,fontWeight:600,
@@ -210,7 +211,7 @@ export default function ContactNew() {
           {form.action_type && (
             <div className="cn-full" style={{ ...styles.fieldWrap, background:PRIMARY_SOFT,borderRadius:RADIUS.md,padding:12 }}>
               <p style={{ margin:0,fontSize:13,color:PRIMARY,fontWeight:600 }}>
-                建議行動：{form.action_type}
+                建議行動：{actionLabel(form.action_type)}
               </p>
             </div>
           )}

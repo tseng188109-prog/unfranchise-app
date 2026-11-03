@@ -141,7 +141,7 @@ export default function CustomerNew() {
           ) : (
             <input value={contactSearch}
               onChange={e => setContactSearch(e.target.value)}
-              placeholder="搜尋互動名單裡的聯絡人姓名..."
+              placeholder="搜尋互動名單裡的姓名..."
               style={{ width:'100%', padding:'11px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
                 fontSize:14, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
           )}
