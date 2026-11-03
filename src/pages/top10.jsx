@@ -4,9 +4,11 @@
 // 這些欄位還沒建（SQL 還沒跑）時，所有查詢都會安靜失敗，功能只是不亮，其他畫面照常。
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import { IconStar, IconStarFilled } from '@tabler/icons-react'
+import { useNavigate } from 'react-router-dom'
+import { IconStar, IconStarFilled, IconChevronRight, IconCheck } from '@tabler/icons-react'
 import {
-  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS,
+  PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS, SUBCARD_BG,
+  ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT, ACCENT_GREEN_TEXT, DANGER, DANGER_SOFT,
 } from './designTokens'
 
 export const TOP10_MAX = 10
@@ -205,5 +207,158 @@ export function Top10SwapSheet({ item, candidates, count, onClose, onChanged }) 
       )}
       {err && <div style={{ fontSize: 13, color: '#C0392B', marginTop: 10 }}>{err}</div>}
     </Sheet>
+  )
+}
+
+// ───────── 這週聯絡了誰（週六到週五，台北時間） ─────────
+function twToday() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) }
+function twDay(iso) { return iso ? new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) : '' }
+function addDay(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
+export function weekStartOf(t) {
+  const d = new Date(t + 'T00:00:00Z')
+  return addDay(t, -((d.getUTCDay() + 1) % 7))
+}
+function md(d) { return d ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}` : '' }
+function daysBetween(a, b) { return Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000) }
+
+// 回傳 { ok, rows(附 lastDate, touched), flagged, pending, done, ws, we }
+export async function loadTop10Week(userId) {
+  const t10 = await fetchTop10(userId)
+  if (!t10.ok) return { ok: false }
+  const today = twToday()
+  const ws = weekStartOf(today), we = addDay(ws, 6)
+  const ids = t10.rows.map(r => r.id)
+  const last = {}
+  if (ids.length) {
+    const { data } = await supabase.from('contact_logs').select('contact_id,date').in('contact_id', ids)
+    ;(data || []).forEach(l => { if (!last[l.contact_id] || l.date > last[l.contact_id]) last[l.contact_id] = l.date })
+  }
+  const rows = t10.rows.map(r => {
+    const li = twDay(r.last_interacted_at)
+    const lastDate = [last[r.id] || '', li].sort().pop() || ''
+    return { ...r, lastDate, touched: !!lastDate && lastDate >= ws && lastDate <= we, reason: top10NeedsAction(r) }
+  })
+  const flagged = rows.filter(r => r.reason)
+  const live = rows.filter(r => !r.reason)
+  const pending = live.filter(r => !r.touched).sort((a, b) => (a.lastDate || '').localeCompare(b.lastDate || ''))
+  const done = live.filter(r => r.touched).sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || ''))
+  return { ok: true, rows, flagged, pending, done, ws, we, today, total: rows.length }
+}
+
+// 首頁的薄條／名單頁的橫幅：點開就是清單
+export function Top10Strip({ userId, variant = 'home', onChanged }) {
+  const [d, setD] = useState(null)
+  const [open, setOpen] = useState(false)
+  async function reload() { try { setD(await loadTop10Week(userId)) } catch { setD({ ok: false }) } }
+  useEffect(() => { if (userId) reload() }, [userId])
+  if (!d || !d.ok) return null
+  const empty = d.total === 0
+  const short = d.total < TOP10_MAX
+  const warn = empty || short
+  const touched = d.done.length + d.flagged.filter(r => r.touched).length
+  const label = empty ? '還沒選，點這裡開始' : short ? `${d.total}/${TOP10_MAX}　再選 ${TOP10_MAX - d.total} 位` : `${d.total}/${TOP10_MAX}`
+  const right = empty || short ? '' : `這週聯絡 ${touched} 位`
+  const bar = variant === 'banner'
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', boxSizing: 'border-box',
+          height: 44, padding: '0 14px', borderRadius: RADIUS.xl,
+          background: bar ? (warn ? ACCENT_YELLOW_SOFT : PRIMARY_SOFT) : 'var(--card)',
+          border: bar ? 'none' : `1px solid ${BORDER}` }}>
+        <IconStar size={18} stroke={1.9} color={warn ? ACCENT_YELLOW_TEXT : PRIMARY} />
+        <span style={{ fontSize: 14, fontWeight: 600, color: warn ? ACCENT_YELLOW_TEXT : (bar ? PRIMARY : TEXT_MAIN), whiteSpace: 'nowrap' }}>首選 10　{label}</span>
+        {d.flagged.length > 0 && (
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 99, background: DANGER_SOFT, color: DANGER, whiteSpace: 'nowrap' }}>{d.flagged.length} 位可以換人</span>
+        )}
+        <span style={{ flex: 1, textAlign: 'right', fontSize: 12, color: TEXT_SECONDARY, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{right}</span>
+        <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
+      </button>
+      {open && <Top10Panel data={d} userId={userId} onClose={() => setOpen(false)} onChanged={() => { reload(); onChanged && onChanged() }} />}
+    </>
+  )
+}
+
+function PersonRow({ r, right, rightColor, sub, onOpen }) {
+  return (
+    <div onClick={() => onOpen(r)}
+      style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }}>
+      <span style={{ width: 36, height: 36, borderRadius: '50%', background: PRIMARY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, flexShrink: 0 }}>{(r.name || '?')[0]}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>{r.name}</div>
+        {sub && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>{sub}</div>}
+      </div>
+      <span style={{ fontSize: 12, color: rightColor, whiteSpace: 'nowrap' }}>{right}</span>
+    </div>
+  )
+}
+
+export function Top10Panel({ data, userId, onClose, onChanged }) {
+  const navigate = useNavigate()
+  const [swap, setSwap] = useState(null)
+  const { ws, we, today, total, flagged, pending, done } = data
+  const touched = done.length
+  const subOf = r => [r.egg_type, r.need_level, r.interest_level && `興趣 ${r.interest_level}`].filter(Boolean).join(' · ')
+  const open = r => { onClose(); navigate(`/contacts/${r.id}`) }
+
+  async function openSwap(r) {
+    const [{ data: cs }, { data: cust }] = await Promise.all([
+      supabase.from('contacts').select('id,name,egg_type,need_level,is_top10,is_muted,is_archived,referral_stage,interest_level,last_interacted_at')
+        .eq('user_id', userId).eq('is_archived', false).limit(300),
+      supabase.from('customers').select('contact_id').eq('user_id', userId).eq('is_archived', false).not('contact_id', 'is', null),
+    ])
+    const custIds = new Set((cust || []).map(x => x.contact_id))
+    const pool = (cs || []).filter(c => !custIds.has(c.id) || c.referral_stage)
+    setSwap({ id: r.id, name: r.name, reason: r.reason, candidates: top10Candidates(pool, 3) })
+  }
+
+  return (
+    <>
+      <Sheet title={`首選 10　${total}/${TOP10_MAX}`} onClose={onClose}>
+        <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 }}>
+          這週（{md(ws)}–{md(we)}）聯絡了 {touched} 位，還有 {pending.length} 位沒聯絡
+        </div>
+        <div style={{ height: 5, borderRadius: 3, background: SUBCARD_BG, overflow: 'hidden', marginBottom: 10 }}>
+          <div style={{ width: `${Math.min(100, (touched / TOP10_MAX) * 100)}%`, height: '100%', background: PRIMARY }} />
+        </div>
+        <div style={{ margin: '0 -16px', background: 'var(--card)' }}>
+          {flagged.length > 0 && (
+            <div style={{ padding: '10px 16px', background: DANGER_SOFT }}>
+              {flagged.map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0' }}>
+                  <span style={{ fontSize: 13, color: DANGER }}>{r.name}　{r.reason}</span>
+                  <button onClick={() => openSwap(r)} style={{ background: 'none', border: 'none', color: DANGER, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>處理</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {total === 0 && (
+            <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 14, color: TEXT_SECONDARY, lineHeight: 1.7 }}>
+              首選 10 是你最先要邀約的 10 位人選，成功五要訣（BASIC-5）訓練建議跟推薦人一起挑。<br />到他的頁面，點右上角的星星就能加進來。
+            </div>
+          )}
+          {pending.length > 0 && <div style={{ padding: '8px 16px', background: SUBCARD_BG, fontSize: 12, fontWeight: 600, color: TEXT_SECONDARY }}>還沒聯絡 · {pending.length} 位</div>}
+          {pending.map(r => (
+            <PersonRow key={r.id} r={r} onOpen={open} sub={subOf(r)} rightColor={r.lastDate ? ACCENT_YELLOW_TEXT : TEXT_MUTED}
+              right={r.lastDate ? `${daysBetween(r.lastDate, today)} 天沒聯絡` : '還沒聯絡過'} />
+          ))}
+          {done.length > 0 && <div style={{ padding: '8px 16px', background: SUBCARD_BG, fontSize: 12, fontWeight: 600, color: TEXT_SECONDARY }}>這週已聯絡 · {done.length} 位</div>}
+          {done.map(r => {
+            const planned = r.next_plan_date && r.next_plan_date >= today ? `約好 ${md(r.next_plan_date)}${r.next_plan ? ' ' + r.next_plan : ''}` : ''
+            return (
+              <PersonRow key={r.id} r={r} onOpen={open} sub={[subOf(r), planned].filter(Boolean).join(' · ')} rightColor={ACCENT_GREEN_TEXT}
+                right={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><IconCheck size={14} stroke={2} />{md(r.lastDate)}</span>} />
+            )
+          })}
+          {total > 0 && total < TOP10_MAX && (
+            <button onClick={() => { onClose(); navigate('/contacts') }}
+              style={{ width: '100%', padding: 14, background: 'none', border: 'none', color: PRIMARY, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              再選 {TOP10_MAX - total} 位，湊滿 10 位
+            </button>
+          )}
+        </div>
+      </Sheet>
+      {swap && <Top10SwapSheet item={swap} candidates={swap.candidates} count={total} onClose={() => setSwap(null)} onChanged={onChanged} />}
+    </>
   )
 }

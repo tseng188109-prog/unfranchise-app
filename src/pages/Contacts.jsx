@@ -8,7 +8,7 @@ import {
   IconPin, IconArchive, IconRefresh, IconUsers, IconX, IconTrash, IconFlask,
 } from '@tabler/icons-react'
 import ContactPanel from './ContactPanel'
-import { fetchTop10, top10Exit, top10NeedsAction, top10Candidates, Top10SwapSheet, TOP10_MAX } from './top10'
+import { Top10Strip } from './top10'
 import LoadingSpinner from './LoadingSpinner'
 import { RELATIONSHIP_STAGES } from './followUp'
 
@@ -77,9 +77,6 @@ export default function Contacts() {
   const [showArchived, setShowArchived] = useState(false)
   const [showMuted, setShowMuted] = useState(false) // 時機未到：預設隱藏，不佔主列表版面
   const [loading, setLoading] = useState(true)
-  const [top10, setTop10State] = useState({ ok: false, rows: [] }) // 首選 10（欄位沒建好時 ok=false，整個功能不顯示）
-  const [showTop10, setShowTop10] = useState(false)
-  const [swapItem, setSwapItem] = useState(null)
   const [menuTarget, setMenuTarget] = useState(null)
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [restoreTarget, setRestoreTarget] = useState(null)
@@ -131,7 +128,6 @@ export default function Contacts() {
 
     const { data } = await query
     if (data) setContacts(data)
-    setTop10State(await fetchTop10(user.id))
     const { data: custRows } = await supabase.from('customers')
       .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
     setCustomerContactIds(new Set((custRows || []).map(r => r.contact_id)))
@@ -438,48 +434,6 @@ async function handleImport() {
     )
   }
 
-  // 首選 10 檢視：需要處理的先列出（可以換人），再列全部成員
-  function Top10View() {
-    const members = top10.rows.map(r => ({ ...contacts.find(c => c.id === r.id), ...r }))
-    const flagged = members.map(m => ({ m, reason: top10NeedsAction(m) })).filter(x => x.reason)
-    const candidatesNow = () => top10Candidates(contacts.filter(c => !customerContactIds.has(c.id) || c.referral_stage), 3)
-    return (
-      <div style={{ background:'var(--card)' }}>
-        <div style={{ padding:'12px 16px', fontSize:12, color:TEXT_SECONDARY, lineHeight:1.7, borderBottom:`1px solid ${BORDER}` }}>
-          最先要邀約的 10 位人選。每日行動會優先提醒你聯絡他們；有人不適合了，就換一位。成功五要訣（BASIC-5）訓練建議跟推薦人一起挑。
-        </div>
-        {flagged.length > 0 && (
-          <div style={{ padding:'10px 16px', background:PRIMARY_SOFT, borderBottom:`1px solid ${BORDER}` }}>
-            <div style={{ fontSize:12, fontWeight:600, color:PRIMARY, marginBottom:6 }}>可以換人</div>
-            {flagged.map(({ m, reason }) => (
-              <div key={m.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 0' }}>
-                <span style={{ fontSize:13, color:TEXT_MAIN }}>{m.name}　<span style={{ color:TEXT_MUTED }}>{reason}</span></span>
-                <button onClick={() => setSwapItem({ id:m.id, name:m.name, reason, candidates: candidatesNow() })}
-                  style={{ background:'none', border:'none', color:PRIMARY, fontWeight:600, fontSize:13, cursor:'pointer' }}>處理</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {members.length === 0 ? (
-          <div style={{ textAlign:'center', padding:40, color:TEXT_MUTED, fontSize:14, lineHeight:1.7 }}>
-            還沒選人。到他的頁面，點右上角的星星就能加進來。
-          </div>
-        ) : members.map(m => (
-          <div key={m.id} onClick={() => openContact(m)}
-            style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom:`1px solid ${BORDER}`, cursor:'pointer' }}>
-            <Avatar name={m.name || '?'} size={42} />
-            <div style={{ flex:1, minWidth:0 }}>
-              <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>{m.name}</span>
-              <div style={{ fontSize:12, color:TEXT_MUTED, marginTop:2 }}>
-                {[m.egg_type, m.need_level, m.interest_level && `興趣 ${m.interest_level}`, top10Exit(m)].filter(Boolean).join(' · ')}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
   function Section({ title, count, items }) {
     if (items.length === 0) return null
     return (
@@ -566,6 +520,12 @@ async function handleImport() {
               boxSizing:'border-box', outline:'none' }} />
         </div>
 
+        {!showArchived && user && (
+          <div style={{ paddingBottom:12 }}>
+            <Top10Strip userId={user.id} variant="banner" onChanged={() => fetchContacts()} />
+          </div>
+        )}
+
         <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto' }}>
           <button onClick={() => { setShowArchived(!showArchived); setEggFilter('全部'); setSearch(''); setSelectedId(null) }}
             style={{ display:'flex',alignItems:'center',gap:5,padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
@@ -574,17 +534,8 @@ async function handleImport() {
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
             <IconArchive size={13} stroke={2} /> {showArchived ? '回到名單' : '封存名單'}
           </button>
-          {!showArchived && top10.ok && (
-            <button onClick={() => { setShowTop10(v => !v); setShowMuted(false) }}
-              style={{ padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
-                background: showTop10 ? PRIMARY : SUBCARD_BG,
-                color: showTop10 ? '#fff' : TEXT_SECONDARY,
-                fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-              {showTop10 ? '返回一般名單' : `首選 10 · ${top10.rows.length}/${TOP10_MAX}`}
-            </button>
-          )}
           {!showArchived && mutedCount > 0 && (
-            <button onClick={() => { setShowMuted(v => !v); setShowTop10(false) }}
+            <button onClick={() => setShowMuted(v => !v)}
               style={{ padding:'5px 14px', borderRadius:RADIUS.pill, border:'none',
                 background: showMuted ? PRIMARY : SUBCARD_BG,
                 color: showMuted ? '#fff' : TEXT_SECONDARY,
@@ -647,8 +598,6 @@ async function handleImport() {
 
           {loading ? (
             <LoadingSpinner fullPage={false} />
-          ) : showTop10 && !showArchived ? (
-            <Top10View />
           ) : filtered.length === 0 ? (
             <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
               <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>
@@ -830,10 +779,6 @@ async function handleImport() {
       )}
 
       {/* 長按選單 Modal */}
-      {swapItem && (
-        <Top10SwapSheet item={swapItem} candidates={swapItem.candidates || []} count={top10.rows.length}
-          onClose={() => setSwapItem(null)} onChanged={() => fetchContacts()} />
-      )}
       {menuTarget && (
         <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
           display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }}

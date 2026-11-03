@@ -242,7 +242,7 @@ export function isFreshFriend(c, todayStr) {
 // 哪個來源不夠人，空出的名額補給其他來源。每個人帶 pickReason：'top10' | 'fresh' | 'stale'。
 export function pickInteractionContacts(contacts, excludeId, count = 3, todayStr) {
   const excl = Array.isArray(excludeId) ? excludeId : [excludeId]
-  const pool = (contacts || []).filter(c => !c.is_muted && !excl.includes(c.id) && c.referral_stage !== '暫時婉拒')
+  const pool = (contacts || []).filter(c => !c.is_muted && !excl.includes(c.id))
   const oldFirst = (a, b) => {
     const ka = sortKey(a), kb = sortKey(b)
     if (ka !== kb) return ka < kb ? -1 : 1
@@ -250,7 +250,7 @@ export function pickInteractionContacts(contacts, excludeId, count = 3, todayStr
   }
   const isTop = c => c.is_top10 && !top10Exit(c)
   const top = pool.filter(isTop).sort(oldFirst)
-  const fresh = pool.filter(c => !isTop(c) && isFreshFriend(c, todayStr)).sort((a, b) => oldFirst(b, a))
+  const fresh = pool.filter(c => !isTop(c) && isFreshFriend(c, todayStr)).sort(oldFirst) // 最早加的先聯絡：14 天一到就不算新名單，最快過期的先處理
   const stale = pool.filter(c => !isTop(c) && !isFreshFriend(c, todayStr)).sort(oldFirst)
   const qTop = count <= 1 ? 1 : count <= 3 ? 1 : Math.min(4, Math.ceil(count * 0.4))
   const qFresh = count <= 1 ? 0 : count <= 3 ? 1 : Math.min(2, Math.ceil(count * 0.2))

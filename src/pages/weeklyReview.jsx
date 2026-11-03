@@ -33,7 +33,7 @@ async function loadWeek(userId) {
     loadWeeklyMeet(userId),
     supabase.from('contact_logs')
       .select('contact_id,date,contacts(id,name,interest_level,next_plan,next_plan_date,is_muted)')
-      .eq('user_id', userId).in('kind', ['meet', 'meet_plan']).gte('date', ws).lte('date', we),
+      .eq('user_id', userId).eq('kind', 'meet').gte('date', ws).lte('date', we),
     supabase.from('contacts').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).or('is_muted.is.null,is_muted.eq.false').gte('next_plan_date', t),
     supabase.from('contacts').select('id', { count: 'exact', head: true })

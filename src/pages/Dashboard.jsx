@@ -32,7 +32,7 @@ import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, res
 import { ScheduleSheet, settleMeetings, backfillPlans, MEET_KEY } from './meetings'
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
-import { fetchTop10 } from './top10'
+import { fetchTop10, Top10Strip } from './top10'
 import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm } from './followUp'
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
@@ -456,16 +456,17 @@ export default function Dashboard() {
   }
 
   async function fetchFollowUps() {
-    let { data } = await supabase.from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
-      .eq('user_id',user.id).eq('is_archived',false)
-      .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200)
+    // 首選 10 跟名單同時查，不多等一次；欄位還沒建好時查詢會失敗，這裡安靜略過，首頁照常
+    const [{ data: rawData }, t10] = await Promise.all([
+      supabase.from('contacts')
+        .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
+        .eq('user_id',user.id).eq('is_archived',false)
+        .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200),
+      fetchTop10(user.id),
+    ])
+    let data = rawData
     if (data) {
-      // 首選 10：欄位還沒建好時查詢會失敗，這裡安靜略過，首頁照常
-      let list = data
-      const t10 = await fetchTop10(user.id)
-      if (t10.ok) { const ids = new Set(t10.rows.map(r => r.id)); list = data.map(c => ids.has(c.id) ? { ...c, is_top10: true } : c) }
-      data = list
+      if (t10.ok) { const ids = new Set(t10.rows.map(r => r.id)); data = data.map(c => ids.has(c.id) ? { ...c, is_top10: true } : c) }
       setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips)
       // 更新前已經約好的，補進每日行動（只補沒有對應記錄的）
       backfillPlans(user.id, data).then(n => { if (n) loadFutureMeets() })
@@ -1235,6 +1236,7 @@ export default function Dashboard() {
         {user && onboardingDone && !isNewbie && (
           <section className="area-review" style={{ marginTop:16 }}>
             <WeeklyReviewCard userId={user.id} />
+            <div style={{ marginTop:8 }}><Top10Strip userId={user.id} onChanged={fetchFollowUps} /></div>
           </section>
         )}
 
