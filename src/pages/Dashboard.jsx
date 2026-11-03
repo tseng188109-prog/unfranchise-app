@@ -787,6 +787,7 @@ export default function Dashboard() {
 
         {/* 今天要做的：3-1-2，三張同規格的卡 */}
         <section className="area-todo">
+          {user && <div style={{ marginBottom:16 }}><Top10Strip userId={user.id} onChanged={fetchFollowUps} /></div>}
           <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部名單 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
@@ -1236,7 +1237,6 @@ export default function Dashboard() {
         {user && onboardingDone && !isNewbie && (
           <section className="area-review" style={{ marginTop:16 }}>
             <WeeklyReviewCard userId={user.id} />
-            <div style={{ marginTop:8 }}><Top10Strip userId={user.id} onChanged={fetchFollowUps} /></div>
           </section>
         )}
 
