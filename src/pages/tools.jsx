@@ -9,15 +9,15 @@ export const CUSTOMER_TOOLS = ['分享我的使用經驗', '美安台灣產品�
 export const CUSTOMER_TOOLS_MORE = ['家庭產品說明會', '線上產品說明會', '健康講座']
 export const ALL_TOOLS = [...PARTNER_TOOLS, ...PARTNER_TOOLS_MORE, ...CUSTOMER_TOOLS, ...CUSTOMER_TOOLS_MORE]
 
-// 依她的興趣程度，建議下一步用哪個工具（夥伴）
+// 依對方的興趣程度，建議下一步用哪個工具（夥伴）
 const BY_LEVEL = {
-  '很有興趣': { tools: ['一對一會談', '三方通話'], text: '她很有興趣：約一對一會談，想更了解就拉三方通話' },
-  '有點興趣': { tools: ['線上影片', '一對一會談'], text: '她有點興趣：先給一支線上影片，再約一對一會談' },
-  '觀望中': { tools: ['社群媒體工具'], text: '她還在觀望：用社群分享對她有用的資訊，保持聯絡' },
-  '看不出來': { tools: ['一對一會談'], text: '還看不出來：多問多聽，約一次一對一會談了解她' },
+  '很有興趣': { tools: ['一對一會談', '三方通話'], text: '對方很有興趣：約一對一會談，想更了解就拉三方通話' },
+  '有點興趣': { tools: ['線上影片', '一對一會談'], text: '對方有點興趣：先給一支線上影片，再約一對一會談' },
+  '觀望中': { tools: ['社群媒體工具'], text: '對方還在觀望：用社群分享對方用得上的資訊，保持聯絡' },
+  '看不出來': { tools: ['一對一會談'], text: '還看不出來：多問多聽，約一次一對一會談了解對方' },
 }
 export function suggestTools(contact, isCustomer) {
-  if (isCustomer) return { tools: ['分享我的使用經驗'], text: '用得不錯的話，問她要不要介紹朋友來試用' }
+  if (isCustomer) return { tools: ['分享我的使用經驗'], text: '用得不錯的話，問對方要不要介紹朋友來試用' }
   if (contact && contact.interest_level && BY_LEVEL[contact.interest_level]) return BY_LEVEL[contact.interest_level]
   // 還沒見過面、沒有興趣程度時，用熟悉度＋需求度判斷
   const egg = contact && contact.egg_type, need = contact && contact.need_level
@@ -25,9 +25,9 @@ export function suggestTools(contact, isCustomer) {
   const high = need === '大三' || need === '大四'
   if (high && egg !== '生雞蛋') return { tools: ['一對一會談', '三方通話'], text: '需求夠高、也熟：直接約一對一會談，想更了解就拉三方通話' }
   if (high) return { tools: ['線上影片', '一對一會談'], text: '需求高但還不熟：先給一支線上影片，再約一對一會談' }
-  if (need === '大二') return { tools: ['線上影片', '社群媒體工具'], text: '他有些抱怨：用影片或社群分享，讓他看到另一種可能' }
-  if (need === '大一') return { tools: ['社群媒體工具'], text: '他目前沒需求：用社群保持聯絡，先不急著介紹' }
-  return { tools: ['社群媒體工具'], text: '還不確定他的需求：先用社群保持聯絡，多聊多聽' }
+  if (need === '大二') return { tools: ['線上影片', '社群媒體工具'], text: '對方有些抱怨：用影片或社群分享，讓對方看到另一種可能' }
+  if (need === '大一') return { tools: ['社群媒體工具'], text: '對方目前沒需求：用社群保持聯絡，先不急著介紹' }
+  return { tools: ['社群媒體工具'], text: '還不確定對方的需求：先用社群保持聯絡，多聊多聽' }
 }
 
 export function ToolRow({ value, onChange, customer, contact }) {
@@ -39,7 +39,7 @@ export function ToolRow({ value, onChange, customer, contact }) {
   const chip = (on, dashed) => ({
     padding: '7px 12px', borderRadius: 99, fontSize: 13, fontWeight: 600, cursor: 'pointer',
     border: `1.5px ${dashed ? 'dashed' : 'solid'} ${on ? PRIMARY : BORDER}`,
-    background: on ? PRIMARY_SOFT : '#fff', color: on ? PRIMARY : (dashed ? TEXT_MUTED : TEXT_SECONDARY),
+    background: on ? PRIMARY_SOFT : 'var(--card)', color: on ? PRIMARY : (dashed ? TEXT_MUTED : TEXT_SECONDARY),
   })
   return (
     <div>

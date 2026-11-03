@@ -4,10 +4,10 @@
 import { PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS } from './designTokens'
 
 export const NEED_LEVELS = [
-  { value: '大一', desc: '沒需求', hint: '聊過，他對現況很滿意' },
-  { value: '大二', desc: '小抱怨', hint: '提過不滿，或有想要但還沒做到的事' },
-  { value: '大三', desc: '想改變', hint: '在考慮、比較，或問過相關的事' },
-  { value: '大四', desc: '有行動', hint: '已經做了改變，或主動來問' },
+  { value: '大一', desc: '沒需求', hint: '聊過，他對現況很滿意', way: '同理對方' },
+  { value: '大二', desc: '小抱怨', hint: '提過不滿，或有想要但還沒做到的事', way: '交流想法' },
+  { value: '大三', desc: '想改變', hint: '在考慮、比較，或問過相關的事', way: '分享機會' },
+  { value: '大四', desc: '有行動', hint: '已經做了改變，或主動來問', way: '開口邀約' },
 ]
 
 export default function NeedLevelPicker({ value, onChange }) {
@@ -30,6 +30,7 @@ export default function NeedLevelPicker({ value, onChange }) {
               <div style={{ fontSize: 11, color: selected ? PRIMARY : TEXT_SECONDARY, marginTop: 3, lineHeight: 1.5 }}>
                 {n.hint}
               </div>
+              <div style={{ fontSize: 11, color: PRIMARY, marginTop: 3 }}>{n.way}</div>
             </button>
           )
         })}

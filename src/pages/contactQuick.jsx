@@ -17,6 +17,10 @@ export const ACTION_MAP = {
 }
 export const DAYS_MAP = { '輕鬆互動': 30, '軟性活動': 14, '商機講座': 5, '直接法': 5 }
 
+// 存在資料庫裡的名字不改（舊資料、CSV 匯入都還是「直接法」），只改畫面上看到的字
+const ACTION_LABEL = { '直接法': '直接談生意' }
+export const actionLabel = v => ACTION_LABEL[v] || v
+
 export const EGG_OPTIONS = [
   { value: '茶葉蛋', desc: '很熟', hint: '' },
   { value: '荷包蛋', desc: '半熟', hint: '' },
@@ -132,6 +136,7 @@ export function QuickTags({ contact, onSaved }) {
                     {o.label} {o.desc && <span style={{ fontSize: 12, fontWeight: 400, color: o.cur ? PRIMARY : TEXT_MUTED }}>{o.desc}</span>}
                   </div>
                   {o.hint && <div style={{ fontSize: 12, color: o.cur ? PRIMARY : TEXT_SECONDARY, marginTop: 3, lineHeight: 1.5 }}>{o.hint}</div>}
+                  {o.way && <div style={{ fontSize: 12, color: PRIMARY, marginTop: 4 }}>接觸方式：{o.way}</div>}
                 </button>
               ))}
             </div>
