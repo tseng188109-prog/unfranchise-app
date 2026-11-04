@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
+import { dayDotStatus, DotLegend, TaskVisibilitySheet } from './checkinStatus'
 import { fetchAddedContacts } from './addedDate'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -88,7 +89,7 @@ export default function Daily() {
   const [monthViewDate, setMonthViewDate] = useState(today())
   const [checkins, setCheckins] = useState({})
   const [weekTaskCheckins, setWeekTaskCheckins] = useState({})
-  const [weekStatus, setWeekStatus] = useState([])
+  const [weekRows, setWeekRows] = useState([]) // 這週的打卡資料，圓點顏色在畫面上算
   const [d312, setD312] = useState({ talk: 0, plan: 0, fresh: 0 })
   const [profile, setProfile] = useState(null)
   const [weekMeets, setWeekMeets] = useState([])
@@ -175,14 +176,10 @@ export default function Daily() {
   async function fetchWeekStatus() {
     const days = getWeekDays(viewDate)
     const { data } = await supabase.from('daily_checkins')
-      .select('date,is_done').eq('user_id', user.id).in('date', days)
-    const sm = {}
-    if (data) days.forEach(d => {
-      const dc = data.filter(c => c.date === d)
-      sm[d] = dc.length === 0 ? 'none' : dc.filter(c => c.is_done).length >= DAILY_TASKS.length ? 'full' : 'partial'
-    })
-    setWeekStatus(days.map(d => ({ date: d, status: sm[d] || 'none' })))
+      .select('date,task_key,is_done').eq('user_id', user.id).in('date', days)
+    setWeekRows(data || [])
   }
+
 
   async function fetch312() {
     const t = viewDate
@@ -258,12 +255,7 @@ export default function Daily() {
     await removeMeetingWithUndo(user.id, m, reloadMeets)
   }
 
-  async function toggleHidden(key) {
-    const cur = (profile?.tag_settings?.hidden_daily_tasks) || []
-    const next = cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key]
-    setProfile(p => ({ ...p, tag_settings: { ...(p?.tag_settings || {}), hidden_daily_tasks: next } }))
-    await saveTagSetting(user.id, { hidden_daily_tasks: next })
-  }
+
 
   async function saveGoalText() {
     setGoalSaving(true)
@@ -417,7 +409,8 @@ export default function Daily() {
   const hidden = profile?.tag_settings?.hidden_daily_tasks || []
   const visibleTasks = DAILY_TASKS.filter(t => !hidden.includes(t.key))
   const all312 = d312.talk >= mode.talk && d312.plan >= mode.meet && d312.fresh >= mode.fresh
-  const isDone = t => (t.key === 'daily_3_contacts' ? (all312 || !!checkins[t.key]) : !!checkins[t.key])
+  // 每日 3-1-2：今天看三個數字；以前的日子看當時存下的勾（舊規則打的勾不重算）
+  const isDone = t => (t.key === 'daily_3_contacts' ? (viewDate === today() ? all312 : !!checkins[t.key]) : !!checkins[t.key])
   const doneCount = visibleTasks.filter(isDone).length
   const planTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
   const metTarget = resolveWeeklyMet(profile?.tag_settings)
@@ -583,7 +576,7 @@ export default function Daily() {
 
           <div style={{ display:'flex',justifyContent:'space-between',padding:'8px',
             background:SUBCARD_BG,borderRadius:12,marginBottom:10 }}>
-            {weekStatus.map((w,i) => {
+            {getWeekDays(viewDate).map(d => ({ date: d, status: dayDotStatus(weekRows, d, visibleTasks) })).map((w,i) => {
               const isSelected = w.date === viewDate
               const isT = w.date === today()
               const dc = w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'var(--border)'
@@ -602,6 +595,7 @@ export default function Daily() {
               )
             })}
           </div>
+          <DotLegend />
 
           {visibleTasks.map(task => {
             const done = isDone(task)
@@ -611,11 +605,11 @@ export default function Daily() {
             return (
               <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
                 borderBottom:`1px solid ${BORDER}` }}>
-                <button onClick={() => toggleCheckin(task.key)}
+                <button onClick={() => { if (!is312) toggleCheckin(task.key) }} aria-label={is312 ? '三項都做到會自動打勾' : undefined}
                   style={{ width:20,height:20,borderRadius:7,flexShrink:0,
                     border:done?'none':'2px solid var(--border2)',background:done?ACCENT_GREEN:'var(--card)',
                     display:'flex',alignItems:'center',justifyContent:'center',
-                    transition:'all 0.15s',cursor:'pointer' }}>
+                    transition:'all 0.15s',cursor: is312 ? 'default' : 'pointer' }}>
                   {done&&<IconCheck size={12} stroke={2.5} color="#fff" />}
                 </button>
                 <TaskIcon size={16} stroke={1.9} color={done?'var(--border2)':PRIMARY} />
@@ -625,7 +619,7 @@ export default function Daily() {
                     display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                   <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
                     textDecoration:done&&!is312?'line-through':'none' }}>
-                    {is312 ? `${isToday ? '今天' : '這天'}的 ${mode.label}` : task.label}
+                    {is312 ? `每日 ${mode.label}` : task.label}
                     {is312 && (
                       <span style={{ display:'block',fontSize:12,fontWeight:600,marginTop:2,textDecoration:'none',
                         color: all312 ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>
@@ -992,31 +986,9 @@ export default function Daily() {
           onPick={c => { const d = pickFor; setPickFor(null); setAfterMeet({ contact: c, logId: null, date: d }) }} />
       )}
       {hideSheet && (
-        <div onClick={() => setHideSheet(false)}
-          style={{ position:'fixed',inset:0,background:'var(--overlay)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
-            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6 }}>
-              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>要顯示哪些每日行動</h3>
-              <CloseBtn onClick={() => setHideSheet(false)} />
-            </div>
-            <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 12px' }}>不需要的可以關掉，只影響你自己</p>
-            {DAILY_TASKS.map(t => {
-              const on = !hidden.includes(t.key)
-              return (
-                <button key={t.key} onClick={() => toggleHidden(t.key)}
-                  style={{ display:'flex',alignItems:'center',gap:10,width:'100%',padding:'12px 4px',background:'none',border:'none',
-                    borderBottom:`1px solid ${BORDER}`,cursor:'pointer',textAlign:'left' }}>
-                  <span style={{ width:20,height:20,borderRadius:6,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
-                    background:on?ACCENT_GREEN:'var(--card)',border:on?'none':'2px solid var(--border2)' }}>
-                    {on && <IconCheck size={12} stroke={2.5} color="#fff" />}
-                  </span>
-                  <span style={{ fontSize:14,color:TEXT_MAIN,fontWeight:600 }}>{t.key === 'daily_3_contacts' ? `${mode.label}（互動／邀約／新名單）` : t.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <TaskVisibilitySheet userId={user.id} tagSettings={profile?.tag_settings} modeLabel={mode.label}
+          onChange={next => setProfile(p => ({ ...p, tag_settings: { ...(p?.tag_settings || {}), hidden_daily_tasks: next } }))}
+          onClose={() => setHideSheet(false)} />
       )}
 
       {goalModal && (

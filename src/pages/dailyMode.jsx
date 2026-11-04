@@ -78,7 +78,7 @@ export function resolveEventWeeks(tagSettings) {
   return typeof v === 'number' && v >= 2 && v <= 4 ? Math.round(v) : 3
 }
 
-// 每週想「見到」幾位（約定那天到了就算）。每個人作息不同，所以可以自己調。
+// 每週想「見到」幾位（按了「見完了」才算）。每個人作息不同，所以可以自己調。
 // 存在 tag_settings.weekly_met：數字。沒設定時 2（原本的「每週2訪」）。
 export function resolveWeeklyMet(tagSettings) {
   const v = tagSettings && tagSettings.weekly_met

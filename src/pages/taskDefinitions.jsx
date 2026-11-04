@@ -18,7 +18,7 @@ export const DAILY_TASKS = [
   { key: 'daily_practice', label: '每日練習', Icon: IconBook, internalPath: '/daily-practice' },
   { key: 'listen_recording', label: '聽錄音', Icon: IconHeadphones, internalPath: '/recording' },
   { key: 'ig_story', label: 'IG 限動', Icon: IconCamera, url: 'https://www.instagram.com' },
-  { key: 'daily_3_contacts', label: '每日3互動', Icon: IconUsers, special: true, toContacts: true },
+  { key: 'daily_3_contacts', label: '每日 3-1-2', Icon: IconUsers, special: true, toContacts: true },
 ]
 
 // 新手起步任務 —— 一次性成就，不是每日重置。

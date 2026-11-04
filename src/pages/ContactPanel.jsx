@@ -201,7 +201,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
       await moveMeetForLog(log, editDate)
       await recomputeLastContact()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) await syncDaily3(supabase, user.id, editDate)
+      if (user) { await syncDaily3(supabase, user.id, editDate); await syncDaily3(supabase, user.id, log.date) } // 新舊兩天都重新判斷
     }
     // 這筆如果已經標成重點：重點裡的字一起更新；字清空了就把重點拿掉
     if (log && log.story_note_id) {
@@ -232,6 +232,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
         if (res.error) return res
         if (log.kind === 'meet' && meUserId) await unlinkMeetForLog(meUserId, log)
         if (log.kind === 'meet_plan' && meUserId) await cancelPlanForLog(meUserId, log)
+        if (meUserId) await syncDaily3(supabase, meUserId, log.date) // 數字少了，那天的 3-1-2 可能不再做滿
         await recomputeLastContact()
         fetchContact()
         onChanged?.()

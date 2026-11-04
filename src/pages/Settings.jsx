@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
 import { HOME_LIST_OPTIONS, resolveHomeListMonths } from './homeList'
+import { TaskVisibilitySheet, visibleDailyTasks } from './checkinStatus'
+import { DAILY_TASKS } from './taskDefinitions'
 import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks, resolveWeeklyMet, resolvePlanAhead } from './dailyMode'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
@@ -18,6 +20,8 @@ export default function Settings() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [modeKey, setModeKey] = useState('')
+  const [tagSettings, setTagSettings] = useState({})
+  const [showTaskSheet, setShowTaskSheet] = useState(false)
   const [favs, setFavs] = useState([])
   const [homeMonths, setHomeMonths] = useState(3)
   const [weeklyMet, setWeeklyMet] = useState(2)
@@ -63,6 +67,7 @@ export default function Settings() {
       .select('name,referrer_id,referrer_email_pending,why_here,tag_settings,created_at').eq('id', uid).single()
     if (!data) return
     setModeKey(resolveMode(data.tag_settings, data.created_at).key)
+    setTagSettings(data.tag_settings || {})
     setEventWeeks(resolveEventWeeks(data.tag_settings))
     setWeeklyMet(resolveWeeklyMet(data.tag_settings))
     setPlanAhead(resolvePlanAhead(data.tag_settings))
@@ -430,6 +435,24 @@ export default function Settings() {
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>隨時可以換，已經記的紀錄不會變。</p>
         </div>
 
+        {/* 每日打卡項目：跟每日行動頁「調整要顯示的項目」是同一個設定 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>每日打卡項目</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>用不到的可以藏起來，不會刪掉資料，隨時可以再打開。</p>
+          <button onClick={() => setShowTaskSheet(true)}
+            style={{ width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',
+              borderRadius:RADIUS.lg,border:`1px solid ${BORDER}`,background:'transparent',cursor:'pointer' }}>
+            <span style={{ fontSize:14,color:TEXT_MAIN }}>顯示 {visibleDailyTasks(tagSettings).length} 項，藏起 {DAILY_TASKS.length - visibleDailyTasks(tagSettings).length} 項</span>
+            <span style={{ fontSize:13,color:PRIMARY,fontWeight:600 }}>調整 ›</span>
+          </button>
+        </div>
+        {showTaskSheet && user && (
+          <TaskVisibilitySheet userId={user.id} tagSettings={tagSettings}
+            modeLabel={(DAILY_MODE_LIST.find(m => m.key === modeKey) || {}).label}
+            onChange={next => setTagSettings(t => ({ ...t, hidden_daily_tasks: next }))}
+            onClose={() => setShowTaskSheet(false)} />
+        )}
+
         {/* 約人的節奏：每週想定下幾場碰面，每個人的作息不同，自己調 */}
         <div style={card}>
           <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>約人的節奏</p>
@@ -468,7 +491,7 @@ export default function Settings() {
             </div>
           )}
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>一週從週六算到週五。選「不顯示」就不會出現本週進度，也不影響每日節奏。</p>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見到幾位（約定那天到了就算見到）</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見到幾位（按了「見完了」才算見到）</p>
           <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
             {[2, 3, 5, 7, 10].map(n => (
               <button key={n} onClick={() => chooseWeeklyMet(n)}

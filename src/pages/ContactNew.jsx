@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
-import { markDaily312 } from './followUp'
+import { markDaily312, syncDaily3 } from './followUp'
 import NeedLevelPicker from './needLevelPicker'
 import { AddedDatePicker, writeWithAddedDate, twToday } from './addedDate'
 import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
@@ -106,6 +106,7 @@ export default function ContactNew() {
     if (error) { setSaveErr(SAVE_FAIL); return }
     clearDraft('contactNew')
     markDaily312(supabase, user.id, addedDate)
+    syncDaily3(supabase, user.id, addedDate) // 新名單夠了，那天的 3-1-2 可能就做滿了
 
     if (continueAdding) {
       setSavedCount(c => c + 1)

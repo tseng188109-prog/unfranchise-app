@@ -34,7 +34,8 @@ import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
 import { fetchTop10, Top10Strip } from './top10'
 import { fetchAddedContacts, fetchAddedMap, withAddedDates } from './addedDate'
-import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm } from './followUp'
+import { dayDotStatus, DotLegend, visibleDailyTasks } from './checkinStatus'
+import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm, syncDaily3 } from './followUp'
 import { upcomingPlans, fmtPlanDate, AfterMeetSheet } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
@@ -140,7 +141,7 @@ export default function Dashboard() {
   const [checkins, setCheckins] = useState({})
   const [viewContacted, setViewContacted] = useState([])
   const [checkTotal, setCheckTotal] = useState(0)
-  const [weekStatus, setWeekStatus] = useState([])
+  const [weekRows, setWeekRows] = useState([]) // 這週的打卡資料，圓點顏色在畫面上算
   const [viewDate, setViewDate] = useState(today())
   const [loading, setLoading] = useState(true)
 
@@ -508,6 +509,8 @@ export default function Dashboard() {
   }
 
   async function fetchCheckin() {
+    // 今天的「每日 3-1-2」先照三個數字重新判斷一次（以前的日子不重算）
+    if (viewDate === today()) { try { await syncDaily3(supabase, user.id, viewDate) } catch { /* 判斷不了就照舊 */ } }
     const { data } = await supabase.from('daily_checkins')
       .select('task_key,is_done').eq('user_id',user.id).eq('date',viewDate)
     const map={}
@@ -536,16 +539,10 @@ export default function Dashboard() {
   async function fetchWeekStatus() {
     const days = getWeekDays(viewDate)
     const { data } = await supabase.from('daily_checkins')
-      .select('date,is_done').eq('user_id',user.id).in('date',days)
-    const sm={}
-    if(data) days.forEach(d=>{
-      const dc=data.filter(c=>c.date===d)
-      if(dc.length===0) sm[d]='none'
-      else if(dc.filter(c=>c.is_done).length>=DAILY_TASKS.length) sm[d]='full'
-      else sm[d]='partial'
-    })
-    setWeekStatus(days.map(d=>({date:d,status:sm[d]||'none'})))
+      .select('date,task_key,is_done').eq('user_id', user.id).in('date', days)
+    setWeekRows(data || [])
   }
+
 
   function changeDate(delta) {
     const d = new Date(viewDate + 'T00:00:00')
@@ -578,6 +575,8 @@ export default function Dashboard() {
   function handleTaskAction(task) {
     if (task.key === 'goal_declaration') { setGoalModal(true); return }
     if (task.social) { setSocialModal(true); return }
+    // 每日 3-1-2：帶到上面「今天的 3-1-2」，看還差什麼
+    if (task.key === 'daily_3_contacts') { const el = document.querySelector('.area-todo'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
     if (task.toContacts) { navigate('/contacts'); return }
     if (task.internalPath) { navigate(task.internalPath); return }
     if (task.url) { window.open(task.url, '_blank'); return }
@@ -596,7 +595,10 @@ export default function Dashboard() {
   const daysSinceJoin = profile?.created_at ? (Date.now() - new Date(profile.created_at).getTime()) / 86400000 : 999
   const isNewbie = daysSinceJoin < 14 && !showFullHome
   const CORE_TASKS = ['goal_declaration', 'daily_3_contacts', 'listen_recording']
-  const shownTasks = isNewbie && !showAllTasks ? DAILY_TASKS.filter(t => CORE_TASKS.includes(t.key)) : DAILY_TASKS
+  // 照「要顯示哪些每日行動」的設定，跟每日行動頁一樣；新手只先看核心幾項
+  const myTasks = visibleDailyTasks(profile?.tag_settings)
+  const shownTasks = isNewbie && !showAllTasks ? myTasks.filter(t => CORE_TASKS.includes(t.key)) : myTasks
+  const shownDone = shownTasks.filter(t => !!checkins[t.key]).length
   function toggleFullHome(v) {
     setShowFullHome(v)
     try { localStorage.setItem('ufa_home_full', v ? '1' : '0') } catch { /* ignore */ }
@@ -1074,7 +1076,7 @@ export default function Dashboard() {
 
         {/* 今日打卡：維持原樣 */}
         <section className="area-checkin">
-          <SectionHeader title={isToday ? '今日打卡' : '打卡紀錄'} hint={`${checkTotal}/${DAILY_TASKS.length}`} />
+          <SectionHeader title={isToday ? '今日打卡' : '打卡紀錄'} hint={`${shownDone}/${shownTasks.length}`} />
           <div style={{ ...cardStyle, padding:'12px 14px 12px' }}>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
               marginBottom:10,background:SUBCARD_BG,borderRadius:RADIUS.md,padding:'6px 10px' }}>
@@ -1100,7 +1102,7 @@ export default function Dashboard() {
 
             <div style={{ display:'flex',justifyContent:'space-between',padding:'6px 4px',
               background:SUBCARD_BG,borderRadius:RADIUS.md,marginBottom:8 }}>
-              {weekStatus.map((w,i)=>{
+              {getWeekDays(viewDate).map(d => ({ date: d, status: dayDotStatus(weekRows, d, shownTasks) })).map((w,i)=>{
                 const isSelected = w.date === viewDate
                 const isT = w.date === today()
                 const dc=w.status==='full'?ACCENT_GREEN:w.status==='partial'?ACCENT_YELLOW:'var(--border)'
@@ -1119,6 +1121,7 @@ export default function Dashboard() {
                 )
               })}
             </div>
+            <DotLegend />
 
             <div style={{ display:'flex',flexDirection:'column',gap:2 }}>
               {shownTasks.map(task=>{
@@ -1128,11 +1131,12 @@ export default function Dashboard() {
                 return (
                   <div key={task.key} style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 0',
                     borderBottom:'1px solid var(--sub2)' }}>
-                    <button onClick={()=>toggleCheckin(task.key)}
+                    <button onClick={()=>{ if (task.key !== 'daily_3_contacts') toggleCheckin(task.key) }}
+                      aria-label={task.key === 'daily_3_contacts' ? '三項都做到會自動打勾' : undefined}
                       style={{ width:20,height:20,borderRadius:7,flexShrink:0,
                         border:done?'none':'2px solid var(--border2)',background:done?ACCENT_GREEN:'var(--card)',
                         display:'flex',alignItems:'center',justifyContent:'center',
-                        transition:'all 0.15s',cursor:'pointer' }}>
+                        transition:'all 0.15s',cursor: task.key === 'daily_3_contacts' ? 'default' : 'pointer' }}>
                       {done&&<span className="ufa-pop" style={{ fontSize:11,color:'#fff',lineHeight:1 }}>✓</span>}
                     </button>
                     <TaskIcon size={16} stroke={1.9} color={done?'var(--border2)':PRIMARY} />
@@ -1142,7 +1146,7 @@ export default function Dashboard() {
                         display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                       <span style={{ fontSize:13,fontWeight:600,color:done?TEXT_MUTED:TEXT_MAIN,
                         textDecoration:done?'line-through':'none' }}>
-                        {task.label}
+                        {task.key === 'daily_3_contacts' ? `每日 ${mode.label}` : task.label}
                         {task.special&&viewContacted.length>0&&(
                           <span style={{ marginLeft:6,display:'inline-flex',gap:4,flexWrap:'wrap' }}>
                             {viewContacted.map((c,i) => (

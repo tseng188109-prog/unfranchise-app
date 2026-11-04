@@ -4,6 +4,7 @@
 
 import { loadDailyMode } from './dailyMode'
 import { top10Exit } from './top10'
+import { fetchAddedContacts } from './addedDate'
 
 // ---- 階段清單（消費狀況 / 合作意願）----
 // 消費狀況：這個人離「成交賺價差」走到哪一步了
@@ -273,17 +274,30 @@ export function pickInteractionContacts(contacts, excludeId, count = 3, todayStr
   return out.slice(0, count)
 }
 
-// 「每日3互動」打勾：當天記過互動的人（不重複）達到自己選的每日節奏（起步 1／標準 3／加速 10）才自動打勾
+// 「每日 3-1-2」打勾：當天的互動、邀約、新名單三項都達到自己選的每日節奏（起步 1-1-2／標準 3-1-2／加速 10-3-2）才自動打勾；
+// 後來刪了紀錄、數字不夠了，就自動取消。這一項不能手動勾。以前用舊規則打的勾不會被重算（只有當天有變動才會重新判斷）。
 export async function syncDaily3(supabase, userId, dateStr) {
   const date = dateStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
-  const { data } = await supabase.from('contact_logs').select('contact_id').eq('user_id', userId).eq('date', date)
-  const n = new Set((data || []).map(r => r.contact_id)).size
   const mode = await loadDailyMode(userId)
-  if (n >= mode.talk) {
+  const [{ data: logs }, added, { data: met }] = await Promise.all([
+    supabase.from('contact_logs').select('contact_id,kind').eq('user_id', userId).eq('date', date),
+    fetchAddedContacts(supabase, { userId, from: date, to: date }),
+    // 沒先約、直接見面後補記的，也算邀約
+    supabase.from('counter_logs').select('contact_id,date,planned_date,note')
+      .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).eq('date', date),
+  ])
+  const talk = new Set((logs || []).map(r => r.contact_id)).size
+  const plan = (logs || []).filter(l => l.kind === 'meet_plan').length
+    + (met || []).filter(r => r.contact_id && !r.note && r.planned_date === r.date).length
+  const fresh = (added || []).length
+  const full = talk >= mode.talk && plan >= mode.meet && fresh >= mode.fresh
+  const { data: cur } = await supabase.from('daily_checkins').select('is_done')
+    .eq('user_id', userId).eq('date', date).eq('task_key', 'daily_3_contacts').maybeSingle()
+  if (full !== !!(cur && cur.is_done) && (full || cur)) {
     await supabase.from('daily_checkins').upsert({
-      user_id: userId, date, task_key: 'daily_3_contacts', is_done: true,
+      user_id: userId, date, task_key: 'daily_3_contacts', is_done: full,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,date,task_key' })
   }
-  return n
+  return talk
 }
