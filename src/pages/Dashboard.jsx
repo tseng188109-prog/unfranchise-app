@@ -33,6 +33,7 @@ import { ScheduleSheet, settleMeetings, backfillPlans, MEET_KEY } from './meetin
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
 import { fetchTop10, Top10Strip } from './top10'
+import { fetchAddedContacts, fetchAddedMap, withAddedDates } from './addedDate'
 import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm } from './followUp'
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
@@ -133,6 +134,7 @@ export default function Dashboard() {
   const [progTab, setProgTab] = useState('season')
   const [showBvTarget, setShowBvTarget] = useState(false)
   const [newContactCount, setNewContactCount] = useState(0)
+  const [weekAdded, setWeekAdded] = useState([]) // 這週加進名單的人 [{id, day}]（照「哪天加進名單的」算）
   const [checkins, setCheckins] = useState({})
   const [viewContacted, setViewContacted] = useState([])
   const [checkTotal, setCheckTotal] = useState(0)
@@ -458,15 +460,17 @@ export default function Dashboard() {
 
   async function fetchFollowUps() {
     // 首選 10 跟名單同時查，不多等一次；欄位還沒建好時查詢會失敗，這裡安靜略過，首頁照常
-    const [{ data: rawData }, t10] = await Promise.all([
+    const [{ data: rawData }, t10, addedMap] = await Promise.all([
       supabase.from('contacts')
         .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
         .eq('user_id',user.id).eq('is_archived',false)
         .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200),
       fetchTop10(user.id),
+      fetchAddedMap(supabase, user.id),
     ])
     let data = rawData
     if (data) {
+      data = withAddedDates(data, addedMap)
       if (t10.ok) { const ids = new Set(t10.rows.map(r => r.id)); data = data.map(c => ids.has(c.id) ? { ...c, is_top10: true } : c) }
       setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips)
       // 更新前已經約好的，補進每日行動（只補沒有對應記錄的）
@@ -476,19 +480,15 @@ export default function Dashboard() {
     const { data: custRows } = await supabase.from('customers')
       .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
     setCustomerContactIds(new Set((custRows || []).map(r => r.contact_id)))
-    // 「這週已經新增」＝本結算週（週六 00:00 起）新增的聯絡人，不是往前數 7 天
-    const weekStartTaipei = new Date(getWeekStart(today()) + 'T00:00:00+08:00').toISOString()
-    const { count } = await supabase.from('contacts')
-      .select('id',{count:'exact',head:true})
-      .eq('user_id',user.id).is('source', null).gte('created_at',weekStartTaipei)
-    setNewContactCount(count || 0)
-    // 今天的 3-1-2 進度：互動過幾位、新增幾位、有沒有定下碰面
+    // 「這週已經新增」＝本結算週（週六起）加進名單的人，照「哪天加進名單的」算，不是往前數 7 天
     const t = today()
+    const added = await fetchAddedContacts(supabase, { userId: user.id, from: getWeekStart(t), to: t })
+    setWeekAdded(added)
+    setNewContactCount(added.length)
+    const freshToday = added.filter(c => c.day === t).length
+    // 今天的 3-1-2 進度：互動過幾位、新增幾位、有沒有定下碰面
     const { data: logs } = await supabase.from('contact_logs')
       .select('contact_id,kind').eq('user_id', user.id).eq('date', t)
-    const { count: freshToday } = await supabase.from('contacts')
-      .select('id',{count:'exact',head:true})
-      .eq('user_id',user.id).is('source', null).gte('created_at', t + 'T00:00:00+08:00')
     // 本週（週六到週五）定下幾位碰面：同一位算一次，跟每週回顧算法一樣
     const wsDate = getWeekStart(t)
     const weDate = toDateStr(new Date(new Date(wsDate + 'T00:00:00').getTime() + 6 * 86400000))
@@ -608,13 +608,13 @@ export default function Dashboard() {
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
   const weeklyMeetTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
   // 這週新增的名單（不含自動建立的顧客檔案），今天新增的另外標出來
-  const weekStartMs = new Date(getWeekStart(today()) + 'T00:00:00+08:00').getTime()
-  const todayStartMs = new Date(today() + 'T00:00:00+08:00').getTime()
+  const addedDayById = new Map(weekAdded.map(c => [c.id, c.day]))
   const newThisWeek = activeContacts
-    .filter(c => !c.source && c.created_at && new Date(c.created_at).getTime() >= weekStartMs)
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-  const newToday = newThisWeek.filter(c => new Date(c.created_at).getTime() >= todayStartMs)
-  const newEarlier = newThisWeek.filter(c => new Date(c.created_at).getTime() < todayStartMs)
+    .filter(c => !c.source && addedDayById.has(c.id))
+    .map(c => ({ ...c, _day: addedDayById.get(c.id) }))
+    .sort((a, b) => (a._day !== b._day ? (a._day < b._day ? 1 : -1) : (a.created_at < b.created_at ? 1 : -1)))
+  const newToday = newThisWeek.filter(c => c._day === today())
+  const newEarlier = newThisWeek.filter(c => c._day !== today())
   function goAllNewest() {
     try { sessionStorage.setItem('contacts_sortBy', 'created'); sessionStorage.setItem('contacts_sortDir', 'desc'); sessionStorage.setItem('contacts_eggFilter', '全部') } catch { /* ignore */ }
     navigate('/contacts')
@@ -971,7 +971,7 @@ export default function Dashboard() {
                 <span style={{ fontSize:13,fontWeight:600,color:ACCENT_GREEN_TEXT,whiteSpace:'nowrap' }}>今天 {Math.min(today312.fresh,mode.fresh)}/{mode.fresh}</span>
               </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
-                去認識新朋友，不是從舊名單湊數。這週已新增 {newContactCount} 位
+                每天放兩顆豆子進罐子：新認識的，或重新聯絡上的老朋友。這週已新增 {newContactCount} 位
               </div>
               {newThisWeek.length > 0 && (
                 <button onClick={() => setShowNewList(v => !v)}

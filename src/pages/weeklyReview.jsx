@@ -1,6 +1,7 @@
 // weeklyReview.jsx — 本週回顧：首頁一張卡，點開看目前累計（週六到週五算一週）
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { fetchAddedContacts } from './addedDate'
 import { IconChartBar, IconChevronRight, IconCopy, IconCheck } from '@tabler/icons-react'
 import { CloseBtn } from './ui'
 import { fmtPlanDate } from './meetingFlow'
@@ -28,7 +29,7 @@ async function loadWeek(userId) {
   const ws = weekStartOf(t)
   const we = addDays(ws, 6)
 
-  const [mode, weeklyMeet, logsRes, plansRes, newRes, dayLogsRes, freshRowsRes] = await Promise.all([
+  const [mode, weeklyMeet, logsRes, plansRes, addedRows, dayLogsRes] = await Promise.all([
     loadDailyMode(userId),
     loadWeeklyMeet(userId),
     supabase.from('contact_logs')
@@ -36,12 +37,10 @@ async function loadWeek(userId) {
       .eq('user_id', userId).eq('kind', 'meet').gte('date', ws).lte('date', we),
     supabase.from('contacts').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).or('is_muted.is.null,is_muted.eq.false').gte('next_plan_date', t),
-    supabase.from('contacts').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).is('source', null).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
+    fetchAddedContacts(supabase, { userId, from: ws, to: we }),
     supabase.from('contact_logs').select('contact_id,date,kind')
       .eq('user_id', userId).gte('date', ws).lte('date', we),
-    supabase.from('contacts').select('created_at')
-      .eq('user_id', userId).is('source', null).gte('created_at', ws + 'T00:00:00+08:00').lte('created_at', we + 'T23:59:59+08:00'),
+
   ])
 
   const seen = new Set()
@@ -58,8 +57,8 @@ async function loadWeek(userId) {
     d.people.add(l.contact_id)
     if (l.kind === 'meet_plan') d.plan++
   })
-  ;(freshRowsRes.data || []).forEach(r => {
-    const day = new Date(r.created_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+  ;(addedRows || []).forEach(r => {
+    const day = r.day
     const d = (perDay[day] = perDay[day] || { people: new Set(), plan: 0, fresh: 0 })
     d.fresh++
   })
@@ -70,7 +69,7 @@ async function loadWeek(userId) {
   return {
     ws, we, met,
     planned: plansRes.count || 0,
-    fresh: newRes.count || 0,
+    fresh: (addedRows || []).length,
     days312, mode, talkedWeek, invitedWeek, weeklyMeet,
     unplanned: met.filter(c => !c.next_plan && !c.is_muted),
   }

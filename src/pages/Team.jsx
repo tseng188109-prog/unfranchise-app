@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { fetchAddedContacts } from './addedDate'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconFlag, IconRefresh, IconFlame, IconCheck,
@@ -101,11 +102,7 @@ export default function Team() {
       .in('user_id', userIds).in('date', weekDays).eq('is_done', true)
       .not('counter_key', 'in', '("new_product","gmtss","stranger")')
     // 陌生人互動併入「新名單」：本週新增的聯絡人也算一次行動
-    const { data: newContacts } = await supabase
-      .from('contacts').select('user_id')
-      .in('user_id', userIds).is('source', null)
-      .gte('created_at', weekDays[0] + 'T00:00:00+08:00')
-      .lt('created_at', weekDays[6] + 'T23:59:59+08:00')
+    const newContacts = await fetchAddedContacts(supabase, { userIds, from: weekDays[0], to: weekDays[6] })
 
     // 依加入時間排序顯示，不依表現排序（表現排序只在 fetchTeamRanking 內部用來算連續天數，不用於呈現順序）
     const result = ranked

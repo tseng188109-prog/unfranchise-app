@@ -6,6 +6,7 @@ import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import { markDaily312 } from './followUp'
 import NeedLevelPicker from './needLevelPicker'
+import { AddedDatePicker, writeWithAddedDate, twToday } from './addedDate'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -31,6 +32,7 @@ const EMPTY_FORM = {
   name: '', platform: '', platform_account: '',
   egg_type: '', need_level: '', action_type: '',
   occupation: '', region: '', note: '', pain_point: '', asked_products: '',
+  added_date: '', // 空白＝今天
 }
 
 function getAction(egg, need) {
@@ -79,8 +81,10 @@ export default function ContactNew() {
       next_contact_date = d.toISOString().split('T')[0]
     }
 
-    const { error } = await supabase.from('contacts').insert({
+    const addedDate = form.added_date || twToday()
+    const { error } = await writeWithAddedDate(payload => supabase.from('contacts').insert(payload), {
       user_id: user.id,
+      added_date: addedDate,
       name: form.name.trim(),
       platform: form.platform || null,
       platform_account: form.platform_account || null,
@@ -98,11 +102,11 @@ export default function ContactNew() {
     setSaving(false)
     if (error) return
     clearDraft('contactNew')
-    markDaily312(supabase, user.id)
+    markDaily312(supabase, user.id, addedDate)
 
     if (continueAdding) {
       setSavedCount(c => c + 1)
-      setForm(EMPTY_FORM)
+      setForm({ ...EMPTY_FORM, added_date: form.added_date }) // 連續新增時日期留著（活動後一次補很多位）
       setErrors({})
       setJustSaved(true)
       setTimeout(() => setJustSaved(false), 2000)
@@ -161,6 +165,12 @@ export default function ContactNew() {
               placeholder="輸入姓名..."
               style={{ ...styles.input, borderColor: errors.name ? DANGER : BORDER }} />
             {errors.name && <p style={styles.errorMsg}>{errors.name}</p>}
+          </div>
+
+          {/* 哪天加進名單的 */}
+          <div className="cn-full" style={styles.fieldWrap}>
+            <label style={styles.label}>哪天加進名單的</label>
+            <AddedDatePicker value={form.added_date} onChange={v => set('added_date', v === twToday() ? '' : v)} />
           </div>
 
           {/* 社群平台 */}

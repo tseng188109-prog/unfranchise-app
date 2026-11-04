@@ -2,6 +2,7 @@ import { actionLabel } from './contactQuick'
 import { useState, useEffect, useRef } from 'react'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
+import { mergeAddedDates, addedDay } from './addedDate'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -126,7 +127,7 @@ export default function Contacts() {
     }
 
     const { data } = await query
-    if (data) setContacts(data)
+    if (data) setContacts(await mergeAddedDates(supabase, user.id, data))
     const { data: custRows } = await supabase.from('customers')
       .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
     setCustomerContactIds(new Set((custRows || []).map(r => r.contact_id)))
@@ -343,7 +344,8 @@ async function handleImport() {
     if (sortBy === 'created') {
       // 新增時間：↓（預設）＝最近新增的在最上面，↑＝最早加進來的在最上面
       return [...arr].sort((a,b) => {
-        const ca = a.created_at || '', cb = b.created_at || ''
+        // 照「哪天加進名單的」排，同一天再看建立時間
+        const ca = addedDay(a) + (a.created_at || ''), cb = addedDay(b) + (b.created_at || '')
         return sortDir === 'desc' ? cb.localeCompare(ca) : ca.localeCompare(cb)
       })
     }
@@ -428,7 +430,7 @@ async function handleImport() {
         )}
         {!showArchived && !c.is_muted && sortBy === 'created' && c.created_at && (
           <span style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', color:ACCENT_GREEN_TEXT }}>
-            {`新增於 ${new Date(c.created_at).toLocaleDateString('sv-SE', { timeZone:'Asia/Taipei' }).slice(5).replace('-','/')}`}
+            {`加入於 ${addedDay(c).slice(5).replace('-','/')}`}
           </span>
         )}
         {showArchived && (

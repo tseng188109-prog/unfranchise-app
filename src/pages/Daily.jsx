@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
+import { fetchAddedContacts } from './addedDate'
 import { useNavigate } from 'react-router-dom'
 import {
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
@@ -183,12 +184,9 @@ export default function Daily() {
 
   async function fetch312() {
     const t = viewDate
-    const nextDay = toDateStr(new Date(new Date(t + 'T00:00:00').getTime() + 86400000))
     const { data: logs } = await supabase.from('contact_logs')
       .select('contact_id,kind').eq('user_id', user.id).eq('date', t)
-    const { count } = await supabase.from('contacts').select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id).is('source', null)
-      .gte('created_at', t + 'T00:00:00+08:00').lt('created_at', nextDay + 'T00:00:00+08:00')
+    const count = (await fetchAddedContacts(supabase, { userId: user.id, from: t, to: t })).length
     setD312({
       talk: new Set((logs || []).map(l => l.contact_id)).size,
       plan: (logs || []).filter(l => l.kind === 'meet_plan').length,

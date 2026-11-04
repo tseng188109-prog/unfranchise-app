@@ -230,10 +230,12 @@ function meetingReasonBase(c, todayStr) {
   return warm ? '最近有聊到，約個下午茶聊聊，不談生意' : '好一陣子沒見面了，先互動暖身，再約下午茶'
 }
 
-// 「新朋友」：加進來不到 14 天，而且還沒有記過任何一次互動（簡報：2→3，跟新加的朋友保持互動）
+// 「新朋友」：加進名單不到 14 天，而且還沒有記過任何一次互動（簡報：2→3，跟新加的朋友保持互動）
 export function isFreshFriend(c, todayStr) {
   const today = todayStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
-  return !!c.created_at && !c.last_contact_date && daysSince(c.created_at.slice(0, 10), today) <= 14
+  // 照「哪天加進名單的」算；以前的名單沒有這個日期，用建立時間（台北日期）
+  const day = c.added_date || (c.created_at ? new Date(c.created_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) : '')
+  return !!day && !c.last_contact_date && daysSince(day, today) <= 14
 }
 
 // 挑出今天的「3位互動」，分三個來源，避免只剩新名單：

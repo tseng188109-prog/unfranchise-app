@@ -3,6 +3,7 @@
 // 選最近 3／5／7 天或自選日期（最多 31 天），括號比的是「往前同樣天數」。
 // 兩個開關（顧客交易、互動內容）和討論事項存在 users.tag_settings，不用另外建表。
 import { fetchTop10, top10NeedsAction, TOP10_MAX } from './top10'
+import { fetchAddedContacts } from './addedDate'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
@@ -44,8 +45,7 @@ async function loadFacts(userId, from, to) {
       .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).gte('date', from).lte('date', to),
     supabase.from('counter_logs').select('counter_key,date')
       .eq('user_id', userId).eq('is_done', true).in('counter_key', ['bv_share', 'ibv_share']).gte('date', from).lte('date', to),
-    supabase.from('contacts').select('id,created_at')
-      .eq('user_id', userId).is('source', null).gte('created_at', startIso).lt('created_at', endIso),
+    fetchAddedContacts(supabase, { userId, from, to }).then(rows => ({ data: rows })),
     supabase.from('transactions').select('date,type,points,amount,cost,is_gift')
       .eq('user_id', userId).gte('date', from).lte('date', to),
     supabase.from('customers').select('id,created_at')
@@ -99,7 +99,7 @@ async function loadFacts(userId, from, to) {
     p.talk.add(l.contact_id)
     if (l.kind === 'meet_plan') p.plan += 1
   })
-  ;(newR.data || []).forEach(c => { const p = perDay[tpDate(c.created_at)]; if (p) p.fresh += 1 })
+  ;(newR.data || []).forEach(c => { const p = perDay[c.day]; if (p) p.fresh += 1 })
   const planned = new Set(logs.filter(l => l.kind === 'meet_plan').map(l => l.contact_id))
   const tx = txR.data || []
   let bv = 0, ibv = 0, sale = 0, profit = 0

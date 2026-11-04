@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import NeedLevelPicker from './needLevelPicker'
+import { AddedDatePicker, writeWithAddedDate, addedDay } from './addedDate'
 
 import { actionLabel } from './contactQuick'
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
@@ -30,6 +31,8 @@ export default function ContactEdit() {
   // 記住剛載入時的 action_type，存檔時只有「真的被改過」才重算跟進日，
   // 不然單純改職業/地區這種無關欄位也會意外把跟進日往後推
   const [originalActionType, setOriginalActionType] = useState(null)
+  const [origAdded, setOrigAdded] = useState('') // 原本算在哪天的新名單
+  const [isOwnName, setIsOwnName] = useState(true) // 顧客自動建立／匯入的檔案不算新名單，不顯示這個欄位
 
   useEffect(() => { fetchContact() }, [id])
 
@@ -49,12 +52,15 @@ export default function ContactEdit() {
         pain_point: data.pain_point || '',
         asked_products: data.asked_products || '',
         birthday: data.birthday || '',
+        added_date: addedDay(data),
       }
       // 填到一半 App 關掉重開，草稿自動補回來（這是單人 App，不用比對資料有沒被別人改過）
       const draft = loadDraft(`contactEdit:${id}`)
       const initial = draft || base
       setForm(initial)
       setOriginalActionType(data.action_type || '')
+      setOrigAdded(addedDay(data))
+      setIsOwnName(!data.source)
       if (initial.occupation || initial.region || initial.note || initial.pain_point || initial.asked_products || initial.birthday) {
         setShowMore(true)
       }
@@ -104,7 +110,9 @@ export default function ContactEdit() {
     }
     if (next_contact_date) update.next_contact_date = next_contact_date
 
-    await supabase.from('contacts').update(update).eq('id', id)
+    // 只有真的改了日期才寫，不然舊資料單純改職業也會被寫上日期
+    if (isOwnName && form.added_date && form.added_date !== origAdded) update.added_date = form.added_date
+    await writeWithAddedDate(payload => supabase.from('contacts').update(payload).eq('id', id), update)
     clearDraft(`contactEdit:${id}`)
     setSaving(false)
     navigate(`/contacts/${id}`)
@@ -136,6 +144,13 @@ export default function ContactEdit() {
           <label style={lb}>姓名 <span style={{ color:DANGER }}>*</span></label>
           <input value={form.name} onChange={e=>set('name',e.target.value)} style={inp} />
         </div>
+
+        {isOwnName && (
+          <div style={fw}>
+            <label style={lb}>哪天加進名單的</label>
+            <AddedDatePicker value={form.added_date} onChange={v => set('added_date', v)} />
+          </div>
+        )}
 
         <div style={fw}>
           <label style={lb}>社群平台</label>
