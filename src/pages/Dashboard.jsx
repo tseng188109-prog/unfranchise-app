@@ -35,6 +35,7 @@ import { fetchTrialStrips } from './trialRun'
 import { fetchTop10, Top10Strip } from './top10'
 import { fetchAddedContacts, fetchAddedMap, withAddedDates } from './addedDate'
 import { dayDotStatus, DotLegend, visibleDailyTasks } from './checkinStatus'
+import { MemoryJogSheet, InviteNoSheet, fetchInviteCooldowns } from './beanJar'
 import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm, syncDaily3 } from './followUp'
 import { upcomingPlans, fmtPlanDate, AfterMeetSheet } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
@@ -134,6 +135,8 @@ export default function Dashboard() {
   const [trialStrips, setTrialStrips] = useState([])
   const [pendingMeets, setPendingMeets] = useState([]) // 過了日期還沒記的約定（見了嗎？）
   const [afterMeet, setAfterMeet] = useState(null)
+  const [showJog, setShowJog] = useState(false)
+  const [inviteNo, setInviteNo] = useState(null)
   const [progTab, setProgTab] = useState('season')
   const [showBvTarget, setShowBvTarget] = useState(false)
   const [newContactCount, setNewContactCount] = useState(0)
@@ -463,17 +466,19 @@ export default function Dashboard() {
 
   async function fetchFollowUps() {
     // 首選 10 跟名單同時查，不多等一次；欄位還沒建好時查詢會失敗，這裡安靜略過，首頁照常
-    const [{ data: rawData }, t10, addedMap] = await Promise.all([
+    const [{ data: rawData }, t10, addedMap, coolMap] = await Promise.all([
       supabase.from('contacts')
         .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
         .eq('user_id',user.id).eq('is_archived',false)
         .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200),
       fetchTop10(user.id),
       fetchAddedMap(supabase, user.id),
+      fetchInviteCooldowns(user.id),
     ])
     let data = rawData
     if (data) {
       data = withAddedDates(data, addedMap)
+      if (coolMap.size) data = data.map(c => coolMap.has(c.id) ? { ...c, invite_cool_until: coolMap.get(c.id) } : c)
       if (t10.ok) { const ids = new Set(t10.rows.map(r => r.id)); data = data.map(c => ids.has(c.id) ? { ...c, is_top10: true } : c) }
       setActiveContacts(data); fetchTrialStrips(user.id, data).then(setTrialStrips)
       // 更新前已經約好的，補進每日行動（只補沒有對應記錄的）
@@ -504,7 +509,8 @@ export default function Dashboard() {
     setToday312({
       contacted: [...new Set((logs || []).map(l => l.contact_id))],
       fresh: freshToday || 0,
-      planCount: (logs || []).filter(l => l.kind === 'meet_plan').length + unplanned.filter(u => u.date === t).length,
+      // 今天的「1」：約成的、沒先約直接見的、邀了沒約成的都算（開口就算數）
+      planCount: (logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length + unplanned.filter(u => u.date === t).length,
     })
   }
 
@@ -907,7 +913,7 @@ export default function Dashboard() {
                   <span>個邀約{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
                   {weeklyMeetTarget > 0
                     ? <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: weekPlanned >= weeklyMeetTarget ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>本週 定下 {weekPlanned}/{weeklyMeetTarget}</span>
-                    : <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天已定下' : '還沒定下')}</span>}
+                    : <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天邀約了' : '還沒邀約')}</span>}
                 </span>
               </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
@@ -944,7 +950,7 @@ export default function Dashboard() {
                         <div style={{ width: Math.min(100, Math.round(weekPlanned / weeklyMeetTarget * 100)) + '%', height:'100%', background:ORANGE }} />
                       </div>}
                   <span style={{ fontSize:11, color:TEXT_MUTED }}>
-                    {today312.planCount >= 1 ? '今天已定下' : '今天還沒定下'}
+                    {today312.planCount >= 1 ? '今天邀約了' : '今天還沒邀約'}
                     {meetupCard && `　見到 ${meetupCard.count}/${meetupCard.target}${meetupCard.streak >= 2 ? `・連續 ${meetupCard.streak} 週` : ''}`}
                   </span>
                 </div>
@@ -991,8 +997,12 @@ export default function Dashboard() {
                   onClick={()=> isContactWarm(meetingContact) ? setSched({ contact: meetingContact }) : navigate(`/contacts/${meetingContact.id}`)}>
                   {isContactWarm(meetingContact) ? '定時間' : '先暖身'}
                 </SoftBtn>
-                <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
+                <button onClick={()=>setInviteNo(meetingContact)}
                   style={{ background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:'4px 0', cursor:'pointer' }}>
+                  邀了，沒約成
+                </button>
+                <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
+                  style={{ background:'none', border:'none', color:TEXT_MUTED, fontSize:12, padding:'2px 0', cursor:'pointer' }}>
                   換一位
                 </button>
               </div>
@@ -1009,12 +1019,18 @@ export default function Dashboard() {
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
                 每天放兩顆豆子進罐子：新認識的，或重新聯絡上的老朋友。這週已新增 {newContactCount} 位
               </div>
-              {newThisWeek.length > 0 && (
-                <button onClick={() => setShowNewList(v => !v)}
-                  style={{ background:'none',border:'none',padding:'4px 0 0',cursor:'pointer',fontSize:12,fontWeight:600,color:ACCENT_GREEN_TEXT }}>
-                  {showNewList ? '收起 ‹' : '看是誰 ›'}
+              <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
+                {newThisWeek.length > 0 && (
+                  <button onClick={() => setShowNewList(v => !v)}
+                    style={{ background:'none',border:'none',padding:'4px 0 0',cursor:'pointer',fontSize:12,fontWeight:600,color:ACCENT_GREEN_TEXT }}>
+                    {showNewList ? '收起 ‹' : '看是誰 ›'}
+                  </button>
+                )}
+                <button onClick={() => setShowJog(true)}
+                  style={{ background:'none',border:'none',padding:'4px 0 0',cursor:'pointer',fontSize:12,fontWeight:600,color:PRIMARY }}>
+                  想不到人？ ›
                 </button>
-              )}
+              </div>
               {showNewList && (
                 <div style={{ marginTop:6 }}>
                   {[['今天', newToday], ['這週稍早', newEarlier]].filter(g => g[1].length > 0).map(([label, list]) => (
@@ -1267,6 +1283,11 @@ export default function Dashboard() {
         {sched && user && (
           <ScheduleSheet userId={user.id} contact={sched.contact} log={sched.log || null} onClose={() => setSched(null)}
             onSaved={() => { fetchFollowUps(); fetchMeetupCard() }} />
+        )}
+        {showJog && <MemoryJogSheet onClose={() => setShowJog(false)} />}
+        {inviteNo && user && (
+          <InviteNoSheet contact={inviteNo} userId={user.id} onClose={() => setInviteNo(null)}
+            onSaved={() => { setSkipMeeting(s => [...s, inviteNo.id]); fetchFollowUps(); fetchCheckin() }} />
         )}
         {afterMeet && user && (
           <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId} initialDate={afterMeet.date}

@@ -188,7 +188,7 @@ export default function Daily() {
     const count = (await fetchAddedContacts(supabase, { userId: user.id, from: t, to: t })).length
     setD312({
       talk: new Set((logs || []).map(l => l.contact_id)).size,
-      plan: (logs || []).filter(l => l.kind === 'meet_plan').length + (await fetchUnplannedMeets(user.id, t, t)).length,
+      plan: (logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length + (await fetchUnplannedMeets(user.id, t, t)).length,
       fresh: count || 0,
     })
   }
@@ -445,7 +445,7 @@ export default function Daily() {
     const past = m.eff < t
     const met = isMet(m)
     const alive = !!(m.contact_id && m.contacts) // 名單被刪掉的人：沒有他的頁面，也沒有見面紀錄可以改
-    const said = met && m.meetLog && m.meetLog.note && !/^見面：/.test(m.meetLog.note) ? m.meetLog.note : ''
+    const said = met && m.meetLog && m.meetLog.note && !m.meetLog.note.startsWith('見面：') ? m.meetLog.note : ''
     const stop = fn => e => { e.stopPropagation(); fn() }
     return (
       <div onClick={() => { if (alive) navigate(`/contacts/${m.contact_id}`) }}

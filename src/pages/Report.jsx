@@ -100,7 +100,7 @@ async function loadFacts(userId, from, to) {
   logs.forEach(l => {
     const p = perDay[l.date]; if (!p) return
     p.talk.add(l.contact_id)
-    if (l.kind === 'meet_plan') p.plan += 1
+    if (l.kind === 'meet_plan' || l.kind === 'invite_no') p.plan += 1 // 每天的「1」：開口就算
   })
   ;(newR.data || []).forEach(c => { const p = perDay[c.day]; if (p) p.fresh += 1 })
   const planned = new Set([...logs.filter(l => l.kind === 'meet_plan'), ...unplanned].map(l => l.contact_id))
@@ -116,6 +116,8 @@ async function loadFacts(userId, from, to) {
     days, logs, perDay, care, lapsed, pick10,
     met: (meetR.data || []).length,
     plan: planned.size,
+    // 開口邀約幾次：約成的、沒先約直接見的、邀了沒約成的
+    asks: logs.filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length + unplanned.length,
     fresh: (newR.data || []).length,
     talk: days.reduce((s, d) => s + perDay[d].talk.size, 0),
     bvShare: (cntR.data || []).filter(c => c.counter_key === 'bv_share').length,
@@ -299,7 +301,7 @@ export default function Report() {
     L.push(`括號裡是前 ${len} 天（${md(pFrom)}–${md(pTo)}）`, '')
 
     L.push(`【這 ${len} 天做了什麼】`)
-    L.push(`見到 ${cur.met} 位${pr('met')}，定下 ${cur.plan} 個邀約${pr('plan')}，新增 ${cur.fresh} 個名單${pr('fresh')}，互動 ${cur.talk} 人次${pr('talk')}。`)
+    L.push(`見到 ${cur.met} 位${pr('met')}，開口邀約 ${cur.asks} 次${pr('asks')}，約成 ${cur.plan} 位${pr('plan')}，新增 ${cur.fresh} 個名單${pr('fresh')}，互動 ${cur.talk} 人次${pr('talk')}。`)
     L.push(`BV 分享 ${cur.bvShare} 次${pr('bvShare')}，IBV 分享 ${cur.ibvShare} 次${pr('ibvShare')}。`)
     L.push(`每週目標：見到 ${metTarget} 位、定下 ${planTarget} 個邀約。`, '')
 
@@ -433,7 +435,8 @@ export default function Report() {
               <div style={grid}>
                 <span /><span style={th}>這段</span><span style={th}>前 {len} 天</span>
                 {row('見到', cur.met, prev.met)}
-                {row('定下邀約', cur.plan, prev.plan)}
+                {row('開口邀約', cur.asks, prev.asks)}
+                {row('約成', cur.plan, prev.plan)}
                 {row('新名單', cur.fresh, prev.fresh)}
                 {row('互動人次', cur.talk, prev.talk)}
                 {row('BV 分享', cur.bvShare, prev.bvShare)}

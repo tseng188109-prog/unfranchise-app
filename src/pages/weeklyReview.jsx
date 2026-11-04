@@ -59,7 +59,7 @@ async function loadWeek(userId) {
   ;dayLogs.forEach(l => {
     const d = (perDay[l.date] = perDay[l.date] || { people: new Set(), plan: 0, fresh: 0 })
     d.people.add(l.contact_id)
-    if (l.kind === 'meet_plan') d.plan++
+    if (l.kind === 'meet_plan' || l.kind === 'invite_no') d.plan++ // 每天的「1」：邀了沒約成也算
   })
   ;(addedRows || []).forEach(r => {
     const day = r.day

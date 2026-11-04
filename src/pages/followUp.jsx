@@ -183,6 +183,7 @@ function rankMeetingPool(contacts, todayStr, skipIds = [], seedExtra = '') {
     if (skipIds.includes(c.id)) return false
     if (c.referral_stage === '暫時婉拒') return false
     if (c.next_plan && (!c.next_plan_date || c.next_plan_date >= today)) return false
+    if (c.invite_cool_until && c.invite_cool_until > today) return false // 剛邀過沒約成，隔幾天再推薦
     if (interestRank(c) === 0 && daysSince(c.last_contact_date || c.last_interacted_at, today) < 30) return false
     return true
   })
@@ -287,7 +288,8 @@ export async function syncDaily3(supabase, userId, dateStr) {
       .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).eq('date', date),
   ])
   const talk = new Set((logs || []).map(r => r.contact_id)).size
-  const plan = (logs || []).filter(l => l.kind === 'meet_plan').length
+  // 邀約：約成的（meet_plan）＋邀了沒約成的（invite_no，開口就算數）＋沒先約直接見面的
+  const plan = (logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length
     + (met || []).filter(r => r.contact_id && !r.note && r.planned_date === r.date).length
   const fresh = (added || []).length
   const full = talk >= mode.talk && plan >= mode.meet && fresh >= mode.fresh
