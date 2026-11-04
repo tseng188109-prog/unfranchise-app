@@ -575,7 +575,7 @@ export default function Daily() {
                     {DAYS_ZH[new Date(w.date+'T00:00:00').getDay()]}
                   </span>
                   <div style={{ width:10,height:10,borderRadius:'50%',background:dc,
-                    outline: isSelected?`2px solid ${PRIMARY}`:isT?`2px solid ${PRIMARY}`:'none',
+                    outline: isSelected?`2px solid ${PRIMARY}`:'none', // 藍圈只畫在正在看的那天；今天只把星期字變藍
                     outlineOffset:2 }} />
                 </div>
               )

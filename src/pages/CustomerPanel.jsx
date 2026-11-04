@@ -269,7 +269,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_SECONDARY, display:'flex' }}>
               <IconArrowLeft size={22} stroke={1.9} />
             </button>
-            <div style={{ display:'flex', gap:8 }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              {linkedContact && <Top10Star contact={linkedContact} />}
               <button onClick={() => navigate(`/customers/${id}/edit`, { state: { fromDetail: true } })}
                 style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:`1px solid ${BORDER}`, borderRadius:RADIUS.sm,
                   padding:'6px 12px', fontSize:13, cursor:'pointer', color:TEXT_SECONDARY }}>
@@ -297,6 +298,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
           </div>
           {embedded && (
             <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+              {linkedContact && <Top10Star contact={linkedContact} />}
               <button onClick={() => navigate(`/customers/${id}/edit`)}
                 style={{ width:32, height:32, borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'var(--card)',
                   display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:TEXT_SECONDARY }}>
@@ -535,7 +537,6 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                     )}
                   </div>
                 </div>
-                <Top10Star contact={linkedContact} />
                 <button onClick={() => navigate(`/contacts/${linkedContact.id}`)}
                   style={{ fontSize:12, color:PRIMARY, background:'var(--card)', border:`1px solid ${BORDER}`,
                     borderRadius:RADIUS.xs, padding:'6px 12px', cursor:'pointer', fontWeight:600, flexShrink:0 }}>

@@ -18,7 +18,7 @@ import { RELATIONSHIP_STAGES } from './followUp'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN, ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, DANGER, DANGER_SOFT,
-  BORDER, SUBCARD_BG, RADIUS, getEggColor, getEggBg, avatarBg, PAGE_BG } from './designTokens'
+  BORDER, SUBCARD_BG, RADIUS, getEggColor, getEggBg, avatarBg, PAGE_BG, ACCENT_YELLOW_TEXT } from './designTokens'
 
 function today() { return new Date().toISOString().split('T')[0] }
 
@@ -27,7 +27,7 @@ const STAGE_GROUPS = ['未分類', ...RELATIONSHIP_STAGES]
 
 // ── 排序/篩選狀態持久化（同分頁內：離開聯絡人詳情頁再回來，排序方式/方向/蛋型篩選會保留）──
 function getStoredSortBy() {
-  try { return sessionStorage.getItem('contacts_sortBy') || 'default' } catch { return 'default' }
+  try { return sessionStorage.getItem('contacts_sortBy') || 'due' } catch { return 'due' }
 }
 function getStoredSortDir() {
   try { return sessionStorage.getItem('contacts_sortDir') || 'desc' } catch { return 'desc' }
@@ -80,8 +80,6 @@ export default function Contacts() {
   const [showMuted, setShowMuted] = useState(false) // 時機未到：預設隱藏，不佔主列表版面
   const [loading, setLoading] = useState(true)
   const [menuTarget, setMenuTarget] = useState(null)
-  const [archiveTarget, setArchiveTarget] = useState(null)
-  const [restoreTarget, setRestoreTarget] = useState(null)
 
   // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
   // 桌機右側開著的人：記在這個分頁裡，去編輯完退回來時右邊照樣開著他
@@ -171,20 +169,21 @@ export default function Contacts() {
     fetchContacts()
   }
 
-  async function handleArchive() {
-    if (!archiveTarget) return
-    await supabase.from('contacts').update({ is_archived: true }).eq('id', archiveTarget.id)
-    if (selectedId === archiveTarget.id) setSelectedId(null)
-    setArchiveTarget(null); setMenuTarget(null); fetchContacts()
+  async function handleArchive(c) {
+    setMenuTarget(null)
+    if (!(await askConfirm({ title:`封存「${c.name}」？`, message:'封存後可點「封存名單」查看與復原。', okText:'封存', danger:true }))) return
+    await supabase.from('contacts').update({ is_archived: true }).eq('id', c.id)
+    if (selectedId === c.id) setSelectedId(null)
+    fetchContacts()
   }
 
-  async function handleRestore() {
-    if (!restoreTarget) return
-    await supabase.from('contacts').update({ is_archived: false }).eq('id', restoreTarget.id)
-    setRestoreTarget(null); setMenuTarget(null); fetchContacts()
+  async function handleRestore(c) {
+    setMenuTarget(null)
+    if (!(await askConfirm({ title:`復原「${c.name}」？`, message:'將移回一般互動名單。', okText:'復原' }))) return
+    await supabase.from('contacts').update({ is_archived: false }).eq('id', c.id)
+    fetchContacts()
   }
 
-  // 永久刪除：連同底下的互動紀錄、試用品追蹤紀錄一起清掉，避免留下孤兒資料或觸發外鍵限制
   async function askDeletePermanent(c) {
     setMenuTarget(null)
     if (!(await askConfirm({ title:`永久刪除「${c.name}」？`, message:'會一併刪除他的互動紀錄與試用品追蹤。已經見過的「見面」紀錄會留在每日行動，名字會變成（已刪除的名單）。只是暫時不想看到他，建議用「封存」。刪除後 8 秒內可以按「復原」。', okText:'永久刪除', danger:true }))) return
@@ -354,10 +353,27 @@ async function handleImport() {
         return sortDir === 'desc' ? cb.localeCompare(ca) : ca.localeCompare(cb)
       })
     }
-    return arr // default：保留原始查詢排序
+    if (sortBy === 'due') {
+      // 該聯絡的先：下次聯絡日早的在上面（過期的最前面），沒排日期的放最後，同一天照姓名
+      return [...arr].sort((a,b) => {
+        const da = a.next_contact_date || '', db = b.next_contact_date || ''
+        if (da !== db) { if (!da) return 1; if (!db) return -1; return da < db ? -1 : 1 }
+        return (a.name||'').localeCompare(b.name||'', 'zh-Hant')
+      })
+    }
+    return arr // default（依消費狀況分組）：保留原始查詢排序
+  }
+  const todayTw = new Date().toLocaleDateString('sv-SE', { timeZone:'Asia/Taipei' })
+  function dueText(c) {
+    const d = c.next_contact_date
+    if (!d) return null
+    const n = Math.round((new Date(todayTw + 'T00:00:00Z') - new Date(d + 'T00:00:00Z')) / 86400000)
+    if (n > 0) return { t: `該聯絡了（過 ${n} 天）`, warn: true }
+    if (n === 0) return { t: '今天該聯絡', warn: true }
+    return { t: `${Number(d.slice(5,7))}/${Number(d.slice(8,10))} 該聯絡`, warn: false }
   }
 
-  const isFlatSort = sortBy === 'last_contact' || sortBy === 'created'
+  const isFlatSort = sortBy === 'last_contact' || sortBy === 'created' || sortBy === 'due'
 
   const pinned = applySort(filtered.filter(c => c.is_pinned))
   const unpinnedAll = filtered.filter(c => !c.is_pinned)
@@ -417,12 +433,20 @@ async function handleImport() {
               </span>
             )}
           </div>
-          <div style={{ fontSize:12, color:TEXT_SECONDARY, display:'flex', gap:4 }}>
+          <div style={{ fontSize:12, color:TEXT_SECONDARY, display:'flex', gap:4, flexWrap:'wrap' }}>
             {c.occupation && <span>{c.occupation}</span>}
             {c.occupation && (c.relationship_stage || c.action_type) && <span>·</span>}
             {c.relationship_stage
               ? <span>{c.relationship_stage}</span>
               : c.action_type && <span>{actionLabel(c.action_type)}</span>}
+            {sortBy === 'due' && !showArchived && !c.is_muted && (() => {
+              const d = dueText(c)
+              if (!d) return null
+              return <>
+                {(c.occupation || c.relationship_stage || c.action_type) && <span>·</span>}
+                <span style={{ color: d.warn ? ACCENT_YELLOW_TEXT : TEXT_SECONDARY, fontWeight: d.warn ? 600 : 400 }}>{d.t}</span>
+              </>
+            })()}
           </div>
         </div>
         {!showArchived && c.is_muted && (
@@ -569,10 +593,11 @@ async function handleImport() {
           <div style={{ display:'flex', gap:8, paddingBottom:12, overflowX:'auto', alignItems:'center' }}>
             <span style={{ fontSize:12, color:TEXT_MUTED, flexShrink:0 }}>排序：</span>
             {[
-              { key:'default', label:'依消費狀況' },
+              { key:'due', label:'該聯絡的先' },
               { key:'name', label:'姓名' },
               { key:'last_contact', label:'最近互動' },
               { key:'created', label:'最近新增' },
+              { key:'default', label:'依消費狀況分組' },
             ].map(s => (
               <button key={s.key} onClick={() => setSortBy(s.key)}
                 style={{ padding:'4px 12px', borderRadius:RADIUS.pill, border:'none',
@@ -582,7 +607,7 @@ async function handleImport() {
                 {s.label}
               </button>
             ))}
-            {sortBy !== 'default' && (
+            {sortBy !== 'default' && sortBy !== 'due' && (
               <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
                 title={sortDir === 'asc' ? '升冪（點擊切換為降冪）' : '降冪（點擊切換為升冪）'}
                 style={{ width:26, height:26, borderRadius:RADIUS.circle, border:`1px solid ${BORDER}`,
@@ -626,7 +651,7 @@ async function handleImport() {
             <div style={{ background:'var(--card)' }}>
               <Section title="釘選" count={pinned.length} items={pinned} />
               <Section
-                title={sortBy === 'last_contact' ? '依最近互動排序' : sortBy === 'created' ? '依新增時間排序' : '依建議互動排序'}
+                title={sortBy === 'last_contact' ? '依最近互動排序' : sortBy === 'created' ? '依加入名單日期排序' : '該聯絡的先'}
                 count={flatUnpinned.length}
                 items={flatUnpinned}
               />
@@ -801,7 +826,7 @@ async function handleImport() {
               margin:'0 0 16px', textAlign:'center' }}>{menuTarget.name}</p>
             {showArchived ? (
               <>
-                <button onClick={() => setRestoreTarget(menuTarget)}
+                <button onClick={() => handleRestore(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
                     padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:ACCENT_GREEN_SOFT, marginBottom:10, cursor:'pointer' }}>
@@ -827,7 +852,7 @@ async function handleImport() {
                     {menuTarget.is_pinned ? '取消釘選' : '釘選到最上面'}
                   </span>
                 </button>
-                <button onClick={() => setArchiveTarget(menuTarget)}
+                <button onClick={() => handleArchive(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
                     padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
@@ -844,51 +869,6 @@ async function handleImport() {
         </div>
       )}
 
-      {archiveTarget && (
-        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
-            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
-              <IconArchive size={30} stroke={1.6} color={DANGER} />
-            </div>
-            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
-              確定封存「{archiveTarget.name}」？
-            </p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>封存後可點「封存名單」查看與復原</p>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setArchiveTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleArchive}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>封存</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {restoreTarget && (
-        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
-            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
-              <IconRefresh size={30} stroke={1.6} color={ACCENT_GREEN_TEXT} />
-            </div>
-            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
-              復原「{restoreTarget.name}」？
-            </p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>將移回一般互動名單</p>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setRestoreTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleRestore}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:ACCENT_GREEN, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>復原</button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )

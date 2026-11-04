@@ -4,6 +4,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
+import { askConfirm } from './confirmDialog'
 import { IconArrowLeft, IconArchive } from '@tabler/icons-react'
 import { archiveContactOfCustomer } from './customerLink'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -21,7 +22,6 @@ export default function CustomerEdit() {
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState('')
   const [archiving, setArchiving] = useState(false)
-  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [form, setForm] = useState(null)
   const [errors, setErrors] = useState({})
 
@@ -119,6 +119,8 @@ export default function CustomerEdit() {
 
   // 「刪除」改成「封存」：不再直接從資料庫移除，永久刪除只從顧客檔案的「封存名單」進行
   async function handleArchive() {
+    if (archiving) return
+    if (!(await askConfirm({ title:`封存「${form.name}」？`, message:'封存後可以在顧客檔案的「封存名單」找到並復原，或永久刪除。', okText:'封存', danger:true }))) return
     setArchiving(true)
     await supabase.from('customers').update({ is_archived: true }).eq('id', id)
     await archiveContactOfCustomer(supabase, id)
@@ -148,7 +150,7 @@ export default function CustomerEdit() {
             style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_SECONDARY,display:'flex' }}><IconArrowLeft size={22} stroke={1.9} /></button>
           <h1 style={{ fontSize:18,fontWeight:600,color:TEXT_MAIN,margin:0 }}>編輯顧客</h1>
         </div>
-        <button onClick={() => setShowArchiveConfirm(true)}
+        <button onClick={handleArchive}
           style={{ display:'flex', alignItems:'center', gap:6, background:DANGER_SOFT, border:'none', borderRadius:RADIUS.sm,
             padding:'6px 12px', fontSize:13, cursor:'pointer', color:DANGER, fontWeight:600 }}>
           <IconArchive size={14} stroke={1.9} /> 封存
@@ -287,27 +289,6 @@ export default function CustomerEdit() {
         <SaveError msg={saveErr} />
       </div>
 
-      {showArchiveConfirm && (
-        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
-          display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:20 }}>
-          <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:'100%',maxWidth:340 }}>
-            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>確定要封存這位顧客嗎？</p>
-            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>
-              封存後可以到顧客檔案的「封存名單」找到並復原，或永久刪除。
-            </p>
-            <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setShowArchiveConfirm(false)}
-                style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleArchive} disabled={archiving}
-                style={{ flex:1,padding:'12px',borderRadius:RADIUS.md,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
-                {archiving?'封存中…':'確定封存'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
