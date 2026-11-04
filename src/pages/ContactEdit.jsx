@@ -7,6 +7,7 @@ import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import NeedLevelPicker from './needLevelPicker'
 import { AddedDatePicker, writeWithAddedDate, addedDay } from './addedDate'
+import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 
 import { actionLabel } from './contactQuick'
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
@@ -26,6 +27,7 @@ export default function ContactEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
   const [showMore, setShowMore] = useState(false)
   const [form, setForm] = useState(null)
   // 記住剛載入時的 action_type，存檔時只有「真的被改過」才重算跟進日，
@@ -84,6 +86,7 @@ export default function ContactEdit() {
   async function handleSave() {
     if (!form.name.trim()) return
     setSaving(true)
+    setSaveErr('')
 
     // 只有 action_type 真的跟原本不一樣時，才重新計算跟進日；
     // 單純編輯其他欄位不應該動到跟進倒數
@@ -112,10 +115,11 @@ export default function ContactEdit() {
 
     // 只有真的改了日期才寫，不然舊資料單純改職業也會被寫上日期
     if (isOwnName && form.added_date && form.added_date !== origAdded) update.added_date = form.added_date
-    await writeWithAddedDate(payload => supabase.from('contacts').update(payload).eq('id', id), update)
-    clearDraft(`contactEdit:${id}`)
+    const { error } = await writeWithAddedDate(payload => supabase.from('contacts').update(payload).eq('id', id), update)
     setSaving(false)
-    navigate(`/contacts/${id}`)
+    if (error) { setSaveErr(SAVE_FAIL); return }
+    clearDraft(`contactEdit:${id}`)
+    goBackOr(navigate, `/contacts/${id}`)
   }
 
   if (!form) return <LoadingSpinner />
@@ -237,6 +241,7 @@ export default function ContactEdit() {
             fontSize:16,fontWeight:600,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
+        <SaveError msg={saveErr} />
       </div>
     </div>
   )

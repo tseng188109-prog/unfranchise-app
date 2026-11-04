@@ -7,6 +7,7 @@ import { saveDraft, loadDraft, clearDraft } from './formDraft'
 import { markDaily312 } from './followUp'
 import NeedLevelPicker from './needLevelPicker'
 import { AddedDatePicker, writeWithAddedDate, twToday } from './addedDate'
+import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -42,6 +43,7 @@ function getAction(egg, need) {
 export default function ContactNew() {
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
   const [showMore, setShowMore] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
   const [savedCount, setSavedCount] = useState(0)
@@ -72,6 +74,7 @@ export default function ContactNew() {
       return
     }
     setSaving(true)
+    setSaveErr('')
     const { data: { user } } = await supabase.auth.getUser()
 
     let next_contact_date = null
@@ -100,7 +103,7 @@ export default function ContactNew() {
     })
 
     setSaving(false)
-    if (error) return
+    if (error) { setSaveErr(SAVE_FAIL); return }
     clearDraft('contactNew')
     markDaily312(supabase, user.id, addedDate)
 
@@ -112,7 +115,7 @@ export default function ContactNew() {
       setTimeout(() => setJustSaved(false), 2000)
       nameInputRef.current?.focus()
     } else {
-      navigate('/contacts')
+      goBackOr(navigate, '/contacts')
     }
   }
 
@@ -275,9 +278,10 @@ export default function ContactNew() {
               style={{ flex:1,padding:'14px',borderRadius:RADIUS.lg,border:`1.5px solid ${PRIMARY}`,
                 background:'var(--card)',color:PRIMARY,
                 fontSize:15,fontWeight:600,cursor:'pointer' }}>
-              儲存並返回列表
+              儲存並返回
             </button>
           </div>
+          <div className="cn-full"><SaveError msg={saveErr} /></div>
 
         </div>
       </div>

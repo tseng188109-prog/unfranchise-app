@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -11,6 +12,7 @@ import {
 export default function CustomerNew() {
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
   const [form, setForm] = useState(() => loadDraft('customerNew')?.form || {
     name: '', phone: '', occupation: '',
     birthday: '', carrier: '', address: '', email: '',
@@ -82,7 +84,8 @@ export default function CustomerNew() {
       contact_id: linkedContactId || null,
     })
     setSaving(false)
-    if (!error) { clearDraft('customerNew'); navigate('/customers') }
+    if (!error) { clearDraft('customerNew'); goBackOr(navigate, '/customers') }
+    else setSaveErr(SAVE_FAIL)
   }
 
   const fields = [
@@ -223,6 +226,7 @@ export default function CustomerNew() {
             fontSize:16, fontWeight:600, cursor:'pointer', marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
+        <SaveError msg={saveErr} />
       </div>
     </div>
   )

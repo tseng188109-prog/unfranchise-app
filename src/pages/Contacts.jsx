@@ -84,7 +84,12 @@ export default function Contacts() {
   const [restoreTarget, setRestoreTarget] = useState(null)
 
   // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
-  const [selectedId, setSelectedId] = useState(null)
+  // 桌機右側開著的人：記在這個分頁裡，去編輯完退回來時右邊照樣開著他
+  const [selectedId, setSelectedIdRaw] = useState(() => { try { return sessionStorage.getItem('contacts_selectedId') || null } catch { return null } })
+  function setSelectedId(v) {
+    setSelectedIdRaw(v)
+    try { if (v) sessionStorage.setItem('contacts_selectedId', v); else sessionStorage.removeItem('contacts_selectedId') } catch { /* 不能存就算了 */ }
+  }
 
   // 哪些聯絡人目前有「進行中」的試用品（還沒設結果，或是「考慮中」）：列表小圖示用
   const [activeSampleContactIds, setActiveSampleContactIds] = useState(new Set())

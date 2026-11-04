@@ -270,7 +270,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               <IconArrowLeft size={22} stroke={1.9} />
             </button>
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => navigate(`/customers/${id}/edit`)}
+              <button onClick={() => navigate(`/customers/${id}/edit`, { state: { fromDetail: true } })}
                 style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:`1px solid ${BORDER}`, borderRadius:RADIUS.sm,
                   padding:'6px 12px', fontSize:13, cursor:'pointer', color:TEXT_SECONDARY }}>
                 <IconPencil size={14} stroke={1.9} /> 編輯

@@ -48,7 +48,12 @@ export default function Customers() {
   const [showArchived, setShowArchived] = useState(false)
 
   // 桌面版右側面板：選中的顧客 id（手機版不使用，點擊會直接跳轉整頁）
-  const [selectedId, setSelectedId] = useState(null)
+  // 桌機右側開著的人：記在這個分頁裡，去編輯完退回來時右邊照樣開著他
+  const [selectedId, setSelectedIdRaw] = useState(() => { try { return sessionStorage.getItem('customers_selectedId') || null } catch { return null } })
+  function setSelectedId(v) {
+    setSelectedIdRaw(v)
+    try { if (v) sessionStorage.setItem('customers_selectedId', v); else sessionStorage.removeItem('customers_selectedId') } catch { /* 不能存就算了 */ }
+  }
 
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState([])

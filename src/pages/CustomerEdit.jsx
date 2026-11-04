@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { BirthdayPicker } from './pickers'
 import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 import { IconArrowLeft, IconArchive } from '@tabler/icons-react'
 import { archiveContactOfCustomer } from './customerLink'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -14,7 +15,11 @@ import {
 export default function CustomerEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  // 從顧客自己的頁面按進來（手機）才是 列表→顧客頁→編輯；桌機是從列表右側直接進來
+  const fromDetail = !!(location.state && location.state.fromDetail)
   const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
   const [archiving, setArchiving] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [form, setForm] = useState(null)
@@ -96,6 +101,7 @@ export default function CustomerEdit() {
     if (Object.keys(errs).length) { setErrors(errs); return }
 
     setSaving(true)
+    setSaveErr('')
     const { error } = await supabase.from('customers').update({
       name: form.name.trim(),
       phone: form.phone.trim() || null,
@@ -107,8 +113,8 @@ export default function CustomerEdit() {
       contact_id: linkedContactId || null,
     }).eq('id', id)
     setSaving(false)
-    if (!error) { clearDraft(`customerEdit:${id}`); navigate(`/customers/${id}`) }
-    else console.error('儲存失敗', error)
+    if (!error) { clearDraft(`customerEdit:${id}`); goBackOr(navigate, `/customers/${id}`) }
+    else { console.error('儲存失敗', error); setSaveErr(SAVE_FAIL) }
   }
 
   // 「刪除」改成「封存」：不再直接從資料庫移除，永久刪除只從顧客檔案的「封存名單」進行
@@ -118,7 +124,8 @@ export default function CustomerEdit() {
     await archiveContactOfCustomer(supabase, id)
     clearDraft(`customerEdit:${id}`)
     setArchiving(false)
-    navigate('/customers')
+    // 封存了就不要再回到他的頁面：手機退兩頁（跳過顧客頁）回列表，桌機退一頁就是列表
+    goBackOr(navigate, '/customers', fromDetail ? 2 : 1)
   }
 
   if (!form) return <LoadingSpinner />
@@ -277,6 +284,7 @@ export default function CustomerEdit() {
             fontSize:16,fontWeight:600,cursor:'pointer',marginTop:8 }}>
           {saving ? '儲存中…' : '儲存'}
         </button>
+        <SaveError msg={saveErr} />
       </div>
 
       {showArchiveConfirm && (

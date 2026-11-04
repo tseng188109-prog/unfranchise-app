@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { goBackOr } from './navBack'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import OrderForm from './OrderForm'
@@ -209,7 +210,7 @@ export default function TransactionNew() {
             userId={user.id}
             customerId={form.customer_id}
             customerName={form.customer_name}
-            onDone={() => navigate('/transactions')}
+            onDone={() => goBackOr(navigate, '/transactions')}
           />
         ) : (
           <p style={{ fontSize:13, color:TEXT_MUTED, textAlign:'center', padding:'20px 0' }}>
