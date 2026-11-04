@@ -10,7 +10,7 @@ import { supabase } from '../supabase'
 import LoadingSpinner from './LoadingSpinner'
 import { DateField } from './pickers'
 import { saveTagSetting, resolveMode, resolveWeeklyMeet, resolveWeeklyMet } from './dailyMode'
-import { taipeiToday, addDaysStr, settleMeetings, splitTime } from './meetings'
+import { taipeiToday, addDaysStr, splitTime, fetchUnplannedMeets } from './meetings'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, SUBCARD_BG, RADIUS,
   ACCENT_GREEN_TEXT, ACCENT_YELLOW_TEXT,
@@ -83,7 +83,7 @@ async function loadFacts(userId, from, to) {
   let pick10 = { ok: false }
   if (t10.ok) {
     const touchedIds = new Set(allLogs.map(l => l.contact_id))
-    const plannedIds = new Set(allLogs.filter(l => l.kind === 'meet_plan').map(l => l.contact_id))
+    const plannedIds = new Set([...allLogs.filter(l => l.kind === 'meet_plan'), ...(await fetchUnplannedMeets(userId, from, to))].map(l => l.contact_id))
     pick10 = {
       ok: true, total: t10.rows.length,
       touched: t10.rows.filter(r => touchedIds.has(r.id)).map(r => r.name),
@@ -92,15 +92,18 @@ async function loadFacts(userId, from, to) {
       swap: t10.rows.map(r => ({ name: r.name, reason: top10NeedsAction(r) })).filter(x => x.reason),
     }
   }
+  // 沒先約、直接見面後補記的，也算一次定下（顧客的不算，跟上面一樣）
+  const unplanned = (await fetchUnplannedMeets(userId, from, to)).filter(u => !custByContact.has(u.contact_id))
   const perDay = {}
   days.forEach(d => { perDay[d] = { talk: new Set(), plan: 0, fresh: 0 } })
+  unplanned.forEach(u => { const p = perDay[u.date]; if (p) p.plan += 1 })
   logs.forEach(l => {
     const p = perDay[l.date]; if (!p) return
     p.talk.add(l.contact_id)
     if (l.kind === 'meet_plan') p.plan += 1
   })
   ;(newR.data || []).forEach(c => { const p = perDay[c.day]; if (p) p.fresh += 1 })
-  const planned = new Set(logs.filter(l => l.kind === 'meet_plan').map(l => l.contact_id))
+  const planned = new Set([...logs.filter(l => l.kind === 'meet_plan'), ...unplanned].map(l => l.contact_id))
   const tx = txR.data || []
   let bv = 0, ibv = 0, sale = 0, profit = 0
   tx.forEach(t => {
@@ -228,7 +231,6 @@ export default function Report() {
     let dead = false
     setLoading(true)
     ;(async () => {
-      await settleMeetings(user.id)
       const [a, b] = await Promise.all([loadFacts(user.id, from, to), loadFacts(user.id, pFrom, pTo)])
       if (dead) return
       setCur(a); setPrev(b); setLoading(false)

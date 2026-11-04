@@ -19,7 +19,7 @@ import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
 import { ToolRow, ToolTag } from './tools'
 import { QuickTags, ACTION_MAP, DAYS_MAP } from './contactQuick'
 import { Top10Star } from './top10'
-import { ScheduleSheet, taipeiToday, MEET_KEY } from './meetings'
+import { ScheduleSheet, taipeiToday, MEET_KEY, unlinkMeetForLog, moveMeetForLog, cancelPlanForLog } from './meetings'
 import TrialRunCard from './trialRun'
 import { AutoTextarea, activeNotes, chainIds, NO_LONGER } from './keyPoints'
 
@@ -185,7 +185,8 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   }
   async function saveEditLog(logId) {
     const text = editNote.trim()
-    const log = logs.find(l => l.id === logId)
+    const found = logs.find(l => l.id === logId)
+    const log = found ? { ...found } : null // 先留一份改之前的（日期要拿舊的去對見面）
     const upd = { note: text || null, tool: editTool || null }
     // 「約好下一次」的紀錄日期是按下約定那天，不在這裡改，要改時間到「下一次」卡
     const dateChanged = log && log.kind !== 'meet_plan' && editDate && editDate !== log.date
@@ -197,6 +198,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     }
     if (error) { await askConfirm({ title:'沒有存成功', message:'網路可能不穩，再試一次', okText:'知道了', hideCancel:true }); return }
     if (dateChanged) {
+      await moveMeetForLog(log, editDate)
       await recomputeLastContact()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) await syncDaily3(supabase, user.id, editDate)
@@ -218,7 +220,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   }
   async function deleteLog(log) {
     const starred = isStarred(log)
-    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message: (starred ? '這筆也標成重點了，重點會一起刪掉。' : '') + '刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message: (starred ? '這筆也標成重點了，重點會一起刪掉。' : '') + (log.kind === 'meet' ? '這次見面也會從見面數裡拿掉。' : log.kind === 'meet_plan' ? '這個約定也會一起取消。' : '') + '刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
     const noteIds = log.story_note_id ? chainIds(contactNotes, log.story_note_id) : []
     undoableDelete({
       label: log.note || formatMD(log.date),
@@ -228,6 +230,8 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
         if (noteIds.length) await supabase.from('contact_notes').delete().in('id', noteIds)
         const res = await supabase.from('contact_logs').delete().eq('id', log.id)
         if (res.error) return res
+        if (log.kind === 'meet' && meUserId) await unlinkMeetForLog(meUserId, log)
+        if (log.kind === 'meet_plan' && meUserId) await cancelPlanForLog(meUserId, log)
         await recomputeLastContact()
         fetchContact()
         onChanged?.()

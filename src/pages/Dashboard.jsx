@@ -29,13 +29,13 @@ import {
   getEggColor, getEggBg, avatarBg,
 } from './designTokens'
 import { resolveMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks, resolveWeeklyMet, resolvePlanAhead } from './dailyMode'
-import { ScheduleSheet, settleMeetings, backfillPlans, MEET_KEY } from './meetings'
+import { ScheduleSheet, backfillPlans, MEET_KEY, fetchPendingMeets, fetchUnplannedMeets } from './meetings'
 import MonthBvCard, { BvTargetSheet, resolveBvTarget } from './monthBv'
 import { fetchTrialStrips } from './trialRun'
 import { fetchTop10, Top10Strip } from './top10'
 import { fetchAddedContacts, fetchAddedMap, withAddedDates } from './addedDate'
 import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm } from './followUp'
-import { upcomingPlans, fmtPlanDate } from './meetingFlow'
+import { upcomingPlans, fmtPlanDate, AfterMeetSheet } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
 import { fetchUpcomingEvents, inviteToEvent, cancelInvite, restoreInvite, isInvitedTo, daysUntil } from './eventInvite'
@@ -131,6 +131,8 @@ export default function Dashboard() {
   const [showNewList, setShowNewList] = useState(false)
   const [today312, setToday312] = useState({ contacted: [], fresh: 0, planCount: 0 })
   const [trialStrips, setTrialStrips] = useState([])
+  const [pendingMeets, setPendingMeets] = useState([]) // 過了日期還沒記的約定（見了嗎？）
+  const [afterMeet, setAfterMeet] = useState(null)
   const [progTab, setProgTab] = useState('season')
   const [showBvTarget, setShowBvTarget] = useState(false)
   const [newContactCount, setNewContactCount] = useState(0)
@@ -369,8 +371,8 @@ export default function Dashboard() {
   // 本週訪談狀態：本週見面次數（counter_logs, counter_key='meetup', is_done=true）跟連續達標週數
   // 跟自己比，不跟隊友比——這是 Dashboard 唯一保留的「訪談狀態」教練語氣卡片
   async function fetchMeetupCard() {
-    // 約定那天到了就自動算見到，所以先結算一次
-    await settleMeetings(user.id)
+    // 按了「見完了」才算見到；過了日期還沒記的，首頁問一句「見了嗎？」
+    fetchPendingMeets(user.id).then(setPendingMeets)
     const currentWeekStart = getWeekStart(today())
     // 抓最近 12 週的資料，夠算連續達標週數
     const twelveWeeksAgo = (() => {
@@ -494,12 +496,14 @@ export default function Dashboard() {
     const weDate = toDateStr(new Date(new Date(wsDate + 'T00:00:00').getTime() + 6 * 86400000))
     const { data: weekPlans } = await supabase.from('contact_logs')
       .select('contact_id').eq('user_id', user.id).eq('kind', 'meet_plan').gte('date', wsDate).lte('date', weDate)
-    setWeekPlanned(new Set((weekPlans || []).map(l => l.contact_id)).size)
+    // 沒先約、直接見面後補記的，也算定下
+    const unplanned = await fetchUnplannedMeets(user.id, wsDate, weDate)
+    setWeekPlanned(new Set([...(weekPlans || []), ...unplanned].map(l => l.contact_id)).size)
     setEvents(await fetchUpcomingEvents(supabase, 20))
     setToday312({
       contacted: [...new Set((logs || []).map(l => l.contact_id))],
       fresh: freshToday || 0,
-      planCount: (logs || []).filter(l => l.kind === 'meet_plan').length,
+      planCount: (logs || []).filter(l => l.kind === 'meet_plan').length + unplanned.filter(u => u.date === t).length,
     })
   }
 
@@ -797,7 +801,37 @@ export default function Dashboard() {
           <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部名單 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
-          {trialStrips.map(ts => (
+          {(() => {
+            // 提醒合計最多 3 條：「見了嗎？」排前面，再來是試做；多的收成一行
+            const reminders = [
+              ...pendingMeets.map(m => ({ kind:'meet', m })),
+              ...trialStrips.map(ts => ({ kind:'trial', ts })),
+            ]
+            const shown = reminders.slice(0, 3)
+            const more = reminders.length - shown.length
+            return <>
+              {shown.filter(r => r.kind === 'meet').map(({ m }) => (
+                <div key={'pm'+m.id} style={{ padding:'9px 14px', background:'var(--yellow-soft)', borderBottom:'1px solid var(--border)',
+                  display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <span style={{ flex:1, minWidth:150, fontSize:13, fontWeight:600, color:ACCENT_YELLOW_TEXT }}>
+                    {Number(m.planned_date.slice(5,7))}/{Number(m.planned_date.slice(8,10))} 約了{m.contacts?.name || ''}，見了嗎？
+                  </span>
+                  <button onClick={async () => {
+                    const { data } = await supabase.from('contacts').select('*').eq('id', m.contact_id).single()
+                    if (data) setAfterMeet({ contact: data, logId: m.id, date: m.planned_date })
+                  }} style={{ fontSize:12, padding:'5px 10px', borderRadius:8, border:'none', background:'var(--card)', color:PRIMARY, fontWeight:600, cursor:'pointer' }}>見完了</button>
+                  <button onClick={() => setSched({ log: m, contact: m.contacts })}
+                    style={{ fontSize:12, padding:'5px 10px', borderRadius:8, border:'none', background:'var(--card)', color:TEXT_SECONDARY, cursor:'pointer' }}>沒見成</button>
+                </div>
+              ))}
+              {more > 0 && (
+                <div onClick={() => navigate('/daily')} style={{ padding:'7px 14px', fontSize:12, color:TEXT_SECONDARY, borderBottom:'1px solid var(--border)', cursor:'pointer' }}>
+                  還有 {more} 筆提醒，到每日行動看 ›
+                </div>
+              )}
+            </>
+          })()}
+          {trialStrips.slice(0, Math.max(0, 3 - pendingMeets.length)).map(ts => (
             <div key={ts.contactId} onClick={()=>navigate(`/contacts/${ts.contactId}`)}
               style={{ padding:'10px 14px', background:PRIMARY_SOFT, cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
               <div style={{ fontSize:13,fontWeight:600,color:PRIMARY }}>{ts.text}</div>
@@ -1227,8 +1261,12 @@ export default function Dashboard() {
 
         )}
         {sched && user && (
-          <ScheduleSheet userId={user.id} contact={sched.contact} onClose={() => setSched(null)}
+          <ScheduleSheet userId={user.id} contact={sched.contact} log={sched.log || null} onClose={() => setSched(null)}
             onSaved={() => { fetchFollowUps(); fetchMeetupCard() }} />
+        )}
+        {afterMeet && user && (
+          <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId} initialDate={afterMeet.date}
+            onClose={() => setAfterMeet(null)} onSaved={() => { fetchFollowUps(); fetchMeetupCard() }} />
         )}
         {showBvTarget && (
           <BvTargetSheet current={resolveBvTarget(profile?.tag_settings)}

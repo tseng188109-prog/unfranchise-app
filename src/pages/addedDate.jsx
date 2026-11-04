@@ -67,8 +67,8 @@ const chip = on => ({
 })
 const md = d => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
 
-// 今天／昨天／選日期。value 是 'YYYY-MM-DD'，空白當今天
-export function AddedDatePicker({ value, onChange }) {
+// 今天／昨天／選日期（最晚今天）。value 是 'YYYY-MM-DD'，空白當今天。新增名單、見完面都用這個
+export function DayPicker({ value, onChange, hint }) {
   const t = twToday(), y = twYesterday()
   const v = value || t
   const custom = v !== t && v !== y
@@ -81,9 +81,13 @@ export function AddedDatePicker({ value, onChange }) {
           onChange={e => e.target.value && onChange(e.target.value)}
           style={{ ...chip(custom), width: 'auto', justifyContent: 'center' }} />
       </div>
-      <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6, lineHeight: 1.5 }}>
-        新認識的朋友，或重新聯絡上的老朋友都算。這一天會算進那天的新名單。
-      </div>
+      {hint && (
+        <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6, lineHeight: 1.5 }}>{hint}</div>
+      )}
     </div>
   )
+}
+
+export function AddedDatePicker({ value, onChange }) {
+  return <DayPicker value={value} onChange={onChange} hint="新認識的朋友，或重新聯絡上的老朋友都算。這一天會算進那天的新名單。" />
 }

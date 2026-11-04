@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { fetchAddedContacts } from './addedDate'
+import { fetchUnplannedMeets } from './meetings'
 import { IconChartBar, IconChevronRight, IconCopy, IconCheck } from '@tabler/icons-react'
 import { CloseBtn } from './ui'
 import { fmtPlanDate } from './meetingFlow'
@@ -32,9 +33,10 @@ async function loadWeek(userId) {
   const [mode, weeklyMeet, logsRes, plansRes, addedRows, dayLogsRes] = await Promise.all([
     loadDailyMode(userId),
     loadWeeklyMeet(userId),
-    supabase.from('contact_logs')
+    // 見面：按了「見完了」的約定（跟首頁、每日行動、報告同一個算法）
+    supabase.from('counter_logs')
       .select('contact_id,date,contacts(id,name,interest_level,next_plan,next_plan_date,is_muted)')
-      .eq('user_id', userId).eq('kind', 'meet').gte('date', ws).lte('date', we),
+      .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).gte('date', ws).lte('date', we),
     supabase.from('contacts').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).or('is_muted.is.null,is_muted.eq.false').gte('next_plan_date', t),
     fetchAddedContacts(supabase, { userId, from: ws, to: we }),
@@ -52,7 +54,9 @@ async function loadWeek(userId) {
   })
   // 「做滿」：當天互動滿 3 位、定下 1 個碰面、新增 2 位，三項都到才算一天（2025 領導者訓練大會簡報）
   const perDay = {}
-  ;(dayLogsRes.data || []).forEach(l => {
+  // 沒先約、直接見面後補記的，也算當天的「定下」
+  const dayLogs = [...(dayLogsRes.data || []), ...(await fetchUnplannedMeets(userId, ws, we))]
+  ;dayLogs.forEach(l => {
     const d = (perDay[l.date] = perDay[l.date] || { people: new Set(), plan: 0, fresh: 0 })
     d.people.add(l.contact_id)
     if (l.kind === 'meet_plan') d.plan++
@@ -65,7 +69,7 @@ async function loadWeek(userId) {
   const days312 = Object.values(perDay).filter(d => d.people.size >= mode.talk && d.plan >= mode.meet && d.fresh >= mode.fresh).length
   // 每週目標跟著每日模式走（每天的目標 × 7）；互動算人次（每天不同的人加起來），跟報告頁同一個算法
   const talkedWeek = Object.values(perDay).reduce((s, d) => s + d.people.size, 0)
-  const invitedWeek = new Set((dayLogsRes.data || []).filter(l => l.kind === 'meet_plan').map(l => l.contact_id)).size
+  const invitedWeek = new Set(dayLogs.filter(l => l.kind === 'meet_plan').map(l => l.contact_id)).size
   return {
     ws, we, met,
     planned: plansRes.count || 0,

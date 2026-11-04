@@ -1,5 +1,5 @@
 // meetingFlow.jsx — 「見完了 → 約下一次」流程、標籤清單、下一次卡片、見面前提示
-// 原則：必填只有「她有興趣嗎」，其他都選填；標籤清單可改名／隱藏／自己新增。
+// 原則：必填只有「對方有興趣嗎」，其他都選填；標籤清單可改名／隱藏／自己新增。
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
@@ -7,6 +7,7 @@ import { syncDaily3 } from './followUp'
 import { recordMetNow, scheduleMeeting } from './meetings'
 import { trackUsage } from './usage'
 import { ToolRow } from './tools'
+import { DayPicker, twYesterday } from './addedDate'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, SUBCARD_BG, RADIUS,
   ACCENT_GREEN_TEXT, ACCENT_GREEN_SOFT, DANGER,
@@ -30,11 +31,11 @@ export function fmtPlanDate(dateStr) {
 
 // ---- 興趣程度 ----
 export const INTEREST_LEVELS = [
-  { key: 'very', label: '很有興趣', dot: '#3ECF8E', desc: '她自己想多了解', tip: '約下一次：一對一或說明會', plans: ['一對一會談', '事業說明會', '三方通話'] },
-  { key: 'some', label: '有點興趣', dot: '#8FCBA8', desc: '問了幾句、想看看', tip: '約下一次：體驗產品，或聊她在意的事', plans: ['體驗產品', '逛網站', '家庭事業說明會'] },
-  { key: 'watch', label: '觀望中', dot: '#FFD166', desc: '不排斥，但還沒想動', tip: '先保持聯絡，分享一則對她有用的資訊', plans: ['線上影片', '約聚餐'] },
+  { key: 'very', label: '很有興趣', dot: '#3ECF8E', desc: '對方自己想多了解', tip: '約下一次：一對一或說明會', plans: ['一對一會談', '事業說明會', '三方通話'] },
+  { key: 'some', label: '有點興趣', dot: '#8FCBA8', desc: '問了幾句、想看看', tip: '約下一次：體驗產品，或聊對方在意的事', plans: ['體驗產品', '逛網站', '家庭事業說明會'] },
+  { key: 'watch', label: '觀望中', dot: '#FFD166', desc: '不排斥，但還沒想動', tip: '先保持聯絡，分享一則對方用得上的資訊', plans: ['線上影片', '約聚餐'] },
   { key: 'none', label: '沒興趣', dot: '#E8A06B', desc: '這次聽完沒有火花', tip: '先放著，維持朋友關係，不打擾', plans: [] },
-  { key: 'unknown', label: '看不出來', dot: '#77726A', desc: '她說得不多', tip: '下次多問、多聽，別急著介紹', plans: ['約聚餐', '一對一會談'] },
+  { key: 'unknown', label: '看不出來', dot: '#77726A', desc: '對方說得不多', tip: '下次多問、多聽，別急著介紹', plans: ['約聚餐', '一對一會談'] },
 ]
 export const ABOUT_OPTIONS = ['產品', '生意機會', '還不確定']
 export const ALL_PLANS = ['體驗產品', '逛網站', '一對一會談', '二對一會談', '三方通話', '線上影片', '家庭事業說明會', '事業說明會', '約聚餐']
@@ -177,7 +178,9 @@ function TagPicker({ title, items, picked, setPicked, onAdd, tone }) {
 }
 
 // ---- 見完了面板 ----
-export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
+export function AfterMeetSheet({ contact, userId, logId, initialDate, onClose, onSaved }) {
+  // 哪天見的：從過期的約定按進來帶約定那天，其他預設今天（最晚今天）
+  const [metDate, setMetDate] = useState(() => (initialDate && initialDate < todayStr() ? initialDate : todayStr()))
   const tags = useTagLists(userId)
   const [level, setLevel] = useState(null)
   const [about, setAbout] = useState([])
@@ -198,10 +201,10 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
   const planChips = suggested.concat(ALL_PLANS.filter(p => !suggested.includes(p)))
 
   async function handleSave() {
-    if (!lv) { setErr('先選一個：她有興趣嗎'); return }
+    if (!lv) { setErr('先選一個：對方有興趣嗎'); return }
     if (saving) return
     setSaving(true)
-    const dt = todayStr()
+    const dt = metDate || todayStr()
     const note = quote.trim()
     const planText = plan.trim()
     // 1) 記這次見面（互動紀錄）
@@ -211,11 +214,12 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
     })
     if (e0) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
     // 2) 這次見面算在約定的那一筆上；沒有約定的話記一筆「已見到」
-    await recordMetNow(userId, contact.id, logId || null)
-    // 3) 她的狀況
+    await recordMetNow(userId, contact.id, logId || null, dt)
+    // 3) 對方的狀況
     const upd = {
       last_interacted_at: new Date().toISOString(),
-      last_contact_date: dt,
+      // 補記比較舊的日子，不會把「上次聯絡」往前拉
+      last_contact_date: !contact.last_contact_date || dt > contact.last_contact_date ? dt : contact.last_contact_date,
       interest_level: lv.label,
       interest_about: about,
       need_tags: needs,
@@ -250,7 +254,15 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
         </div>
 
         <div style={sec}>
-          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>她有興趣嗎（必選）</div>
+          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>哪天見的</div>
+          <DayPicker value={metDate} onChange={v => setMetDate(v)} hint="見面數、那天的 3 互動、上次聯絡都算在這一天。" />
+        </div>
+
+        <div style={sec}>
+          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>對方有興趣嗎（必選）</div>
+          {metDate && metDate < twYesterday() && (
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>隔太久記不清楚，選「看不出來」就好</div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }}>
             {INTEREST_LEVELS.map(x => (
               <button key={x.key} type="button" onClick={() => { setLevel(x.key === level ? null : x.key); setErr('') }}
@@ -287,7 +299,7 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
         </div>
 
         <div style={sec}>
-          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>她說了什麼（選填，一句話就好）</div>
+          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>對方說了什麼（選填，一句話就好）</div>
           <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="例如：最近都睡不好"
             style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`, fontSize: 14, outline: 'none' }} />
         </div>
@@ -300,8 +312,8 @@ export function AfterMeetSheet({ contact, userId, logId, onClose, onSaved }) {
             </button>
             {openMore && (
               <div style={{ marginTop: 10 }}>
-                <TagPicker title="她在意什麼（可複選）" items={tags.visibleNeeds} picked={needs} setPicked={setNeeds} onAdd={(t) => tags.add('needs', t)} />
-                <TagPicker title="她主動做了什麼（可複選）" tone="green" items={tags.visibleSignals} picked={signals} setPicked={setSignals} onAdd={(t) => tags.add('signals', t)} />
+                <TagPicker title="對方在意什麼（可複選）" items={tags.visibleNeeds} picked={needs} setPicked={setNeeds} onAdd={(t) => tags.add('needs', t)} />
+                <TagPicker title="對方主動做了什麼（可複選）" tone="green" items={tags.visibleSignals} picked={signals} setPicked={setSignals} onAdd={(t) => tags.add('signals', t)} />
               </div>
             )}
           </div>
@@ -367,9 +379,9 @@ export function NextPlanCard({ contact, onOpen, onSchedule, onEdit }) {
       <button onClick={hasPlan ? onEdit : onOpen} style={link}>
         {hasPlan ? '改時間 ›' : '已經見過了？見完了，記一下 ›'}
       </button>
-      {needs.length > 0 && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6 }}>她在意：{needs.join('、')}</div>}
+      {needs.length > 0 && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 6 }}>對方在意：{needs.join('、')}</div>}
       {signals.length > 0 && <div style={{ fontSize: 12, color: ACCENT_GREEN_TEXT, marginTop: 2 }}>上次：{signals.join('、')}</div>}
-      {contact.last_quote && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>上次她說：「{contact.last_quote}」</div>}
+      {contact.last_quote && <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>上次對方說：「{contact.last_quote}」</div>}
     </div>
   )
 }
@@ -437,9 +449,9 @@ export function TagManager({ userId, cardStyle }) {
       </label>
       {tags.ready && (
         <>
-          <p style={head}>她在意什麼</p>
+          <p style={head}>對方在意什麼</p>
           <TagRows kind="needs" items={tags.needs} tags={tags} />
-          <p style={{ ...head, marginTop: 16 }}>她主動做了什麼</p>
+          <p style={{ ...head, marginTop: 16 }}>對方主動做了什麼</p>
           <TagRows kind="signals" items={tags.signals} tags={tags} />
         </>
       )}

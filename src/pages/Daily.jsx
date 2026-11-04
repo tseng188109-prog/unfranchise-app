@@ -17,7 +17,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { loadDailyMode, saveTagSetting, resolveMode, resolveWeeklyMeet, resolveWeeklyMet } from './dailyMode'
 import { AfterMeetSheet } from './meetingFlow'
 import {
-  ScheduleSheet, fetchMeetings, settleMeetings, removeMeetingWithUndo, isMet, splitTime, taipeiToday,
+  ScheduleSheet, fetchMeetings, removeMeetingWithUndo, isMet, isPending, splitTime, taipeiToday, PersonPickSheet, fetchUnplannedMeets,
 } from './meetings'
 import { DAILY_TASKS, WEEKLY_TASKS, WEEKLY_COUNTERS, MONTH_ITEMS, COUNTER_COLORS } from './taskDefinitions'
 
@@ -100,6 +100,7 @@ export default function Daily() {
   const [afterMeet, setAfterMeet] = useState(null)
   const [hideSheet, setHideSheet] = useState(false)
   const [weekLogs, setWeekLogs] = useState([])
+  const [pickFor, setPickFor] = useState(null) // 補記見面：要記哪一天（先選人）
   const [monthLogs, setMonthLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -132,7 +133,7 @@ export default function Daily() {
   useEffect(() => { if (user) fetchMonthLogs() }, [user, monthViewDate])
   useEffect(() => {
     if (!user) return
-    settleMeetings(user.id).then(() => reloadMeets())
+    reloadMeets()
     supabase.from('contacts').select('id,name,interest_level,need_tags,last_quote')
       .eq('user_id', user.id).eq('is_archived', false).order('name').limit(500)
       .then(({ data }) => setAllContacts(data || []))
@@ -189,7 +190,7 @@ export default function Daily() {
     const count = (await fetchAddedContacts(supabase, { userId: user.id, from: t, to: t })).length
     setD312({
       talk: new Set((logs || []).map(l => l.contact_id)).size,
-      plan: (logs || []).filter(l => l.kind === 'meet_plan').length,
+      plan: (logs || []).filter(l => l.kind === 'meet_plan').length + (await fetchUnplannedMeets(user.id, t, t)).length,
       fresh: count || 0,
     })
   }
@@ -216,7 +217,8 @@ export default function Daily() {
     setWeekMeets(await fetchMeetings(user.id, ws, we))
     const { data: pl } = await supabase.from('contact_logs')
       .select('contact_id').eq('user_id', user.id).eq('kind', 'meet_plan').gte('date', ws).lte('date', we)
-    setWeekPlanned(new Set((pl || []).map(l => l.contact_id)).size)
+    const unplanned = await fetchUnplannedMeets(user.id, ws, we) // 沒先約、直接見面的也算定下
+    setWeekPlanned(new Set([...(pl || []), ...unplanned].map(l => l.contact_id)).size)
   }
 
   async function fetchMonthLogs() {
@@ -248,7 +250,7 @@ export default function Daily() {
   async function openMet(m) {
     if (!m.contact_id) return
     const { data } = await supabase.from('contacts').select('*').eq('id', m.contact_id).single()
-    if (data) setAfterMeet({ contact: data, logId: m.id })
+    if (data) setAfterMeet({ contact: data, logId: m.id, date: m.planned_date })
   }
 
   async function deleteMeet(m) {
@@ -435,10 +437,11 @@ export default function Daily() {
     const ms2 = monthMeets.filter(m => m.eff === dateStr)
     const hasMeet = ms2.length > 0
     const hasDone = logs.some(l => l.is_done) || ms2.some(isMet)
-    const hasPlan = logs.some(l => !l.is_done) || ms2.some(m => !isMet(m))
+    const hasPlan = logs.some(l => !l.is_done) || ms2.some(m => !isMet(m) && !isPending(m))
+    const hasPending = ms2.some(isPending)
     const hasProduct = logs.some(l => l.counter_key === 'new_product')
     const hasGmtss = logs.some(l => l.counter_key === 'gmtss')
-    calDays.push({ d, dateStr, logs, hasDone, hasPlan, hasProduct, hasGmtss, hasMeet })
+    calDays.push({ d, dateStr, logs, hasDone, hasPlan, hasPending, hasProduct, hasGmtss, hasMeet })
   }
 
   function MeetRow({ m }) {
@@ -464,8 +467,11 @@ export default function Daily() {
           {label && <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>{label}</div>}
         </div>
         <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end',flexShrink:0 }}>
-          {past ? (
+          {met ? (
+            <button onClick={() => deleteMeet(m)} aria-label="刪除" style={{ ...miniLink(DANGER), display:'flex' }}><IconTrash size={17} stroke={1.8} /></button>
+          ) : past ? (
             <>
+              {m.contact_id && <button onClick={() => openMet(m)} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了</button>}
               <button onClick={() => setSched({ log: m })} style={miniLink(TEXT_SECONDARY)}>沒見成？改時間</button>
               <button onClick={() => deleteMeet(m)} aria-label="刪除" style={{ ...miniLink(DANGER), display:'flex' }}><IconTrash size={17} stroke={1.8} /></button>
             </>
@@ -667,11 +673,18 @@ export default function Daily() {
             borderRadius:12, padding:'10px 12px' }}>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
               <span style={{ fontSize:13,fontWeight:600,color:TEXT_MAIN }}>每週見面</span>
-              <button onClick={() => setSched({ log: null, date: selectedWeekDay || '' })}
-                style={{ display:'flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:10,border:'none',
-                  background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
-                <IconPlus size={12} stroke={2.2} /> 定時間
-              </button>
+              <div style={{ display:'flex',gap:6 }}>
+                <button onClick={() => setPickFor(selectedWeekDay && selectedWeekDay <= today() ? selectedWeekDay : today())}
+                  style={{ display:'flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:10,border:`1px solid ${PRIMARY}`,
+                    background:'var(--card)',color:PRIMARY,fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                  <IconPlus size={12} stroke={2.2} /> 補記見面
+                </button>
+                <button onClick={() => setSched({ log: null, date: selectedWeekDay && selectedWeekDay >= today() ? selectedWeekDay : '' })}
+                  style={{ display:'flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:10,border:'none',
+                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                  <IconPlus size={12} stroke={2.2} /> 定時間
+                </button>
+              </div>
             </div>
             <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:6 }}>
               {Array.from({ length: dotN }).map((_, i) => (
@@ -694,10 +707,12 @@ export default function Daily() {
               const dayLogs = weekLogs.filter(l => (l.planned_date || l.date) === d)
               const dayMeets = weekMeets.filter(m => m.eff === d)
               const hasDone = dayLogs.some(l => l.is_done) || dayMeets.some(isMet)
-              const hasPlan = dayLogs.some(l => !l.is_done) || dayMeets.some(m => !isMet(m))
+              const hasPlan = dayLogs.some(l => !l.is_done) || dayMeets.some(m => !isMet(m) && !isPending(m))
+              const hasPending = dayMeets.some(isPending)
               const isSelected = selectedWeekDay === d
-              let bg = 'var(--card)', border = BORDER
-              if (hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
+              let bg = 'var(--card)', border = BORDER, dashed = false
+              if (hasPending) { border = 'var(--yellow-border)'; dashed = true }
+              else if (hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
               else if (hasPlan) { bg = 'var(--yellow-soft)'; border = 'var(--yellow-border)' }
               if (isSelected) border = PRIMARY
               const dots = []
@@ -711,10 +726,11 @@ export default function Daily() {
                     {DAYS_ZH[new Date(d+'T00:00:00').getDay()]}<br/>{formatShortDate(d)}
                   </span>
                   <div style={{ width:'100%',height:44,borderRadius:10,boxSizing:'border-box',
-                    background:bg, border:`1.5px solid ${border}`,
+                    background:bg, border:`1.5px ${dashed ? 'dashed' : 'solid'} ${border}`,
                     display:'flex',alignItems:'center',justifyContent:'center',gap:3,
                     outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:1 }}>
-                    {hasDone && dayMeets.some(isMet) && <IconCheck size={13} stroke={2.6} color={ACCENT_GREEN_TEXT} />}
+                    {hasPending && <span style={{ fontSize:13,fontWeight:700,color:ACCENT_YELLOW_TEXT }}>？</span>}
+                    {!hasPending && hasDone && dayMeets.some(isMet) && <IconCheck size={13} stroke={2.6} color={ACCENT_GREEN_TEXT} />}
                     {dots.slice(0,3).map((c, i) => (
                       <div key={i} style={{ width:6,height:6,borderRadius:'50%',background:c }} />
                     ))}
@@ -740,7 +756,7 @@ export default function Daily() {
               if (meetsShown.length === 0 && othersShown.length === 0) {
                 return (
                   <p style={{ fontSize:12,color:TEXT_MUTED,textAlign:'center',padding:'8px 0' }}>
-                    {selectedWeekDay ? '這天沒有安排，點上面的「+ 定時間」安排一個' : '這週還沒有安排，點上面的「+ 定時間」'}
+                    {selectedWeekDay ? '這天沒有安排。見過人了按「+ 補記見面」，要約人按「+ 定時間」' : '這週還沒有安排，點上面的「+ 定時間」'}
                   </p>
                 )
               }
@@ -816,7 +832,7 @@ export default function Daily() {
               </div>
             ))}
           </div>
-          <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>黃底是預排，綠底是已完成</div>
+          <div style={{ fontSize:11,color:TEXT_MUTED,marginBottom:10 }}>黃底是約好了，黃虛線是過了還沒記，綠底是見完了</div>
 
           <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:5,marginBottom:3 }}>
             {DAYS_ZH.map(d => (
@@ -830,23 +846,25 @@ export default function Daily() {
               const isFut = day.dateStr > today()
               const isT = day.dateStr === today()
               const isSelected = selectedMonthDay === day.dateStr
-              let bg = SUBCARD_BG, border = BORDER
-              if (day.hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
+              let bg = SUBCARD_BG, border = BORDER, dashed = false
+              if (day.hasPending) { bg = 'var(--card)'; border = 'var(--yellow-border)'; dashed = true }
+              else if (day.hasDone) { bg = ACCENT_GREEN_SOFT; border = 'var(--green-border)' }
               else if (day.hasPlan) { bg = 'var(--yellow-soft)'; border = 'var(--yellow-border)' }
               if (isSelected) border = PRIMARY
               return (
                 <div key={day.dateStr}
                   onClick={() => setSelectedMonthDay(isSelected ? null : day.dateStr)}
                   style={{ aspectRatio:'1',minWidth:0,width:'100%',borderRadius:9,background:bg,
-                    border:`1.5px solid ${isT&&!isSelected?PRIMARY:border}`,
+                    border:`1.5px ${dashed ? 'dashed' : 'solid'} ${isT&&!isSelected?PRIMARY:border}`,
                     boxSizing:'border-box',
                     display:'flex',flexDirection:'column',alignItems:'center',
                     justifyContent:'center',cursor:'pointer',gap:2,
                     outline: isSelected?`2px solid ${PRIMARY}`:'none',outlineOffset:-2 }}>
                   <span style={{ fontSize:12,fontWeight: isT?700:600,
-                    color: day.hasDone?ACCENT_GREEN_TEXT:day.hasPlan?ACCENT_YELLOW_TEXT:isFut?TEXT_MUTED:TEXT_MAIN }}>
+                    color: day.hasPending?ACCENT_YELLOW_TEXT:day.hasDone?ACCENT_GREEN_TEXT:day.hasPlan?ACCENT_YELLOW_TEXT:isFut?TEXT_MUTED:TEXT_MAIN }}>
                     {day.d}
                   </span>
+                  {day.hasPending && <span style={{ fontSize:10,fontWeight:700,color:ACCENT_YELLOW_TEXT,lineHeight:1 }}>？</span>}
                   {(day.hasProduct || day.hasGmtss || day.hasMeet) && (
                     <div style={{ display:'flex',gap:2 }}>
                       {day.hasMeet && <div style={{ width:5,height:5,borderRadius:'50%',background:PINK }} />}
@@ -864,11 +882,24 @@ export default function Daily() {
               <span style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>
                 {selectedMonthDay ? formatDateLabel(selectedMonthDay) : '這個月的安排'}
               </span>
-              <button onClick={() => openAddModal('month', selectedMonthDay || today())}
-                style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
-                  background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
-                <IconPlus size={13} stroke={2.2} /> 新增學習
-              </button>
+              <div style={{ display:'flex',gap:6 }}>
+                {(() => {
+                  const d = selectedMonthDay || today()
+                  const fut = d > today()
+                  return (
+                    <button onClick={() => (fut ? setSched({ log: null, date: d }) : setPickFor(d))}
+                      style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:`1px solid ${PRIMARY}`,
+                        background:'var(--card)',color:PRIMARY,fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                      <IconPlus size={13} stroke={2.2} /> {fut ? '定時間' : '記見面'}
+                    </button>
+                  )
+                })()}
+                <button onClick={() => openAddModal('month', selectedMonthDay || today())}
+                  style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:10,border:'none',
+                    background:PRIMARY,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer' }}>
+                  <IconPlus size={13} stroke={2.2} /> 新增學習
+                </button>
+              </div>
             </div>
             {(() => {
               const dayOf = l => l.planned_date || l.date
@@ -933,8 +964,13 @@ export default function Daily() {
           log={sched.log} initialDate={sched.date} onClose={() => setSched(null)} onSaved={reloadMeets} />
       )}
       {afterMeet && (
-        <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId}
+        <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId} initialDate={afterMeet.date}
           onClose={() => setAfterMeet(null)} onSaved={reloadMeets} />
+      )}
+      {pickFor && (
+        <PersonPickSheet userId={user.id} title={`${formatShortDate(pickFor)} 跟誰見面？`}
+          onClose={() => setPickFor(null)}
+          onPick={c => { const d = pickFor; setPickFor(null); setAfterMeet({ contact: c, logId: null, date: d }) }} />
       )}
       {hideSheet && (
         <div onClick={() => setHideSheet(false)}
