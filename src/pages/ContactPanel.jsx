@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -63,6 +64,8 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
 
   const [editingLogId, setEditingLogId] = useState(null)
   const [editNote, setEditNote] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editTool, setEditTool] = useState('')
   const [starBusy, setStarBusy] = useState(null)
   const [starMsg, setStarMsg] = useState('')
   const [linkedCustomer, setLinkedCustomer] = useState(null)
@@ -164,11 +167,40 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   function startEditLog(log) {
     setEditingLogId(log.id)
     setEditNote(log.note || '')
+    setEditDate(log.date || today())
+    setEditTool(log.tool || '')
+  }
+  // 互動紀錄的日期改了或刪了之後，「上次聯絡」要跟著重算成剩下紀錄裡最新的那一天
+  async function recomputeLastContact() {
+    const { data: rows } = await supabase.from('contact_logs').select('date').eq('contact_id', id)
+    const latest = (rows || []).map(r => r.date).filter(Boolean).sort().pop() || null
+    if (latest === (contact.last_contact_date || null)) return
+    const upd = { last_contact_date: latest }
+    if (latest && contact.source !== 'customer') {
+      const next = new Date(latest + 'T00:00:00')
+      next.setDate(next.getDate() + (DAYS_MAP[contact.action_type] || 30))
+      upd.next_contact_date = toDateStr(next)
+    }
+    await supabase.from('contacts').update(upd).eq('id', id)
   }
   async function saveEditLog(logId) {
     const text = editNote.trim()
     const log = logs.find(l => l.id === logId)
-    await supabase.from('contact_logs').update({ note: text || null }).eq('id', logId)
+    const upd = { note: text || null, tool: editTool || null }
+    // 「約好下一次」的紀錄日期是按下約定那天，不在這裡改，要改時間到「下一次」卡
+    const dateChanged = log && log.kind !== 'meet_plan' && editDate && editDate !== log.date
+    if (dateChanged) upd.date = editDate
+    let { error } = await supabase.from('contact_logs').update(upd).eq('id', logId)
+    if (error && /tool/.test(error.message || '')) {
+      delete upd.tool
+      ;({ error } = await supabase.from('contact_logs').update(upd).eq('id', logId))
+    }
+    if (error) { await askConfirm({ title:'沒有存成功', message:'網路可能不穩，再試一次', okText:'知道了', hideCancel:true }); return }
+    if (dateChanged) {
+      await recomputeLastContact()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) await syncDaily3(supabase, user.id, editDate)
+    }
     // 這筆如果已經標成重點：重點裡的字一起更新；字清空了就把重點拿掉
     if (log && log.story_note_id) {
       const ids = chainIds(contactNotes, log.story_note_id)
@@ -182,14 +214,26 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     }
     setEditingLogId(null)
     fetchContact()
+    onChanged?.()
   }
   async function deleteLog(log) {
     const starred = isStarred(log)
-    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message: starred ? '這筆也標成重點了，刪除後重點也會一起刪掉，無法復原。' : '刪除後無法復原。', okText:'刪除', danger:true }))) return
-    if (log.story_note_id) await supabase.from('contact_notes').delete().in('id', chainIds(contactNotes, log.story_note_id))
-    await supabase.from('contact_logs').delete().eq('id', log.id)
-    fetchContact()
-    onChanged?.()
+    if (!(await askConfirm({ title:'刪除這筆互動紀錄？', message: (starred ? '這筆也標成重點了，重點會一起刪掉。' : '') + '刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    const noteIds = log.story_note_id ? chainIds(contactNotes, log.story_note_id) : []
+    undoableDelete({
+      label: log.note || formatMD(log.date),
+      hide: () => setLogs(ls => ls.filter(l => l.id !== log.id)),
+      undo: () => fetchContact(),
+      commit: async () => {
+        if (noteIds.length) await supabase.from('contact_notes').delete().in('id', noteIds)
+        const res = await supabase.from('contact_logs').delete().eq('id', log.id)
+        if (res.error) return res
+        await recomputeLastContact()
+        fetchContact()
+        onChanged?.()
+        return res
+      },
+    })
   }
 
   // 重點現在還算數的（被「已經不是了」或「還是這樣」接續過的舊紀錄不算）
@@ -553,30 +597,44 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                         {editingLogId !== log.id && i===0 && <span style={{ color:ACCENT_GREEN_TEXT, marginLeft:6 }}>最近</span>}
                       </span>
                       {editingLogId !== log.id && (
-                        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                        <div style={{ display:'flex', gap:16, alignItems:'center' }}>
                           {log.note && (
                             <button onClick={() => toggleStar(log)} disabled={starBusy === log.id}
                               aria-label={starred ? '取消重點' : '記成重點'}
                               style={{ background:'none', border:'none', cursor:'pointer', display:'flex', padding:0, color:TEXT_MUTED }}>
-                              {starred ? <IconStarFilled size={16} color={ACCENT_YELLOW} /> : <IconStar size={16} stroke={1.8} />}
+                              {starred ? <IconStarFilled size={17} color={ACCENT_YELLOW} /> : <IconStar size={17} stroke={1.8} />}
                             </button>
                           )}
                           <button onClick={() => startEditLog(log)} aria-label="編輯"
                             style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex', padding:0 }}>
-                            <IconPencil size={14} stroke={1.9} />
+                            <IconPencil size={17} stroke={1.8} />
                           </button>
                           <button onClick={() => deleteLog(log)} aria-label="刪除"
                             style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, display:'flex', padding:0 }}>
-                            <IconTrash size={14} stroke={1.9} />
+                            <IconTrash size={17} stroke={1.8} />
                           </button>
                         </div>
                       )}
                     </div>
                     {editingLogId === log.id ? (
                       <div>
+                        {log.kind !== 'meet_plan' ? (
+                          <div style={{ marginBottom:8 }}>
+                            <DateField value={editDate} max={today()} clearable={false}
+                              onChange={e => setEditDate(e.target.value)}
+                              style={{ width:140, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                                fontSize:13, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+                          </div>
+                        ) : (
+                          <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:8 }}>約定的時間請到上方「下一次」卡修改</div>
+                        )}
                         <AutoTextarea value={editNote} onChange={e => setEditNote(e.target.value)} minRows={2} autoFocus
                           style={{ border:`1px solid ${PRIMARY}`, fontSize:13, lineHeight:1.7 }} />
-                        <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+                        <div style={{ marginTop:10 }}>
+                          <ToolRow value={editTool} onChange={setEditTool} contact={contact} hideSuggest
+                            customer={contact.source === 'customer' || !!linkedCustomer} />
+                        </div>
+                        <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:10 }}>
                           <button onClick={() => setEditingLogId(null)}
                             style={{ padding:'7px 16px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`, background:'var(--card)', color:TEXT_SECONDARY, fontSize:13, cursor:'pointer' }}>取消</button>
                           <button onClick={() => saveEditLog(log.id)}

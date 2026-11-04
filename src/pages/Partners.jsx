@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { CloseBtn } from './ui'
 import { supabase } from '../supabase'
+import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import {
   IconSpeakerphone, IconX, IconUsersGroup, IconChevronRight,
-  IconCheck, IconCalendar,
+  IconCheck, IconCalendar, IconTrash,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS } from './taskDefinitions'
@@ -154,9 +156,18 @@ export default function Partners() {
     fetchAnnouncements()
   }
 
-  async function deleteAnnouncement(id) {
-    await supabase.from('announcements').delete().eq('id', id)
-    fetchAnnouncements()
+  async function deleteAnnouncement(a) {
+    if (!(await askConfirm({ title:`刪除公告「${a.title || ''}」？`, message:'團隊每個人都看不到這則公告了。刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    undoableDelete({
+      label: a.title || '公告',
+      hide: () => setAnnouncements(as => as.filter(x => x.id !== a.id)),
+      undo: () => fetchAnnouncements(),
+      commit: async () => {
+        const res = await supabase.from('announcements').delete().eq('id', a.id)
+        fetchAnnouncements()
+        return res
+      },
+    })
   }
 
   async function fetchPartners() {
@@ -588,9 +599,9 @@ export default function Partners() {
                         </p>
                       </div>
                       {isAdmin && (
-                        <button onClick={() => deleteAnnouncement(a.id)}
-                          style={{ background:'none', border:'none', color:TEXT_MUTED,
-                            cursor:'pointer', padding:'0 2px', display:'flex', flexShrink:0 }}><IconX size={16} stroke={1.9} /></button>
+                        <button onClick={() => deleteAnnouncement(a)} aria-label="刪除公告"
+                          style={{ background:'none', border:'none', color:DANGER,
+                            cursor:'pointer', padding:0, display:'flex', flexShrink:0 }}><IconTrash size={17} stroke={1.8} /></button>
                       )}
                     </div>
                   </div>

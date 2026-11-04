@@ -37,7 +37,8 @@ import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meet
 import { upcomingPlans, fmtPlanDate } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
-import { fetchUpcomingEvents, inviteToEvent, cancelInvite, isInvitedTo, daysUntil } from './eventInvite'
+import { fetchUpcomingEvents, inviteToEvent, cancelInvite, restoreInvite, isInvitedTo, daysUntil } from './eventInvite'
+import { undoableDelete } from './undoDelete'
 import { askConfirm } from './confirmDialog'
 import { MeetingKeyNote } from './keyPoints'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
@@ -629,10 +630,15 @@ export default function Dashboard() {
     fetchFollowUps(); loadFutureMeets()
   }
   async function handleCancelInvite(c, ev) {
-    const ok = await askConfirm({ title: `取消邀請 ${c.name}？`, message: `會清掉「邀請參加 ${ev.title}」這個約定。`, okText: '取消邀請', danger: true })
+    const ok = await askConfirm({ title: `取消邀請 ${c.name}？`, message: `會清掉「邀請參加 ${ev.title}」這個約定。8 秒內可以按「復原」。`, okText: '取消邀請', danger: true })
     if (!ok) return
-    await cancelInvite(supabase, c, ev, user.id)
+    const snap = await cancelInvite(supabase, c, ev, user.id)
     fetchFollowUps(); loadFutureMeets()
+    undoableDelete({
+      label: `邀請 ${c.name}`,
+      commit: async () => null,
+      undo: async () => { await restoreInvite(supabase, snap, user.id); fetchFollowUps(); loadFutureMeets() },
+    })
   }
   const favProducts = resolveFavProducts(profile?.tag_settings)
   const doneContacts = today312.contacted.map(id => activeContacts.find(c => c.id === id)).filter(Boolean)

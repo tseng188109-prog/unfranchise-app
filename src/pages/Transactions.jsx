@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
+import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
@@ -47,7 +49,6 @@ export default function Transactions() {
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
   const [menuId, setMenuId] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -176,12 +177,20 @@ export default function Transactions() {
     else setMonth(m => m+1)
   }
 
-  async function handleDelete() {
-    if (!deleteTarget) return
-    await supabase.from('transactions').delete().eq('id', deleteTarget)
-    setDeleteTarget(null)
-    fetchData()
-    if (searchQuery.trim()) doSearch(searchQuery.trim())
+  async function handleDelete(t) {
+    setMenuId(null)
+    if (!(await askConfirm({ title:'刪除這筆業績紀錄？', message:'刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    undoableDelete({
+      label: t.product_name || '業績紀錄',
+      hide: () => { setTransactions(ts => ts.filter(x => x.id !== t.id)); setSearchResults(rs => rs.filter(x => x.id !== t.id)) },
+      undo: () => { fetchData(); if (searchQuery.trim()) doSearch(searchQuery.trim()) },
+      commit: async () => {
+        const res = await supabase.from('transactions').delete().eq('id', t.id)
+        fetchData()
+        if (searchQuery.trim()) doSearch(searchQuery.trim())
+        return res
+      },
+    })
   }
 
   function openEdit(t) {
@@ -345,7 +354,7 @@ export default function Transactions() {
               style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
                 background:'none',border:'none',textAlign:'left',
                 fontSize:14,color:TEXT_MAIN,cursor:'pointer' }}><IconPencil size={15} stroke={1.9} /> 編輯</button>
-            <button onClick={() => { setMenuId(null); setDeleteTarget(t.id) }}
+            <button onClick={() => handleDelete(t)}
               style={{ display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',
                 background:'none',border:'none',textAlign:'left',
                 fontSize:14,color:DANGER,cursor:'pointer' }}><IconTrash size={15} stroke={1.9} /> 刪除</button>
@@ -678,13 +687,13 @@ export default function Transactions() {
                       {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${margin.toLocaleString()}`}
                     </td>
                     <td style={{ ...tdStyle, textAlign:'center' }}>
-                      <button onClick={() => openEdit(t)}
-                        style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,marginRight:10,display:'inline-flex' }}>
-                        <IconPencil size={15} stroke={1.9} />
+                      <button onClick={() => openEdit(t)} aria-label="編輯"
+                        style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,marginRight:16,display:'inline-flex',padding:0 }}>
+                        <IconPencil size={17} stroke={1.8} />
                       </button>
-                      <button onClick={() => setDeleteTarget(t.id)}
-                        style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'inline-flex' }}>
-                        <IconTrash size={15} stroke={1.9} />
+                      <button onClick={() => handleDelete(t)} aria-label="刪除"
+                        style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'inline-flex',padding:0 }}>
+                        <IconTrash size={17} stroke={1.8} />
                       </button>
                     </td>
                   </tr>
@@ -803,28 +812,6 @@ export default function Transactions() {
                 完成
               </button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* 刪除確認 */}
-      {deleteTarget && (
-        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
-          display:'flex',alignItems:'center',justifyContent:'center',zIndex:200 }}>
-          <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
-            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
-              <IconTrash size={30} stroke={1.6} color={DANGER} />
-            </div>
-            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>確定刪除？</p>
-            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>刪除後無法復原</p>
-            <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDelete}
-                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>刪除</button>
-            </div>
           </div>
         </div>
       )}

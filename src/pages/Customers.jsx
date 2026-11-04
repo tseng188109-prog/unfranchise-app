@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -44,7 +45,6 @@ export default function Customers() {
   const [menuTarget, setMenuTarget] = useState(null)
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [restoreTarget, setRestoreTarget] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
   const [showArchived, setShowArchived] = useState(false)
 
   // 桌面版右側面板：選中的顧客 id（手機版不使用，點擊會直接跳轉整頁）
@@ -111,13 +111,20 @@ export default function Customers() {
   }
 
   // 永久刪除：業績交易紀錄不刪除（保留完整財務紀錄），只把交易上的 customer_id 解除關聯
-  async function handleDeletePermanent() {
-    if (!deleteTarget) return
-    await supabase.from('transactions').update({ customer_id: null }).eq('customer_id', deleteTarget.id)
-    const { error } = await supabase.from('customers').delete().eq('id', deleteTarget.id)
-    if (error) { await askConfirm({ title:'刪除失敗', message:error.message, okText:'知道了', hideCancel:true }); return }
-    if (selectedId === deleteTarget.id) setSelectedId(null)
-    setDeleteTarget(null); setMenuTarget(null); fetchCustomers()
+  async function askDeletePermanent(c) {
+    setMenuTarget(null)
+    if (!(await askConfirm({ title:`永久刪除「${c.name}」？`, message:'業績交易紀錄會保留，但會解除跟這位顧客的關聯。刪除後 8 秒內可以按「復原」。', okText:'永久刪除', danger:true }))) return
+    undoableDelete({
+      label: c.name,
+      hide: () => { setCustomers(cs => cs.filter(x => x.id !== c.id)); if (selectedId === c.id) setSelectedId(null) },
+      undo: () => fetchCustomers(),
+      commit: async () => {
+        await supabase.from('transactions').update({ customer_id: null }).eq('customer_id', c.id)
+        const res = await supabase.from('customers').delete().eq('id', c.id)
+        fetchCustomers()
+        return res
+      },
+    })
   }
 
   function openCustomer(c) {
@@ -347,7 +354,7 @@ export default function Customers() {
               background: showArchived ? TEXT_SECONDARY : SUBCARD_BG,
               color: showArchived ? '#fff' : TEXT_SECONDARY,
               fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-            <IconArchive size={13} stroke={2} /> {showArchived ? '查看一般' : '封存名單'}
+            <IconArchive size={13} stroke={2} /> {showArchived ? '回到名單' : '封存名單'}
           </button>
         </div>
       </div>
@@ -535,7 +542,7 @@ export default function Customers() {
                   <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
                   <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
                 </button>
-                <button onClick={() => setDeleteTarget(menuTarget)}
+                <button onClick={() => askDeletePermanent(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
                     padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
@@ -617,30 +624,6 @@ export default function Customers() {
         </div>
       )}
 
-      {deleteTarget && (
-        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:280, textAlign:'center' }}>
-            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
-              <IconTrash size={30} stroke={1.6} color={DANGER} />
-            </div>
-            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
-              確定永久刪除「{deleteTarget.name}」？
-            </p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
-              業績交易紀錄會保留，但會解除跟這位顧客的關聯，此動作無法復原
-            </p>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDeletePermanent}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>永久刪除</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

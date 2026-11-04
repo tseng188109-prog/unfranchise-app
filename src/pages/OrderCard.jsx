@@ -73,18 +73,18 @@ export default function OrderCard({ group, customerName, onEdit, onDelete }) {
           獲利 NT${fmt(profit)}
           {unpriced > 0 && <span style={{ fontSize: 11, fontWeight: 400, color: TEXT_MUTED }}>　{unpriced} 項賣價未填</span>}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button onClick={copy}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: PRIMARY, fontSize: 12, fontWeight:600, display: 'flex', alignItems: 'center', gap: 3, padding: 0 }}>
             <IconCopy size={13} stroke={1.9} /> {copied ? '已複製' : '複製給顧客'}
           </button>
           <button onClick={() => onEdit(group.orderId)} aria-label="編輯訂單"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED, display: 'flex', padding: 0 }}>
-            <IconPencil size={14} stroke={1.9} />
+            <IconPencil size={17} stroke={1.8} />
           </button>
           <button onClick={() => onDelete(group.orderId)} aria-label="刪除訂單"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: DANGER, display: 'flex', padding: 0 }}>
-            <IconTrash size={14} stroke={1.9} />
+            <IconTrash size={17} stroke={1.8} />
           </button>
         </div>
       </div>

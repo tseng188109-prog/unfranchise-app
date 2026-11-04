@@ -39,12 +39,24 @@ export async function inviteToEvent(supabase, userId, contact, ev) {
 // 取消邀請：只清掉這個活動的約會，其他約會不動
 export async function cancelInvite(supabase, contact, ev, userId) {
   const text = invitePlanText(ev)
+  // 先留一份，按「復原」時放回去
+  const { data: rows } = await supabase.from('counter_logs').select('*')
+    .eq('contact_id', contact.id).eq('counter_key', MEET_KEY).eq('planned_date', ev.event_date).eq('note', text)
+  const snap = { rows: rows || [], contactId: contact.id, next_plan: contact.next_plan || null, next_plan_date: contact.next_plan_date || null }
   await supabase.from('counter_logs').delete()
     .eq('contact_id', contact.id).eq('counter_key', MEET_KEY).eq('planned_date', ev.event_date).eq('note', text)
   if (contact.next_plan === text && contact.next_plan_date === ev.event_date) {
     await supabase.from('contacts').update({ next_plan: null, next_plan_date: null }).eq('id', contact.id)
   }
   if (userId) await syncContactNext(userId, contact.id)
+  return snap
+}
+
+export async function restoreInvite(supabase, snap, userId) {
+  if (!snap) return
+  if (snap.rows.length) await supabase.from('counter_logs').insert(snap.rows)
+  await supabase.from('contacts').update({ next_plan: snap.next_plan, next_plan_date: snap.next_plan_date }).eq('id', snap.contactId)
+  if (userId) await syncContactNext(userId, snap.contactId)
 }
 
 export function daysUntil(dateStr) {

@@ -4,6 +4,8 @@ import { CloseBtn } from './ui'
 import GoalModal from './goalModal'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { useNavigate } from 'react-router-dom'
 import {
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
@@ -14,7 +16,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { loadDailyMode, saveTagSetting, resolveMode, resolveWeeklyMeet, resolveWeeklyMet } from './dailyMode'
 import { AfterMeetSheet } from './meetingFlow'
 import {
-  ScheduleSheet, fetchMeetings, settleMeetings, removeMeeting, isMet, splitTime, taipeiToday,
+  ScheduleSheet, fetchMeetings, settleMeetings, removeMeetingWithUndo, isMet, splitTime, taipeiToday,
 } from './meetings'
 import { DAILY_TASKS, WEEKLY_TASKS, WEEKLY_COUNTERS, MONTH_ITEMS, COUNTER_COLORS } from './taskDefinitions'
 
@@ -252,8 +254,7 @@ export default function Daily() {
   }
 
   async function deleteMeet(m) {
-    await removeMeeting(user.id, m)
-    reloadMeets()
+    await removeMeetingWithUndo(user.id, m, reloadMeets)
   }
 
   async function toggleHidden(key) {
@@ -381,10 +382,19 @@ export default function Daily() {
     fetchWeekLogs(); fetchMonthLogs()
   }
 
-  async function deleteLog(id, mode) {
-    await supabase.from('counter_logs').delete().eq('id', id)
-    if (mode === 'month') fetchMonthLogs()
-    else fetchWeekLogs()
+  async function deleteLog(log, mode) {
+    if (!(await askConfirm({ title:'刪除這筆紀錄？', message:'刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    const refetch = () => { if (mode === 'month') fetchMonthLogs(); else fetchWeekLogs() }
+    undoableDelete({
+      label: log.note || log.product_name || '這筆紀錄',
+      hide: () => (mode === 'month' ? setMonthLogs : setWeekLogs)(ls => ls.filter(l => l.id !== log.id)),
+      undo: refetch,
+      commit: async () => {
+        const res = await supabase.from('counter_logs').delete().eq('id', log.id)
+        refetch()
+        return res
+      },
+    })
   }
 
   function changeWeekViewDate(delta) {
@@ -459,7 +469,7 @@ export default function Daily() {
           {past ? (
             <>
               <button onClick={() => setSched({ log: m })} style={miniLink(TEXT_SECONDARY)}>沒見成？改時間</button>
-              <button onClick={() => deleteMeet(m)} style={miniLink(DANGER)}>刪除</button>
+              <button onClick={() => deleteMeet(m)} aria-label="刪除" style={{ ...miniLink(DANGER), display:'flex' }}><IconTrash size={17} stroke={1.8} /></button>
             </>
           ) : (
             <>
@@ -529,7 +539,7 @@ export default function Daily() {
                     {label && <span style={{ fontSize:12,color:TEXT_SECONDARY }}>{label}</span>}
                   </div>
                   {needs.length > 0 && (
-                    <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:4 }}>她在意：{needs.join('、')}</div>
+                    <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:4 }}>對方在意：{needs.join('、')}</div>
                   )}
                   {m.contacts?.last_quote && (
                     <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>上次說：「{m.contacts.last_quote}」</div>
@@ -548,7 +558,7 @@ export default function Daily() {
 
         <div style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-            <span style={sectionTitle}>每日任務</span>
+            <span style={sectionTitle}>每日行動</span>
             <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{doneCount}/{visibleTasks.length}</span>
           </div>
 
@@ -767,10 +777,12 @@ export default function Daily() {
                               style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
                                 cursor:'pointer',fontWeight:600 }}>完成</button>
                           )}
-                          <button onClick={() => openEditModal('week', log)}
-                            style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
-                          <button onClick={() => deleteLog(log.id, 'week')}
-                            style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
+                          <div style={{ display:'flex', gap:16, alignItems:'center', padding:'6px 2px' }}>
+                            <button onClick={() => openEditModal('week', log)} aria-label="編輯"
+                              style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,display:'flex',padding:0 }}><IconPencil size={17} stroke={1.8} /></button>
+                            <button onClick={() => deleteLog(log, 'week')} aria-label="刪除"
+                              style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'flex',padding:0 }}><IconTrash size={17} stroke={1.8} /></button>
+                          </div>
                         </div>
                       </div>
                     )
@@ -902,10 +914,12 @@ export default function Daily() {
                           style={{ fontSize:11,color:ACCENT_GREEN_TEXT,background:'none',border:'none',
                             cursor:'pointer',fontWeight:600 }}>完成</button>
                       )}
-                      <button onClick={() => openEditModal('month', log)}
-                        style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
-                      <button onClick={() => deleteLog(log.id, 'month')}
-                        style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
+                      <div style={{ display:'flex', gap:16, alignItems:'center', padding:'6px 2px' }}>
+                        <button onClick={() => openEditModal('month', log)} aria-label="編輯"
+                          style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,display:'flex',padding:0 }}><IconPencil size={17} stroke={1.8} /></button>
+                        <button onClick={() => deleteLog(log, 'month')} aria-label="刪除"
+                          style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'flex',padding:0 }}><IconTrash size={17} stroke={1.8} /></button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -930,7 +944,7 @@ export default function Daily() {
           <div onClick={e => e.stopPropagation()}
             style={{ background:'var(--card)',borderRadius:'22px 22px 0 0',padding:24,width:'100%',maxWidth:430,maxHeight:'85vh',overflowY:'auto' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6 }}>
-              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>要顯示哪些每日任務</h3>
+              <h3 style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:0 }}>要顯示哪些每日行動</h3>
               <CloseBtn onClick={() => setHideSheet(false)} />
             </div>
             <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 12px' }}>不需要的可以關掉，只影響你自己</p>

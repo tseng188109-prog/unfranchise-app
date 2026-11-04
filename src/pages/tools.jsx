@@ -30,7 +30,7 @@ export function suggestTools(contact, isCustomer) {
   return { tools: ['社群媒體工具'], text: '還不確定對方的需求：先用社群保持聯絡，多聊多聽' }
 }
 
-export function ToolRow({ value, onChange, customer, contact }) {
+export function ToolRow({ value, onChange, customer, contact, hideSuggest = false }) {
   const [more, setMore] = useState(false)
   const main = customer ? CUSTOMER_TOOLS : PARTNER_TOOLS
   const rest = customer ? CUSTOMER_TOOLS_MORE : PARTNER_TOOLS_MORE
@@ -54,7 +54,7 @@ export function ToolRow({ value, onChange, customer, contact }) {
           <button type="button" onClick={() => setMore(true)} style={chip(false, true)}>更多 ▾</button>
         )}
       </div>
-      {sug.text && (
+      {sug.text && !hideSuggest && (
         <div style={{ marginTop: 8, background: ACCENT_YELLOW_SOFT, color: ACCENT_YELLOW_TEXT, borderRadius: 12,
           padding: '8px 11px', fontSize: 12, lineHeight: 1.5 }}>
           建議：{sug.text}

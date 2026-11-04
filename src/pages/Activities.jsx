@@ -7,6 +7,7 @@ import { IconArrowLeft, IconCalendarEvent } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { fetchMyTeam } from './teamStats'
 import { fetchUpcomingEvents, daysUntil } from './eventInvite'
 import { resolveEventWeeks } from './dailyMode'
@@ -95,11 +96,19 @@ export default function Activities() {
   }
 
   async function remove() {
-    const ok = await askConfirm({ title: `刪除「${form.title}」？`, message: '刪掉之後，已經邀請的約定不會被改動。', okText: '刪除', danger: true })
+    const ok = await askConfirm({ title: `刪除「${form.title}」？`, message: '刪掉之後，已經邀請的約定不會被改動。刪除後 8 秒內可以按「復原」。', okText: '刪除', danger: true })
     if (!ok) return
-    await supabase.from('events').delete().eq('id', form.id)
-    setForm(null)
-    reload()
+    const ev = form
+    undoableDelete({
+      label: ev.title,
+      hide: () => { setForm(null); setEvents(es => es.filter(x => x.id !== ev.id)) },
+      undo: () => reload(),
+      commit: async () => {
+        const res = await supabase.from('events').delete().eq('id', ev.id)
+        reload()
+        return res
+      },
+    })
   }
 
   if (loading) return <LoadingSpinner />

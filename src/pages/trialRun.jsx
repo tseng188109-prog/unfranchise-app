@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { IconCircleCheck, IconCircle } from '@tabler/icons-react'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS,
@@ -95,11 +96,14 @@ export default function TrialRunCard({ contact, userId }) {
 
   async function remove() {
     if (!run || busy) return
-    if (!(await askConfirm({ title: '移除這個試做？', message: '已經打的勾會一起清掉，之後可以重新開始。', okText: '移除', danger: true }))) return
-    setBusy(true)
-    const { error } = await supabase.from('trial_runs').delete().eq('id', run.id)
-    if (!error) setRun(null)
-    setBusy(false)
+    if (!(await askConfirm({ title: '移除這個試做？', message: '已經打的勾會一起清掉，之後可以重新開始。移除後 8 秒內可以按「復原」。', okText: '移除', danger: true }))) return
+    const saved = run
+    undoableDelete({
+      label: '試做',
+      hide: () => setRun(null),
+      undo: () => setRun(saved),
+      commit: async () => supabase.from('trial_runs').delete().eq('id', saved.id),
+    })
   }
 
   if (run === undefined) return null

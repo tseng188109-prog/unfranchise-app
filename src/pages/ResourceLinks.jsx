@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import LoadingSpinner from './LoadingSpinner'
 import { CloseBtn } from './ui'
 import { supabase } from '../supabase'
+import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPin, IconLink, IconX, IconStar, IconChevronRight,
   IconBooks, IconBook, IconFlame, IconVideo, IconHeadphones, IconFileText, IconChartBar,
-  IconHeart, IconRadio, IconMusic, IconBulb,
+  IconHeart, IconRadio, IconMusic, IconBulb, IconPencil, IconTrash,
 } from '@tabler/icons-react'
 
 const PRIMARY = 'var(--primary)'
@@ -72,7 +74,6 @@ export default function ResourceLinks({ type, title, icon }) {
   const [formMsg, setFormMsg] = useState('')
 
   // 刪除確認
-  const [deleteTarget, setDeleteTarget] = useState(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -132,11 +133,18 @@ export default function ResourceLinks({ type, title, icon }) {
     fetchLinks()
   }
 
-  async function handleDelete() {
-    if (!deleteTarget) return
-    await supabase.from('resource_links').delete().eq('id', deleteTarget.id)
-    setDeleteTarget(null)
-    fetchLinks()
+  async function handleDelete(link) {
+    if (!(await askConfirm({ title:`刪除「${link.name}」？`, message:'刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    undoableDelete({
+      label: link.name,
+      hide: () => { setPublicLinks(ls => ls.filter(x => x.id !== link.id)); setPersonalLinks(ls => ls.filter(x => x.id !== link.id)) },
+      undo: () => fetchLinks(),
+      commit: async () => {
+        const res = await supabase.from('resource_links').delete().eq('id', link.id)
+        fetchLinks()
+        return res
+      },
+    })
   }
 
   function openLink(url) {
@@ -203,11 +211,11 @@ export default function ResourceLinks({ type, title, icon }) {
                     <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
                   </button>
                   {isAdmin && (
-                    <div style={{ display:'flex',flexDirection:'column',gap:0 }}>
-                      <button onClick={() => openEdit(link)}
-                        style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
-                      <button onClick={() => setDeleteTarget(link)}
-                        style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
+                    <div style={{ display:'flex',gap:16,alignItems:'center',flexShrink:0 }}>
+                      <button onClick={() => openEdit(link)} aria-label="編輯"
+                        style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,display:'flex',padding:0 }}><IconPencil size={17} stroke={1.8} /></button>
+                      <button onClick={() => handleDelete(link)} aria-label="刪除"
+                        style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'flex',padding:0 }}><IconTrash size={17} stroke={1.8} /></button>
                     </div>
                   )}
                 </div>
@@ -243,11 +251,11 @@ export default function ResourceLinks({ type, title, icon }) {
                     <span style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN,flex:1 }}>{link.name}</span>
                     <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
                   </button>
-                  <div style={{ display:'flex',flexDirection:'column',gap:0 }}>
-                    <button onClick={() => openEdit(link)}
-                      style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>編輯</button>
-                    <button onClick={() => setDeleteTarget(link)}
-                      style={{ fontSize:13,color:DANGER,background:'none',border:'none',cursor:'pointer',padding:'8px 6px' }}>刪除</button>
+                  <div style={{ display:'flex',gap:16,alignItems:'center',flexShrink:0 }}>
+                    <button onClick={() => openEdit(link)} aria-label="編輯"
+                      style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,display:'flex',padding:0 }}><IconPencil size={17} stroke={1.8} /></button>
+                    <button onClick={() => handleDelete(link)} aria-label="刪除"
+                      style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'flex',padding:0 }}><IconTrash size={17} stroke={1.8} /></button>
                   </div>
                 </div>
               ))}
@@ -314,28 +322,6 @@ export default function ResourceLinks({ type, title, icon }) {
         </div>
       )}
 
-      {/* 刪除確認 */}
-      {deleteTarget && (
-        <div style={overlayStyle} onClick={() => setDeleteTarget(null)}>
-          <div style={{ background:'var(--card)',borderRadius:18,padding:24,width:'100%',maxWidth:320,margin:'0 20px' }}
-            onClick={e => e.stopPropagation()}>
-            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px',textAlign:'center' }}>
-              確定要刪除？
-            </p>
-            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px',textAlign:'center' }}>
-              「{deleteTarget.name}」將永久刪除
-            </p>
-            <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1,padding:'12px',borderRadius:12,border:`1px solid ${BORDER}`,
-                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDelete}
-                style={{ flex:1,padding:'12px',borderRadius:12,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>刪除</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

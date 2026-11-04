@@ -1,4 +1,5 @@
 import { Top10Star } from './top10'
+import { undoableDelete } from './undoDelete'
 import { actionLabel } from './contactQuick'
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
@@ -67,7 +68,6 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [editId, setEditId] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [linkedContact, setLinkedContact] = useState(null)
   // 同名建議：顧客還沒連到互動名單、但互動名單裡剛好有唯一一位同名的人時，問使用者是不是同一位。
   // 只是「建議」，連不連由使用者自己按（標注不自動推導）。
@@ -201,18 +201,32 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     onChanged?.()
   }
 
-  async function deleteTx(txId) {
-    await supabase.from('transactions').delete().eq('id', txId)
-    setDeleteConfirm(null)
-    fetchData()
-    onChanged?.()
+  async function deleteTx(t) {
+    if (!(await askConfirm({ title:'刪除這筆消費紀錄？', message:'刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    undoableDelete({
+      label: t.product_name || '消費紀錄',
+      hide: () => setTransactions(ts => ts.filter(x => x.id !== t.id)),
+      undo: () => fetchData(),
+      commit: async () => {
+        const res = await supabase.from('transactions').delete().eq('id', t.id)
+        fetchData(); onChanged?.()
+        return res
+      },
+    })
   }
   async function deleteOrder(orderId) {
-    await supabase.from('transactions').delete().eq('order_id', orderId)
-    await supabase.from('orders').delete().eq('id', orderId)
-    setDeleteConfirm(null)
-    fetchData()
-    onChanged?.()
+    if (!(await askConfirm({ title:'刪除這張訂單？', message:'訂單和裡面所有產品的紀錄都會刪除。刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    undoableDelete({
+      label: '這張訂單',
+      hide: () => { setTransactions(ts => ts.filter(x => x.order_id !== orderId)); setOrders(os => os.filter(o => o.id !== orderId)) },
+      undo: () => fetchData(),
+      commit: async () => {
+        await supabase.from('transactions').delete().eq('order_id', orderId)
+        const res = await supabase.from('orders').delete().eq('id', orderId)
+        fetchData(); onChanged?.()
+        return res
+      },
+    })
   }
 
   function setF(key, val) { setForm(p => ({ ...p, [key]: val })) }
@@ -438,7 +452,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
               <div style={{ display:'flex', flexDirection:'column' }}>
                 {purchaseGroups.map((g, i) => g.orderId ? (
                   <OrderCard key={g.key} group={g} customerName={customer.name}
-                    onEdit={openEditOrder} onDelete={(oid) => setDeleteConfirm({ kind:'order', id:oid })} />
+                    onEdit={openEditOrder} onDelete={(oid) => deleteOrder(oid)} />
                 ) : (() => { const t = g.lines[0]; return (
                   <div key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0',
                     borderBottom: i < purchaseGroups.length-1 ? `1px solid ${BORDER}` : 'none' }}>
@@ -463,14 +477,14 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
                         {t.is_gift ? `-NT$${t.cost||0}` : `+NT$${((t.amount||0)-(t.cost||0)).toLocaleString()}`}
                       </p>
                     </div>
-                    <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                      <button onClick={() => openEdit(t)}
-                        style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex' }}>
-                        <IconPencil size={13} stroke={1.9} />
+                    <div style={{ display:'flex', gap:16, flexShrink:0 }}>
+                      <button onClick={() => openEdit(t)} aria-label="編輯"
+                        style={{ background:'none', border:'none', cursor:'pointer', color:TEXT_MUTED, display:'flex', padding:0 }}>
+                        <IconPencil size={17} stroke={1.8} />
                       </button>
-                      <button onClick={() => setDeleteConfirm({ kind:'tx', id:t.id })}
-                        style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, display:'flex' }}>
-                        <IconTrash size={13} stroke={1.9} />
+                      <button onClick={() => deleteTx(t)} aria-label="刪除"
+                        style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, display:'flex', padding:0 }}>
+                        <IconTrash size={17} stroke={1.8} />
                       </button>
                     </div>
                   </div>
@@ -593,30 +607,6 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
         )}
       </div>
 
-      {deleteConfirm && (
-        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}
-          onClick={e => { if (e.target===e.currentTarget) setDeleteConfirm(null) }}>
-          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:'100%', maxWidth:320 }}>
-            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px', textAlign:'center' }}>確定要刪除？</p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px', textAlign:'center' }}>
-              {deleteConfirm.kind === 'order' ? '這張訂單和裡面所有產品的紀錄將永久刪除，無法復原' : '這筆消費紀錄將永久刪除，無法復原'}
-            </p>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setDeleteConfirm(null)}
-                style={{ flex:1, padding:'12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`, background:'var(--card)',
-                  fontSize:14, fontWeight:600, cursor:'pointer', color:TEXT_SECONDARY }}>
-                取消
-              </button>
-              <button onClick={() => (deleteConfirm.kind === 'order' ? deleteOrder(deleteConfirm.id) : deleteTx(deleteConfirm.id))}
-                style={{ flex:1, padding:'12px', borderRadius:RADIUS.md, border:'none', background:DANGER, color:'#fff',
-                  fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                刪除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

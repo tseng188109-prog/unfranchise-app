@@ -1,6 +1,7 @@
 import { actionLabel } from './contactQuick'
 import { useState, useEffect, useRef } from 'react'
 import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -80,8 +81,6 @@ export default function Contacts() {
   const [menuTarget, setMenuTarget] = useState(null)
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [restoreTarget, setRestoreTarget] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting] = useState(false)
 
   // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
   const [selectedId, setSelectedId] = useState(null)
@@ -180,17 +179,22 @@ export default function Contacts() {
   }
 
   // 永久刪除：連同底下的互動紀錄、試用品追蹤紀錄一起清掉，避免留下孤兒資料或觸發外鍵限制
-  async function handleDeletePermanent() {
-    if (!deleteTarget) return
-    setDeleting(true)
-    await detachMeetingsBeforeDelete(user.id, deleteTarget.id)
-    await supabase.from('contact_logs').delete().eq('contact_id', deleteTarget.id)
-    await supabase.from('sample_tracking').delete().eq('contact_id', deleteTarget.id)
-    const { error } = await supabase.from('contacts').delete().eq('id', deleteTarget.id)
-    setDeleting(false)
-    if (error) { await askConfirm({ title:'刪除失敗', message:error.message, okText:'知道了', hideCancel:true }); return }
-    if (selectedId === deleteTarget.id) setSelectedId(null)
-    setDeleteTarget(null); setMenuTarget(null); fetchContacts()
+  async function askDeletePermanent(c) {
+    setMenuTarget(null)
+    if (!(await askConfirm({ title:`永久刪除「${c.name}」？`, message:'會一併刪除他的互動紀錄與試用品追蹤。已經見過的「見面」紀錄會留在每日行動，名字會變成（已刪除的名單）。只是暫時不想看到他，建議用「封存」。刪除後 8 秒內可以按「復原」。', okText:'永久刪除', danger:true }))) return
+    undoableDelete({
+      label: c.name,
+      hide: () => { setContacts(cs => cs.filter(x => x.id !== c.id)); if (selectedId === c.id) setSelectedId(null) },
+      undo: () => fetchContacts(),
+      commit: async () => {
+        await detachMeetingsBeforeDelete(user.id, c.id)
+        await supabase.from('contact_logs').delete().eq('contact_id', c.id)
+        await supabase.from('sample_tracking').delete().eq('contact_id', c.id)
+        const res = await supabase.from('contacts').delete().eq('id', c.id)
+        fetchContacts()
+        return res
+      },
+    })
   }
 
   function openContact(c) {
@@ -797,7 +801,7 @@ async function handleImport() {
                   <IconRefresh size={19} stroke={1.9} color={ACCENT_GREEN_TEXT} />
                   <span style={{ fontSize:15, fontWeight:600, color:ACCENT_GREEN_TEXT }}>復原到一般名單</span>
                 </button>
-                <button onClick={() => setDeleteTarget(menuTarget)}
+                <button onClick={() => askDeletePermanent(menuTarget)}
                   style={{ display:'flex', alignItems:'center', gap:12, width:'100%',
                     padding:'14px 16px', borderRadius:RADIUS.lg, border:'none',
                     background:DANGER_SOFT, marginBottom:10, cursor:'pointer' }}>
@@ -879,32 +883,6 @@ async function handleImport() {
         </div>
       )}
 
-      {deleteTarget && (
-        <div style={{ position:'fixed', inset:0, background:'var(--overlay)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-          <div style={{ background:'var(--card)', borderRadius:RADIUS.xl, padding:24, width:300, textAlign:'center' }}>
-            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
-              <IconTrash size={30} stroke={1.6} color={DANGER} />
-            </div>
-            <p style={{ fontSize:16, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>
-              確定永久刪除「{deleteTarget.name}」？
-            </p>
-            <p style={{ fontSize:13, color:TEXT_MUTED, margin:'0 0 20px' }}>
-              會一併刪除他的互動紀錄與試用品追蹤，無法復原。已經見過的「見面」紀錄會留在每日行動，只是名字會變成（已刪除的名單）。只是暫時不想看到他的話，建議用「封存」。
-            </p>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                  background:'var(--card)', fontSize:14, cursor:'pointer', color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDeletePermanent} disabled={deleting}
-                style={{ flex:1, padding:'10px 0', borderRadius:RADIUS.md, border:'none',
-                  background:DANGER, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                {deleting ? '刪除中…' : '永久刪除'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

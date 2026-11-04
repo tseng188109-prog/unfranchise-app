@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
+import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { useNavigate } from 'react-router-dom'
 import { IconPlus, IconFlask, IconCalendarEvent, IconPencil, IconTrash, IconX, IconCheck } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
@@ -52,8 +54,6 @@ export default function Samples() {
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({ product_name:'', portions:'', share_date:'', cost:'' })
   const [editSaving, setEditSaving] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
@@ -142,13 +142,18 @@ export default function Samples() {
     fetchSamples()
   }
 
-  async function handleDeleteSample() {
-    if (!deleteTarget) return
-    setDeleting(true)
-    await supabase.from('sample_tracking').delete().eq('id', deleteTarget)
-    setDeleting(false)
-    setDeleteTarget(null)
-    fetchSamples()
+  async function handleDeleteSample(smp) {
+    if (!(await askConfirm({ title:'刪除這筆試用品紀錄？', message:'連同追蹤紀錄一併刪除。刪除後 8 秒內可以按「復原」。', okText:'刪除', danger:true }))) return
+    undoableDelete({
+      label: smp.product_name || '試用品紀錄',
+      hide: () => setSamples(p => p.filter(x => x.id !== smp.id)),
+      undo: () => fetchSamples(),
+      commit: async () => {
+        const res = await supabase.from('sample_tracking').delete().eq('id', smp.id)
+        fetchSamples()
+        return res
+      },
+    })
   }
 
   async function updateNextFollowup(id, date) {
@@ -357,14 +362,16 @@ export default function Samples() {
                       {s.result}
                     </span>
                   )}
-                  <button onClick={() => openEditSample(s)}
-                    style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,padding:2,display:'flex',flexShrink:0 }}>
-                    <IconPencil size={14} stroke={1.9} />
-                  </button>
-                  <button onClick={() => setDeleteTarget(s.id)}
-                    style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,padding:2,display:'flex',flexShrink:0 }}>
-                    <IconTrash size={14} stroke={1.9} />
-                  </button>
+                  <span style={{ display:'flex',gap:16,alignItems:'center',flexShrink:0,marginLeft:4 }}>
+                    <button onClick={() => openEditSample(s)} aria-label="編輯"
+                      style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,padding:0,display:'flex' }}>
+                      <IconPencil size={17} stroke={1.8} />
+                    </button>
+                    <button onClick={() => handleDeleteSample(s)} aria-label="刪除"
+                      style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,padding:0,display:'flex' }}>
+                      <IconTrash size={17} stroke={1.8} />
+                    </button>
+                  </span>
                 </div>
 
                 {/* 三步驟進度（還沒設結果前） */}
@@ -518,30 +525,6 @@ export default function Samples() {
       )}
 
       {/* 刪除確認 */}
-      {deleteTarget && (
-        <div style={{ position:'fixed',inset:0,background:'var(--overlay)',
-          display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
-          <div style={{ background:'var(--card)',borderRadius:RADIUS.xl,padding:24,width:280,textAlign:'center' }}>
-            <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
-              <IconTrash size={30} stroke={1.6} color={DANGER} />
-            </div>
-            <p style={{ fontSize:16,fontWeight:600,color:TEXT_MAIN,margin:'0 0 8px' }}>
-              確定刪除這筆試用品紀錄？
-            </p>
-            <p style={{ fontSize:13,color:TEXT_MUTED,margin:'0 0 20px' }}>連同追蹤紀錄一併刪除，無法復原</p>
-            <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setDeleteTarget(null)}
-                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:`1px solid ${BORDER}`,
-                  background:'var(--card)',fontSize:14,cursor:'pointer',color:TEXT_SECONDARY }}>取消</button>
-              <button onClick={handleDeleteSample} disabled={deleting}
-                style={{ flex:1,padding:'10px 0',borderRadius:RADIUS.md,border:'none',
-                  background:DANGER,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer' }}>
-                {deleting ? '刪除中…' : '刪除'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

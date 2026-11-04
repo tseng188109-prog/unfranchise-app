@@ -1,10 +1,12 @@
 // meetings.jsx — 約會的唯一入口：定時間、改時間、刪除、自動算「見到」、見完了接上同一筆
-// 一個約會 = counter_logs 一筆（counter_key='meetup'，planned_date＝約定那天，note＝「15:00 茶聊近況」）。
+// 一個約會 = counter_logs 一筆（counter_key='meetup'，planned_date＝約定那天，note＝「15:00 見面聊聊」）。
 // 首頁、他的頁面、每日行動都從這裡讀寫，所以只要記一次。
 // 規則：約定那天到了，就自動算「見到」（settleMeetings）；沒見成的自己改時間或刪掉。
 import { useState } from 'react'
 import { supabase } from '../supabase'
 import { DateField } from './pickers'
+import { askConfirm } from './confirmDialog'
+import { undoableDelete } from './undoDelete'
 import { markDaily312, syncDaily3 } from './followUp'
 import { INTEREST_LEVELS, ALL_PLANS, Chip } from './meetingFlow'
 import {
@@ -19,7 +21,7 @@ export function addDaysStr(dateStr, n) {
   return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 }
 
-// ---- 時間藏在文字前面：「15:00 茶聊近況」 ----
+// ---- 時間藏在文字前面：「15:00 見面聊聊」 ----
 const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)\s+(.*)$/
 export function splitTime(text) {
   const t = (text || '').trim()
@@ -129,6 +131,21 @@ export async function removeMeeting(userId, log) {
   return { error: null }
 }
 
+// 刪除約定（有確認、8 秒內可以復原）。after：刪掉或復原之後要重新整理的畫面
+export async function removeMeetingWithUndo(userId, log, after) {
+  if (!(await askConfirm({ title: '刪除這次約定？', message: '刪除後 8 秒內可以按「復原」。', okText: '刪除', danger: true }))) return { cancelled: true }
+  const { data: row } = await supabase.from('counter_logs').select('*').eq('id', log.id).maybeSingle()
+  const res = await removeMeeting(userId, log)
+  if (res.error) return res
+  after && after()
+  if (row) undoableDelete({
+    label: row.note || '這次約定',
+    commit: async () => null,
+    undo: async () => { await supabase.from('counter_logs').insert(row); await syncContactNext(userId, row.contact_id); after && after() },
+  })
+  return { error: null }
+}
+
 // ---- 見完了：接到同一筆，沒有的話記一筆已見到 ----
 // logId：從約會清單按進來時有；從他的頁面按進來時，找最近 7 天內（或之後最近一筆）這個人的約會。
 export async function recordMetNow(userId, contactId, logId) {
@@ -226,7 +243,7 @@ export function ScheduleSheet({ userId, contact, contacts, log, initialDate, onC
   const person = picked
   const lv = person && INTEREST_LEVELS.find(x => x.label === person.interest_level)
   const suggested = lv ? lv.plans : []
-  const chips = ['茶聊近況'].concat(suggested, ALL_PLANS.filter(p => !suggested.includes(p)))
+  const chips = ['見面聊聊'].concat(suggested, ALL_PLANS.filter(p => !suggested.includes(p)))
     .filter((p, i, a) => a.indexOf(p) === i)
   const today = taipeiToday()
 
@@ -246,10 +263,10 @@ export function ScheduleSheet({ userId, contact, contacts, log, initialDate, onC
   async function del() {
     if (saving) return
     setSaving(true)
-    const res = await removeMeeting(userId, log)
+    const res = await removeMeetingWithUndo(userId, log, () => { onSaved && onSaved() })
     setSaving(false)
+    if (res.cancelled) return
     if (res.error) { setErr(res.error); return }
-    onSaved && onSaved()
     onClose()
   }
 
