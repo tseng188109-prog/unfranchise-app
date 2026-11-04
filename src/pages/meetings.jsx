@@ -6,7 +6,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
-import { undoableDelete } from './undoDelete'
+import { undoableDelete, showToast } from './undoDelete'
+import { useNavigate } from 'react-router-dom'
+import { DayPicker } from './addedDate'
+import { ToolRow } from './tools'
 import { markDaily312, syncDaily3 } from './followUp'
 import { INTEREST_LEVELS, ALL_PLANS, Chip } from './meetingFlow'
 import {
@@ -50,10 +53,37 @@ export async function fetchMeetings(userId, fromDate, toDate) {
   const [r1, r2] = await Promise.all([q1, q2])
   const map = new Map()
   ;[...(r1.data || []), ...(r2.data || [])].forEach(r => map.set(r.id, withEff(r)))
-  return [...map.values()].filter(m => m.eff >= fromDate && m.eff <= toDate).sort((a, b) => {
+  const list = [...map.values()].filter(m => m.eff >= fromDate && m.eff <= toDate)
+  await attachMeetLogs(list, fromDate, toDate)
+  return list.sort((a, b) => {
     if (a.eff !== b.eff) return a.eff < b.eff ? -1 : 1
     return (splitTime(a.note).time || '99').localeCompare(splitTime(b.note).time || '99')
   })
+}
+
+// 見完的見面，配上他頁面裡那筆「見面」互動紀錄（對方說了什麼、工具）。
+// 舊資料兩邊日期可能不同，所以找同一個人、前後 7 天內最近的那筆
+function dayDiff(a, b) { return Math.abs((new Date(a + 'T00:00:00Z') - new Date(b + 'T00:00:00Z')) / 86400000) }
+export function pickMeetLog(logs, contactId, date, usedIds) {
+  let best = null
+  ;(logs || []).forEach(l => {
+    if (l.contact_id !== contactId || (usedIds && usedIds.has(l.id))) return
+    const dd = dayDiff(l.date, date)
+    if (dd > 7) return
+    if (!best || dd < best.dd) best = { l, dd }
+  })
+  return best ? best.l : null
+}
+async function attachMeetLogs(list, fromDate, toDate) {
+  const done = list.filter(m => m.is_done && m.contact_id)
+  if (!done.length) return
+  try {
+    const { data } = await supabase.from('contact_logs').select('id,contact_id,date,note,tool,kind')
+      .in('contact_id', [...new Set(done.map(m => m.contact_id))]).eq('kind', 'meet')
+      .gte('date', addDaysStr(fromDate, -7)).lte('date', addDaysStr(toDate, 7))
+    const used = new Set()
+    done.forEach(m => { const l = pickMeetLog(data, m.contact_id, m.date || m.eff, used); if (l) { used.add(l.id); m.meetLog = l } })
+  } catch { /* 拿不到就不顯示 */ }
 }
 
 // ---- 以前：約定那天到了自動算見到。現在改成「見完了」才算，這個函式不再做任何事 ----
@@ -465,4 +495,98 @@ export function PersonPickSheet({ userId, title = '跟誰見面？', onPick, onC
       </div>
     </div>
   )
+}
+
+// ---- 編輯一次已經見完的見面：哪天見的、對方說了什麼、用了什麼工具 ----
+// 興趣是記在「這個人」身上，不在這裡改（改舊的那次會蓋掉他現在的狀態），給一個連結到他的頁面改。
+const NEXT_DAYS = { '輕鬆互動': 30, '軟性活動': 14, '商機講座': 5, '直接法': 5 }
+async function recomputeLastContactFor(contactId) {
+  const { data: c } = await supabase.from('contacts').select('id,last_contact_date,action_type,source').eq('id', contactId).single()
+  if (!c) return
+  const { data: rows } = await supabase.from('contact_logs').select('date').eq('contact_id', contactId)
+  const latest = (rows || []).map(r => r.date).filter(Boolean).sort().pop() || null
+  if (latest === (c.last_contact_date || null)) return
+  const upd = { last_contact_date: latest }
+  if (latest && c.source !== 'customer') upd.next_contact_date = addDaysStr(latest, NEXT_DAYS[c.action_type] || 30)
+  await supabase.from('contacts').update(upd).eq('id', contactId)
+}
+
+export function EditMeetSheet({ userId, meet, onClose, onSaved }) {
+  const navigate = useNavigate()
+  const contact = meet.contacts || { id: meet.contact_id, name: '' }
+  const oldDate = meet.date || meet.eff
+  const [date, setDate] = useState(oldDate)
+  const [note, setNote] = useState((meet.meetLog && meet.meetLog.note) || '')
+  const [tool, setTool] = useState((meet.meetLog && meet.meetLog.tool) || '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function save() {
+    if (saving) return
+    setSaving(true); setErr('')
+    const d = date || oldDate
+    // 1) 見面那一筆（見面數看這裡）
+    const upd = { date: d }
+    if (!meet.note && meet.planned_date === oldDate) upd.planned_date = d // 沒先約的補記，約定日跟著見面日
+    const { error: e1 } = await supabase.from('counter_logs').update(upd).eq('id', meet.id)
+    if (e1) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
+    // 2) 他頁面裡那筆見面紀錄；以前沒有的就補一筆
+    const text = note.trim()
+    if (meet.meetLog) {
+      await supabase.from('contact_logs').update({ date: d, note: text || null, tool: tool || null }).eq('id', meet.meetLog.id)
+    } else {
+      await supabase.from('contact_logs').insert({ contact_id: meet.contact_id, user_id: userId, date: d, kind: 'meet', note: text || null, ...(tool ? { tool } : {}) })
+    }
+    // 3) 這是他最近一次見面的話，「上次對方說」也更新
+    if (text) {
+      const { data: later } = await supabase.from('contact_logs').select('id').eq('contact_id', meet.contact_id).eq('kind', 'meet').gt('date', d).limit(1)
+      if (!later || later.length === 0) await supabase.from('contacts').update({ last_quote: text }).eq('id', meet.contact_id)
+    }
+    await recomputeLastContactFor(meet.contact_id)
+    await syncDaily3(supabase, userId, d)
+    setSaving(false)
+    onSaved && onSaved(d)
+    onClose()
+  }
+
+  const sec = { background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.lg, padding: 12, marginTop: 10 }
+  return (
+    <div onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: 'var(--page)', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto',
+          borderRadius: '18px 18px 0 0', padding: '16px 16px 28px', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: TEXT_MAIN }}>編輯和{contact.name}的見面</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: TEXT_MUTED, fontSize: 13, cursor: 'pointer' }}>關閉</button>
+        </div>
+        <div style={sec}>
+          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>哪天見的</div>
+          <DayPicker value={date} onChange={setDate} />
+        </div>
+        <div style={sec}>
+          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>對方說了什麼</div>
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="記一句對方的原話（選填）"
+            style={{ ...inputBox(), width: '100%', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }} />
+        </div>
+        <div style={sec}>
+          <ToolRow value={tool} onChange={setTool} contact={contact} hideSuggest />
+        </div>
+        <button type="button" onClick={() => { onClose(); navigate(`/contacts/${meet.contact_id}`) }}
+          style={{ display: 'block', background: 'none', border: 'none', padding: '12px 2px 0', color: PRIMARY, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+          對方有沒有興趣，到他的頁面改 ›
+        </button>
+        {err && <div style={{ color: DANGER, fontSize: 13, marginTop: 10 }}>{err}</div>}
+        <button onClick={save} disabled={saving}
+          style={{ width: '100%', marginTop: 14, padding: 13, border: 'none', borderRadius: RADIUS.md, background: PRIMARY, color: '#fff',
+            fontSize: 15, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+          {saving ? '儲存中…' : '儲存'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function toastMovedMeet(newDate, from, to) {
+  if (newDate < from || newDate > to) showToast(`已改到 ${Number(newDate.slice(5, 7))}/${Number(newDate.slice(8, 10))}，在那週的列表裡`)
 }

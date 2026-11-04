@@ -17,7 +17,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { loadDailyMode, saveTagSetting, resolveMode, resolveWeeklyMeet, resolveWeeklyMet } from './dailyMode'
 import { AfterMeetSheet } from './meetingFlow'
 import {
-  ScheduleSheet, fetchMeetings, removeMeetingWithUndo, isMet, isPending, splitTime, taipeiToday, PersonPickSheet, fetchUnplannedMeets,
+  ScheduleSheet, fetchMeetings, removeMeetingWithUndo, isMet, isPending, splitTime, taipeiToday, PersonPickSheet, fetchUnplannedMeets, EditMeetSheet, toastMovedMeet,
 } from './meetings'
 import { DAILY_TASKS, WEEKLY_TASKS, WEEKLY_COUNTERS, MONTH_ITEMS, COUNTER_COLORS } from './taskDefinitions'
 
@@ -101,6 +101,7 @@ export default function Daily() {
   const [hideSheet, setHideSheet] = useState(false)
   const [weekLogs, setWeekLogs] = useState([])
   const [pickFor, setPickFor] = useState(null) // 補記見面：要記哪一天（先選人）
+  const [editMeet, setEditMeet] = useState(null) // 編輯一次已經見完的見面
   const [monthLogs, setMonthLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -450,9 +451,13 @@ export default function Daily() {
     const isT = m.eff === t
     const past = m.eff < t
     const met = isMet(m)
+    const alive = !!(m.contact_id && m.contacts) // 名單被刪掉的人：沒有他的頁面，也沒有見面紀錄可以改
+    const said = met && m.meetLog && m.meetLog.note && !/^見面：/.test(m.meetLog.note) ? m.meetLog.note : ''
+    const stop = fn => e => { e.stopPropagation(); fn() }
     return (
-      <div style={{ display:'flex',alignItems:'center',gap:10,borderRadius:10,padding:'8px 10px',marginBottom:6,
-        background: isT ? PRIMARY_SOFT : 'var(--card)', border:`1px solid ${BORDER}` }}>
+      <div onClick={() => { if (alive) navigate(`/contacts/${m.contact_id}`) }}
+        style={{ display:'flex',alignItems:'center',gap:10,borderRadius:10,padding:'8px 10px',marginBottom:6,
+          background: isT ? PRIMARY_SOFT : 'var(--card)', border:`1px solid ${BORDER}`, cursor: alive ? 'pointer' : 'default' }}>
         <div style={{ width:46,flexShrink:0,textAlign:'center' }}>
           {time && <div style={{ fontSize:13,fontWeight:700,color:TEXT_MAIN }}>{time}</div>}
           <div style={{ fontSize:11,color:TEXT_MUTED }}>{formatShortDate(m.eff)}（{DAYS_LONG[new Date(m.eff+'T00:00:00').getDay()]}）</div>
@@ -464,27 +469,37 @@ export default function Daily() {
             <span style={{ fontSize:13,color:TEXT_MAIN,fontWeight:600 }}>{m.contacts?.name || '（已刪除的名單）'}</span>
             {met && <IconCheck size={13} stroke={2.6} color={ACCENT_GREEN_TEXT} />}
           </div>
-          {label && <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2 }}>{label}</div>}
+          {(said || label) && (
+            <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>{said || label}</div>
+          )}
         </div>
         <div style={{ display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end',flexShrink:0 }}>
           {met ? (
-            <button onClick={() => deleteMeet(m)} aria-label="刪除" style={{ ...miniLink(DANGER), display:'flex' }}><IconTrash size={17} stroke={1.8} /></button>
+            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+              {alive && (
+                <button onClick={stop(() => setEditMeet(m))} aria-label="編輯"
+                  style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,display:'flex',padding:8 }}><IconPencil size={17} stroke={1.8} /></button>
+              )}
+              <button onClick={stop(() => deleteMeet(m))} aria-label="刪除"
+                style={{ background:'none',border:'none',cursor:'pointer',color:DANGER,display:'flex',padding:8 }}><IconTrash size={17} stroke={1.8} /></button>
+            </div>
           ) : past ? (
             <>
-              {m.contact_id && <button onClick={() => openMet(m)} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了</button>}
-              <button onClick={() => setSched({ log: m })} style={miniLink(TEXT_SECONDARY)}>沒見成？改時間</button>
-              <button onClick={() => deleteMeet(m)} aria-label="刪除" style={{ ...miniLink(DANGER), display:'flex' }}><IconTrash size={17} stroke={1.8} /></button>
+              {m.contact_id && <button onClick={stop(() => openMet(m))} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了</button>}
+              <button onClick={stop(() => setSched({ log: m }))} style={miniLink(TEXT_SECONDARY)}>沒見成？改時間</button>
+              <button onClick={stop(() => deleteMeet(m))} aria-label="刪除" style={{ ...miniLink(DANGER), display:'flex' }}><IconTrash size={17} stroke={1.8} /></button>
             </>
           ) : (
             <>
-              {isT && m.contact_id && <button onClick={() => openMet(m)} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了</button>}
-              <button onClick={() => setSched({ log: m })} style={softBtn(SUBCARD_BG, TEXT_SECONDARY)}>改時間</button>
+              {isT && m.contact_id && <button onClick={stop(() => openMet(m))} style={softBtn(PRIMARY_SOFT, PRIMARY)}>見完了</button>}
+              <button onClick={stop(() => setSched({ log: m }))} style={softBtn(SUBCARD_BG, TEXT_SECONDARY)}>改時間</button>
             </>
           )}
         </div>
       </div>
     )
   }
+
 
   if (loading) return <LoadingSpinner />
 
@@ -966,6 +981,10 @@ export default function Daily() {
       {afterMeet && (
         <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId} initialDate={afterMeet.date}
           onClose={() => setAfterMeet(null)} onSaved={reloadMeets} />
+      )}
+      {editMeet && (
+        <EditMeetSheet userId={user.id} meet={editMeet} onClose={() => setEditMeet(null)}
+          onSaved={d => { const wd = getWeekDays(weekViewDate); toastMovedMeet(d, wd[0], wd[6]); reloadMeets() }} />
       )}
       {pickFor && (
         <PersonPickSheet userId={user.id} title={`${formatShortDate(pickFor)} 跟誰見面？`}

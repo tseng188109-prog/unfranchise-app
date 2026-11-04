@@ -89,3 +89,18 @@ if (typeof window !== 'undefined' && !window.__ufaUndoPatched) {
   wrap('pushState'); wrap('replaceState')
   window.addEventListener('popstate', () => flushUndo())
 }
+
+// 簡單的小提示（沒有按鈕），停 2.5 秒
+export function showToast(text) {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const root = createRoot(host)
+  const wide = typeof window !== 'undefined' && window.innerWidth >= 1024
+  root.render(
+    <div style={{ position: 'fixed', left: 0, right: 0, bottom: wide ? 24 : 'calc(84px + env(safe-area-inset-bottom))', zIndex: 2100,
+      display: 'flex', justifyContent: 'center', padding: '0 16px', pointerEvents: 'none' }}>
+      <div style={{ maxWidth: 430, background: 'var(--text)', color: 'var(--card)', borderRadius: 14, padding: '11px 16px', fontSize: 14 }}>{text}</div>
+    </div>
+  )
+  setTimeout(() => { try { root.unmount() } catch { /* 已經關了 */ } host.remove() }, 2500)
+}
