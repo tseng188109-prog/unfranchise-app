@@ -1,10 +1,12 @@
 // Report.jsx — 給帶領者的報告：只列事實（數字、人、互動內容），判斷留給帶領者。
 // 入口：每日行動 → 每週行動卡片右上角「給帶領者的報告 ›」。
-// 選最近 3／5／7 天或自選日期（最多 31 天），括號比的是「往前同樣天數」。
+// 選最近 3／5／7 天或自選日期（最多 31 天）。「做了什麼」只列實際的數字；「目標」另外看：每天 3-1-2 和每週目標（週六到週五）。
+// 每一筆互動可以選「不放」進報告（只記在這台手機）。
 // 兩個開關（顧客交易、互動內容）和討論事項存在 users.tag_settings，不用另外建表。
-import { fetchTop10, top10NeedsAction, TOP10_MAX } from './top10'
+import { fetchTop10, top10NeedsAction, TOP10_MAX, weekStartOf } from './top10'
 import { fetchAddedContacts } from './addedDate'
 import { planOf } from './invite'
+import { NO_HEAD, SUPERSEDED } from './beanJar'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
@@ -40,7 +42,7 @@ async function loadFacts(userId, from, to) {
   const endIso = addDaysStr(to, 1) + 'T00:00:00+08:00'
   const [logsR, meetR, cntR, newR, txR, custR, allCustR, orderR, ctR] = await Promise.all([
     supabase.from('contact_logs')
-      .select('contact_id,date,kind,note,tool,contacts(id,name,source,egg_type,need_level,interest_level,next_plan,next_plan_date,last_contact_date)')
+      .select('id,contact_id,date,kind,note,tool,contacts(id,name,source,egg_type,need_level,interest_level,next_plan,next_plan_date,last_contact_date)')
       .eq('user_id', userId).gte('date', from).lte('date', to),
     supabase.from('counter_logs').select('id,date')
       .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).gte('date', from).lte('date', to),
@@ -137,16 +139,75 @@ function askBreakdown(logs, unplanned) {
   asks.forEach(l => { const p = planOf(l); if (p) plans[p] = (plans[p] || 0) + 1 })
   return {
     yes: asks.filter(l => l.kind === 'meet_plan').length + unplanned.length,
+    direct: unplanned.length,
+    blank: asks.filter(l => !planOf(l)).length,
     no: asks.filter(l => l.kind === 'invite_no').length,
     wait: asks.filter(l => l.kind === 'invite_wait').length,
     plans: Object.entries(plans).sort((a, b) => b[1] - a[1]),
   }
 }
-export function askBreakText(b) {
+// 約成 4 次、沒約成 1 次（等回覆是 0 就不寫）
+export function askResultText(b, unit = ' 次') {
   if (!b) return ''
-  const r = `約成 ${b.yes} 次、沒約成 ${b.no} 次、等回覆 ${b.wait} 次`
-  return b.plans.length ? `${r}。邀了：${b.plans.map(([p, n]) => `${p} ${n}`).join('、')}` : r
+  return [`約成 ${b.yes}${unit}`, `沒約成 ${b.no}${unit}`, b.wait ? `等回覆 ${b.wait}${unit}` : ''].filter(Boolean).join('、')
 }
+// 邀了：茶聊近況、見面、逛網站各 1 次，另外 2 次是直接見面後補記
+export function askPlanText(b) {
+  if (!b) return ''
+  const same = b.plans.length > 1 && b.plans.every(([, n]) => n === b.plans[0][1])
+  const main = !b.plans.length ? '' : same
+    ? `${b.plans.map(([p]) => p).join('、')}各 ${b.plans[0][1]} 次`
+    : b.plans.map(([p, n]) => `${p} ${n} 次`).join('、')
+  const extra = [b.direct ? `${b.direct} 次是直接見面後補記` : '', b.blank ? `${b.blank} 次沒寫邀了什麼` : ''].filter(Boolean)
+  if (!main && !extra.length) return ''
+  if (!main) return extra.join('、')
+  return main + (extra.length ? '，另外 ' + extra.join('、') : '')
+}
+
+// 互動內容改成好讀的句子：工具寫成「（用二對一會談）」，邀約紀錄寫成「邀逛網站，沒約成：…」
+function inviteWhat(plan) { return !plan ? '邀了' : plan.startsWith('邀請參加') ? plan : '邀' + plan }
+export function lineBody(l) {
+  const note = String(l.note || '')
+  if (l.kind === 'invite_no') {
+    const segs = note.split('　')
+    if (segs.includes(SUPERSEDED)) return `${inviteWhat(planOf(l))}，${SUPERSEDED}`
+    const first = segs[0]
+    const reason = first.startsWith(NO_HEAD + '：') ? first.slice(NO_HEAD.length + 1) : ''
+    const said = segs.slice(1).filter(x => x && !x.startsWith('邀的是 ') && !(x.startsWith('（') && x.endsWith(' 確認）'))).join(' ')
+    const why = [reason, said].filter(Boolean).join('，')
+    return `${inviteWhat(planOf(l))}，沒約成${why ? '：' + why : ''}`
+  }
+  if (l.kind === 'invite_wait') return `${inviteWhat(planOf(l))}，還在等回覆`
+  return note
+}
+export function lineHead(l) { return `${md(l.date)}${l.tool ? `（用${l.tool}）` : ''}` }
+
+// 每週目標：照結算週（週六到週五），報告範圍碰到的每一週各算一次
+// 見到＝按了「見完了」的次數；定下＝那週約成的人（同一位算一次），跟首頁、每日行動同一個算法
+async function loadWeekGoals(userId, from, to) {
+  const weeks = []
+  for (let ws = weekStartOf(from); ws <= to; ws = addDaysStr(ws, 7)) weeks.push(ws)
+  const first = weeks[0], last = addDaysStr(weeks[weeks.length - 1], 6)
+  const [metR, planR, unplanned] = await Promise.all([
+    supabase.from('counter_logs').select('date').eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).gte('date', first).lte('date', last),
+    supabase.from('contact_logs').select('contact_id,date').eq('user_id', userId).eq('kind', 'meet_plan').gte('date', first).lte('date', last),
+    fetchUnplannedMeets(userId, first, last),
+  ])
+  return weeks.map(ws => {
+    const we = addDaysStr(ws, 6)
+    const inW = r => r.date >= ws && r.date <= we
+    return {
+      ws, we,
+      met: (metR.data || []).filter(inW).length,
+      planned: new Set([...(planR.data || []).filter(inW), ...unplanned.filter(inW)].map(r => r.contact_id)).size,
+    }
+  })
+}
+
+// 不放進報告的互動（只記在這台手機）
+const HIDE_KEY = 'ufa_report_hidden'
+function loadHidden() { try { return new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || '[]')) } catch { return new Set() } }
+function saveHidden(set) { try { localStorage.setItem(HIDE_KEY, JSON.stringify([...set].slice(-500))) } catch { /* 存不了就只在這次有效 */ } }
 
 // 這段時間關心過的顧客：互動紀錄 + 「我關心過了」。同一位顧客合併成一筆
 function buildCare(logs, custByContact, custs, from, to, today) {
@@ -156,7 +217,7 @@ function buildCare(logs, custByContact, custs, from, to, today) {
     const c = custByContact.get(l.contact_id)
     const p = get(c ? c.id : 'k' + l.contact_id, c ? c.name : (l.contacts && l.contacts.name) || '')
     if (l.date > p.last) p.last = l.date
-    if (l.kind !== 'meet_plan' && (l.note || l.tool)) p.lines.push({ date: l.date, tool: l.tool, note: l.note })
+    if (l.kind !== 'meet_plan' && (l.note || l.tool)) p.lines.push({ id: l.id, date: l.date, tool: l.tool, note: l.note, kind: l.kind })
   })
   custs.forEach(c => {
     if (!c.last_cared_at) return
@@ -182,7 +243,7 @@ function buildPeople(logs, today) {
     if (!map.has(l.contact_id)) map.set(l.contact_id, { c: l.contacts, lines: [], last: l.date })
     const p = map.get(l.contact_id)
     if (l.date > p.last) p.last = l.date
-    if (l.kind !== 'meet_plan' && (l.note || l.tool)) p.lines.push({ date: l.date, tool: l.tool, note: l.note })
+    if (l.kind !== 'meet_plan' && (l.note || l.tool)) p.lines.push({ id: l.id, date: l.date, tool: l.tool, note: l.note, kind: l.kind })
   })
   const list = [...map.values()].map(p => {
     p.lines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
@@ -216,7 +277,8 @@ export default function Report() {
   const [d1, setD1] = useState(addDaysStr(today, -13))
   const [d2, setD2] = useState(today)
   const [cur, setCur] = useState(null)
-  const [prev, setPrev] = useState(null)
+  const [weeks, setWeeks] = useState(null)
+  const [hidden, setHidden] = useState(() => loadHidden())
   const [showBiz, setShowBiz] = useState(true)
   const [showText, setShowText] = useState(true)
   const [topics, setTopics] = useState('')
@@ -247,16 +309,15 @@ export default function Report() {
     if (dayDiff(from, to) > 30) from = addDaysStr(to, -30)
   } else { to = today; from = addDaysStr(today, -(n - 1)) }
   const len = dayDiff(from, to) + 1
-  const pFrom = addDaysStr(from, -len), pTo = addDaysStr(from, -1)
 
   useEffect(() => {
     if (!user) return
     let dead = false
     setLoading(true)
     ;(async () => {
-      const [a, b] = await Promise.all([loadFacts(user.id, from, to), loadFacts(user.id, pFrom, pTo)])
+      const [a, w] = await Promise.all([loadFacts(user.id, from, to), loadWeekGoals(user.id, from, to)])
       if (dead) return
-      setCur(a); setPrev(b); setLoading(false)
+      setCur(a); setWeeks(w); setLoading(false)
     })()
     return () => { dead = true }
   }, [user, from, to])
@@ -272,6 +333,12 @@ export default function Report() {
   function setBiz(v) { setShowBiz(v); saveTagSetting(user.id, { report_biz: v ? 1 : 0 }) }
   function setText(v) { setShowText(v); saveTagSetting(user.id, { report_text: v ? 1 : 0 }) }
   function saveDraft() { saveTagSetting(user.id, { report_draft: { topics, when } }) }
+  function toggleHide(id) {
+    setHidden(h => { const n2 = new Set(h); if (n2.has(id)) n2.delete(id); else n2.add(id); saveHidden(n2); return n2 })
+  }
+  // 每週目標的一行：見到 2/2 位，達成；定下邀約 4/5 位，差 1 位
+  const goalPart = (label, got, target) => `${label} ${got}/${target} 位，${got >= target ? '達成' : `差 ${target - got} 位`}`
+  const weekLabel = w => (w.we >= today ? `這週（${md(w.ws)} 起）到今天` : `${md(w.ws)} 那週`)
 
   function dayStatus(d) {
     const p = cur.perDay[d]
@@ -298,16 +365,28 @@ export default function Report() {
           )}
         </div>
         <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>
-          {isCare ? `上次關心 ${p.ago}` : `下一次約會：${p.next}　上次聯絡 ${p.ago}`}{showText && !open[p.id] && p.lines.length > 0 ? `　共 ${p.lines.length} 筆互動` : ''}
+          {isCare ? `上次關心 ${p.ago}` : `下一次約會：${p.next}　上次聯絡 ${p.ago}`}{showText && !open[p.id] && p.lines.length > 0 ? `　共 ${p.lines.length} 筆互動${p.lines.some(l => hidden.has(l.id)) ? `（${p.lines.filter(l => hidden.has(l.id)).length} 筆不放）` : ''}` : ''}
         </div>
         {showText && open[p.id] && (
           <div style={{ background: SUBCARD_BG, borderRadius: 10, padding: '8px 10px', marginTop: 6 }}>
-            {p.lines.map((l, k) => (
-              <div key={k} style={{ fontSize: 12, lineHeight: 1.6, marginTop: k ? 6 : 0, color: TEXT_MAIN }}>
-                <b style={{ color: TEXT_SECONDARY }}>{md(l.date)}{l.tool ? `　${l.tool}` : ''}</b>
-                {l.note ? <><br />{l.note}</> : null}
+            {p.lines.map((l, k) => {
+              const off = hidden.has(l.id)
+              return (
+              <div key={l.id || k} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderTop: k ? `1px solid ${BORDER}` : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.6, color: off ? TEXT_MUTED : TEXT_MAIN }}>
+                  <b style={{ color: off ? TEXT_MUTED : TEXT_SECONDARY }}>{lineHead(l)}</b>
+                  {lineBody(l) ? <><br /><span style={{ textDecoration: off ? 'line-through' : 'none' }}>{lineBody(l)}</span></> : null}
+                </div>
+                {l.id && (
+                  <button onClick={() => toggleHide(l.id)}
+                    style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 99, cursor: 'pointer', whiteSpace: 'nowrap',
+                      border: off ? `1px solid ${BORDER}` : 'none', background: off ? 'var(--card)' : PRIMARY_SOFT, color: off ? TEXT_SECONDARY : PRIMARY }}>
+                    {off ? '不放' : '放進報告'}
+                  </button>
+                )}
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -315,36 +394,56 @@ export default function Report() {
   }
 
   function buildText() {
-    const pr = k => `（${prev[k]}）`
     const name = (profile && profile.name) || ''
     const L = []
-    L.push(`${name ? name + ' 的' : ''}報告　${md(from)}–${md(to)}（${len} 天）`)
-    L.push(`括號裡是前 ${len} 天（${md(pFrom)}–${md(pTo)}）`, '')
+    L.push(`${name ? name + ' 的' : ''}報告　${md(from)}–${md(to)}（${len} 天）`, '')
 
+    // 做了什麼：只寫實際的數字；是 0 的合成一行「還沒有：…」
     L.push(`【這 ${len} 天做了什麼】`)
-    L.push(`見到 ${cur.met} 位${pr('met')}，開口邀約 ${cur.asks} 次${pr('asks')}，約成 ${cur.plan} 位${pr('plan')}，新增 ${cur.fresh} 個名單${pr('fresh')}，互動 ${cur.talk} 人次${pr('talk')}。`)
-    if (cur.asks > 0) L.push(`開口邀約裡：${askBreakText(cur.askBreak)}。`)
-    L.push(`BV 分享 ${cur.bvShare} 次${pr('bvShare')}，IBV 分享 ${cur.ibvShare} 次${pr('ibvShare')}。`)
-    L.push(`每週目標：見到 ${metTarget} 位、定下 ${planTarget} 個邀約。`, '')
+    const zero = []
+    const item = (label, v, text) => { if (v > 0) L.push('・' + text); else zero.push(label) }
+    item('見到', cur.met, `見到 ${cur.met} 位`)
+    if (cur.asks > 0) {
+      L.push(`・開口邀約 ${cur.asks} 次：${askResultText(cur.askBreak)}`)
+      const pt = askPlanText(cur.askBreak)
+      if (pt) L.push(`　邀了：${pt}`)
+    } else zero.push('開口邀約')
+    item('新增名單', cur.fresh, `新增名單 ${cur.fresh} 位`)
+    item('互動', cur.talk, `互動 ${cur.talk} 人次`)
+    item('BV 分享', cur.bvShare, `BV 分享 ${cur.bvShare} 次`)
+    item('IBV 分享', cur.ibvShare, `IBV 分享 ${cur.ibvShare} 次`)
+    if (zero.length) L.push(`・還沒有：${zero.join('、')}`)
+    L.push('')
 
+    // 目標：每天 3-1-2、每週目標
     const st = cur.days.map(d => ({ d, s: dayStatus(d).t }))
     const full = st.filter(x => x.s === '完成')
     const pending = st.filter(x => x.s === '今天還沒結束')
     const miss = {}
     st.forEach(x => { if (x.s.startsWith('缺')) (miss[x.s] = miss[x.s] || []).push(md(x.d)) })
-    L.push(`【每天 ${mode.label} 的狀況】`)
-    L.push(`${len} 天裡有 ${full.length} 天做滿。`)
-    Object.keys(miss).forEach(k => L.push(`${k}：${miss[k].join('、')}`))
-    if (pending.length) L.push(`${md(pending[0].d)} 今天還沒結束。`)
+    L.push('【目標】')
+    const missText = Object.keys(miss).map(k => `${k}：${miss[k].join('、')}`).join('；')
+    L.push(`・每天 ${mode.label}：${len} 天裡做滿 ${full.length} 天${missText ? '，' + missText : ''}${pending.length ? `（${md(pending[0].d)} 今天還沒結束）` : ''}`)
+    if (metTarget > 0 || planTarget > 0) {
+      ;(weeks || []).forEach(w => {
+        const parts = [metTarget > 0 ? goalPart('見到', w.met, metTarget) : '', planTarget > 0 ? goalPart('定下邀約', w.planned, planTarget) : ''].filter(Boolean)
+        L.push(`・${weekLabel(w)}：${parts.join('；')}`)
+      })
+    }
     L.push('')
 
     if (showBiz) {
       L.push('【顧客交易】')
-      L.push(`新增顧客 ${cur.newCust} 位（${prev.newCust}）。BV ${cur.bv}（${prev.bv}），IBV ${cur.ibv}（${prev.ibv}）。`)
-      L.push(`金額 ${nt(cur.sale)}（${nt(prev.sale)}），利潤 ${nt(cur.profit)}（${nt(prev.profit)}）。`, '')
+      if (!cur.newCust && !cur.bv && !cur.ibv && !cur.sale) L.push(`這 ${len} 天沒有顧客交易。`, '')
+      else {
+        L.push(`新增顧客 ${cur.newCust} 位。BV ${cur.bv}，IBV ${cur.ibv}。`)
+        L.push(`金額 ${nt(cur.sale)}，利潤 ${nt(cur.profit)}。`, '')
+      }
     }
 
-    const lineOf = l => `　${md(l.date)}${l.tool ? ' ' + l.tool : ''}${l.note ? '　' + l.note : ''}`
+    // 選了「不放」的互動不會出現
+    const lineOf = l => { const b = lineBody(l); return `　${lineHead(l)}${b ? (l.tool ? '' : '　') + b : ''}` }
+    const keep = lines => lines.filter(l => !hidden.has(l.id))
     L.push(`【接觸的潛在夥伴，共 ${people.length} 位${shown.length < people.length ? `，列前 ${shown.length} 位` : ''}】`)
     if (people.length === 0) L.push('這段時間沒有互動紀錄。')
     shown.forEach((p, i) => {
@@ -352,7 +451,7 @@ export default function Report() {
       if (i) L.push('')
       L.push(`${i + 1}. ${p.name}${tg.length ? '　' + tg.join('，') : ''}`)
       L.push(`　下一次約會：${p.next}　上次聯絡：${p.ago}`)
-      if (showText) p.lines.forEach(l => L.push(lineOf(l)))
+      if (showText) keep(p.lines).forEach(l => L.push(lineOf(l)))
     })
     L.push('')
 
@@ -361,7 +460,7 @@ export default function Report() {
       cur.care.forEach((p, i) => {
         if (i) L.push('')
         L.push(`${i + 1}. ${p.name}　上次關心：${p.ago}`)
-        if (showText) p.lines.forEach(l => L.push(lineOf(l)))
+        if (showText) keep(p.lines).forEach(l => L.push(lineOf(l)))
       })
       if (cur.lapsed.length) {
         const one = c => `${c.name}（${c.days === null ? '還沒關心過' : c.days + ' 天'}，最近一次訂單 ${md(c.order.date)}${c.order.name ? ' ' + c.order.name : ''}）`
@@ -415,11 +514,9 @@ export default function Report() {
       </div>
     </div>
   )
-  const grid = { display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px 16px', fontSize: 13, alignItems: 'center' }
-  const th = { fontSize: 11, color: TEXT_MUTED, textAlign: 'right' }
+  const grid2 = { display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px 16px', fontSize: 13, alignItems: 'center' }
   const val = { textAlign: 'right', fontWeight: 600, color: TEXT_MAIN }
-  const old = { textAlign: 'right', color: TEXT_MUTED }
-  const row = (label, a, b) => (<><span style={{ color: TEXT_MAIN }}>{label}</span><span style={val}>{a}</span><span style={old}>{b}</span></>)
+  const row = (label, a) => (<><span style={{ color: TEXT_MAIN }}>{label}</span><span style={val}>{a}</span></>)
 
   return (
     <div style={{ background: 'var(--page)', minHeight: '100vh', paddingBottom: 90 }}>
@@ -444,53 +541,65 @@ export default function Report() {
           </div>
         )}
         <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 8, lineHeight: 1.5 }}>
-          {md(from)}（{wday(from)}）到 {md(to)}（{wday(to)}），共 {len} 天。括號和灰字是前 {len} 天（{md(pFrom)} 到 {md(pTo)}）{n === 0 ? '；自選最多 31 天' : ''}
+          {md(from)}（{wday(from)}）到 {md(to)}（{wday(to)}），共 {len} 天{n === 0 ? '。自選最多 31 天' : ''}
         </div>
 
         {toggleRow('包含顧客交易（金額、利潤）', showBiz, setBiz)}
         {toggleRow('包含互動內容', showText, setText)}
 
-        {loading || !cur || !prev ? <div style={{ padding: 40 }}><LoadingSpinner /></div> : (
+        {loading || !cur || !weeks ? <div style={{ padding: 40 }}><LoadingSpinner /></div> : (
           <>
             <div style={card}>
-              <p style={h}>行動</p>
-              <div style={grid}>
-                <span /><span style={th}>這段</span><span style={th}>前 {len} 天</span>
-                {row('見到', cur.met, prev.met)}
-                {row('開口邀約', cur.asks, prev.asks)}
-                {row('約成', cur.plan, prev.plan)}
-                {row('新名單', cur.fresh, prev.fresh)}
-                {row('互動人次', cur.talk, prev.talk)}
-                {row('BV 分享', cur.bvShare, prev.bvShare)}
-                {row('IBV 分享', cur.ibvShare, prev.ibvShare)}
+              <p style={h}>這 {len} 天做了什麼</p>
+              <div style={grid2}>
+                {row('見到', `${cur.met} 位`)}
+                {row('開口邀約', `${cur.asks} 次`)}
+                {cur.asks > 0 && <><span style={{ color: TEXT_SECONDARY, fontSize: 12, paddingLeft: 12 }}>{askResultText(cur.askBreak, '')}</span><span /></>}
+                {row('新名單', `${cur.fresh} 位`)}
+                {row('互動', `${cur.talk} 人次`)}
+                {row('BV 分享', `${cur.bvShare} 次`)}
+                {row('IBV 分享', `${cur.ibvShare} 次`)}
               </div>
-              {cur.asks > 0 && (
-                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 10, lineHeight: 1.6 }}>開口邀約裡：{askBreakText(cur.askBreak)}</div>
-              )}
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 8 }}>每週目標：見到 {metTarget}、定下 {planTarget}（可在設定調整）</div>
             </div>
 
             <div style={card}>
-              <p style={h}>每天 {mode.label}</p>
+              <p style={h}>目標</p>
+              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 8 }}>
+                每天 {mode.label}：{len} 天裡做滿 {cur.days.filter(d => dayStatus(d).t === '完成').length} 天
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(len, 7)}, 1fr)`, gap: '10px 4px', textAlign: 'center' }}>
                 {cur.days.map(d => { const s = dayStatus(d); return (
                   <div key={d} style={{ fontSize: 11, color: TEXT_MUTED }}>
                     {wday(d)} {md(d)}
-                    <div style={{ fontSize: 12, fontWeight: 600, color: s.c, marginTop: 2 }}>{s.t}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: s.c, marginTop: 2 }}>{s.t === '今天還沒結束' ? '今天' : s.t}</div>
                   </div>) })}
               </div>
+              {(metTarget > 0 || planTarget > 0) && weeks.map(w => (
+                <div key={w.ws} style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 }}>{weekLabel(w)}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '7px 12px', fontSize: 13, alignItems: 'center' }}>
+                    {[metTarget > 0 && ['見到', w.met, metTarget], planTarget > 0 && ['定下邀約', w.planned, planTarget]].filter(Boolean).map(([lb, got, tg]) => (
+                      <span key={lb} style={{ display: 'contents' }}>
+                        <span style={{ color: TEXT_MAIN }}>{lb}</span>
+                        <span style={{ fontWeight: 600, color: TEXT_MAIN }}>{got} / {tg} 位</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: got >= tg ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{got >= tg ? '達成' : `差 ${tg - got} 位`}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 10 }}>目標可在設定調整</div>
             </div>
 
             {showBiz && (
               <div style={card}>
                 <p style={h}>顧客交易</p>
-                <div style={grid}>
-                  <span /><span style={th}>這段</span><span style={th}>前 {len} 天</span>
-                  {row('新顧客', `${cur.newCust} 位`, prev.newCust)}
-                  {row('BV', cur.bv, prev.bv)}
-                  {row('IBV', cur.ibv, prev.ibv)}
-                  {row('金額', nt(cur.sale), Math.round(prev.sale).toLocaleString())}
-                  {row('利潤', nt(cur.profit), Math.round(prev.profit).toLocaleString())}
+                <div style={grid2}>
+                  {row('新顧客', `${cur.newCust} 位`)}
+                  {row('BV', cur.bv)}
+                  {row('IBV', cur.ibv)}
+                  {row('金額', nt(cur.sale))}
+                  {row('利潤', nt(cur.profit))}
                 </div>
                 <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 8 }}>利潤是金額減成本，贈送的產品不算</div>
               </div>
@@ -554,7 +663,7 @@ export default function Report() {
         </div>
 
         <div style={{ fontSize: 11, color: TEXT_MUTED, textAlign: 'center', marginTop: 12 }}>會貼出對方姓名和你寫的互動內容，貼之前請確認對話對象</div>
-        <button onClick={copyText} disabled={loading || !cur || !prev}
+        <button onClick={copyText} disabled={loading || !cur || !weeks}
           style={{ width: '100%', marginTop: 10, padding: 14, borderRadius: 14, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
           {copied ? '已複製，去 LINE 貼上' : '複製給帶領者（貼到 LINE）'}
         </button>
