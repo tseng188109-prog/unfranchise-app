@@ -57,13 +57,14 @@ async function loadWeek(userId) {
   // 沒先約、直接見面後補記的，也算當天的「定下」
   const dayLogs = [...(dayLogsRes.data || []), ...(await fetchUnplannedMeets(userId, ws, we))]
   ;dayLogs.forEach(l => {
-    const d = (perDay[l.date] = perDay[l.date] || { people: new Set(), plan: 0, fresh: 0 })
+    const d = (perDay[l.date] = perDay[l.date] || { people: new Set(), plan: 0, planIds: new Set(), fresh: 0 })
     d.people.add(l.contact_id)
-    if (l.kind === 'meet_plan' || l.kind === 'invite_no') d.plan++ // 每天的「1」：邀了沒約成也算
+    // 每天的「1」：邀了沒約成、還在等回覆也算；同一個人同一天只算一位
+    if (l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait') { d.planIds.add(l.contact_id); d.plan = d.planIds.size }
   })
   ;(addedRows || []).forEach(r => {
     const day = r.day
-    const d = (perDay[day] = perDay[day] || { people: new Set(), plan: 0, fresh: 0 })
+    const d = (perDay[day] = perDay[day] || { people: new Set(), plan: 0, planIds: new Set(), fresh: 0 })
     d.fresh++
   })
   const days312 = Object.values(perDay).filter(d => d.people.size >= mode.talk && d.plan >= mode.meet && d.fresh >= mode.fresh).length

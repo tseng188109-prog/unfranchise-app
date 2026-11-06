@@ -1,11 +1,10 @@
 // beanJar.jsx — 放豆子進罐子的兩個小幫手
 //   MemoryJogSheet：「想不到人？」成功五要訣（BASIC-5）的記憶喚醒練習，熟人名單分類出題，一次三題
-//   InviteNoSheet：「邀了，沒約成」開口就算數；算今天 3-1-2 的「1」和一次互動，不算每週「定下」
+//   邀約的冷卻期：邀了沒約成、還在等回覆的人，先不推薦去邀約
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { syncDaily3 } from './followUp'
-import { PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, RADIUS, SUBCARD_BG, DANGER } from './designTokens'
+import { PRIMARY, TEXT_MAIN, TEXT_SECONDARY, TEXT_MUTED, BORDER, RADIUS, SUBCARD_BG } from './designTokens'
 
 // 依熟人名單分類：朋友家人鄰居、同學、團體、同事、社群、顧客、住附近、常去的店、朋友的朋友
 const JOG = [
@@ -83,68 +82,52 @@ export function MemoryJogSheet({ onClose }) {
   )
 }
 
-const REASONS = ['最近比較忙', '之後再說', '還沒興趣', '沒回訊息']
-// 邀了沒約成之後，隔幾天才再推薦去邀約（這段時間照樣會出現在「3 位互動」）
+// 邀約的冷卻期：邀了沒約成之後，隔幾天才再推薦去邀約（這段時間照樣會出現在「3 位互動」）
+// 「記一次邀約」視窗（invite.jsx）也用這裡的原因清單
+export const REASONS = ['最近比較忙', '之後再說', '還沒興趣', '沒回訊息']
 const COOL_DAYS = { '沒回訊息': 3, '最近比較忙': 14, '之後再說': 14, '還沒興趣': 30 }
 const COOL_DEFAULT = 7
+export const NO_HEAD = '邀了沒約成'
+export const SUPERSEDED = '後來又邀了一次'
 function addDay(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
+const pad2 = n => String(n).padStart(2, '0')
+// 「等回覆」後來才確定沒約成：備註會多一段「（11/10 確認）」，冷卻從確認那天開始算
+export function confirmTag(dateStr) { return `（${Number(dateStr.slice(5, 7))}/${Number(dateStr.slice(8, 10))} 確認）` }
+export function confirmedDay(log) {
+  const seg = String(log.note || '').split('　').find(x => x.startsWith('（') && x.endsWith(' 確認）'))
+  if (!seg) return ''
+  const [m, d] = seg.slice(1, -4).split('/').map(Number)
+  if (!m || !d) return ''
+  const y = Number(String(log.date).slice(0, 4))
+  let c = `${y}-${pad2(m)}-${pad2(d)}`
+  if (c < log.date) c = `${y + 1}-${pad2(m)}-${pad2(d)}`
+  return c
+}
 export function coolUntil(log) {
   // 用字串比對，不用正規表示式（中文寫在正規表示式裡，有些環境會讀錯）
-  const head = '邀了沒約成：'
-  const note = log.note || ''
-  const reason = note.startsWith(head) ? note.slice(head.length).split('　')[0] : ''
-  return addDay(log.date, COOL_DAYS[reason] || COOL_DEFAULT)
+  const segs = String(log.note || '').split('　')
+  // 舊的等回覆因為又邀了一次而結束：不另外冷卻，照新的那次算
+  if (segs.includes(SUPERSEDED)) return log.date
+  const first = segs[0]
+  const head = NO_HEAD + '：'
+  const reason = first.startsWith(head) ? first.slice(head.length) : ''
+  return addDay(confirmedDay(log) || log.date, COOL_DAYS[reason] || COOL_DEFAULT)
 }
 // 每個人最晚冷卻到哪天：Map(contact_id → 'YYYY-MM-DD')
+// 還在等回覆的人也先不推薦（等對方回了再說）
 export async function fetchInviteCooldowns(userId) {
   try {
-    const since = addDay(twToday(), -31)
-    const { data } = await supabase.from('contact_logs').select('contact_id,date,note')
-      .eq('user_id', userId).eq('kind', 'invite_no').gte('date', since)
+    const since = addDay(twToday(), -120)
+    const [{ data: no }, { data: wait }] = await Promise.all([
+      supabase.from('contact_logs').select('contact_id,date,note,kind').eq('user_id', userId).eq('kind', 'invite_no').gte('date', since),
+      supabase.from('contact_logs').select('contact_id,date,note,kind').eq('user_id', userId).eq('kind', 'invite_wait'),
+    ])
     const map = new Map()
-    ;(data || []).forEach(l => { const u = coolUntil(l); if (!map.has(l.contact_id) || u > map.get(l.contact_id)) map.set(l.contact_id, u) })
+    ;[...(no || []), ...(wait || [])].forEach(l => {
+      const u = l.kind === 'invite_wait' ? '9999-12-31' : coolUntil(l)
+      if (!map.has(l.contact_id) || u > map.get(l.contact_id)) map.set(l.contact_id, u)
+    })
     return map
   } catch { return new Map() }
 }
 function twToday() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) }
-
-export function InviteNoSheet({ contact, userId, onClose, onSaved }) {
-  const [reason, setReason] = useState('')
-  const [said, setSaid] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
-  async function save() {
-    if (saving) return
-    setSaving(true); setErr('')
-    const t = twToday()
-    const text = ['邀了沒約成' + (reason ? `：${reason}` : ''), said.trim()].filter(Boolean).join('　')
-    const { error } = await supabase.from('contact_logs').insert({ contact_id: contact.id, user_id: userId, date: t, kind: 'invite_no', note: text })
-    if (error) { setSaving(false); setErr('沒存成功，再按一次試試'); return }
-    const upd = { last_interacted_at: new Date().toISOString() }
-    if (!contact.last_contact_date || t >= contact.last_contact_date) upd.last_contact_date = t
-    await supabase.from('contacts').update(upd).eq('id', contact.id)
-    await syncDaily3(supabase, userId, t)
-    setSaving(false)
-    onSaved && onSaved()
-    onClose()
-  }
-  const chip = on => ({
-    padding: '7px 12px', borderRadius: 99, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-    border: `1.5px solid ${on ? PRIMARY : BORDER}`, background: on ? PRIMARY_SOFT : 'var(--card)', color: on ? PRIMARY : TEXT_SECONDARY,
-  })
-  return (
-    <Sheet title={`邀了${contact.name}，沒約成`} onClose={onClose}>
-      <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 10 }}>開口就算數。記一下原因，下次比較知道怎麼約。</div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {REASONS.map(r => <button key={r} type="button" onClick={() => setReason(reason === r ? '' : r)} style={chip(reason === r)}>{r}</button>)}
-      </div>
-      <input value={said} onChange={e => setSaid(e.target.value)} placeholder="對方怎麼說（選填）"
-        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: RADIUS.sm, border: `1px solid ${BORDER}`,
-          fontSize: 14, background: 'var(--card)', color: TEXT_MAIN, outline: 'none' }} />
-      {err && <div style={{ color: DANGER, fontSize: 13, marginTop: 10 }}>{err}</div>}
-      <button onClick={save} disabled={saving} style={{ ...btn(true), width: '100%', marginTop: 14, opacity: saving ? 0.7 : 1 }}>
-        {saving ? '儲存中…' : '記下來'}
-      </button>
-    </Sheet>
-  )
-}

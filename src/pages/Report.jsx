@@ -4,6 +4,7 @@
 // 兩個開關（顧客交易、互動內容）和討論事項存在 users.tag_settings，不用另外建表。
 import { fetchTop10, top10NeedsAction, TOP10_MAX } from './top10'
 import { fetchAddedContacts } from './addedDate'
+import { planOf } from './invite'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
@@ -95,12 +96,13 @@ async function loadFacts(userId, from, to) {
   // 沒先約、直接見面後補記的，也算一次定下（顧客的不算，跟上面一樣）
   const unplanned = (await fetchUnplannedMeets(userId, from, to)).filter(u => !custByContact.has(u.contact_id))
   const perDay = {}
-  days.forEach(d => { perDay[d] = { talk: new Set(), plan: 0, fresh: 0 } })
-  unplanned.forEach(u => { const p = perDay[u.date]; if (p) p.plan += 1 })
+  // 每天的「1」：同一個人同一天只算一位
+  days.forEach(d => { perDay[d] = { talk: new Set(), plan: 0, planIds: new Set(), fresh: 0 } })
+  unplanned.forEach(u => { const p = perDay[u.date]; if (p) { p.planIds.add(u.contact_id); p.plan = p.planIds.size } })
   logs.forEach(l => {
     const p = perDay[l.date]; if (!p) return
     p.talk.add(l.contact_id)
-    if (l.kind === 'meet_plan' || l.kind === 'invite_no') p.plan += 1 // 每天的「1」：開口就算
+    if (l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait') { p.planIds.add(l.contact_id); p.plan = p.planIds.size } // 開口就算
   })
   ;(newR.data || []).forEach(c => { const p = perDay[c.day]; if (p) p.fresh += 1 })
   const planned = new Set([...logs.filter(l => l.kind === 'meet_plan'), ...unplanned].map(l => l.contact_id))
@@ -117,7 +119,8 @@ async function loadFacts(userId, from, to) {
     met: (meetR.data || []).length,
     plan: planned.size,
     // 開口邀約幾次：約成的、沒先約直接見的、邀了沒約成的
-    asks: logs.filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length + unplanned.length,
+    asks: logs.filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait').length + unplanned.length,
+    askBreak: askBreakdown(logs, unplanned),
     fresh: (newR.data || []).length,
     talk: days.reduce((s, d) => s + perDay[d].talk.size, 0),
     bvShare: (cntR.data || []).filter(c => c.counter_key === 'bv_share').length,
@@ -125,6 +128,24 @@ async function loadFacts(userId, from, to) {
     newCust: (custR.data || []).length,
     bv, ibv, sale, profit,
   }
+}
+
+// 開口邀約的結果：約成／沒約成／等回覆，和邀了什麼（約聚餐 2、一對一會談 1…）
+function askBreakdown(logs, unplanned) {
+  const asks = logs.filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait')
+  const plans = {}
+  asks.forEach(l => { const p = planOf(l); if (p) plans[p] = (plans[p] || 0) + 1 })
+  return {
+    yes: asks.filter(l => l.kind === 'meet_plan').length + unplanned.length,
+    no: asks.filter(l => l.kind === 'invite_no').length,
+    wait: asks.filter(l => l.kind === 'invite_wait').length,
+    plans: Object.entries(plans).sort((a, b) => b[1] - a[1]),
+  }
+}
+export function askBreakText(b) {
+  if (!b) return ''
+  const r = `約成 ${b.yes} 次、沒約成 ${b.no} 次、等回覆 ${b.wait} 次`
+  return b.plans.length ? `${r}。邀了：${b.plans.map(([p, n]) => `${p} ${n}`).join('、')}` : r
 }
 
 // 這段時間關心過的顧客：互動紀錄 + 「我關心過了」。同一位顧客合併成一筆
@@ -302,6 +323,7 @@ export default function Report() {
 
     L.push(`【這 ${len} 天做了什麼】`)
     L.push(`見到 ${cur.met} 位${pr('met')}，開口邀約 ${cur.asks} 次${pr('asks')}，約成 ${cur.plan} 位${pr('plan')}，新增 ${cur.fresh} 個名單${pr('fresh')}，互動 ${cur.talk} 人次${pr('talk')}。`)
+    if (cur.asks > 0) L.push(`開口邀約裡：${askBreakText(cur.askBreak)}。`)
     L.push(`BV 分享 ${cur.bvShare} 次${pr('bvShare')}，IBV 分享 ${cur.ibvShare} 次${pr('ibvShare')}。`)
     L.push(`每週目標：見到 ${metTarget} 位、定下 ${planTarget} 個邀約。`, '')
 
@@ -442,6 +464,9 @@ export default function Report() {
                 {row('BV 分享', cur.bvShare, prev.bvShare)}
                 {row('IBV 分享', cur.ibvShare, prev.ibvShare)}
               </div>
+              {cur.asks > 0 && (
+                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 10, lineHeight: 1.6 }}>開口邀約裡：{askBreakText(cur.askBreak)}</div>
+              )}
               <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 8 }}>每週目標：見到 {metTarget}、定下 {planTarget}（可在設定調整）</div>
             </div>
 

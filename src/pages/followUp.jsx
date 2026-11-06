@@ -288,9 +288,12 @@ export async function syncDaily3(supabase, userId, dateStr) {
       .eq('user_id', userId).eq('counter_key', 'meetup').eq('is_done', true).eq('date', date),
   ])
   const talk = new Set((logs || []).map(r => r.contact_id)).size
-  // 邀約：約成的（meet_plan）＋邀了沒約成的（invite_no，開口就算數）＋沒先約直接見面的
-  const plan = (logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length
-    + (met || []).filter(r => r.contact_id && !r.note && r.planned_date === r.date).length
+  // 邀約：約成的（meet_plan）＋邀了沒約成的（invite_no）＋還在等回覆的（invite_wait），開口就算數；再加沒先約直接見面的
+  // 同一天同一個人只算一次（早上邀沒回、下午約成了，還是 1 位）
+  const plan = new Set([
+    ...(logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait'),
+    ...(met || []).filter(r => r.contact_id && !r.note && r.planned_date === r.date),
+  ].map(l => l.contact_id)).size
   const fresh = (added || []).length
   const full = talk >= mode.talk && plan >= mode.meet && fresh >= mode.fresh
   const { data: cur } = await supabase.from('daily_checkins').select('is_done')

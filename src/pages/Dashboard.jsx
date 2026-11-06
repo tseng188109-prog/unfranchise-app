@@ -35,8 +35,9 @@ import { fetchTrialStrips } from './trialRun'
 import { fetchTop10, Top10Strip } from './top10'
 import { fetchAddedContacts, fetchAddedMap, withAddedDates } from './addedDate'
 import { dayDotStatus, DotLegend, visibleDailyTasks } from './checkinStatus'
-import { MemoryJogSheet, InviteNoSheet, fetchInviteCooldowns } from './beanJar'
-import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, isContactWarm, syncDaily3 } from './followUp'
+import { MemoryJogSheet, fetchInviteCooldowns } from './beanJar'
+import { InviteSheet, fetchWaitingInvites, planOf } from './invite'
+import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, syncDaily3 } from './followUp'
 import { upcomingPlans, fmtPlanDate, AfterMeetSheet } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
@@ -136,7 +137,8 @@ export default function Dashboard() {
   const [pendingMeets, setPendingMeets] = useState([]) // 過了日期還沒記的約定（見了嗎？）
   const [afterMeet, setAfterMeet] = useState(null)
   const [showJog, setShowJog] = useState(false)
-  const [inviteNo, setInviteNo] = useState(null)
+  const [invite, setInvite] = useState(null) // null | { contact } | { waitLog, contact, result }
+  const [waitInvites, setWaitInvites] = useState([]) // 邀了、等回覆超過 3 天的（他回了嗎？）
   const [progTab, setProgTab] = useState('season')
   const [showBvTarget, setShowBvTarget] = useState(false)
   const [newContactCount, setNewContactCount] = useState(0)
@@ -377,6 +379,7 @@ export default function Dashboard() {
   async function fetchMeetupCard() {
     // 按了「見完了」才算見到；過了日期還沒記的，首頁問一句「見了嗎？」
     fetchPendingMeets(user.id).then(setPendingMeets)
+    fetchWaitingInvites(user.id).then(setWaitInvites)
     const currentWeekStart = getWeekStart(today())
     // 抓最近 12 週的資料，夠算連續達標週數
     const twelveWeeksAgo = (() => {
@@ -510,7 +513,8 @@ export default function Dashboard() {
       contacted: [...new Set((logs || []).map(l => l.contact_id))],
       fresh: freshToday || 0,
       // 今天的「1」：約成的、沒先約直接見的、邀了沒約成的都算（開口就算數）
-      planCount: (logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length + unplanned.filter(u => u.date === t).length,
+      // 同一個人今天邀了兩次只算一位
+      planCount: new Set([...(logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait'), ...unplanned.filter(u => u.date === t)].map(l => l.contact_id)).size,
     })
   }
 
@@ -810,9 +814,10 @@ export default function Dashboard() {
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
           {(() => {
-            // 提醒合計最多 3 條：「見了嗎？」排前面，再來是試做；多的收成一行
+            // 提醒合計最多 3 條：「見了嗎？」排前面，再來是「他回了嗎？」、試做；多的收成一行
             const reminders = [
               ...pendingMeets.map(m => ({ kind:'meet', m })),
+              ...waitInvites.map(w => ({ kind:'wait', w })),
               ...trialStrips.map(ts => ({ kind:'trial', ts })),
             ]
             const shown = reminders.slice(0, 3)
@@ -832,6 +837,21 @@ export default function Dashboard() {
                     style={{ fontSize:12, padding:'5px 10px', borderRadius:8, border:'none', background:'var(--card)', color:TEXT_SECONDARY, cursor:'pointer' }}>沒見成</button>
                 </div>
               ))}
+              {shown.filter(r => r.kind === 'wait').map(({ w }) => {
+                const what = planOf(w)
+                return (
+                <div key={'wi'+w.id} style={{ padding:'9px 14px', background:'var(--yellow-soft)', borderBottom:'1px solid var(--border)',
+                  display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <span style={{ flex:1, minWidth:150, fontSize:13, fontWeight:600, color:ACCENT_YELLOW_TEXT }}>
+                    {Number(w.date.slice(5,7))}/{Number(w.date.slice(8,10))} 邀了{w.contacts?.name || ''}{what ? (what.startsWith('邀請參加 ') ? '參加' + what.slice(5) : what) : ''}，回了嗎？
+                  </span>
+                  <button onClick={() => setInvite({ waitLog: w, contact: w.contacts, result: 'yes' })}
+                    style={{ fontSize:12, padding:'5px 10px', borderRadius:8, border:'none', background:'var(--card)', color:PRIMARY, fontWeight:600, cursor:'pointer' }}>約成了</button>
+                  <button onClick={() => setInvite({ waitLog: w, contact: w.contacts, result: 'no' })}
+                    style={{ fontSize:12, padding:'5px 10px', borderRadius:8, border:'none', background:'var(--card)', color:TEXT_SECONDARY, cursor:'pointer' }}>沒約成</button>
+                </div>
+                )
+              })}
               {more > 0 && (
                 <div onClick={() => navigate('/daily')} style={{ padding:'7px 14px', fontSize:12, color:TEXT_SECONDARY, borderBottom:'1px solid var(--border)', cursor:'pointer' }}>
                   還有 {more} 筆提醒，到每日行動看 ›
@@ -839,7 +859,7 @@ export default function Dashboard() {
               )}
             </>
           })()}
-          {trialStrips.slice(0, Math.max(0, 3 - pendingMeets.length)).map(ts => (
+          {trialStrips.slice(0, Math.max(0, 3 - pendingMeets.length - waitInvites.length)).map(ts => (
             <div key={ts.contactId} onClick={()=>navigate(`/contacts/${ts.contactId}`)}
               style={{ padding:'10px 14px', background:PRIMARY_SOFT, cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
               <div style={{ fontSize:13,fontWeight:600,color:PRIMARY }}>{ts.text}</div>
@@ -905,12 +925,13 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div style={{ padding:14, display:'flex', gap:12, alignItems:'center', borderTop:'1px solid var(--border)' }}>
+          <div style={{ padding:14, display:'flex', gap:12, alignItems:'flex-start', borderTop:'1px solid var(--border)' }}>
             <Tile bg={ORANGE_SOFT} color={ORANGE_TEXT}>{mode.meet}</Tile>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14,fontWeight:600,color:TEXT_MAIN }}>
-                <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8 }}>
-                  <span>個邀約{meetingContact && <span style={{ fontWeight:500,marginLeft:8 }}>{meetingContact.name}</span>}</span>
+                <span style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:'2px 8px', flexWrap:'wrap' }}>
+                  <span style={{ whiteSpace:'nowrap' }}>個邀約{meetingContact && <span onClick={() => navigate(`/contacts/${meetingContact.id}`)}
+                    style={{ fontWeight:500,marginLeft:8,color:PRIMARY,textDecoration:'underline',textUnderlineOffset:3,cursor:'pointer' }}>{meetingContact.name}</span>}</span>
                   {weeklyMeetTarget > 0
                     ? <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: weekPlanned >= weeklyMeetTarget ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>本週 定下 {weekPlanned}/{weeklyMeetTarget}</span>
                     : <span style={{ fontSize:13,fontWeight:600,whiteSpace:'nowrap',color: today312.planCount >= mode.meet ? ACCENT_GREEN_TEXT : TEXT_SECONDARY }}>{mode.meet > 1 ? `今天 ${Math.min(today312.planCount, mode.meet)}/${mode.meet}` : (today312.planCount >= 1 ? '今天邀約了' : '還沒邀約')}</span>}
@@ -928,7 +949,7 @@ export default function Dashboard() {
               )}
               {meetingContact && <MeetingKeyNote contactId={meetingContact.id} color={ORANGE_TEXT} />}
               {meetingContact && meetingContact.last_quote && (
-                <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic' }}>上次對方說：「{meetingContact.last_quote}」</div>
+                <div style={{ fontSize:12,color:TEXT_MUTED,marginTop:2,fontStyle:'italic',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>上次對方說：「{meetingContact.last_quote}」</div>
               )}
               {weeklyMeetTarget > 0 && (
                 <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'4px 8px', marginTop:6 }}>
@@ -954,6 +975,12 @@ export default function Dashboard() {
                     {meetupCard && `　見到 ${meetupCard.count}/${meetupCard.target}${meetupCard.streak >= 2 ? `・連續 ${meetupCard.streak} 週` : ''}`}
                   </span>
                 </div>
+              )}
+              {meetingContact && (
+                <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
+                  style={{ display:'block', background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:'6px 0 0', cursor:'pointer' }}>
+                  換一位
+                </button>
               )}
               {nearEvents.map(ev => {
                 const invited = activeContacts.filter(c => isInvitedTo(c, ev, futureMeets))
@@ -991,22 +1018,10 @@ export default function Dashboard() {
               )}
               {!meetingContact && <div style={{ fontSize:11,color:TEXT_MUTED }}>1 是定下一個邀約，不用急，也別漫無目的</div>}
             </div>
-            {meetingContact && (
-              <div style={{ display:'flex', flexDirection:'column', gap:6, alignItems:'stretch' }}>
-                <SoftBtn solid color={ORANGE}
-                  onClick={()=> isContactWarm(meetingContact) ? setSched({ contact: meetingContact }) : navigate(`/contacts/${meetingContact.id}`)}>
-                  {isContactWarm(meetingContact) ? '定時間' : '先暖身'}
-                </SoftBtn>
-                <button onClick={()=>setInviteNo(meetingContact)}
-                  style={{ background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:'4px 0', cursor:'pointer' }}>
-                  邀了，沒約成
-                </button>
-                <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
-                  style={{ background:'none', border:'none', color:TEXT_MUTED, fontSize:12, padding:'2px 0', cursor:'pointer' }}>
-                  換一位
-                </button>
-              </div>
-            )}
+            {/* 沒有推薦的人也能記：邀了別人，一樣算今天的 1 */}
+            <div style={{ flexShrink:0 }}>
+              <SoftBtn solid color={ORANGE} onClick={()=> setInvite({ contact: meetingContact || null })}>記一次邀約</SoftBtn>
+            </div>
           </div>
 
           <div style={{ padding:14, display:'flex', gap:12, alignItems:'center', borderTop:'1px solid var(--border)' }}>
@@ -1285,9 +1300,10 @@ export default function Dashboard() {
             onSaved={() => { fetchFollowUps(); fetchMeetupCard() }} />
         )}
         {showJog && <MemoryJogSheet onClose={() => setShowJog(false)} />}
-        {inviteNo && user && (
-          <InviteNoSheet contact={inviteNo} userId={user.id} onClose={() => setInviteNo(null)}
-            onSaved={() => { setSkipMeeting(s => [...s, inviteNo.id]); fetchFollowUps(); fetchCheckin() }} />
+        {invite && user && (
+          <InviteSheet userId={user.id} contact={invite.contact} waitLog={invite.waitLog} initialResult={invite.result}
+            onClose={() => setInvite(null)}
+            onSaved={() => { fetchFollowUps(); fetchCheckin(); fetchMeetupCard(); loadFutureMeets() }} />
         )}
         {afterMeet && user && (
           <AfterMeetSheet contact={afterMeet.contact} userId={user.id} logId={afterMeet.logId} initialDate={afterMeet.date}

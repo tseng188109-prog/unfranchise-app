@@ -16,6 +16,7 @@ import {
   markDaily312, syncDaily3,
 } from './followUp'
 import { AfterMeetSheet, NextPlanCard } from './meetingFlow'
+import { InviteSheet } from './invite'
 import { ToolRow, ToolTag } from './tools'
 import { QuickTags, ACTION_MAP, DAYS_MAP } from './contactQuick'
 import { Top10Star } from './top10'
@@ -76,6 +77,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   const [muteSaving, setMuteSaving] = useState(false)
   const [showAfterMeet, setShowAfterMeet] = useState(false)
   const [sched, setSched] = useState(null) // null | { log }
+  const [invite, setInvite] = useState(null) // null | { waitLog?, result? }
   const [signedDays, setSignedDays] = useState(null) // 簽約後第幾天（只在 已簽約 時有值）
   const [meUserId, setMeUserId] = useState(null)
 
@@ -437,7 +439,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
             )}
 
             {!contact.is_muted && <NextPlanCard contact={contact} onOpen={() => setShowAfterMeet(true)}
-              onSchedule={() => setSched({ log: null })} onEdit={openEditPlan} />}
+              onSchedule={() => setInvite({})} onEdit={openEditPlan} />}
             {meUserId && <TrialRunCard contact={contact} userId={meUserId} />}
 
             {signedDays !== null && signedDays <= 14 && (
@@ -651,6 +653,14 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                         fontSize:13, lineHeight:1.7, color: log.note ? (i===0 ? TEXT_MAIN : TEXT_SECONDARY) : TEXT_MUTED,
                         whiteSpace:'pre-wrap', wordBreak:'break-word', overflowWrap:'anywhere' }}>
                         {log.note || '無備註'}
+                        {log.kind === 'invite_wait' && (
+                          <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                            <button onClick={() => setInvite({ waitLog: log, result: 'yes' })}
+                              style={{ fontSize:12, padding:'5px 12px', borderRadius:8, border:`1px solid ${BORDER}`, background:'var(--card)', color:PRIMARY, fontWeight:600, cursor:'pointer' }}>約成了</button>
+                            <button onClick={() => setInvite({ waitLog: log, result: 'no' })}
+                              style={{ fontSize:12, padding:'5px 12px', borderRadius:8, border:`1px solid ${BORDER}`, background:'var(--card)', color:TEXT_SECONDARY, cursor:'pointer' }}>沒約成</button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -698,6 +708,10 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
       {sched && meUserId && (
         <ScheduleSheet userId={meUserId} contact={contact} log={sched.log} onClose={() => setSched(null)}
           onSaved={() => { fetchContact(); onChanged?.() }} />
+      )}
+      {invite && meUserId && (
+        <InviteSheet userId={meUserId} contact={contact} waitLog={invite.waitLog} initialResult={invite.result}
+          onClose={() => setInvite(null)} onSaved={() => { fetchContact(); onChanged?.() }} />
       )}
       {showAfterMeet && meUserId && (
         <AfterMeetSheet contact={contact} userId={meUserId} onClose={() => setShowAfterMeet(false)}

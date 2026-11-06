@@ -355,7 +355,7 @@ export function AfterMeetSheet({ contact, userId, logId, initialDate, onClose, o
 }
 
 // ---- 聯絡人頁的「下一次」卡 ----
-// 還沒約：主按鈕是「定時間」，「見完了」降成小字。已約好：主按鈕才是「見完了，記一下」，旁邊可改時間。
+// 還沒約：主按鈕是「記一次邀約」（約成了就在裡面定時間），「見完了」降成小字。已約好：主按鈕才是「見完了，記一下」，旁邊可改時間。
 export function NextPlanCard({ contact, onOpen, onSchedule, onEdit }) {
   const t = todayStr()
   const hasPlan = !!contact.next_plan && (!contact.next_plan_date || contact.next_plan_date >= t)
@@ -373,7 +373,7 @@ export function NextPlanCard({ contact, onOpen, onSchedule, onEdit }) {
         </div>
         <button onClick={hasPlan ? onOpen : onSchedule}
           style={{ border: 'none', background: PRIMARY, color: '#fff', borderRadius: RADIUS.sm, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          {hasPlan ? '見完了，記一下' : '定時間'}
+          {hasPlan ? '見完了，記一下' : '記一次邀約'}
         </button>
       </div>
       <button onClick={hasPlan ? onEdit : onOpen} style={link}>

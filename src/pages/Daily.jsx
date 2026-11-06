@@ -188,7 +188,8 @@ export default function Daily() {
     const count = (await fetchAddedContacts(supabase, { userId: user.id, from: t, to: t })).length
     setD312({
       talk: new Set((logs || []).map(l => l.contact_id)).size,
-      plan: (logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no').length + (await fetchUnplannedMeets(user.id, t, t)).length,
+      // 同一個人同一天只算一位
+      plan: new Set([...(logs || []).filter(l => l.kind === 'meet_plan' || l.kind === 'invite_no' || l.kind === 'invite_wait'), ...(await fetchUnplannedMeets(user.id, t, t))].map(l => l.contact_id)).size,
       fresh: count || 0,
     })
   }
