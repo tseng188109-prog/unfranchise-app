@@ -189,7 +189,9 @@ export default function ContactNew() {
             </div>
             {form.platform && (
               <input value={form.platform_account} onChange={e=>set('platform_account',e.target.value)}
-                placeholder="@username..."
+                placeholder="帳號名稱，例如 abc_123"
+                // 不寫 username：iPhone 看到這個字會以為是登入欄，跳出「此網站的密碼」
+                autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} name="social-handle" data-1p-ignore data-lpignore="true"
                 style={{ ...styles.input, marginTop:8 }} />
             )}
           </div>
