@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { trackUsage } from './usage'
+import Celebrations from './celebrate'
 import {
   IconHome2, IconUsers, IconChartBar, IconMail, IconCheck,
   IconFlag, IconSettings,
@@ -120,6 +121,9 @@ export default function Layout({ children }) {
       <div className="rwd-content">
         {children}
       </div>
+
+      {/* 小鼓勵、做滿今天的慶祝、連續天數 */}
+      <Celebrations />
 
       {/* 手機版底部選單 */}
       <div className="rwd-bottomnav" style={{

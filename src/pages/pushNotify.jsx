@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { IconBell } from '@tabler/icons-react'
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, BORDER, RADIUS } from './designTokens'
+import { notifyPrefs, isQuiet, EVENING_HOURS, twToday, addDays, md } from '../lib/rhythm'
 
 const VAPID_PUBLIC_KEY = 'BNh0rz80Bym8RYKfsYfMjzMEQ6kl6Bkkqsli6jHSmFuajy3AQElzTgly-FLuS9YaSAcaIKTIFeC9BM2YzvytVAE'
 
@@ -197,8 +198,8 @@ export function PushSetting({ userId }) {
     loading: '',
     unsupported: '要先把 App 加到主畫面，再從主畫面的圖示打開，才能開啟提醒。（Safari 底部分享按鈕 → 加入主畫面）',
     denied: '手機的通知被關掉了。到 手機設定 → 通知 → 超連鎖，打開「允許通知」後再回來。',
-    off: '有約好的人，當天早上 9 點提醒你。',
-    on: '已開啟。有約好的人，當天早上 9 點會提醒你。',
+    off: '有約好的人當天早上提醒你；晚上也可以提醒你今天還差什麼。',
+    on: '已開啟。下面可以選要收哪些提醒。',
   }[state]
 
   const canTap = state === 'off' || state === 'on'
@@ -222,6 +223,84 @@ export function PushSetting({ userId }) {
       </div>
       {desc && <p style={{ fontSize: 12, color: TEXT_MUTED, margin: '8px 0 0', lineHeight: 1.6 }}>{desc}</p>}
       {msg && <p style={{ fontSize: 12, color: TEXT_SECONDARY, margin: '6px 0 0' }}>{msg}</p>}
+      {state === 'on' && <NotifyPrefs userId={userId} />}
+    </div>
+  )
+}
+
+// 要收哪些提醒（存在 users.tag_settings.notify，後台排程照這個送）
+function Switch({ on, onClick, label }) {
+  return (
+    <button role="switch" aria-checked={on} aria-label={label} onClick={onClick}
+      style={{ marginLeft: 'auto', width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0,
+        background: on ? PRIMARY : 'var(--border2)', transition: 'background .15s' }}>
+      <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} />
+    </button>
+  )
+}
+function Arrow({ children, onClick, disabled, label }) {
+  return (
+    <button onClick={onClick} disabled={disabled} aria-label={label}
+      style={{ background: 'none', border: 'none', cursor: disabled ? 'default' : 'pointer', color: disabled ? 'var(--border2)' : PRIMARY, fontSize: 18, padding: '0 6px', lineHeight: 1 }}>{children}</button>
+  )
+}
+
+export function NotifyPrefs({ userId }) {
+  const [tags, setTags] = useState(null)
+  const today = twToday()
+  useEffect(() => {
+    supabase.from('users').select('tag_settings').eq('id', userId).single()
+      .then(({ data }) => setTags((data && data.tag_settings) || {}))
+  }, [userId])
+  if (!tags) return null
+  const p = notifyPrefs(tags)
+
+  async function save(patch) {
+    const next = { ...p, ...patch }
+    // 存之前再讀一次，不要蓋掉別的設定
+    const { data } = await supabase.from('users').select('tag_settings').eq('id', userId).single()
+    const cur = (data && data.tag_settings) || {}
+    const merged = { ...cur, notify: next }
+    setTags(merged)
+    await supabase.from('users').update({ tag_settings: merged }).eq('id', userId)
+  }
+
+  const quiet = isQuiet(p, today)
+  const hourIdx = EVENING_HOURS.indexOf(p.eveningHour)
+  const row = { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 0', borderTop: `1px solid ${BORDER}`, fontSize: 14, color: TEXT_MAIN }
+  const dim = quiet ? { opacity: 0.45 } : null
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ ...row, ...dim }}>早上：今天約了誰<span style={{ fontSize: 12, color: TEXT_MUTED }}>9:00</span>
+        <Switch on={p.morning} onClick={() => save({ morning: !p.morning })} label="早上提醒" /></div>
+      <div style={{ ...row, ...dim }}>
+        <span>晚上：今天還差什麼</span>
+        {p.evening && (
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: TEXT_SECONDARY, fontVariantNumeric: 'tabular-nums' }}>
+            <Arrow label="早一點" disabled={hourIdx <= 0} onClick={() => save({ eveningHour: EVENING_HOURS[hourIdx - 1] })}>‹</Arrow>
+            {p.eveningHour}:00
+            <Arrow label="晚一點" disabled={hourIdx >= EVENING_HOURS.length - 1} onClick={() => save({ eveningHour: EVENING_HOURS[hourIdx + 1] })}>›</Arrow>
+          </span>
+        )}
+        <Switch on={p.evening} onClick={() => save({ evening: !p.evening })} label="晚上提醒" />
+      </div>
+      <div style={{ ...row, ...dim }}>週五晚上：一週總結<Switch on={p.weekly} onClick={() => save({ weekly: !p.weekly })} label="一週總結" /></div>
+      <div style={{ ...row, ...dim }}>你推薦的夥伴有好消息<Switch on={p.partnerNews} onClick={() => save({ partnerNews: !p.partnerNews })} label="夥伴好消息" /></div>
+      <div style={{ ...row, ...dim }}>戰隊進度<Switch on={p.team} onClick={() => save({ team: !p.team })} label="戰隊進度" /></div>
+      <div style={row}>
+        <span>安靜模式</span>
+        {quiet && (
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: TEXT_SECONDARY }}>
+            <Arrow label="少一天" disabled={p.quietUntil <= today} onClick={() => save({ quietUntil: addDays(p.quietUntil, -1) })}>‹</Arrow>
+            到 {md(p.quietUntil)}
+            <Arrow label="多一天" onClick={() => save({ quietUntil: addDays(p.quietUntil, 1) })}>›</Arrow>
+          </span>
+        )}
+        <Switch on={quiet} onClick={() => save({ quietUntil: quiet ? null : addDays(today, 6) })} label="安靜模式" />
+      </div>
+      <p style={{ fontSize: 12, color: TEXT_MUTED, margin: '6px 0 0', lineHeight: 1.6 }}>
+        {quiet ? `安靜模式中：到 ${md(p.quietUntil)} 為止，所有提醒都先不送。` : '晚上提醒可選 19:00–23:00。今天的每日節奏已經做滿，就不會提醒。'}
+      </p>
     </div>
   )
 }

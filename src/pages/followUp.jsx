@@ -5,6 +5,7 @@
 import { loadDailyMode } from './dailyMode'
 import { top10Exit } from './top10'
 import { fetchAddedContacts } from './addedDate'
+import { emit312 } from './streakData'
 
 // ---- 階段清單（消費狀況 / 合作意願）----
 // 消費狀況：這個人離「成交賺價差」走到哪一步了
@@ -296,6 +297,10 @@ export async function syncDaily3(supabase, userId, dateStr) {
   ].map(l => l.contact_id)).size
   const fresh = (added || []).length
   const full = talk >= mode.talk && plan >= mode.meet && fresh >= mode.fresh
+  // 今天的數字變了：讓畫面跳小鼓勵、做滿時慶祝（Celebrations 在 Layout 裡聽）
+  if (date === new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })) {
+    emit312({ date, talk, plan, fresh, full, mode: { label: mode.label, talk: mode.talk, meet: mode.meet, fresh: mode.fresh } })
+  }
   const { data: cur } = await supabase.from('daily_checkins').select('is_done')
     .eq('user_id', userId).eq('date', date).eq('task_key', 'daily_3_contacts').maybeSingle()
   if (full !== !!(cur && cur.is_done) && (full || cur)) {

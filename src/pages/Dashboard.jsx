@@ -44,6 +44,8 @@ import { logCareInteraction } from './customerLink'
 import { fetchUpcomingEvents, inviteToEvent, cancelInvite, restoreInvite, isInvitedTo, daysUntil } from './eventInvite'
 import { undoableDelete } from './undoDelete'
 import { syncPushSubscription, PushGuide } from './pushNotify'
+import { TodayRings } from './celebrate'
+import { loadStreak } from './streakData'
 import { askConfirm } from './confirmDialog'
 import { MeetingKeyNote } from './keyPoints'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
@@ -185,6 +187,17 @@ export default function Dashboard() {
   useEffect(() => { if (user) fetchAll() }, [user])
   // 手機允許了通知、資料庫卻沒有：自動補登記（一天開幾次都沒關係，重複寫同一筆）
   useEffect(() => { if (user) syncPushSubscription(user.id) }, [user])
+  // 連續天數：打開首頁讀一次；今天的數字一變（記了互動、邀約、新名單）就重算
+  const [streakCount, setStreakCount] = useState(0)
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    const refresh = () => loadStreak(user.id).then(d => { if (alive) setStreakCount(d.streak.count) })
+    refresh()
+    const on312 = () => setTimeout(refresh, 800) // 等「今天有行動」的記號寫好再算
+    window.addEventListener('ufa:312', on312)
+    return () => { alive = false; window.removeEventListener('ufa:312', on312) }
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -817,6 +830,8 @@ export default function Dashboard() {
           <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部名單 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
+          <TodayRings talk={talkDone} plan={today312.planCount} fresh={today312.fresh} mode={mode}
+            streakCount={streakCount} showFlame={daysSinceJoin >= 2} />
           {(() => {
             // 提醒合計最多 3 條：「見了嗎？」排前面，再來是「他回了嗎？」、試做；多的收成一行
             const reminders = [

@@ -27,6 +27,7 @@ import DailyPractice from './pages/DailyPractice'
 import Recording from './pages/Recording'
 import Onboarding from './pages/Onboarding'
 import Admin from './pages/Admin'
+import WeekSummary from './pages/WeekSummary'
 import ForcePassword from './pages/forcePassword'
 import { needsPasswordChange } from './pages/passwordFlag'
 
@@ -128,6 +129,7 @@ function App() {
           <Route path="/activities" element={<Activities />} />
           <Route path="/help" element={<Help />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/week" element={<WeekSummary />} />
           <Route path="/daily-practice" element={<DailyPractice />} />
           <Route path="/recording" element={<Recording />} />
           <Route path="*" element={<Navigate to="/" />} />

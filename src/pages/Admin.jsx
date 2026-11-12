@@ -68,6 +68,10 @@ function delKey(a) { return (a.name || '').trim() || (a.email || '').trim() }
 function canDelete(a) { return !!a.deactivated_at && offDays(a) >= 30 }
 function mismatched(a) { return !a.referrer_id && !!a.referrer_email_pending && !a.deactivated_at }
 
+// 這一輪送了哪幾種提醒
+const RUN_KIND = { morning: '約會', evening: '晚上', news: '夥伴好消息', weekly: '一週總結', team: '戰隊', error: '出錯' }
+function runKindText(kind) { return String(kind || '').split('+').map(k => RUN_KIND[k] || k).join('、') }
+
 function Pill({ s, text }) {
   const st = STATUS[s] || STATUS.new
   return <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', background: st.bg, color: st.color }}>{text || st.label}</span>
@@ -293,10 +297,10 @@ export default function Admin() {
           <div style={card}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>手機提醒</div>
             <div style={{ fontSize: 12, color: 'var(--text2)', margin: '4px 0 6px' }}>有登記手機提醒 {overview.pushUsers} 人（{overview.total} 人中）</div>
-            {overview.runs.length === 0 && <div style={{ ...row, fontSize: 13, color: 'var(--muted)' }}>還沒有早上 9 點的送出紀錄</div>}
+            {overview.runs.length === 0 && <div style={{ ...row, fontSize: 13, color: 'var(--muted)' }}>還沒有送出紀錄</div>}
             {overview.runs.map((r, i) => (
               <div key={i} style={{ ...row, fontSize: 13, color: 'var(--text)' }}>
-                <span>{md(r.slot_date)} 早上 9 點</span>
+                <span>{md(r.slot_date)} {r.slot_hour}:00 {runKindText(r.kind)}</span>
                 <span style={{ marginLeft: 'auto', color: 'var(--text2)' }}>送給 {r.users} 人</span>
                 {r.note ? <Pill s="idle" text="出錯了" /> : r.failed ? <Pill s="idle" text={`${r.failed} 則沒送到`} /> : <Pill s="active" text={r.users ? '都送到' : '沒有要送的'} />}
               </div>

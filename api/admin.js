@@ -109,8 +109,9 @@ export async function handle(db, actor, body) {
   if (action === 'overview') {
     const accounts = await loadAccounts(db)
     const now = Date.now()
+    // 有送東西的那幾輪（早上、晚上、一週總結…），只在整點跑但沒有要送的不列
     const { data: runs } = await db.from('push_runs').select('slot_date,slot_hour,kind,users,sent,failed,note')
-      .eq('kind', 'morning').order('id', { ascending: false }).limit(5)
+      .not('kind', 'in', '(idle,running)').order('id', { ascending: false }).limit(6)
     const { data: fb } = await db.from('feedback').select('id').is('handled_at', null)
     return {
       ok: true,

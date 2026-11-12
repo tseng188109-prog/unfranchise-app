@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
   IconArrowLeft, IconRocket, IconTarget, IconCalendarEvent, IconEgg, IconHelpCircle,
-  IconChevronDown, IconChevronUp, IconCheck, IconUsers, IconLock,
+  IconChevronDown, IconChevronUp, IconCheck, IconUsers, IconLock, IconFlame,
 } from '@tabler/icons-react'
 import { cardStyle } from './ui'
 import { RADIUS } from './designTokens'
@@ -80,10 +80,21 @@ const SECTIONS = [
     ],
   },
   {
+    key: 'streak', title: '連續天數和手機提醒', sub: '火焰怎麼算、晚上提醒、一週總結', Icon: IconFlame, bg: 'var(--yellow-soft)', color: 'var(--yellow-text)',
+    body: [
+      '首頁「今天的每日節奏」最上面有三個圈：互動、邀約、新名單。圈滿就打勾，三個都滿，豆豆會跳出來恭喜你（一天一次）。',
+      '連續天數（小火焰）：互動、邀約、新名單，任一項有做就算一天。每一週（週六到週五）有一天休息日，那天沒做也不會斷；同一週第二天沒做才會從頭算。今天還沒做不算斷，今天還沒過完。',
+      '連續到 3、7、14、30 天這些里程碑，或用休息日守住的隔天，會跳出連續天數的畫面。平常按首頁的小火焰也看得到。',
+      '手機提醒在 設定 → 手機提醒 打開後，可以選：早上 9 點今天約了誰、晚上（19:00–23:00 選一個整點）今天還差什麼、週五晚上 8 點一週總結、你推薦的夥伴有好消息、戰隊進度。今天已經做滿，晚上就不會提醒。',
+      '想暫停幾天：打開「安靜模式」，選到哪一天為止，這段時間所有提醒都不送。',
+    ],
+  },
+  {
     key: 'privacy', title: '誰看得到我的資料', sub: '名單、業績、打卡分別誰看得到', Icon: IconLock, bg: 'var(--sub2)', color: 'var(--text)',
     body: [
       '你的名單、顧客、互動內容、目標宣言、「我為什麼留在這裡」：只有你自己看得到。',
-      '你的推薦人：看得到你的名字、加入日、每天的打卡，和你這個月的 BV、IBV。',
+      '你的推薦人：看得到你的名字、加入日、每天的打卡、你這個月的 BV、IBV，和這週的行動數字（名單幾位、互動幾次、開口邀約幾次、見到幾位）。只有數字，看不到你名單上任何人的名字和內容。',
+      '你的連續行動天數到 7、14、30 天這些里程碑時，你的推薦人會收到一則通知，可以替你加油。',
       '再往上推薦的夥伴：只看得到你的名字和每天的打卡，看不到業績。',
       '同戰隊的隊友：看得到你的名字和打卡（戰隊排行用）。',
       '管理員（負責維護這個 App 的人）：看得到每個人的名字、Email、加入日、最近哪天打開 App、推薦人是誰，和你送出的回報。看不到你的名單、顧客、業績和互動內容。',

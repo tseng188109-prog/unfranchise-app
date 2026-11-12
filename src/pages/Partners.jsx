@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS } from './taskDefinitions'
+import { weekStartOf, addDays, md, partnerAdvice } from '../lib/rhythm'
 
 const PRIMARY = 'var(--primary)'
 const PRIMARY_SOFT = 'var(--primary-soft)'
@@ -41,14 +42,45 @@ function todayTW() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 }
 
-// 取得本週一（台灣時區）
-function getWeekMonday() {
-  const today = new Date(todayTW())
-  const dow = today.getDay() // 0=日,1=一,...,6=六
-  const diff = dow === 0 ? -6 : 1 - dow // 週一為起點
-  const monday = new Date(today)
-  monday.setDate(today.getDate() + diff)
-  return monday.toLocaleDateString('sv-SE')
+// 本週從哪天開始：跟整個 App 一樣，一週＝週六到週五（業績結算週）
+function getWeekStart() {
+  return weekStartOf(todayTW())
+}
+
+const SEP = '\u3000・\u3000'
+
+// 推薦人看夥伴這週的行動：只有數字，看不到任何名字和內容
+function WeekStatsCard({ s, weekStart }) {
+  if (!s) return null
+  const group = (title, items) => (
+    <>
+      <div style={{ fontSize:12, color:TEXT_MUTED, margin:'10px 0 6px' }}>{title}</div>
+      <div style={{ display:'flex', gap:6 }}>
+        {items.map(([v, label]) => (
+          <div key={label} style={{ flex:1, background:'var(--card)', borderRadius:12, padding:'8px 4px', textAlign:'center', border:`1px solid ${BORDER}` }}>
+            <div style={{ fontSize:17, fontWeight:600, color:TEXT_MAIN, fontVariantNumeric:'tabular-nums' }}>{v}</div>
+            <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+  return (
+    <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
+      <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:0 }}>
+        這週（{md(weekStart)} 六 – {md(addDays(weekStart, 6))} 五）
+      </p>
+      {group('名單', [[s.contacts_total, '總共'], [s.contacts_new, '這週新增'], [`${s.top10_filled}/10`, '首選 10 填了']])}
+      {group('這週行動', [[s.talk, '互動人次'], [s.invites, '開口邀約'], [s.met, '見到']])}
+      <div style={{ fontSize:12, color:TEXT_SECONDARY, marginTop:8, lineHeight:1.6 }}>
+        {`邀約：約成 ${s.invite_yes}、沒約成 ${s.invite_no}、等回覆 ${s.invite_wait}${SEP}首選 10 這週聯絡了 ${s.top10_touched} 位${SEP}接下來 7 天有 ${s.upcoming} 個約會`}
+      </div>
+      <div style={{ background:PRIMARY_SOFT, color:PRIMARY, borderRadius:10, padding:'9px 10px', marginTop:10, fontSize:13, lineHeight:1.6 }}>
+        <b style={{ fontWeight:600 }}>可以怎麼陪他</b><br />{partnerAdvice(s)}
+      </div>
+      <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:6 }}>只有數字，看不到他名單上任何人的名字和內容。</div>
+    </div>
+  )
 }
 
 // 需要被關心：只看夥伴「做了什麼」（打卡），不看對方的聯絡人內容
@@ -230,7 +262,7 @@ export default function Partners() {
     if (partnerUsers && partnerUsers.length > 0) {
       const now = new Date()
       const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`
-      const weekMonday = getWeekMonday()
+      const weekMonday = getWeekStart()
       const todayStr = todayTW()
 
       const enriched = await Promise.all(partnerUsers.map(async p => {
@@ -278,7 +310,7 @@ export default function Partners() {
     // 全部夥伴的本週打卡（推薦關係裡的人才讀得到）
     if (allRows.length > 0) {
       const { data: wk } = await supabase.from('daily_checkins').select('user_id,date,is_done')
-        .in('user_id', allRows.map(p => p.id)).gte('date', getWeekMonday()).lte('date', todayTW()).eq('is_done', true)
+        .in('user_id', allRows.map(p => p.id)).gte('date', getWeekStart()).lte('date', todayTW()).eq('is_done', true)
       const days = {}
       ;(wk || []).forEach(r => { (days[r.user_id] = days[r.user_id] || new Set()).add(r.date) })
       const out = {}
@@ -319,9 +351,9 @@ export default function Partners() {
     })
     const todayDoneCount = todayTasks.filter(t => t.is_done).length
 
-    // 互動名單數
-    const { count: contactCount } = await supabase
-      .from('contacts').select('id', { count:'exact', head:true }).eq('user_id', p.id)
+    // 這週的行動數字（只有推薦人拿得到，而且只有數字）
+    const weekStart = getWeekStart()
+    const { data: statRows } = await supabase.rpc('get_partner_week_stats', { partner_id: p.id, week_start: weekStart })
 
     // BV/IBV
     const { data: txData } = await supabase.rpc('get_partner_monthly_bv', {
@@ -356,7 +388,7 @@ export default function Partners() {
 
     setPanelDetail({
       checkinMap, calDays, firstDow,
-      contactCount: contactCount || 0,
+      weekStart, weekStats: (statRows && statRows[0]) || null,
       bv: txData?.[0]?.bv || 0,
       ibv: txData?.[0]?.ibv || 0,
       todayTasks,
@@ -424,6 +456,9 @@ export default function Partners() {
         )}
       </div>
 
+      {/* 這週的行動數字 */}
+      <WeekStatsCard s={panelDetail.weekStats} weekStart={panelDetail.weekStart} />
+
       {/* 本月數據 */}
       <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
         <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 10px' }}>
@@ -433,7 +468,6 @@ export default function Partners() {
           {[
             { label:'BV', value:panelDetail.bv, color:ACCENT_YELLOW_TEXT },
             { label:'IBV', value:panelDetail.ibv, color:PRIMARY },
-            { label:'互動名單', value:panelDetail.contactCount, color:ACCENT_GREEN_TEXT, unit:'人' },
           ].map(m => (
             <div key={m.label} style={{ flex:1, background:'var(--card)',
               borderRadius:12, padding:'10px 8px', textAlign:'center',
