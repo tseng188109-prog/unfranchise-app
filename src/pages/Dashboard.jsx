@@ -43,6 +43,7 @@ import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
 import { fetchUpcomingEvents, inviteToEvent, cancelInvite, restoreInvite, isInvitedTo, daysUntil } from './eventInvite'
 import { undoableDelete } from './undoDelete'
+import { syncPushSubscription, PushGuide } from './pushNotify'
 import { askConfirm } from './confirmDialog'
 import { MeetingKeyNote } from './keyPoints'
 import { cardStyle, SectionHeader, Tile, SoftBtn, Tag } from './ui'
@@ -182,6 +183,8 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => { if (user) fetchAll() }, [user])
+  // 手機允許了通知、資料庫卻沒有：自動補登記（一天開幾次都沒關係，重複寫同一筆）
+  useEffect(() => { if (user) syncPushSubscription(user.id) }, [user])
 
   useEffect(() => {
     if (user) {
@@ -743,7 +746,7 @@ export default function Dashboard() {
 
         {/* 新手起步：做完就消失 */}
         {showStarterCard && (
-          <section className="area-starter" style={{ ...cardStyle, overflow:'hidden', marginTop:12 }}>
+          <section className="area-starter" style={{ ...cardStyle, overflow:'hidden', marginTop:12, marginBottom:12 }}>
             {!starterExpanded && (
               <button onClick={() => setStarterExpanded(true)}
                 style={{ width:'100%',background:'var(--card)',border:'none',cursor:'pointer',
@@ -809,6 +812,7 @@ export default function Dashboard() {
 
         {/* 今天要做的：3-1-2，三張同規格的卡 */}
         <section className="area-todo">
+          {user && <PushGuide userId={user.id} />}
           {user && <div style={{ marginBottom:16 }}><Top10Strip userId={user.id} onChanged={fetchFollowUps} /></div>}
           <SectionHeader title={`今天的 ${mode.label}`} hint="查看全部名單 ›" onHint={()=>navigate('/contacts')} hintColor={PRIMARY} />
 
