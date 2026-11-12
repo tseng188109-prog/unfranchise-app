@@ -121,11 +121,9 @@ export default function NotificationBell({ userId }) {
     })
 
     const sevenDaysAgo = toDateStr(new Date(Date.now() - 7 * 86400000))
-    const { data: partners } = await supabase.from('users')
-      .select('id,name,created_at')
-      .eq('referrer_id', userId)
-      .gte('created_at', sevenDaysAgo + 'T00:00:00+00:00')
-    ;(partners || []).forEach(p => {
+    const { data: tree } = await supabase.rpc('get_partner_tree')
+    const partners = (tree || []).filter(p => p.depth === 1 && p.created_at >= sevenDaysAgo)
+    partners.forEach(p => {
       items.push({ key: 'p' + p.id, order: 0, Icon: IconUserPlus, tone: 'green',
         title: `${p.name || '新夥伴'} 加入了你的團隊`, sub: '這週加入・去打聲招呼', path: '/partners' })
     })

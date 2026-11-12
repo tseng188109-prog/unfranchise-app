@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
+import { clearPasswordChangeFlag } from './passwordFlag'
 
 export default function ResetPassword() {
   const navigate = useNavigate()
@@ -41,6 +42,7 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (error) { setMessage(error.message); return }
+    await clearPasswordChangeFlag()
     setMessage('密碼已更新！正在跳轉…')
     setTimeout(() => navigate('/'), 1500)
   }

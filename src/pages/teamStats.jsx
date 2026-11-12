@@ -51,8 +51,8 @@ export async function fetchTeamRanking(teamId, weekDays, taskKeys = null) {
 
   const userIds = memberRows.map(m => m.user_id)
 
-  const { data: userProfiles } = await supabase
-    .from('users').select('id,name').in('id', userIds)
+  // 只拿得到隊友的名字（專用查詢），讀不到隊友的其他帳號資料
+  const { data: userProfiles } = await supabase.rpc('get_people_names', { p_ids: userIds })
   const nameMap = {}
   ;(userProfiles||[]).forEach(u => { nameMap[u.id] = u.name })
 

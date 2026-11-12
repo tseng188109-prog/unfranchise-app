@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
   IconArrowLeft, IconRocket, IconTarget, IconCalendarEvent, IconEgg, IconHelpCircle,
-  IconChevronDown, IconChevronUp, IconCheck, IconUsers,
+  IconChevronDown, IconChevronUp, IconCheck, IconUsers, IconLock,
 } from '@tabler/icons-react'
 import { cardStyle } from './ui'
 import { RADIUS } from './designTokens'
@@ -80,6 +80,17 @@ const SECTIONS = [
     ],
   },
   {
+    key: 'privacy', title: '誰看得到我的資料', sub: '名單、業績、打卡分別誰看得到', Icon: IconLock, bg: 'var(--sub2)', color: 'var(--text)',
+    body: [
+      '你的名單、顧客、互動內容、目標宣言、「我為什麼留在這裡」：只有你自己看得到。',
+      '你的推薦人：看得到你的名字、加入日、每天的打卡，和你這個月的 BV、IBV。',
+      '再往上推薦的夥伴：只看得到你的名字和每天的打卡，看不到業績。',
+      '同戰隊的隊友：看得到你的名字和打卡（戰隊排行用）。',
+      '管理員（負責維護這個 App 的人）：看得到每個人的名字、Email、加入日、最近哪天打開 App、推薦人是誰，和你送出的回報。看不到你的名單、顧客、業績和互動內容。',
+      '管理員可以幫忘記密碼的人設一組臨時密碼，也可以停用已經離開團隊的帳號。',
+    ],
+  },
+  {
     key: 'faq', title: '常見問題', sub: '忘記密碼、換手機、資料在哪', Icon: IconHelpCircle, bg: 'var(--pink-soft)', color: 'var(--pink-text)',
     body: [
       '忘記密碼：在登入頁按「忘記密碼」，輸入 Email，會寄一封重設信給你。',
@@ -139,7 +150,7 @@ function Feedback({ onBack }) {
           style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.6 }} />
         {err && <div style={{ color: '#E0454A', fontSize: 13, marginTop: 6 }}>{err}</div>}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', padding: '0 4px 8px', lineHeight: 1.6 }}>會自動帶上你在哪一頁、手機型號，不會帶任何姓名或名單內容。</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', padding: '0 4px 8px', lineHeight: 1.6 }}>會自動帶上你在哪一頁、手機型號，和是誰送的（方便管理員回覆你），不會帶任何名單內容。</div>
       <button onClick={send} style={{ width: '100%', padding: 13, border: 'none', borderRadius: 14, background: 'var(--primary)', color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
         {sending ? '送出中…' : '送出'}
       </button>

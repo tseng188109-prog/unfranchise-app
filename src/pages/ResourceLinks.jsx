@@ -18,7 +18,6 @@ const TEXT_SECONDARY = 'var(--text2)'
 const DANGER = '#E0454A'
 const BORDER = 'var(--border)'
 
-const ADMIN_EMAIL = 'tseng980725@hotmail.com'
 
 // 圖示：用跟 App 其他地方同一套線條圖示（資料庫的 emoji 欄位存 'ti:名稱'；舊的表情符號會自動對應）
 const ICONS = {
@@ -78,8 +77,8 @@ export default function ResourceLinks({ type, title, icon }) {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
-      setIsAdmin(user?.email === ADMIN_EMAIL)
     })
+    supabase.rpc('is_admin').then(({ data }) => setIsAdmin(data === true))
   }, [])
 
   useEffect(() => { if (user) fetchLinks() }, [user])

@@ -26,11 +26,16 @@ import Help from './pages/Help'
 import DailyPractice from './pages/DailyPractice'
 import Recording from './pages/Recording'
 import Onboarding from './pages/Onboarding'
+import Admin from './pages/Admin'
+import ForcePassword from './pages/forcePassword'
+import { needsPasswordChange } from './pages/passwordFlag'
 
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [onboardingDone, setOnboardingDone] = useState(true)
+  // 用管理員給的臨時密碼登入的人，要先換密碼
+  const [mustChangePw, setMustChangePw] = useState(false)
 
   const isResetPasswordPath = window.location.pathname.startsWith('/reset-password')
 
@@ -44,23 +49,24 @@ function App() {
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       if (session) {
-        checkOnboarding(session.user.id)
+        // 換完密碼（USER_UPDATED）時不要再查「要不要換密碼」，避免剛換好又被擋回去
+        checkOnboarding(session.user.id, event === 'SIGNED_IN' || event === 'INITIAL_SESSION')
       }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  async function checkOnboarding(userId) {
-    const { data } = await supabase
-      .from('users')
-      .select('onboarding_done')
-      .eq('id', userId)
-      .single()
+  async function checkOnboarding(userId, checkPw = true) {
+    const [{ data }, mustChange] = await Promise.all([
+      supabase.from('users').select('onboarding_done').eq('id', userId).single(),
+      checkPw ? needsPasswordChange(userId) : Promise.resolve(null),
+    ])
     setOnboardingDone(data?.onboarding_done === true)
+    if (mustChange !== null) setMustChangePw(mustChange)
     setLoading(false)
   }
 
@@ -88,6 +94,8 @@ function App() {
   )
 
   if (!session) return <Auth />
+
+  if (mustChangePw) return <ForcePassword onDone={() => setMustChangePw(false)} />
 
   if (!onboardingDone) return (
     <Onboarding
@@ -119,6 +127,7 @@ function App() {
           <Route path="/team" element={<Team />} />
           <Route path="/activities" element={<Activities />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/daily-practice" element={<DailyPractice />} />
           <Route path="/recording" element={<Recording />} />
           <Route path="*" element={<Navigate to="/" />} />

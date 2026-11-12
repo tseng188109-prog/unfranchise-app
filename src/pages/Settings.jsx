@@ -4,13 +4,14 @@ import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
+import { clearPasswordChangeFlag } from './passwordFlag'
 import { HOME_LIST_OPTIONS, resolveHomeListMonths } from './homeList'
 import { TaskVisibilitySheet, visibleDailyTasks } from './checkinStatus'
 import { DAILY_TASKS } from './taskDefinitions'
 import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks, resolveWeeklyMet, resolvePlanAhead } from './dailyMode'
 import {
   IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
-  IconFlag, IconChevronRight, IconCheck, IconHelpCircle, IconCalendarEvent,
+  IconFlag, IconChevronRight, IconCheck, IconHelpCircle, IconCalendarEvent, IconShieldLock,
 } from '@tabler/icons-react'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -54,6 +55,9 @@ export default function Settings() {
   const [passwordMsg, setPasswordMsg] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
+  // 管理員才看得到「系統管理」
+  const [isAdmin, setIsAdmin] = useState(false)
+  useEffect(() => { supabase.rpc('is_admin').then(({ data }) => setIsAdmin(data === true)) }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -82,9 +86,8 @@ export default function Settings() {
     setReferrerPending(data.referrer_email_pending || '')
     setWhyHere(data.why_here || '')
     if (data.referrer_id) {
-      const { data: ref } = await supabase.from('users')
-        .select('name').eq('id', data.referrer_id).single()
-      if (ref) setReferrerName(ref.name)
+      const { data: refs } = await supabase.rpc('get_people_names', { p_ids: [data.referrer_id] })
+      if (refs && refs[0]) setReferrerName(refs[0].name)
     }
   }
 
@@ -182,6 +185,7 @@ export default function Settings() {
     if (error) {
       setPasswordMsg('修改失敗，請重新登入後再試')
     } else {
+      clearPasswordChangeFlag()
       setPasswordSaved(true)
       setNewPassword('')
       setConfirmPassword('')
@@ -205,6 +209,7 @@ export default function Settings() {
     { label:'戰隊', path:'/team', Icon: IconFlag },
     { label:'我的活動', path:'/activities', Icon: IconCalendarEvent },
     { label:'使用說明', path:'/help', Icon: IconHelpCircle },
+    ...(isAdmin ? [{ label:'系統管理', path:'/admin', Icon: IconShieldLock }] : []),
   ]
 
   return (

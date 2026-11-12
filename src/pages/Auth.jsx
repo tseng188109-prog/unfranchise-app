@@ -13,7 +13,11 @@ export default function Auth() {
   async function handleLogin() {
     setLoading(true); setMessage('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setMessage(error.message)
+    if (error) {
+      // 被管理員停用的帳號：講清楚，不要讓他以為是密碼錯
+      const banned = error.code === 'user_banned' || /banned/i.test(error.message || '')
+      setMessage(banned ? '這個帳號已經停用。如果是誤會，請聯絡你的推薦人。' : error.message)
+    }
     setLoading(false)
   }
 
@@ -30,10 +34,6 @@ export default function Auth() {
       // 查推薦人
       let referrerId = null
       if (referrerEmail) {
-        const { data: refUser } = await supabase.from('users')
-          .select('id').eq('id',
-            (await supabase.from('users').select('id').ilike('id', '%')).data?.[0]?.id
-          ).single()
         // 用 auth email 查
         const { data: refProfile } = await supabase.rpc('get_user_id_by_email', { p_email: referrerEmail })
         if (refProfile) referrerId = refProfile

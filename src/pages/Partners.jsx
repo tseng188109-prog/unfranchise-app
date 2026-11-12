@@ -100,13 +100,59 @@ function CareBoard({ partners, onOpen }) {
   )
 }
 
-const MY_ID = '2a59a0ae-9877-45dd-b26b-66f8ed6dff74'
+// 全部夥伴：依推薦關係排成樹狀（你推薦的 → 他推薦的 → …），只顯示名字和本週打卡
+function orderTree(tree) {
+  const kids = {}
+  tree.forEach(p => { (kids[p.referrer_id] = kids[p.referrer_id] || []).push(p) })
+  const out = []
+  const seen = new Set()
+  const walk = (p) => {
+    if (seen.has(p.id)) return
+    seen.add(p.id); out.push(p)
+    ;(kids[p.id] || []).forEach(walk)
+  }
+  tree.filter(p => p.depth === 1).forEach(walk)
+  tree.forEach(p => { if (!seen.has(p.id)) out.push(p) })
+  return out
+}
+
+function AllPartners({ tree, weekDaysOf, onOpenDirect }) {
+  const nameOf = {}
+  tree.forEach(p => { nameOf[p.id] = p.name })
+  const rows = orderTree(tree)
+  return (
+    <div style={{ background:'var(--card)', borderRadius:18, padding:'4px 14px 12px', border:`1px solid ${BORDER}` }}>
+      {rows.map((p, i) => {
+        const direct = p.depth === 1
+        return (
+          <button key={p.id} onClick={() => direct && onOpenDirect(p.id)} disabled={!direct}
+            style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'11px 0',
+              paddingLeft: Math.min(p.depth - 1, 4) * 18, background:'none', border:'none',
+              borderTop: i === 0 ? 'none' : `1px solid ${BORDER}`, cursor: direct ? 'pointer' : 'default', textAlign:'left' }}>
+            {!direct && <span style={{ color:TEXT_MUTED, fontSize:13 }}>└</span>}
+            <span style={{ fontSize:14, fontWeight:600, color:TEXT_MAIN }}>{p.name || '未命名'}</span>
+            <span style={{ fontSize:12, color:TEXT_MUTED, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {direct ? '你推薦的' : `${nameOf[p.referrer_id] || ''}推薦的`}
+            </span>
+            <span style={{ fontSize:12, color:TEXT_SECONDARY, whiteSpace:'nowrap', fontVariantNumeric:'tabular-nums' }}>本週打卡 {weekDaysOf[p.id] || 0}/7</span>
+          </button>
+        )
+      })}
+      <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:8 }}>不是你推薦的人，只看得到本週打卡，看不到業績。</div>
+    </div>
+  )
+}
 
 export default function Partners() {
   const [user, setUser] = useState(null)
   const [partners, setPartners] = useState([])
   const [pending, setPending] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  // 你推薦的／全部夥伴
+  const [view, setView] = useState('mine')
+  const [tree, setTree] = useState([])
+  const [treeWeek, setTreeWeek] = useState({})
 
   // 公告
   const [announcements, setAnnouncements] = useState([])
@@ -129,7 +175,10 @@ export default function Partners() {
   }, [])
 
   useEffect(() => {
-    if (user) { fetchPartners(); fetchAnnouncements() }
+    if (user) {
+      fetchPartners(); fetchAnnouncements()
+      supabase.rpc('is_admin').then(({ data }) => setIsAdmin(data === true))
+    }
   }, [user])
 
   async function fetchAnnouncements() {
@@ -172,8 +221,11 @@ export default function Partners() {
 
   async function fetchPartners() {
     setLoading(true)
-    const { data: partnerUsers } = await supabase
-      .from('users').select('id,name,created_at').eq('referrer_id', user.id)
+    // 別人的帳號資料讀不到了，改用專用查詢：只回名字、加入日、推薦人、他推薦了幾位
+    const { data: treeRows } = await supabase.rpc('get_partner_tree')
+    const allRows = treeRows || []
+    setTree(allRows)
+    const partnerUsers = allRows.filter(p => p.depth === 1)
 
     if (partnerUsers && partnerUsers.length > 0) {
       const now = new Date()
@@ -205,10 +257,6 @@ export default function Partners() {
         })
         const weekDays = Object.values(dayMap).filter(count => count >= 1).length
 
-        // 直屬人數
-        const { count } = await supabase.from('users')
-          .select('id', { count:'exact', head:true }).eq('referrer_id', p.id)
-
         // 最近一次有打卡的日期（用來判斷「幾天沒動」）
         const { data: lastRows } = await supabase
           .from('daily_checkins').select('date').eq('user_id', p.id).eq('is_done', true)
@@ -220,24 +268,31 @@ export default function Partners() {
         // 活躍判定：BV 達 30% 或本週打卡 >= 3 天
         const isActive = bvRate >= 30 || weekDays >= 3
 
-        return { ...p, bv, ibv, bvRate, ibvRate, weekDays, directCount: count||0, isActive, lastCheckin }
+        return { ...p, bv, ibv, bvRate, ibvRate, weekDays, referredCount: p.referred_count || 0, isActive, lastCheckin }
       }))
       setPartners(enriched)
     } else {
       setPartners([])
     }
 
-    const { data: pendingData } = await supabase
-      .from('users').select('id,name,created_at')
-      .ilike('referrer_email_pending', user.email)
+    // 全部夥伴的本週打卡（推薦關係裡的人才讀得到）
+    if (allRows.length > 0) {
+      const { data: wk } = await supabase.from('daily_checkins').select('user_id,date,is_done')
+        .in('user_id', allRows.map(p => p.id)).gte('date', getWeekMonday()).lte('date', todayTW()).eq('is_done', true)
+      const days = {}
+      ;(wk || []).forEach(r => { (days[r.user_id] = days[r.user_id] || new Set()).add(r.date) })
+      const out = {}
+      Object.keys(days).forEach(k => { out[k] = days[k].size })
+      setTreeWeek(out)
+    } else setTreeWeek({})
+
+    const { data: pendingData } = await supabase.rpc('get_pending_partners')
     setPending(pendingData || [])
     setLoading(false)
   }
 
   async function confirmPartner(partnerId) {
-    await supabase.from('users').update({
-      referrer_id: user.id, referrer_email_pending: null,
-    }).eq('id', partnerId)
+    await supabase.rpc('confirm_partner', { p_id: partnerId })
     fetchPartners()
   }
 
@@ -324,7 +379,6 @@ export default function Partners() {
     setDayDetail({ date: day.dateStr, d: day.d, tasks })
   }
 
-  const isAdmin = user?.id === MY_ID
   const DAYS_ZH = ['日','一','二','三','四','五','六']
 
   // 本週進度條顏色
@@ -518,12 +572,31 @@ export default function Partners() {
         padding:'52px 0 20px' }}>
         <div className="dash-container" style={{ padding:'0 20px' }}>
           <h1 style={{ fontSize:20, fontWeight:600, color:'#fff', margin:0 }}>我的夥伴</h1>
-          <p style={{ fontSize:13, color:'rgba(255,255,255,0.75)', margin:'4px 0 0' }}>直屬 {partners.length} 人</p>
+          <p style={{ fontSize:13, color:'rgba(255,255,255,0.75)', margin:'4px 0 0' }}>
+            {view === 'all' ? `全部夥伴 ${tree.length} 位` : `你推薦的 ${partners.length} 位`}
+          </p>
         </div>
       </div>
 
       <div className="partners-body">
         <div className="partners-list-col dash-container" style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+
+          {partners.length > 0 && (
+            <div style={{ display:'flex', gap:6 }}>
+              {[['mine','你推薦的'],['all','全部夥伴']].map(([k, label]) => (
+                <button key={k} onClick={() => setView(k)}
+                  style={{ padding:'7px 14px', borderRadius:999, fontSize:13, cursor:'pointer',
+                    border:`1px solid ${view === k ? PRIMARY : 'var(--border2)'}`,
+                    background: view === k ? PRIMARY : 'var(--card)', color: view === k ? '#fff' : TEXT_SECONDARY,
+                    fontWeight: view === k ? 600 : 400 }}>{label}</button>
+              ))}
+            </div>
+          )}
+
+          {view === 'all' && partners.length > 0 ? (
+            <AllPartners tree={tree} weekDaysOf={treeWeek}
+              onOpenDirect={id => { const p = partners.find(x => x.id === id); if (p) openPanel(p) }} />
+          ) : (<>
 
           {partners.length > 0 && <CareBoard partners={partners} onOpen={openPanel} />}
 
@@ -616,7 +689,7 @@ export default function Partners() {
           ) : partners.length === 0 && pending.length === 0 ? (
             <div style={{ textAlign:'center', padding:60, color:TEXT_MUTED }}>
               <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}><IconUsersGroup size={36} stroke={1.5} /></div>
-              <p style={{ fontSize:15 }}>還沒有直屬夥伴，邀請夥伴加入並填寫你的 Email</p>
+              <p style={{ fontSize:15 }}>還沒有你推薦的夥伴，請夥伴註冊時填你的 Email</p>
             </div>
           ) : (
             <>
@@ -648,7 +721,7 @@ export default function Partners() {
                         </span>
                       </div>
                       <p style={{ fontSize:12, color:TEXT_MUTED, margin:'2px 0 0' }}>
-                        加入 {formatDate(p.created_at)} · 直屬 {p.directCount} 人
+                        加入 {formatDate(p.created_at)} · 他推薦了 {p.referredCount} 位
                       </p>
                     </div>
                     <IconChevronRight size={18} stroke={1.9} color={TEXT_MUTED} />
@@ -723,6 +796,7 @@ export default function Partners() {
               )}
             </>
           )}
+          </>)}
         </div>
 
         {/* 桌面版右側常駐面板（CSS 控制只在 ≥1024px 顯示） */}
