@@ -11,6 +11,7 @@ import {
 } from '@tabler/icons-react'
 import ContactPanel from './ContactPanel'
 import { Top10Strip } from './top10'
+import { JarCard } from './jar'
 import LoadingSpinner from './LoadingSpinner'
 import { RELATIONSHIP_STAGES } from './followUp'
 
@@ -556,7 +557,10 @@ async function handleImport() {
         </div>
 
         {!showArchived && user && (
-          <div style={{ paddingBottom:12 }}>
+          <div style={{ paddingBottom:12, display:'flex', flexDirection:'column', gap:10 }}>
+            {/* 豆子罐：整份名單的樣子（首頁核桃提示點進來會帶 ?jar=1，直接打開罐子） */}
+            <JarCard userId={user.id} autoOpen={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('jar') === '1'}
+              onChanged={() => fetchContacts()} />
             <Top10Strip userId={user.id} variant="banner" onChanged={() => fetchContacts()} />
           </div>
         )}

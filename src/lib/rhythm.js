@@ -131,10 +131,11 @@ export function eveningMessage(counts, mode, streak) {
 
 // ── 推薦人看夥伴：依數字給一句「可以怎麼陪他」 ──
 //   s: { contacts_total, contacts_new, top10_filled, talk, invites, invite_yes, invite_no, invite_wait, met }
-export function partnerAdvice(s) {
+export function partnerAdvice(s, jar) {
   if (!s) return ''
   const acted = (s.talk || 0) + (s.invites || 0) + (s.contacts_new || 0)
   if (acted === 0) return '這週還沒動，打個電話關心一下就好，不用催。'
+  if (jar && jar.cooling > 0) return `他有 ${jar.cooling} 顆核桃熱度在退，提醒他趁熱跟進，需要的話陪他三方通話。`
   if ((s.contacts_total || 0) < 20) return '名單還少，可以陪他做一次記憶喚醒，一起想想還有誰。'
   if ((s.top10_filled || 0) < 10) return `首選 10 只選了 ${s.top10_filled || 0} 位，可以約他一起挑。`
   if ((s.invites || 0) >= 3 && (s.invite_yes || 0) <= Math.floor((s.invites || 0) / 3)) return '開口了但大多沒約成，可以一起練邀約的說法。'

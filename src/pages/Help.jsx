@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import {
   IconArrowLeft, IconRocket, IconTarget, IconCalendarEvent, IconEgg, IconHelpCircle,
-  IconChevronDown, IconChevronUp, IconCheck, IconUsers, IconLock, IconFlame,
+  IconChevronDown, IconChevronUp, IconCheck, IconUsers, IconLock, IconFlame, IconBottle,
 } from '@tabler/icons-react'
 import { cardStyle } from './ui'
 import { RADIUS } from './designTokens'
@@ -90,10 +90,21 @@ const SECTIONS = [
     ],
   },
   {
+    key: 'jar', title: '豆子罐和核桃', sub: '罐子怎麼看、核桃怎麼浮上來', Icon: IconBottle, bg: 'var(--yellow-soft)', color: 'var(--yellow-text)',
+    body: [
+      '入口：底部「互動名單」最上面的罐子，點一下打開。罐子＝你的整份名單，每一顆豆子是一個你認識的人（封存的、顧客、已成為夥伴的不算）。',
+      '空心豆是還沒聊過的人，實心豆是聊過的人。核桃是對方自己表示想了解的人：邀約約成過、需求度大四（主動來問），或見完面記了很有興趣、有點興趣。這是成功五要訣（BASIC-5）的豆罐子理論：罐子裝滿、常常搖（保持接觸、培養關係），感興趣的人就會自己浮上來。',
+      '核桃不能自己挑，也不用說服誰。超過 14 天沒聯絡會標「熱度在退」，提醒你趁熱跟進；超過 90 天沒聯絡，或記了沒興趣，就沉回去。按「先沉下去」也可以先放著，之後又約成一次才會再浮上來。',
+      '罐子分四段：小玻璃罐 10 位、果醬罐 30 位、泡菜罐 100 位、豆子大罐 300 位。裝滿就換大罐子，只會變大、不會變小；超過 300 位，每 300 位一個滿罐擺上架。',
+      '「你自己的核桃比例」：聊過 30 位以上，就會算出你大概每聊幾位會浮出 1 顆核桃，還要再聊多少位才到 8 顆。只跟自己比。每月新豆目標預設 60（每天 2 位），可以自己調。',
+      '首頁的「首選 10」沒滿、又有核桃浮上來時，會出現「核桃可以補」，點了直接打開罐子。',
+    ],
+  },
+  {
     key: 'privacy', title: '誰看得到我的資料', sub: '名單、業績、打卡分別誰看得到', Icon: IconLock, bg: 'var(--sub2)', color: 'var(--text)',
     body: [
       '你的名單、顧客、互動內容、目標宣言、「我為什麼留在這裡」：只有你自己看得到。',
-      '你的推薦人：看得到你的名字、加入日、每天的打卡、你這個月的 BV、IBV，和這週的行動數字（名單幾位、互動幾次、開口邀約幾次、見到幾位）。只有數字，看不到你名單上任何人的名字和內容。',
+      '你的推薦人：看得到你的名字、加入日、每天的打卡、你這個月的 BV、IBV，這週的行動數字（名單幾位、互動幾次、開口邀約幾次、見到幾位），和你的罐子（幾位、幾顆核桃）。只有數字，看不到你名單上任何人的名字和內容。',
       '你的連續行動天數到 7、14、30 天這些里程碑時，你的推薦人會收到一則通知，可以替你加油。',
       '再往上推薦的夥伴：只看得到你的名字和每天的打卡，看不到業績。',
       '同戰隊的隊友：看得到你的名字和打卡（戰隊排行用）。',

@@ -4,10 +4,16 @@
 //   今天第一次做滿 → 整頁「今天完成了」（一天只跳一次）
 //   接著如果是里程碑（3、7、14、30… 天）或昨天用休息日守住 → 整頁連續天數
 // 首頁的小火焰按下去也會打開連續天數（ufa:show-streak）。
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { Bean, Flame, BeanStyle } from './bean'
 import { loadStreak } from './streakData'
+import { loadJar, saveJarPrefs, seenWalnuts, markWalnutsSeen } from './jarData'
+import { JarArt, WalnutIcon } from './jar'
+import { setTop10, fetchTop10, TOP10_MAX } from './top10'
+import { InviteSheet } from './invite'
+import { JAR_STAGES, walnutNext } from '../lib/jar'
 import { twToday, isMilestone, daysBetween, twDayOf, toastFor } from '../lib/rhythm'
 
 const TILE = [
@@ -77,6 +83,60 @@ function DoneView({ counts, onNext }) {
   )
 }
 
+// 換大罐子了
+function JarUpView({ idx, onClose }) {
+  const st = JAR_STAGES[idx], prev = JAR_STAGES[idx - 1], next = JAR_STAGES[idx + 1]
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 4 }}>
+        <Bean mood="happy" size={110} />
+        <span className="bean-pop"><JarArt stage={idx} fill={0.55} walnuts={0} size={120} label="名單" /></span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '10px 0 4px' }}>換成{st.name}了！</div>
+      <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 22 }}>
+        {prev ? `名單滿 ${prev.cap} 位，${prev.name}裝滿了。` : ''}<br />
+        {next ? `下一個是${next.name}（${next.cap} 位）。` : '再往 300 位前進，滿了就擺上架。'}
+      </div>
+      <button onClick={onClose} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 16, background: 'var(--primary)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #1A42A8' }}>繼續放豆子</button>
+    </div>
+  )
+}
+
+// 核桃浮上來了
+function WalnutUpView({ list, userId, onClose, onInvite }) {
+  const navigate = useNavigate()
+  const w = list[0]
+  const [msg, setMsg] = useState('')
+  const [inTop, setInTop] = useState(!!w.is_top10)
+  const btn2 = { padding: 12, borderRadius: 14, border: '1px solid var(--border2)', background: 'var(--card)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div className="bean-pop" style={{ width: 92, height: 92, borderRadius: '50%', background: '#F3E7D8', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <WalnutIcon size={58} />
+        <svg width="22" height="22" viewBox="-11 -11 22 22" style={{ position: 'absolute', left: 2, top: 4 }} aria-hidden="true"><path className="bean-twinkle" d="M0,-9 l2.5,6 6,2.5 -6,2.5 -2.5,6 -2.5,-6 -6,-2.5 6,-2.5z" fill="#F5B841" /></svg>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '12px 0 4px' }}>{list.length > 1 ? `浮上來 ${list.length} 顆核桃` : '核桃浮上來了'}</div>
+      <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 600 }}>{w.name}</div>
+      <div style={{ fontSize: 14, color: 'var(--text2)', margin: '2px 0 4px' }}>{w.reason}・建議{walnutNext(w)}</div>
+      {list.length > 1 && <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>還有 {list.slice(1).map(x => x.name).join('、')}</div>}
+      <div style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 18px', lineHeight: 1.6 }}>對方自己表示想了解，這就是你的說幹就幹候選人。</div>
+      {!inTop && (
+        <button onClick={async () => {
+          const t = await fetchTop10(userId)
+          if ((t.rows || []).length >= TOP10_MAX) { setMsg(`首選 10 已經滿 ${TOP10_MAX} 位，先換掉一位再放`); return }
+          await setTop10(w.id, true); setInTop(true); setMsg('放進首選 10 了')
+        }} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 16, background: 'var(--primary)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #1A42A8', marginBottom: 8 }}>放進首選 10</button>
+      )}
+      {msg && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 8 }}>{msg}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button style={{ ...btn2, color: 'var(--primary)' }} onClick={() => onInvite(w)}>記一次邀約</button>
+        <button style={{ ...btn2, color: 'var(--text2)' }} onClick={() => { onClose(); navigate('/contacts?jar=1') }}>看我的罐子</button>
+      </div>
+      <button onClick={onClose} style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--text2)', fontSize: 14, cursor: 'pointer', padding: 8 }}>好</button>
+    </div>
+  )
+}
+
 export default function Celebrations() {
   const [userId, setUserId] = useState(null)
   const [joinedDays, setJoinedDays] = useState(999)
@@ -84,17 +144,49 @@ export default function Celebrations() {
   const [screen, setScreen] = useState(null) // { kind:'done', counts } | { kind:'streak', data, celebrate }
   const timer = useRef(null)
   const streakAfter = useRef(null)
+  const [invite, setInvite] = useState(null)
+  // 好幾個畫面同時要跳時排隊，一個一個來（例如：完成今天 → 核桃浮上來 → 換大罐子）
+  const screenRef = useRef(null)
+  const queue = useRef([])
+  useEffect(() => { screenRef.current = screen }, [screen])
+  const show = useCallback((sc) => {
+    if (screenRef.current) queue.current.push(sc)
+    else { screenRef.current = sc; setScreen(sc) }
+  }, [])
+  const closeScreen = useCallback(() => {
+    const next = queue.current.shift() || null
+    screenRef.current = next
+    setScreen(next)
+  }, [])
+
+  // 罐子：有新核桃浮上來、或罐子該換大的了，就跳出來
+  const checkJar = useCallback(async (uid) => {
+    let d
+    try { d = await loadJar(uid) } catch { return }
+    const ids = d.walnuts.map(w => w.id)
+    const seen = seenWalnuts(uid)
+    if (seen) {
+      const fresh = d.walnuts.filter(w => !seen.includes(w.id))
+      if (fresh.length) show({ kind: 'walnut', list: fresh })
+    }
+    markWalnutsSeen(uid, ids)
+    if (d.jar.idx > d.prefs.reached) {
+      await saveJarPrefs(uid, { reached: d.jar.idx })
+      show({ kind: 'jar', idx: d.jar.idx })
+    }
+  }, [show])
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
+      setTimeout(() => checkJar(user.id), 1500)
       try {
         const { data } = await supabase.from('users').select('created_at').eq('id', user.id).single()
         if (data && data.created_at) setJoinedDays(daysBetween(twDayOf(data.created_at), twToday()))
       } catch { /* ignore */ }
     })
-  }, [])
+  }, [checkJar])
 
   useEffect(() => {
     if (!userId) return
@@ -102,10 +194,12 @@ export default function Celebrations() {
       const cur = e.detail
       const prev = readSeen(cur.date)
       writeSeen(cur.date, cur)
+      // 記完一筆，等資料寫好，再看罐子有沒有新核桃
+      setTimeout(() => checkJar(userId), 1500)
       if (cur.full && !celebratedToday(cur.date)) {
         markCelebrated(cur.date)
         setToast(null)
-        setScreen({ kind: 'done', counts: cur })
+        show({ kind: 'done', counts: cur })
         // 先在背景把連續天數算好，按「明天繼續」時決定要不要接著跳
         streakAfter.current = null
         loadStreak(userId, cur.date, [cur.date]).then(d => { streakAfter.current = d })
@@ -121,19 +215,23 @@ export default function Celebrations() {
     }
     const onShow = async () => {
       const d = await loadStreak(userId)
-      setScreen({ kind: 'streak', data: d, celebrate: false })
+      show({ kind: 'streak', data: d, celebrate: false })
     }
+    const onShake = () => setTimeout(() => checkJar(userId), 800)
     window.addEventListener('ufa:312', on312)
     window.addEventListener('ufa:show-streak', onShow)
-    return () => { window.removeEventListener('ufa:312', on312); window.removeEventListener('ufa:show-streak', onShow) }
-  }, [userId])
+    window.addEventListener('ufa:jar-shake', onShake)
+    return () => { window.removeEventListener('ufa:312', on312); window.removeEventListener('ufa:show-streak', onShow); window.removeEventListener('ufa:jar-shake', onShake) }
+  }, [userId, show, checkJar])
 
   function afterDone() {
     const d = streakAfter.current
     // 新人前兩天先不跳連續天數；其他人只在里程碑或休息日救回來那天跳
     if (d && joinedDays >= 2 && (isMilestone(d.streak.count) || d.streak.restUsedYesterday)) {
-      setScreen({ kind: 'streak', data: d, celebrate: true })
-    } else setScreen(null)
+      const sc = { kind: 'streak', data: d, celebrate: true }
+      screenRef.current = sc
+      setScreen(sc)
+    } else closeScreen()
   }
 
   return (
@@ -154,12 +252,14 @@ export default function Celebrations() {
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'var(--page)', overflowY: 'auto',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px calc(24px + env(safe-area-inset-bottom))' }}>
           <div style={{ width: '100%', maxWidth: 380 }}>
-            {screen.kind === 'done'
-              ? <DoneView counts={screen.counts} onNext={afterDone} />
-              : <StreakView data={screen.data} celebrate={screen.celebrate} onClose={() => setScreen(null)} />}
+            {screen.kind === 'done' ? <DoneView counts={screen.counts} onNext={afterDone} />
+              : screen.kind === 'streak' ? <StreakView data={screen.data} celebrate={screen.celebrate} onClose={closeScreen} />
+              : screen.kind === 'jar' ? <JarUpView idx={screen.idx} onClose={closeScreen} />
+              : <WalnutUpView list={screen.list} userId={userId} onClose={closeScreen} onInvite={w => { closeScreen(); setInvite(w) }} />}
           </div>
         </div>
       )}
+      {invite && <InviteSheet userId={userId} contact={invite} onClose={() => setInvite(null)} onSaved={() => setInvite(null)} />}
     </>
   )
 }

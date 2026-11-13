@@ -10,6 +10,8 @@ import {
 import LoadingSpinner from './LoadingSpinner'
 import { DAILY_TASKS } from './taskDefinitions'
 import { weekStartOf, addDays, md, partnerAdvice } from '../lib/rhythm'
+import { jarState } from '../lib/jar'
+import { WalnutIcon } from './jar'
 
 const PRIMARY = 'var(--primary)'
 const PRIMARY_SOFT = 'var(--primary-soft)'
@@ -50,8 +52,9 @@ function getWeekStart() {
 const SEP = '\u3000・\u3000'
 
 // 推薦人看夥伴這週的行動：只有數字，看不到任何名字和內容
-function WeekStatsCard({ s, weekStart }) {
+function WeekStatsCard({ s, weekStart, jar }) {
   if (!s) return null
+  const js = jar ? jarState(jar.beans) : null
   const group = (title, items) => (
     <>
       <div style={{ fontSize:12, color:TEXT_MUTED, margin:'10px 0 6px' }}>{title}</div>
@@ -70,13 +73,19 @@ function WeekStatsCard({ s, weekStart }) {
       <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:0 }}>
         這週（{md(weekStart)} 六 – {md(addDays(weekStart, 6))} 五）
       </p>
+      {js && (
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8, fontSize:13, color:TEXT_MAIN }}>
+          <WalnutIcon size={16} />
+          <span>罐子：{js.stage.name}（{jar.beans} 位）・核桃 {jar.walnuts} 顆{jar.cooling > 0 ? `，${jar.cooling} 顆熱度在退` : ''}</span>
+        </div>
+      )}
       {group('名單', [[s.contacts_total, '總共'], [s.contacts_new, '這週新增'], [`${s.top10_filled}/10`, '首選 10 填了']])}
       {group('這週行動', [[s.talk, '互動人次'], [s.invites, '開口邀約'], [s.met, '見到']])}
       <div style={{ fontSize:12, color:TEXT_SECONDARY, marginTop:8, lineHeight:1.6 }}>
         {`邀約：約成 ${s.invite_yes}、沒約成 ${s.invite_no}、等回覆 ${s.invite_wait}${SEP}首選 10 這週聯絡了 ${s.top10_touched} 位${SEP}接下來 7 天有 ${s.upcoming} 個約會`}
       </div>
       <div style={{ background:PRIMARY_SOFT, color:PRIMARY, borderRadius:10, padding:'9px 10px', marginTop:10, fontSize:13, lineHeight:1.6 }}>
-        <b style={{ fontWeight:600 }}>可以怎麼陪他</b><br />{partnerAdvice(s)}
+        <b style={{ fontWeight:600 }}>可以怎麼陪他</b><br />{partnerAdvice(s, jar)}
       </div>
       <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:6 }}>只有數字，看不到他名單上任何人的名字和內容。</div>
     </div>
@@ -354,6 +363,7 @@ export default function Partners() {
     // 這週的行動數字（只有推薦人拿得到，而且只有數字）
     const weekStart = getWeekStart()
     const { data: statRows } = await supabase.rpc('get_partner_week_stats', { partner_id: p.id, week_start: weekStart })
+    const { data: jarRows } = await supabase.rpc('get_partner_jar', { partner_id: p.id })
 
     // BV/IBV
     const { data: txData } = await supabase.rpc('get_partner_monthly_bv', {
@@ -388,7 +398,7 @@ export default function Partners() {
 
     setPanelDetail({
       checkinMap, calDays, firstDow,
-      weekStart, weekStats: (statRows && statRows[0]) || null,
+      weekStart, weekStats: (statRows && statRows[0]) || null, jar: (jarRows && jarRows[0]) || null,
       bv: txData?.[0]?.bv || 0,
       ibv: txData?.[0]?.ibv || 0,
       todayTasks,
@@ -457,7 +467,7 @@ export default function Partners() {
       </div>
 
       {/* 這週的行動數字 */}
-      <WeekStatsCard s={panelDetail.weekStats} weekStart={panelDetail.weekStart} />
+      <WeekStatsCard s={panelDetail.weekStats} weekStart={panelDetail.weekStart} jar={panelDetail.jar} />
 
       {/* 本月數據 */}
       <div style={{ background:SUBCARD_BG, borderRadius:14, padding:14 }}>
