@@ -6,6 +6,7 @@ import { loadDailyMode } from './dailyMode'
 import { top10Exit } from './top10'
 import { fetchAddedContacts } from './addedDate'
 import { emit312 } from './streakData'
+import { shakeJar } from './jarData'
 
 // ---- 階段清單（消費狀況 / 合作意願）----
 // 消費狀況：這個人離「成交賺價差」走到哪一步了
@@ -299,7 +300,12 @@ export async function syncDaily3(supabase, userId, dateStr) {
   const full = talk >= mode.talk && plan >= mode.meet && fresh >= mode.fresh
   // 今天的數字變了：讓畫面跳小鼓勵、做滿時慶祝（Celebrations 在 Layout 裡聽）
   if (date === new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })) {
-    emit312({ date, talk, plan, fresh, full, mode: { label: mode.label, talk: mode.talk, meet: mode.meet, fresh: mode.fresh } })
+    emit312({ date, talk, plan, fresh, full, mode: { label: mode.label, talk: mode.talk, meet: mode.meet, fresh: mode.fresh },
+      // 今天記過的每一筆（同一位記兩次也算兩筆）和今天加的新名單：用來判斷「剛剛記了誰」
+      logContacts: (logs || []).map(r => r.contact_id), addedIds: (added || []).map(a => a.id) })
+  } else {
+    // 補記以前的日子：今天的數字沒變，但罐子可能變了（例如補記約成 → 核桃浮上來）
+    shakeJar()
   }
   const { data: cur } = await supabase.from('daily_checkins').select('is_done')
     .eq('user_id', userId).eq('date', date).eq('task_key', 'daily_3_contacts').maybeSingle()

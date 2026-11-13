@@ -3,6 +3,7 @@
 // 兩個都有 → 重算 action_type；action_type 真的變了才重排下次聯絡日。
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { shakeJar } from './jarData'
 import { NEED_LEVELS } from './needLevelPicker'
 import { INTEREST_LEVELS } from './meetingFlow'
 import {
@@ -48,12 +49,14 @@ export function eggNeedPatch(contact, patch) {
 export async function saveEggNeed(contact, patch) {
   const upd = eggNeedPatch(contact, patch)
   const { error } = await supabase.from('contacts').update(upd).eq('id', contact.id)
+  if (!error) shakeJar() // 改成大四，可能就浮成核桃了
   return { error, upd }
 }
 
 export async function saveInterest(contact, label) {
   const upd = { interest_level: label }
   const { error } = await supabase.from('contacts').update(upd).eq('id', contact.id)
+  if (!error) shakeJar() // 記了有興趣，可能就浮成核桃了
   return { error, upd }
 }
 

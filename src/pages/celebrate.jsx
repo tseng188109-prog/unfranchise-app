@@ -1,6 +1,7 @@
 // celebrate.jsx — 做完一件事的小鼓勵、做滿今天的慶祝、連續天數
 // Celebrations 放在 Layout 裡，聽 syncDaily3 發出的「今天數字變了」（ufa:312）：
-//   數字變多 → 底部跳 2 秒小鼓勵
+//   數字變多 → 底部跳 3 秒小鼓勵（旁邊的小罐子搖一下／掉進一顆豆）
+//   同一位今天又記一次 → 數字不變，但還是跳「罐子搖了一下」
 //   今天第一次做滿 → 整頁「今天完成了」（一天只跳一次）
 //   接著如果是里程碑（3、7、14、30… 天）或昨天用休息日守住 → 整頁連續天數
 // 首頁的小火焰按下去也會打開連續天數（ufa:show-streak）。
@@ -10,6 +11,7 @@ import { supabase } from '../supabase'
 import { Bean, Flame, BeanStyle } from './bean'
 import { loadStreak } from './streakData'
 import { loadJar, saveJarPrefs, seenWalnuts, markWalnutsSeen } from './jarData'
+import { syncDaily3 } from './followUp'
 import { JarArt, WalnutIcon } from './jar'
 import { setTop10, fetchTop10, TOP10_MAX } from './top10'
 import { InviteSheet } from './invite'
@@ -21,6 +23,30 @@ const TILE = [
   { key: 'plan', label: '邀約', unit: '個', color: '#2457D6' },
   { key: 'fresh', label: '新名單', unit: '位', color: '#C9822B' },
 ]
+const TOAST_MS = 3000
+const JAR_CHECK_GAP = 5000 // 罐子最多 5 秒重算一次（連續記好幾筆時不要一直讀資料庫）
+const TOAST_CSS = `
+@keyframes jar-drop { 0% { transform: translateY(-16px); opacity: 0 } 40% { opacity: 1 } 75% { transform: translateY(5px) } 100% { transform: translateY(3px); opacity: 1 } }
+.jar-drop { animation: jar-drop .7s ease-in both }
+@media (prefers-reduced-motion: reduce) { .jar-drop { animation: none } }
+`
+// 今天新記的是誰：cur 比 prev 多出來的那幾筆（同一位記兩次，第二次也算「新記的」）
+function newlyLogged(prev, cur) {
+  const left = {}
+  ;(prev.logContacts || []).forEach(id => { left[id] = (left[id] || 0) + 1 })
+  const out = []
+  ;(cur.logContacts || []).forEach(id => { if (left[id]) left[id]--; else out.push(id) })
+  return out
+}
+// 新名單那一行：快換罐子了就說還差幾位，不然說這個月放了幾位
+function jarLineForFresh(jd, added) {
+  if (!jd) return ''
+  const count = jd.beans + added
+  const st = jd.jar
+  if (st.next && st.stage.cap - count > 0 && st.stage.cap - count <= 20) return `罐子多一顆豆・再 ${st.stage.cap - count} 位換${st.next.name}`
+  return `罐子多一顆豆・本月 ${jd.monthNew + added}/${jd.prefs.monthGoal}`
+}
+
 const DAY_BG = { on: '#F08A3C', rest: 'var(--primary-soft)', no: 'var(--sub2)', today: 'var(--card)', future: 'var(--sub)' }
 const DAY_FG = { on: '#fff', rest: 'var(--primary)', no: 'var(--muted)', today: '#F08A3C', future: 'var(--muted)' }
 
@@ -160,9 +186,11 @@ export default function Celebrations() {
   }, [])
 
   // 罐子：有新核桃浮上來、或罐子該換大的了，就跳出來
+  const jarRef = useRef(null) // 最近一次算好的罐子（小鼓勵要用：是不是豆子、還差幾位換罐子）
   const checkJar = useCallback(async (uid) => {
     let d
     try { d = await loadJar(uid) } catch { return }
+    jarRef.current = { ...d, beanSet: new Set(d.beanIds || []) }
     const ids = d.walnuts.map(w => w.id)
     const seen = seenWalnuts(uid)
     if (seen) {
@@ -175,18 +203,31 @@ export default function Celebrations() {
       show({ kind: 'jar', idx: d.jar.idx })
     }
   }, [show])
+  // 排一次罐子重算：等 delay 毫秒；5 秒內已經算過就排到 5 秒後；已經排了就不重複排（到時候讀到的是最新的）
+  const jarTimer = useRef(null)
+  const jarLast = useRef(0)
+  const requestJar = useCallback((uid, delay) => {
+    if (jarTimer.current) return
+    const wait = Math.max(delay, jarLast.current + JAR_CHECK_GAP - Date.now())
+    jarTimer.current = setTimeout(() => {
+      jarTimer.current = null
+      jarLast.current = Date.now()
+      checkJar(uid)
+    }, wait)
+  }, [checkJar])
+  useEffect(() => () => clearTimeout(jarTimer.current), [])
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      setTimeout(() => checkJar(user.id), 1500)
+      requestJar(user.id, 1500)
       try {
         const { data } = await supabase.from('users').select('created_at').eq('id', user.id).single()
         if (data && data.created_at) setJoinedDays(daysBetween(twDayOf(data.created_at), twToday()))
       } catch { /* ignore */ }
     })
-  }, [checkJar])
+  }, [requestJar])
 
   useEffect(() => {
     if (!userId) return
@@ -195,7 +236,7 @@ export default function Celebrations() {
       const prev = readSeen(cur.date)
       writeSeen(cur.date, cur)
       // 記完一筆，等資料寫好，再看罐子有沒有新核桃
-      setTimeout(() => checkJar(userId), 1500)
+      requestJar(userId, 1500)
       if (cur.full && !celebratedToday(cur.date)) {
         markCelebrated(cur.date)
         setToast(null)
@@ -206,23 +247,44 @@ export default function Celebrations() {
         return
       }
       if (!prev) return
-      const t = toastFor(prev, cur)
+      const jd = jarRef.current
+      const logged = newlyLogged(prev, cur)
+      const added = (cur.addedIds || []).filter(id => !(prev.addedIds || []).includes(id))
+      // 剛剛記的人裡有沒有罐子裡的豆子（顧客、已經是夥伴的不算）
+      const beanLogged = !!jd && logged.some(id => jd.beanSet.has(id))
+      let t = toastFor(prev, cur)
+      let anim = null, jarLine = ''
+      if (t && added.length) {
+        // 有新名單（就算同時也記了互動）：罐子掉進一顆豆
+        jarLine = jarLineForFresh(jd, added.filter(id => !(jd && jd.beanSet.has(id))).length)
+        anim = jd ? 'drop' : null
+      } else if (t) {
+        if (beanLogged) { jarLine = '罐子搖了一下'; anim = 'wobble' }
+      } else if (logged.length) {
+        // 數字沒變：今天已經記過這一位了
+        t = beanLogged
+          ? { color: '#2F7A52', title: '罐子搖了一下', sub: '今天已經算過他了，再聊還是好事' }
+          : { color: '#2F7A52', title: '記好了', sub: '今天已經算過他了' }
+        if (beanLogged) anim = 'wobble'
+      }
       if (t) {
-        setToast(t)
+        setToast({ ...t, jarLine, anim, jar: anim && jd ? jd.jar : null, id: Date.now() })
         clearTimeout(timer.current)
-        timer.current = setTimeout(() => setToast(null), 2400)
+        timer.current = setTimeout(() => setToast(null), TOAST_MS)
       }
     }
     const onShow = async () => {
       const d = await loadStreak(userId)
       show({ kind: 'streak', data: d, celebrate: false })
     }
-    const onShake = () => setTimeout(() => checkJar(userId), 800)
+    const onShake = () => requestJar(userId, 800)
     window.addEventListener('ufa:312', on312)
     window.addEventListener('ufa:show-streak', onShow)
     window.addEventListener('ufa:jar-shake', onShake)
+    // 一打開 App 就先記下今天的數字，第一筆記錄才比得出「變多了」
+    if (!readSeen(twToday())) syncDaily3(supabase, userId).catch(() => { /* 離線時略過 */ })
     return () => { window.removeEventListener('ufa:312', on312); window.removeEventListener('ufa:show-streak', onShow); window.removeEventListener('ufa:jar-shake', onShake) }
-  }, [userId, show, checkJar])
+  }, [userId, show, requestJar])
 
   function afterDone() {
     const d = streakAfter.current
@@ -237,15 +299,31 @@ export default function Celebrations() {
   return (
     <>
       <BeanStyle />
+      <style>{TOAST_CSS}</style>
       {toast && (
-        <div role="status" style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(84px + env(safe-area-inset-bottom))', zIndex: 1900,
-          width: 'calc(100% - 32px)', maxWidth: 400, background: '#1E2A44', color: '#fff', borderRadius: 16, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center' }}
-          className="bean-pop" onClick={() => setToast(null)}>
-          <span style={{ background: toast.color, borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 700 }}>✓</span>
+        // 外層負責置中（不用 transform，免得被彈出動畫蓋掉而歪到右邊）
+        <div style={{ position: 'fixed', left: 16, right: 16, bottom: 'calc(84px + env(safe-area-inset-bottom))', zIndex: 1900, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+        <div role="status" style={{ pointerEvents: 'auto',
+          width: '100%', maxWidth: 400, background: '#1E2A44', color: '#fff', borderRadius: 16, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', boxSizing: 'border-box' }}
+          className="bean-pop" onClick={() => setToast(null)} key={toast.id}>
+          {toast.jar ? (
+            <span style={{ position: 'relative', width: 34, flexShrink: 0, display: 'flex', justifyContent: 'center' }} data-anim={toast.anim}>
+              <JarArt stage={toast.jar.idx} fill={Math.max(0.25, toast.jar.fill)} walnuts={0} size={30} wobble={toast.anim === 'wobble'} />
+              {toast.anim === 'drop' && (
+                <svg className="jar-drop" width="12" height="9" viewBox="-6 -4.5 12 9" style={{ position: 'absolute', top: 2, left: 11 }} aria-hidden="true">
+                  <ellipse rx="5.2" ry="3.7" fill="#E2B57A" /><path d="M-3,-1 q3,-2 6,0" stroke="#F3D3A6" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                </svg>
+              )}
+            </span>
+          ) : (
+            <span style={{ background: toast.color, borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 700 }}>✓</span>
+          )}
           <span style={{ minWidth: 0 }}>
             <span style={{ display: 'block', fontWeight: 700, fontSize: 15 }}>{toast.title}</span>
             <span style={{ display: 'block', fontSize: 13, opacity: 0.8 }}>{toast.sub}</span>
+            {toast.jarLine && <span style={{ display: 'block', fontSize: 12, color: '#F3D3A6', marginTop: 1 }}>{toast.jarLine}</span>}
           </span>
+        </div>
         </div>
       )}
       {screen && (

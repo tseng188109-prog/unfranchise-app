@@ -10,6 +10,7 @@ import { AddedDatePicker, writeWithAddedDate, addedDay } from './addedDate'
 import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 
 import { actionLabel } from './contactQuick'
+import { shakeJar } from './jarData'
 import { PRIMARY, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, DANGER, BORDER, RADIUS } from './designTokens'
 
 const EGG_TYPES = ['茶葉蛋', '荷包蛋', '生雞蛋']
@@ -119,6 +120,7 @@ export default function ContactEdit() {
     setSaving(false)
     if (error) { setSaveErr(SAVE_FAIL); return }
     clearDraft(`contactEdit:${id}`)
+    shakeJar() // 改了需求度等資料：罐子重算，有核桃就浮上來
     goBackOr(navigate, `/contacts/${id}`)
   }
 

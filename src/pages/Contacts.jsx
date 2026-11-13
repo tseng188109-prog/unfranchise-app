@@ -12,6 +12,7 @@ import {
 import ContactPanel from './ContactPanel'
 import { Top10Strip } from './top10'
 import { JarCard } from './jar'
+import { shakeJar } from './jarData'
 import LoadingSpinner from './LoadingSpinner'
 import { RELATIONSHIP_STAGES } from './followUp'
 
@@ -303,6 +304,7 @@ async function handleImport() {
     setImporting(false)
     setImportDone({ success: toInsert.length, skip })
     fetchContacts()
+    shakeJar() // 一次放進很多豆子：罐子搖一下，滿了就換大罐子
   }
 
   function downloadTemplate() {

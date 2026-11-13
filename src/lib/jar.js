@@ -122,6 +122,7 @@ export function summarizeJar(contacts, meetPlanByContact, today, reached = 0) {
   const monthNew = beans.filter(c => (c.added_date || twDayOf(c.created_at)) >= monthStart).length
   return {
     beans: beans.length, talked, walnuts, monthNew,
+    beanIds: beans.map(c => c.id),
     jar: jarState(beans.length, reached),
     ratio: walnutRatio(talked, walnuts.length),
     bars: monthBars(beans, today),
