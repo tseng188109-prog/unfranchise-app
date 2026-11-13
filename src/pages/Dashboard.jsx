@@ -37,7 +37,8 @@ import { fetchAddedContacts, fetchAddedMap, withAddedDates } from './addedDate'
 import { dayDotStatus, DotLegend, visibleDailyTasks } from './checkinStatus'
 import { MemoryJogSheet, fetchInviteCooldowns } from './beanJar'
 import { InviteSheet, fetchWaitingInvites, planOf } from './invite'
-import { pickMeetingContact, pickInviteCandidates, pickInteractionContacts, meetingReason, syncDaily3 } from './followUp'
+import { pickInviteCandidates, pickInteractionContacts, syncDaily3 } from './followUp'
+import { pickMeet, sayFor, nextRest, SHOWN_TOOLS } from '../lib/meetPick'
 import { upcomingPlans, fmtPlanDate, AfterMeetSheet } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
@@ -59,6 +60,26 @@ function greetingByHour() {
   return h < 5 ? '夜深了' : h < 12 ? '早安' : h < 18 ? '午安' : '晚安'
 }
 function today() { return toDateStr(new Date()) }
+
+let restChain = Promise.resolve()
+// 記住今天推薦了誰：沒去約的話，接下來 3 天先換別人（存在帳號設定，換手機也一樣）
+function MeetShown({ userId, contactId, rest, onSaved }) {
+  const shownToday = rest[contactId] === today()
+  useEffect(() => {
+    if (!userId || !contactId || shownToday) return
+    let gone = false
+    // 連按「換一位」時一筆一筆存，不會互相蓋掉
+    restChain = restChain.then(async () => {
+      const { data } = await supabase.from('users').select('tag_settings').eq('id', userId).single()
+      const cur = (data && data.tag_settings) || {}
+      const ts = { ...cur, meet_rest: nextRest(cur.meet_rest, contactId, today()) }
+      const { error } = await supabase.from('users').update({ tag_settings: ts }).eq('id', userId)
+      if (!error && !gone) onSaved(ts)
+    }).catch(() => {})
+    return () => { gone = true }
+  }, [userId, contactId, shownToday]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
 
 // 「本週」＝業績結算週：週六 00:00 到週五 24:00（跟公司結算時間一致）。
 // 下面兩個函式的 diff = (星期幾 + 1) % 7，週六=0、週日=1 … 週五=6，起點永遠是最近的週六。
@@ -132,6 +153,7 @@ export default function Dashboard() {
   const [activeContacts, setActiveContacts] = useState([])
   const [customerContactIds, setCustomerContactIds] = useState(() => new Set())
   const [skipMeeting, setSkipMeeting] = useState([])
+  const [meetCtx, setMeetCtx] = useState(null) // 挑「1 個邀約」用：誰見過面、誰給過試用品、誰約成過
   const [weekPlanned, setWeekPlanned] = useState(0)
   const [events, setEvents] = useState([])
   const [showNewList, setShowNewList] = useState(false)
@@ -483,17 +505,70 @@ export default function Dashboard() {
     setBvTotal(bv); setIbvTotal(ibv); setProfit(p)
   }
 
+  // 挑「1 個邀約」要的資料：30 天內見過誰（含記互動時選了一對一、二對一、三方通話、說明會）、
+  // 誰約成過（什麼時候）、誰的試用品還沒問感受
+  async function loadMeetCtx(uid) {
+    const t = today()
+    const back = d => toDateStr(new Date(new Date(t + 'T00:00:00').getTime() - d * 86400000))
+    const safe = async q => { try { const { data, error } = await q; return error ? [] : (data || []) } catch { return [] } }
+    const [meets, shown, meetups, plans, samples] = await Promise.all([
+      safe(supabase.from('contact_logs').select('contact_id,date,tool').eq('user_id', uid).eq('kind', 'meet').gte('date', back(30)).limit(1000)),
+      safe(supabase.from('contact_logs').select('contact_id,date,tool,kind').eq('user_id', uid).in('tool', SHOWN_TOOLS).gte('date', back(30)).limit(1000)),
+      safe(supabase.from('counter_logs').select('contact_id,date').eq('user_id', uid).eq('counter_key', 'meetup').eq('is_done', true).gte('date', back(30)).limit(1000)),
+      safe(supabase.from('contact_logs').select('contact_id,date').eq('user_id', uid).eq('kind', 'meet_plan').gte('date', back(400)).order('date', { ascending: false }).limit(1000)),
+      safe(supabase.from('sample_tracking').select('contact_id,share_date,result,followup_3_done').eq('user_id', uid).gte('share_date', back(21)).lte('share_date', back(3))),
+    ])
+    const latest = (rows, key = 'date') => {
+      const m = {}
+      rows.forEach(r => { if (r.contact_id && r[key] && (!m[r.contact_id] || r[key] > m[r.contact_id])) m[r.contact_id] = r[key] })
+      return m
+    }
+    // 最近一次見面／聽說明，記下是哪一種（卡片上寫「11/10 一對一會談後，還沒約下一次」）
+    const lastMeet = {}
+    // 邀約紀錄（約成、沒約成、等回覆）不算見過面
+    const shownReal = shown.filter(r => !['meet_plan', 'invite_no', 'invite_wait'].includes(r.kind))
+    ;[...meets, ...shownReal, ...meetups].forEach(r => {
+      if (!r.contact_id || !r.date) return
+      const cur = lastMeet[r.contact_id]
+      const tool = SHOWN_TOOLS.includes(r.tool) ? r.tool : null
+      if (!cur || r.date > cur.date || (r.date === cur.date && !cur.tool && tool)) lastMeet[r.contact_id] = { date: r.date, tool }
+    })
+    return {
+      lastMeet,
+      lastPlan: latest(plans),
+      sampleAt: latest(samples.filter(s => !s.result && !s.followup_3_done), 'share_date'),
+      rest: {},
+    }
+  }
+
   async function fetchFollowUps() {
     // 首選 10 跟名單同時查，不多等一次；欄位還沒建好時查詢會失敗，這裡安靜略過，首頁照常
-    const [{ data: rawData }, t10, addedMap, coolMap] = await Promise.all([
-      supabase.from('contacts')
-        .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date')
-        .eq('user_id',user.id).eq('is_archived',false)
-        .order('last_interacted_at',{ascending:true,nullsFirst:true}).limit(200),
+    // 名單全部讀進來（以前只讀最久沒聯絡的 200 位，名單多的人最近聊過的反而被漏掉）
+    const CF = 'id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,last_interacted_at,created_at,source,next_plan,next_plan_date,need_tags,last_quote,interest_level,last_contact_date'
+    const readContacts = async fields => {
+      const out = []
+      for (let from = 0; from < 20000; from += 1000) {
+        const { data, error } = await supabase.from('contacts').select(fields)
+          .eq('user_id',user.id).eq('is_archived',false)
+          .order('last_interacted_at',{ascending:true,nullsFirst:true}).order('id').range(from, from + 999)
+        if (error) return { error }
+        out.push(...(data || []))
+        if (!data || data.length < 1000) break
+      }
+      return { data: out }
+    }
+    const loadContacts = async () => {
+      const r1 = await readContacts(CF + ',walnut_sunk_at')
+      return r1.error ? readContacts(CF) : r1 // 「先沉下去」欄位還沒建好時照常顯示
+    }
+    const [{ data: rawData }, t10, addedMap, coolMap, ctx] = await Promise.all([
+      loadContacts(),
       fetchTop10(user.id),
       fetchAddedMap(supabase, user.id),
       fetchInviteCooldowns(user.id),
+      loadMeetCtx(user.id),
     ])
+    setMeetCtx(ctx)
     let data = rawData
     if (data) {
       data = withAddedDates(data, addedMap)
@@ -636,7 +711,8 @@ export default function Dashboard() {
   })()
   // 單純的顧客（沒有轉介紹進度）不被自動推薦；有轉介紹進度的才會進推薦
   const pickPool = activeContacts.filter(c => !(customerContactIds.has(c.id) && !c.referral_stage && !c.is_top10))
-  const meetingContact = pickMeetingContact(pickPool, undefined, skipMeeting)
+  const meetRest = (profile && profile.tag_settings && profile.tag_settings.meet_rest) || {}
+  const meetingContact = meetCtx ? pickMeet(pickPool, { ...meetCtx, rest: meetRest }, today(), skipMeeting) : null
   const mode = resolveMode(profile?.tag_settings, profile?.created_at)
   const weeklyMeetTarget = resolveWeeklyMeet(profile?.tag_settings, mode)
   // 這週新增的名單（不含自動建立的顧客檔案），今天新增的另外標出來
@@ -958,9 +1034,12 @@ export default function Dashboard() {
               </div>
               <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>
                 {meetingContact
-                  ? (mode.meet > 1 ? '其中 1 個由你主持。建議：' + meetingContact.name + '，' : '') + meetingReason(meetingContact)
+                  ? (mode.meet > 1 ? '其中 1 個由你主持。建議：' + meetingContact.name + '，' : '') + (meetingContact.is_top10 ? '首選 10：' : '') + meetingContact.pickWhy.text
                   : '今天沒有適合約的人，先把 ' + mode.talk + ' 位互動做完，聊出下一位'}
               </div>
+              {meetingContact && (
+                <div style={{ fontSize:12,color:TEXT_SECONDARY,lineHeight:1.5,marginTop:2 }}>可以這樣問：{sayFor(meetingContact.pickWhy.tier, today())}</div>
+              )}
               {meetingContact && favProducts.length > 0 && (
                 <div style={{ fontSize:12,color:TEXT_SECONDARY,marginTop:2 }}>
                   可以聊：你自己用{favProducts[0].name}{favProducts[0].note ? '，' + favProducts[0].note : ''}
@@ -996,10 +1075,15 @@ export default function Dashboard() {
                 </div>
               )}
               {meetingContact && (
-                <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
-                  style={{ display:'block', background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:'6px 0 0', cursor:'pointer' }}>
-                  換一位
-                </button>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', paddingTop:6 }}>
+                  <button onClick={()=>setSkipMeeting(s => [...s, meetingContact.id])}
+                    style={{ display:'block', background:'none', border:'none', color:TEXT_SECONDARY, fontSize:12, padding:0, cursor:'pointer' }}>
+                    換一位
+                  </button>
+                  <span style={{ fontSize:11, color:TEXT_MUTED }}>推薦過沒約的人，休息 3 天再出現</span>
+                  <MeetShown userId={user.id} contactId={meetingContact.id} rest={meetRest}
+                    onSaved={ts => setProfile(p => ({ ...(p||{}), tag_settings: ts }))} />
+                </div>
               )}
               {nearEvents.map(ev => {
                 const invited = activeContacts.filter(c => isInvitedTo(c, ev, futureMeets))

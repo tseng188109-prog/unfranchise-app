@@ -28,6 +28,7 @@ import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN, ACCENT_GREEN_TEXT, ACCENT_YELLOW, ACCENT_YELLOW_TEXT, DANGER, BORDER, SUBCARD_BG, RADIUS,
   getEggColor, getEggBg, avatarBg, PAGE_BG } from './designTokens'
+const ORANGE_DOT = '#F08A3C'
 
 function toDateStr(d){ return d.toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'}) }
 function today(){ return toDateStr(new Date()) }
@@ -62,6 +63,9 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   const [quickTool, setQuickTool] = useState('')
   const [quickSaving, setQuickSaving] = useState(false)
   const [addToStory, setAddToStory] = useState(false) // 這筆互動要不要順便存進認識故事時間軸
+  const [quickOpen, setQuickOpen] = useState(false) // 點了輸入框才展開「用了什麼工具」和「記成重點」
+  const quickExpanded = quickOpen || !!quickNote.trim() || !!quickTool || addToStory
+  const [sampleDue, setSampleDue] = useState(false) // 有試用品給了 3 天以上、還沒問感受 →「進度」分頁亮小點
 
   const [editingLogId, setEditingLogId] = useState(null)
   const [editNote, setEditNote] = useState('')
@@ -93,6 +97,13 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     const { data: logData } = await supabase.from('contact_logs')
       .select('*').eq('contact_id', id).order('date', { ascending: false })
     if (logData) setLogs(logData)
+
+    setSampleDue(false)
+    supabase.from('sample_tracking').select('share_date,result,followup_3_done').eq('contact_id', id)
+      .then(({ data: sm }) => {
+        const lim = new Date(Date.now() - 3 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+        setSampleDue((sm || []).some(s => !s.result && !s.followup_3_done && s.share_date && s.share_date <= lim))
+      }, () => {})
 
     const { data: noteData } = await supabase.from('contact_notes')
       .select('*').eq('contact_id', id).order('created_at', { ascending: false })
@@ -158,6 +169,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
     }
 
     setQuickNote('')
+    setQuickOpen(false)
     setQuickTool('')
     setQuickDate(today())
     setAddToStory(false)
@@ -392,12 +404,15 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
           </div>
         </div>
         <div style={{ display:'flex', gap:20 }}>
-          {[{ key:'logs', label:'互動紀錄' }, { key:'info', label:'資料' }].map(t => (
+          {[{ key:'logs', label:'互動' }, { key:'progress', label:'進度' }, { key:'info', label:'資料' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ background:'none', border:'none', cursor:'pointer', padding:'0 0 10px',
+              style={{ background:'none', border:'none', cursor:'pointer', padding:'0 0 10px', position:'relative',
                 fontSize:13, fontWeight:600, color: tab===t.key ? PRIMARY : TEXT_MUTED,
                 borderBottom: tab===t.key ? `2px solid ${PRIMARY}` : '2px solid transparent' }}>
               {t.label}
+              {t.key === 'progress' && sampleDue && (
+                <span aria-label="有試用品可以問問了" style={{ position:'absolute', top:-1, right:-8, width:7, height:7, borderRadius:RADIUS.circle, background:ORANGE_DOT }} />
+              )}
             </button>
           ))}
         </div>
@@ -406,41 +421,59 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
 
       <div style={{ padding: bare ? 0 : (embedded ? '16px 20px 24px' : '16px') }}>
 
-        {tab === 'logs' && (
+        {(tab === 'logs' || bare) && (
           <>
-            {/* 靜音狀態：時機未到，從今天的 3-1-2 挑選中完全退出，不重複解釋為什麼 */}
+            {/* 互動分頁：最常做的「記一筆」放最上面，接著是「下一次」（每次見面都要約下一次）、重點、紀錄。
+                消費狀況、合作意願、試做、試用品搬到「進度」分頁（顧客頁嵌入時沒有分頁，放在紀錄下面）。 */}
             {contact.is_muted ? (
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                background:SUBCARD_BG, borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14 }}>
+                background:SUBCARD_BG, borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:12 }}>
                 <span style={{ fontSize:13, color:TEXT_MUTED, fontWeight:600 }}>時機未到</span>
                 <button onClick={handleToggleMute} disabled={muteSaving}
                   style={{ fontSize:12, color:PRIMARY, background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>
                   恢復排進今天
                 </button>
               </div>
-            ) : (
-              <>
-                {suggestedAction && (
-                  <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.lg, padding:'12px 16px', marginBottom:14 }}>
-                    <p style={{ margin:'0 0 3px', fontSize:11, color:TEXT_SECONDARY, fontWeight:600 }}>現在最適合這樣接觸</p>
-                    <p style={{ margin:0, fontSize:16, fontWeight:600, color:TEXT_MAIN }}>{getSuggestion(contact)}</p>
-                    <p style={{ margin:'4px 0 0', fontSize:11, color:TEXT_SECONDARY }}>
-                      依據：{contact.egg_type}{contact.need_level ? ' · 需求度'+contact.need_level : ''}
-                    </p>
-                  </div>
-                )}
-                <div style={{ textAlign:'right', marginTop:-10, marginBottom:14 }}>
-                  <button onClick={handleToggleMute} disabled={muteSaving}
-                    style={{ fontSize:12, color:TEXT_MUTED, background:'none', border:'none', cursor:'pointer' }}>
-                    時機未到，先不排進今天
-                  </button>
-                </div>
-              </>
+            ) : suggestedAction && (
+              <div style={{ fontSize:13, color:TEXT_SECONDARY, lineHeight:1.6, marginBottom:10 }}>
+                <span style={{ fontWeight:600, color:TEXT_MAIN }}>建議：</span>{getSuggestion(contact)}
+                <span style={{ fontSize:11, color:TEXT_MUTED }}>（依據：{contact.egg_type}{contact.need_level ? ' · 需求度'+contact.need_level : ''}）</span>
+              </div>
             )}
+
+            <div style={{ background:SUBCARD_BG, border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:14 }}>
+              <AutoTextarea value={quickNote} onChange={e => setQuickNote(e.target.value)} onFocus={() => setQuickOpen(true)}
+                placeholder="今天跟他發生了什麼事？（選填）" minRows={quickExpanded ? 3 : 1} />
+              {quickExpanded && (
+                <div style={{ marginTop:10 }}>
+                  <ToolRow value={quickTool} onChange={setQuickTool} contact={contact}
+                    customer={contact.source === 'customer' || !!linkedCustomer} />
+                </div>
+              )}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:10, flexWrap:'wrap' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
+                  <DateField value={quickDate} max={today()}
+                    onChange={e => setQuickDate(e.target.value)}
+                    style={{ width:132, padding:'8px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
+                      fontSize:13, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
+                  {quickExpanded && (
+                    <button onClick={() => setAddToStory(v => !v)}
+                      style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color: addToStory ? ACCENT_YELLOW_TEXT : TEXT_SECONDARY, background:'none', border:'none', padding:0, cursor:'pointer', fontWeight: addToStory ? 600 : 400 }}>
+                      {addToStory ? <IconStarFilled size={16} color={ACCENT_YELLOW} /> : <IconStar size={16} stroke={1.8} />}
+                      記成重點
+                    </button>
+                  )}
+                </div>
+                <button onClick={handleQuickAdd} disabled={quickSaving}
+                  style={{ padding:'9px 18px', borderRadius:RADIUS.sm, border:'none',
+                    background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  {quickSaving ? '新增中…' : '新增'}
+                </button>
+              </div>
+            </div>
 
             {!contact.is_muted && <NextPlanCard contact={contact} onOpen={() => setShowAfterMeet(true)}
               onSchedule={() => setInvite({})} onEdit={openEditPlan} />}
-            {meUserId && <TrialRunCard contact={contact} userId={meUserId} />}
 
             {signedDays !== null && signedDays <= 14 && (
               <div style={{ background:'var(--green-soft)', borderRadius:RADIUS.lg, padding:'10px 14px', marginBottom:14,
@@ -448,75 +481,6 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                 簽約第 {signedDays} 天。簽約後 3–7 天內約一次跟進會面，幫對方把起步做順。
               </div>
             )}
-
-            {/* 消費狀況：路徑視覺，標注永遠由使用者自己點 */}
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
-              {(() => {
-                const n = RELATIONSHIP_STAGES.length
-                const curIdx = RELATIONSHIP_STAGES.indexOf(contact.relationship_stage)
-                const pad = 100 / (2 * n)            // 第一個點和最後一個點到邊緣的距離（%）
-                const span = 100 - 2 * pad
-                return (
-                  <div style={{ position:'relative' }}>
-                    <div style={{ position:'absolute', top:11, left:`${pad}%`, right:`${pad}%`, height:2, background:'var(--border2)' }} />
-                    {curIdx > 0 && (
-                      <div style={{ position:'absolute', top:11, left:`${pad}%`, width:`${(curIdx / (n - 1)) * span}%`, height:2, background:PRIMARY }} />
-                    )}
-                    <div style={{ position:'relative', display:'grid', gridTemplateColumns:`repeat(${n}, minmax(0, 1fr))` }}>
-                      {RELATIONSHIP_STAGES.map((s, i) => {
-                        const reached = curIdx >= 0 && i <= curIdx
-                        const isCurrent = i === curIdx
-                        return (
-                          <button key={s} onClick={() => handleSetStage('relationship', s)} title={s}
-                            style={{ background:'none', border:'none', cursor:'pointer', padding:'0 2px',
-                              display:'flex', flexDirection:'column', alignItems:'center', gap:6, minWidth:0 }}>
-                            <span style={{ height:24, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              <span style={{ width: isCurrent?16:11, height: isCurrent?16:11, borderRadius:RADIUS.circle,
-                                background: reached ? PRIMARY : 'var(--border2)',
-                                border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
-                                boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
-                            </span>
-                            <span style={{ fontSize:11, lineHeight:1.35, textAlign:'center', color: isCurrent ? PRIMARY : TEXT_MUTED,
-                              fontWeight: isCurrent ? 600 : 400, wordBreak:'break-all' }}>{s}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()}
-              <p style={{ fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>想往前走一步嗎？點一下上面的點就能標注，系統不會自己幫你改</p>
-            </div>
-
-            {/* 合作意願：非線性（「暫時婉拒」不是進度的一部分），用目前狀態＋收合清單呈現 */}
-            <div style={{ marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                background:SUBCARD_BG, borderRadius:RADIUS.md, padding:'10px 14px' }}>
-                <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                  <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>合作意願</span>
-                  <span style={{ fontSize:14, color:TEXT_MAIN, fontWeight:600 }}>{contact.referral_stage || '尚未聊過'}</span>
-                </div>
-                <button onClick={() => setShowReferralOptions(v => !v)}
-                  style={{ background:'none', border:'none', color:PRIMARY, fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                  {showReferralOptions ? '收起' : '調整 ›'}
-                </button>
-              </div>
-              {showReferralOptions && (
-                <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }}>
-                  {REFERRAL_STAGES.map(s => (
-                    <button key={s} onClick={() => { handleSetStage('referral', s); setShowReferralOptions(false) }}
-                      style={{ background: contact.referral_stage===s ? ACCENT_GREEN : 'var(--card)',
-                        color: contact.referral_stage===s ? '#fff' : TEXT_SECONDARY,
-                        border: contact.referral_stage===s ? 'none' : `1px solid ${BORDER}`,
-                        borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
-                        fontWeight: contact.referral_stage===s ? 700 : 600, cursor:'pointer' }}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {/* 重點（原本叫認識故事）：固定顯示，空的時候教你怎麼放。舊的自然變淡，過期的可以一鍵確認還是這樣嗎。
                 新的重點從下面互動紀錄旁邊的星星、或新增時的「這筆也記成重點」加入。 */}
@@ -553,35 +517,6 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                   ))}
                 </div>
               )}
-            </div>
-
-            <SampleSection key={id} contactId={id} customerId={linkedCustomer?.id || null} onChanged={onChanged} />
-
-            <div style={{ background:SUBCARD_BG, border:`1px solid ${BORDER}`, borderRadius:RADIUS.lg, padding:12, marginBottom:16 }}>
-              <div style={{ marginBottom:8 }}>
-                <DateField value={quickDate} max={today()}
-                  onChange={e => setQuickDate(e.target.value)}
-                  style={{ width:140, padding:'9px 10px', borderRadius:RADIUS.sm, border:`1px solid ${BORDER}`,
-                    fontSize:13, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-              </div>
-              <AutoTextarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
-                placeholder="今天跟他發生了什麼事？（選填）" minRows={3} />
-              <div style={{ marginTop:10 }}>
-                <ToolRow value={quickTool} onChange={setQuickTool} contact={contact}
-                  customer={contact.source === 'customer' || !!linkedCustomer} />
-              </div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:10 }}>
-                <button onClick={() => setAddToStory(v => !v)}
-                  style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: addToStory ? ACCENT_YELLOW_TEXT : TEXT_SECONDARY, background:'none', border:'none', padding:0, cursor:'pointer', fontWeight: addToStory ? 600 : 400 }}>
-                  {addToStory ? <IconStarFilled size={16} color={ACCENT_YELLOW} /> : <IconStar size={16} stroke={1.8} />}
-                  這筆也記成重點
-                </button>
-                <button onClick={handleQuickAdd} disabled={quickSaving}
-                  style={{ padding:'9px 18px', borderRadius:RADIUS.sm, border:'none',
-                    background: quickSaving ? '#9BBBF2' : PRIMARY, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                  {quickSaving ? '新增中…' : '新增'}
-                </button>
-              </div>
             </div>
 
             {starMsg && <p style={{ fontSize:12, color:DANGER, margin:'0 0 12px' }}>{starMsg}</p>}
@@ -668,8 +603,95 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
                 })}
               </div>
             )}
+
+            {!contact.is_muted && (
+              <div style={{ textAlign:'right', marginTop:14 }}>
+                <button onClick={handleToggleMute} disabled={muteSaving}
+                  style={{ fontSize:12, color:TEXT_MUTED, background:'none', border:'none', cursor:'pointer' }}>
+                  時機未到，先不排進今天
+                </button>
+              </div>
+            )}
           </>
         )}
+
+        {(tab === 'progress' || bare) && (
+          <div style={{ marginTop: bare ? 20 : 0 }}>
+            {/* 進度：試做、試用品、消費狀況、合作意願（從互動分頁搬過來，內容不變） */}
+            {meUserId && <TrialRunCard contact={contact} userId={meUserId} />}
+            <SampleSection key={id} contactId={id} customerId={linkedCustomer?.id || null} onChanged={onChanged} />
+
+            {/* 消費狀況：路徑視覺，標注永遠由使用者自己點 */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:TEXT_MUTED, marginBottom:10 }}>消費狀況</div>
+              {(() => {
+                const n = RELATIONSHIP_STAGES.length
+                const curIdx = RELATIONSHIP_STAGES.indexOf(contact.relationship_stage)
+                const pad = 100 / (2 * n)            // 第一個點和最後一個點到邊緣的距離（%）
+                const span = 100 - 2 * pad
+                return (
+                  <div style={{ position:'relative' }}>
+                    <div style={{ position:'absolute', top:11, left:`${pad}%`, right:`${pad}%`, height:2, background:'var(--border2)' }} />
+                    {curIdx > 0 && (
+                      <div style={{ position:'absolute', top:11, left:`${pad}%`, width:`${(curIdx / (n - 1)) * span}%`, height:2, background:PRIMARY }} />
+                    )}
+                    <div style={{ position:'relative', display:'grid', gridTemplateColumns:`repeat(${n}, minmax(0, 1fr))` }}>
+                      {RELATIONSHIP_STAGES.map((s, i) => {
+                        const reached = curIdx >= 0 && i <= curIdx
+                        const isCurrent = i === curIdx
+                        return (
+                          <button key={s} onClick={() => handleSetStage('relationship', s)} title={s}
+                            style={{ background:'none', border:'none', cursor:'pointer', padding:'0 2px',
+                              display:'flex', flexDirection:'column', alignItems:'center', gap:6, minWidth:0 }}>
+                            <span style={{ height:24, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              <span style={{ width: isCurrent?16:11, height: isCurrent?16:11, borderRadius:RADIUS.circle,
+                                background: reached ? PRIMARY : 'var(--border2)',
+                                border: isCurrent ? `3px solid ${PRIMARY_SOFT}` : 'none',
+                                boxShadow: isCurrent ? `0 0 0 2px ${PRIMARY}` : 'none' }} />
+                            </span>
+                            <span style={{ fontSize:11, lineHeight:1.35, textAlign:'center', color: isCurrent ? PRIMARY : TEXT_MUTED,
+                              fontWeight: isCurrent ? 600 : 400, wordBreak:'break-all' }}>{s}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+              <p style={{ fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>想往前走一步嗎？點一下上面的點就能標注，系統不會自己幫你改</p>
+            </div>
+
+            {/* 合作意願：非線性（「暫時婉拒」不是進度的一部分），用目前狀態＋收合清單呈現 */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                background:SUBCARD_BG, borderRadius:RADIUS.md, padding:'10px 14px' }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                  <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:600 }}>合作意願</span>
+                  <span style={{ fontSize:14, color:TEXT_MAIN, fontWeight:600 }}>{contact.referral_stage || '尚未聊過'}</span>
+                </div>
+                <button onClick={() => setShowReferralOptions(v => !v)}
+                  style={{ background:'none', border:'none', color:PRIMARY, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  {showReferralOptions ? '收起' : '調整 ›'}
+                </button>
+              </div>
+              {showReferralOptions && (
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }}>
+                  {REFERRAL_STAGES.map(s => (
+                    <button key={s} onClick={() => { handleSetStage('referral', s); setShowReferralOptions(false) }}
+                      style={{ background: contact.referral_stage===s ? ACCENT_GREEN : 'var(--card)',
+                        color: contact.referral_stage===s ? '#fff' : TEXT_SECONDARY,
+                        border: contact.referral_stage===s ? 'none' : `1px solid ${BORDER}`,
+                        borderRadius:RADIUS.pill, padding:'6px 12px', fontSize:12,
+                        fontWeight: contact.referral_stage===s ? 700 : 600, cursor:'pointer' }}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
 
         {tab === 'info' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>

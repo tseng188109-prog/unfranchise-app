@@ -29,16 +29,16 @@ export function chainIds(notes, startId) {
   return [...ids]
 }
 
-export function AutoTextarea({ value, onChange, placeholder, minRows = 3, style, autoFocus }) {
+export function AutoTextarea({ value, onChange, placeholder, minRows = 3, style, autoFocus, onFocus }) {
   const ref = useRef(null)
   useEffect(() => {
     const el = ref.current
     if (!el) return
     el.style.height = 'auto'
     el.style.height = el.scrollHeight + 'px'
-  }, [value])
+  }, [value, minRows])
   return (
-    <textarea ref={ref} value={value} onChange={onChange} placeholder={placeholder} rows={minRows} autoFocus={autoFocus}
+    <textarea ref={ref} value={value} onChange={onChange} onFocus={onFocus} placeholder={placeholder} rows={minRows} autoFocus={autoFocus}
       style={{ width: '100%', boxSizing: 'border-box', resize: 'none', overflow: 'hidden', fontFamily: 'inherit',
         lineHeight: 1.6, outline: 'none', color: TEXT_MAIN, border: `1px solid ${BORDER}`, background: 'var(--card)',
         borderRadius: RADIUS.md, padding: '10px 12px', fontSize: 14, ...style }} />
