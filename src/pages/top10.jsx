@@ -250,7 +250,7 @@ export async function loadTop10Week(userId) {
 export function Top10Strip({ userId, variant = 'home', onChanged }) {
   const [d, setD] = useState(null)
   const [open, setOpen] = useState(false)
-  // 首頁：首選 10 沒滿、又有核桃浮上來（還不在首選 10）時，提示可以補
+  // 首頁：首選 10 沒滿、又有核桃浮上來（還不在首選 10）時，提示「N 顆核桃還沒放進首選」
   const [walnutsFree, setWalnutsFree] = useState(0)
   const navigate = useNavigate()
   async function reload() { try { setD(await loadTop10Week(userId)) } catch { setD({ ok: false }) } }
@@ -267,31 +267,36 @@ export function Top10Strip({ userId, variant = 'home', onChanged }) {
   const label = empty ? '還沒選，點這裡開始' : short ? `${d.total}/${TOP10_MAX}　再選 ${TOP10_MAX - d.total} 位` : `${d.total}/${TOP10_MAX}`
   const right = empty || short ? '' : `這週聯絡 ${touched} 位`
   const bar = variant === 'banner'
+  const walnutTip = walnutsFree > 0 && d.total < TOP10_MAX
   return (
     <>
       <button onClick={() => setOpen(true)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', boxSizing: 'border-box',
-          height: 44, padding: '0 14px', borderRadius: RADIUS.xl,
+        style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, textAlign: 'left', cursor: 'pointer', boxSizing: 'border-box',
+          minHeight: 44, padding: walnutTip ? '10px 14px' : '0 14px', justifyContent: 'center', borderRadius: RADIUS.xl,
           background: bar ? (warn ? ACCENT_YELLOW_SOFT : PRIMARY_SOFT) : 'var(--card)',
           border: bar ? 'none' : `1px solid ${BORDER}` }}>
-        <IconStar size={18} stroke={1.9} color={warn ? ACCENT_YELLOW_TEXT : PRIMARY} style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: 14, fontWeight: 600, color: warn ? ACCENT_YELLOW_TEXT : (bar ? PRIMARY : TEXT_MAIN), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flexShrink: 1 }}>
-          {/* 有核桃提示時，字縮短一點，免得整條被擠出畫面 */}
-          {'首選 10\u3000' + (walnutsFree > 0 && d.total < TOP10_MAX ? (empty ? '還沒選' : `${d.total}/${TOP10_MAX}`) : label)}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: walnutTip ? 0 : 44, minWidth: 0 }}>
+          <IconStar size={18} stroke={1.9} color={warn ? ACCENT_YELLOW_TEXT : PRIMARY} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: warn ? ACCENT_YELLOW_TEXT : (bar ? PRIMARY : TEXT_MAIN), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flexShrink: 1 }}>
+            {'首選 10\u3000' + label}
+          </span>
+          {d.flagged.length > 0 && (
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 99, background: DANGER_SOFT, color: DANGER, whiteSpace: 'nowrap' }}>{d.flagged.length} 位可以換人</span>
+          )}
+          <span style={{ flex: 1, textAlign: 'right', fontSize: 12, color: TEXT_SECONDARY, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{right}</span>
+          <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} style={{ flexShrink: 0 }} />
         </span>
-        {walnutsFree > 0 && d.total < TOP10_MAX && (
-          <span role="link" tabIndex={0} onClick={e => { e.stopPropagation(); navigate('/contacts?jar=1') }}
-            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); navigate('/contacts?jar=1') } }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: '#F3E7D8', color: '#7B532E', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <svg width="13" height="13" viewBox="-11 -11 22 22" aria-hidden="true"><path d="M0,-9 C6.5,-9 10,-4 10,1 C10,6.5 6,10 0,10 C-6,10 -10,6.5 -10,1 C-10,-4 -6.5,-9 0,-9Z" fill="#9A6A3F" /><path d="M0,-8 C-1,-3 1,3 0,9" stroke="#6F4825" strokeWidth="1.4" fill="none" /></svg>
-            {walnutsFree} 顆核桃可以補
+        {/* 有核桃還沒放進首選 10：放第二行，字才不會被擠掉 */}
+        {walnutTip && (
+          <span style={{ paddingLeft: 28 }}>
+            <span role="link" tabIndex={0} onClick={e => { e.stopPropagation(); navigate('/contacts?jar=1') }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); navigate('/contacts?jar=1') } }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#F3E7D8', color: '#7B532E', whiteSpace: 'nowrap' }}>
+              <svg width="13" height="13" viewBox="-11 -11 22 22" aria-hidden="true"><path d="M0,-9 C6.5,-9 10,-4 10,1 C10,6.5 6,10 0,10 C-6,10 -10,6.5 -10,1 C-10,-4 -6.5,-9 0,-9Z" fill="#9A6A3F" /><path d="M0,-8 C-1,-3 1,3 0,9" stroke="#6F4825" strokeWidth="1.4" fill="none" /></svg>
+              {walnutsFree} 顆核桃還沒放進首選 ›
+            </span>
           </span>
         )}
-        {d.flagged.length > 0 && (
-          <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 99, background: DANGER_SOFT, color: DANGER, whiteSpace: 'nowrap' }}>{d.flagged.length} 位可以換人</span>
-        )}
-        <span style={{ flex: 1, textAlign: 'right', fontSize: 12, color: TEXT_SECONDARY, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{walnutsFree > 0 && d.total < TOP10_MAX ? '' : right}</span>
-        <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} style={{ flexShrink: 0 }} />
       </button>
       {open && <Top10Panel data={d} userId={userId} onClose={() => setOpen(false)} onChanged={() => { reload(); onChanged && onChanged() }} />}
     </>

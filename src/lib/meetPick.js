@@ -48,6 +48,8 @@ export function canPick(c, ctx, today) {
 }
 
 // 為什麼今天是他：{ tier, text } 或 null（不適合約）
+//   ctx.lastPlan：最近一次約成（任何內容，用來判斷見完有沒有約下一次）
+//   ctx.lastBizPlan：最近一次「答應聽說明」的約成 { date, label }（判斷核桃）
 export function whyOf(c, ctx, today) {
   const lastPlan = (ctx.lastPlan || {})[c.id] || null
   // lastMeet[id]：'YYYY-MM-DD' 或 { date, tool }
@@ -60,8 +62,9 @@ export function whyOf(c, ctx, today) {
       : (tool ? `${md(met)} ${tool}後，還沒約下一次` : `${md(met)} 見過，還沒約下一次`)
     return { tier: 1, text }
   }
-  const w = walnutOf(c, lastPlan, today)
-  if (w) return { tier: 2, text: w.reason === '約成過' ? '約成過，趁熱約下一次' : `他自己說想了解（${w.reason}）` }
+  // 核桃只看「答應聽說明」的約成（ctx.lastBizPlan）；約吃飯不算
+  const w = walnutOf(c, (ctx.lastBizPlan || {})[c.id] || null, today)
+  if (w) return { tier: 2, text: w.reason.startsWith('答應聽') ? `他${w.reason}，趁熱約下一次` : `他自己說想了解（${w.reason}）` }
   const sm = (ctx.sampleAt || {})[c.id]
   if (sm) {
     const n = daysBetween(sm, today)

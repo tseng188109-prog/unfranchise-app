@@ -6,8 +6,9 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPencil, IconArchive, IconCheck, IconX, IconTrash,
-  IconBriefcase, IconMapPin, IconMessageCircle, IconAlertCircle, IconShoppingBag, IconFlask, IconStar, IconStarFilled,
+  IconBriefcase, IconMapPin, IconMessageCircle, IconAlertCircle, IconShoppingBag, IconFlask, IconStar, IconStarFilled, IconExternalLink, IconCopy,
 } from '@tabler/icons-react'
+import { socialOf } from '../lib/social'
 import LoadingSpinner from './LoadingSpinner'
 import SampleSection from './SampleSection'
 import {
@@ -50,6 +51,53 @@ function formatMD(d){
 // onArchived— called after archiving; if omitted, defaults to navigate('/contacts')
 // onChanged — called after any data change (log added/edited/deleted, archived) so a parent list can refetch
 // bare     — true when embedded inside the customer page's 互動 tab: no header, no tabs, just the 互動紀錄 content
+function WhoLine({ contact, onAdd }) {
+  const [copied, setCopied] = useState(false)
+  const social = socialOf(contact.platform, contact.platform_account)
+  const parts = [contact.occupation, contact.region].map(x => (x || '').trim()).filter(Boolean)
+  const met = (contact.note || '').trim()
+  if (!parts.length && !social && !met) {
+    return (
+      <button onClick={onAdd} style={{ display:'block', background:'none', border:'none', padding:0, margin:'3px 0 0',
+        fontSize:13, color:PRIMARY, cursor:'pointer', textAlign:'left' }}>
+        + 補職業、IG，下次一眼認出他
+      </button>
+    )
+  }
+  const tapSocial = async () => {
+    if (social.url) { window.open(social.url, '_blank', 'noopener'); return }
+    if (social.copy) {
+      try { await navigator.clipboard.writeText(social.copy); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* 不能複製就算了 */ }
+    }
+  }
+  const sep = <span style={{ color:TEXT_MUTED, margin:'0 5px' }}>·</span>
+  return (
+    <div style={{ margin:'3px 0 0', minWidth:0 }}>
+      {parts.length > 0 && (
+        <div style={{ fontSize:13, color:TEXT_SECONDARY, lineHeight:1.6, overflowWrap:'anywhere' }}>
+          {parts.map((t, i) => <span key={i}>{i > 0 && sep}{t}</span>)}
+        </div>
+      )}
+      {/* 社群帳號自己一行：窄螢幕也不會斷在「·」後面 */}
+      {social && (
+        <div style={{ fontSize:13, color:TEXT_SECONDARY, lineHeight:1.6, overflowWrap:'anywhere' }}>
+          {social.url || social.copy ? (
+            <button onClick={tapSocial} aria-label={social.url ? `打開 ${social.text}` : `複製 ${social.text}`}
+              style={{ background:'none', border:'none', padding:0, font:'inherit', color:PRIMARY, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:3, textAlign:'left' }}>
+              {social.text}
+              {social.url ? <IconExternalLink size={13} stroke={1.9} /> : <IconCopy size={13} stroke={1.9} />}
+            </button>
+          ) : <span>{social.text}</span>}
+          {copied && <span style={{ fontSize:11, color:ACCENT_GREEN_TEXT, marginLeft:6 }}>已複製</span>}
+        </div>
+      )}
+      {met && (
+        <div style={{ fontSize:12, color:TEXT_MUTED, marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>認識：{met}</div>
+      )}
+    </div>
+  )
+}
+
 export default function ContactPanel({ id, embedded=false, bare=false, onBack, onArchived, onChanged }) {
   const navigate = useNavigate()
   const [contact, setContact] = useState(null)
@@ -386,7 +434,8 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
               <span style={{ fontSize: embedded ? 17 : 20, fontWeight:600, color:TEXT_MAIN }}>{contact.name}</span>
             </div>
-            {contact.occupation && <p style={{ fontSize:13, color:TEXT_MUTED, margin:'2px 0 0' }}>{contact.occupation}</p>}
+            {/* 他是誰：職業、地區、社群帳號（IG 點了直接打開）、怎麼認識的。三個分頁都看得到 */}
+            <WhoLine contact={contact} onAdd={() => navigate(`/contacts/${id}/edit`)} />
             <QuickTags contact={contact} onSaved={upd => { setContact(c => ({ ...c, ...upd })); onChanged?.() }} />
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0 }}>

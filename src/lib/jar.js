@@ -25,25 +25,44 @@ export function isBean(c) {
 // 聊過了沒（實心豆／空心豆）
 export function isTalked(c) { return !!(c.last_contact_date || c.last_interacted_at) }
 
+// 約成的內容是「聽事業說明」才算核桃訊號；約聚餐、體驗產品、逛網站、線上影片只是見面，不算
+export const BIZ_PLAN_RE = /一對一會談|二對一會談|三方通話|家庭事業說明會|事業說明會|說明會/
+export function bizPlanLabel(note) {
+  const m = String(note || '').match(BIZ_PLAN_RE)
+  return m ? m[0] : null
+}
+// 每個人最近一次「答應聽說明」的約成：{ [contact_id]: { date, label } }
+export function lastBizPlans(planLogs) {
+  const out = {}
+  ;(planLogs || []).forEach(p => {
+    const label = bizPlanLabel(p.note)
+    if (!label || !p.contact_id || !p.date) return
+    if (!out[p.contact_id] || p.date > out[p.contact_id].date) out[p.contact_id] = { date: p.date, label }
+  })
+  return out
+}
+
 // 是不是核桃：對方自己給過想了解的訊號
-//   meetPlanDate：這個人最近一次「約成了」的日期（沒有就 null）
+//   bizPlan：這個人最近一次「答應聽說明」的約成 { date, label }（也可以只給日期；沒有就 null）
 // 回傳 null（不是）或 { reason, cooling, days }
-export function walnutOf(c, meetPlanDate, today) {
+export function walnutOf(c, bizPlan, today) {
+  const meetPlanDate = bizPlan && (typeof bizPlan === 'string' ? bizPlan : bizPlan.date)
+  const planReason = '答應聽' + ((bizPlan && typeof bizPlan === 'object' && bizPlan.label) || '事業說明')
   if (!isBean(c)) return null
   if (c.interest_level === '沒興趣') return null
   const last = c.last_contact_date || (c.last_interacted_at ? twDayOf(c.last_interacted_at) : null)
   if (last && daysBetween(last, today) > SINK_DAYS) return null
   let reason = ''
-  if (meetPlanDate) reason = '約成過'
+  if (meetPlanDate) reason = planReason
   else if (c.need_level === '大四') reason = '大四・主動來問'
   else if (c.interest_level === '很有興趣') reason = '很有興趣'
   else if (c.interest_level === '有點興趣') reason = '有點興趣'
   if (!reason) return null
-  // 按過「先沉下去」：之後又約成一次才會再浮上來
+  // 按過「先沉下去」：之後又答應聽一次說明才會再浮上來
   if (c.walnut_sunk_at) {
     const sunk = twDayOf(c.walnut_sunk_at)
     if (!meetPlanDate || meetPlanDate <= sunk) return null
-    reason = '約成過'
+    reason = planReason
   }
   const days = last ? daysBetween(last, today) : null
   return { reason, cooling: days === null || days > COOL_DAYS, days }

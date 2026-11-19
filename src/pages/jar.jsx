@@ -1,5 +1,5 @@
 // jar.jsx — 豆子罐（入口：底部「互動名單」最上面）
-// 罐子＝整份名單。空心豆＝還沒聊過、實心豆＝聊過、核桃＝對方自己表示想了解（約成過、大四、有興趣）。
+// 罐子＝整份名單。空心豆＝還沒聊過、實心豆＝聊過、核桃＝對方自己表示想了解（答應聽說明、大四、有興趣；約吃飯不算）。
 // 罐子分四段：小玻璃罐 10、果醬罐 30、泡菜罐 100、豆子大罐 300；超過 300 每 300 位一個滿罐擺上架。
 import { useEffect, useState, useId, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -211,7 +211,7 @@ function WalnutRow({ w, top10Full, onChanged, onInvite }) {
             <button style={{ ...act, color: 'var(--text)' }} onClick={() => navigate(`/contacts/${w.id}`)}>打開</button>
           </div>
           {msg && <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6 }}>{msg}</div>}
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>「先沉下去」：之後又約成一次，才會再浮上來。</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>「先沉下去」：之後又答應聽一次說明，才會再浮上來。</div>
         </div>
       )}
     </div>
@@ -284,7 +284,7 @@ export function JarSheet({ userId, data, onClose, onChanged }) {
           </div>
           {d.walnuts.length === 0 ? (
             <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.7, marginTop: 8 }}>
-              還沒有核桃浮上來。多搖罐子（多互動、多開口），感興趣的人就會自己浮上來：約成過、需求度大四、或見完面有興趣的人。
+              還沒有核桃浮上來。多搖罐子（多互動、多開口），感興趣的人就會自己浮上來：答應聽一對一會談或說明會、需求度大四、或見完面有興趣的人。
             </div>
           ) : d.walnuts.map(w => (
             <WalnutRow key={w.id} w={w} top10Full={top10Count >= TOP10_MAX} onChanged={reload} onInvite={setInvite} />

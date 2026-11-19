@@ -1,6 +1,6 @@
 // 豆子罐：讀名單、算核桃、存設定
 import { supabase } from '../supabase'
-import { summarizeJar, jarPrefs } from '../lib/jar'
+import { summarizeJar, jarPrefs, lastBizPlans } from '../lib/jar'
 import { twToday } from '../lib/rhythm'
 
 const FIELDS = 'id,name,egg_type,need_level,interest_level,is_archived,is_top10,referral_stage,source,last_contact_date,last_interacted_at,added_date,created_at,walnut_sunk_at'
@@ -24,9 +24,8 @@ export async function loadJar(userId, today = twToday()) {
     // 資料庫還沒加「先沉下去」欄位時也照常顯示
     contacts = await all(() => supabase.from('contacts').select(FIELDS.replace(',walnut_sunk_at', '')).eq('user_id', userId).order('created_at', { ascending: true }))
   }
-  const plans = await all(() => supabase.from('contact_logs').select('contact_id,date').eq('user_id', userId).eq('kind', 'meet_plan'))
-  const lastPlan = {}
-  plans.forEach(p => { if (!lastPlan[p.contact_id] || p.date > lastPlan[p.contact_id]) lastPlan[p.contact_id] = p.date })
+  const plans = await all(() => supabase.from('contact_logs').select('contact_id,date,note').eq('user_id', userId).eq('kind', 'meet_plan'))
+  const lastPlan = lastBizPlans(plans) // 只看「答應聽說明」的約成；約吃飯不算核桃
   const { data: prof } = await supabase.from('users').select('tag_settings').eq('id', userId).single()
   const prefs = jarPrefs(prof && prof.tag_settings)
   return { today, prefs, ...summarizeJar(contacts, lastPlan, today, prefs.reached) }

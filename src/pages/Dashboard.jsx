@@ -39,6 +39,7 @@ import { MemoryJogSheet, fetchInviteCooldowns } from './beanJar'
 import { InviteSheet, fetchWaitingInvites, planOf } from './invite'
 import { pickInviteCandidates, pickInteractionContacts, syncDaily3 } from './followUp'
 import { pickMeet, sayFor, nextRest, SHOWN_TOOLS } from '../lib/meetPick'
+import { lastBizPlans } from '../lib/jar'
 import { upcomingPlans, fmtPlanDate, AfterMeetSheet } from './meetingFlow'
 import StudyThemeCard from './StudyThemeCard'
 import { logCareInteraction } from './customerLink'
@@ -515,7 +516,7 @@ export default function Dashboard() {
       safe(supabase.from('contact_logs').select('contact_id,date,tool').eq('user_id', uid).eq('kind', 'meet').gte('date', back(30)).limit(1000)),
       safe(supabase.from('contact_logs').select('contact_id,date,tool,kind').eq('user_id', uid).in('tool', SHOWN_TOOLS).gte('date', back(30)).limit(1000)),
       safe(supabase.from('counter_logs').select('contact_id,date').eq('user_id', uid).eq('counter_key', 'meetup').eq('is_done', true).gte('date', back(30)).limit(1000)),
-      safe(supabase.from('contact_logs').select('contact_id,date').eq('user_id', uid).eq('kind', 'meet_plan').gte('date', back(400)).order('date', { ascending: false }).limit(1000)),
+      safe(supabase.from('contact_logs').select('contact_id,date,note').eq('user_id', uid).eq('kind', 'meet_plan').gte('date', back(400)).order('date', { ascending: false }).limit(1000)),
       safe(supabase.from('sample_tracking').select('contact_id,share_date,result,followup_3_done').eq('user_id', uid).gte('share_date', back(21)).lte('share_date', back(3))),
     ])
     const latest = (rows, key = 'date') => {
@@ -536,6 +537,7 @@ export default function Dashboard() {
     return {
       lastMeet,
       lastPlan: latest(plans),
+      lastBizPlan: lastBizPlans(plans),
       sampleAt: latest(samples.filter(s => !s.result && !s.followup_3_done), 'share_date'),
       rest: {},
     }
