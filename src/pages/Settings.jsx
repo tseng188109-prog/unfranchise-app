@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { getThemeMode, setThemeMode } from './theme'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
 import { PushSetting } from './pushNotify'
 import { clearPasswordChangeFlag } from './passwordFlag'
@@ -10,8 +10,9 @@ import { TaskVisibilitySheet, visibleDailyTasks } from './checkinStatus'
 import { DAILY_TASKS } from './taskDefinitions'
 import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTagSetting, resolveWeeklyMeet, resolveEventWeeks, resolveWeeklyMet, resolvePlanAhead } from './dailyMode'
 import {
-  IconClipboardList, IconChartBar, IconUsers, IconFlask, IconUsersGroup,
-  IconFlag, IconChevronRight, IconCheck, IconHelpCircle, IconCalendarEvent, IconShieldLock,
+  IconFlask, IconUsersGroup,
+  IconFlag, IconChevronRight, IconCheck, IconHelpCircle, IconCalendarEvent, IconShieldLock, IconChevronLeft,
+  IconAdjustments, IconBell, IconTags, IconPalette, IconUserCircle,
 } from '@tabler/icons-react'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -19,6 +20,10 @@ import {
 
 export default function Settings() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [params, setParams] = useSearchParams()
+  const section = params.get('s') || ''
+  const [pushState, setPushState] = useState('')
   const [user, setUser] = useState(null)
   const [modeKey, setModeKey] = useState('')
   const [tagSettings, setTagSettings] = useState({})
@@ -55,6 +60,20 @@ export default function Settings() {
   const [passwordMsg, setPasswordMsg] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
+  // 第一頁「手機提醒」那一列顯示開或關（跟手機提醒頁同一套判斷）
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) { if (alive) setPushState('unsupported'); return }
+        if (Notification.permission === 'denied') { if (alive) setPushState('denied'); return }
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (alive) setPushState(sub ? 'on' : 'off')
+      } catch { if (alive) setPushState('off') }
+    })()
+    return () => { alive = false }
+  }, [section])
   // 管理員才看得到「系統管理」
   const [isAdmin, setIsAdmin] = useState(false)
   useEffect(() => { supabase.rpc('is_admin').then(({ data }) => setIsAdmin(data === true)) }, [])
@@ -200,17 +219,36 @@ export default function Settings() {
     await supabase.auth.signOut()
   }
 
-  const FUNCTION_ITEMS = [
-    { label:'互動名單', path:'/contacts', Icon: IconClipboardList },
-    { label:'業績紀錄', path:'/transactions', Icon: IconChartBar },
-    { label:'顧客檔案', path:'/customers', Icon: IconUsers },
-    { label:'試用品追蹤', path:'/samples', Icon: IconFlask },
-    { label:'我的夥伴', path:'/partners', Icon: IconUsersGroup },
-    { label:'戰隊', path:'/team', Icon: IconFlag },
-    { label:'我的活動', path:'/activities', Icon: IconCalendarEvent },
-    { label:'使用說明', path:'/help', Icon: IconHelpCircle },
-    ...(isAdmin ? [{ label:'系統管理', path:'/admin', Icon: IconShieldLock }] : []),
+  // 設定第一頁：只放分類清單，右邊顯示目前的設定，點進去才看細節（網址 ?s=… 讓手機返回手勢回到第一頁）
+  // 互動名單、業績紀錄、顧客檔案在下面的選單列已經有了，這裡不重複放
+  const SECTIONS = {
+    rhythm: '我的節奏', push: '手機提醒', tags: '記錄用的標籤和產品', theme: '外觀', account: '帳號',
+  }
+  const THEME_LABEL = { system: '跟隨手機', light: '白天', dark: '夜晚' }
+  const modeLabel = (DAILY_MODE_LIST.find(m => m.key === modeKey) || {}).label || ''
+  const PUSH_LABEL = { on: '開', off: '關', denied: '被手機擋住', unsupported: '' }
+  const GROUPS = [
+    [
+      { key:'rhythm', Icon: IconAdjustments, value: modeLabel },
+      { key:'push', Icon: IconBell, value: PUSH_LABEL[pushState] || '' },
+      { key:'tags', Icon: IconTags, value: '' },
+      { key:'theme', Icon: IconPalette, value: THEME_LABEL[themeMode] || '' },
+    ],
+    [
+      { label:'我的夥伴', path:'/partners', Icon: IconUsersGroup },
+      { label:'戰隊', path:'/team', Icon: IconFlag },
+      { label:'我的活動', path:'/activities', Icon: IconCalendarEvent },
+      { label:'試用品追蹤', path:'/samples', Icon: IconFlask },
+    ],
+    [
+      { key:'account', Icon: IconUserCircle, value: '名字、密碼、推薦人' },
+      { label:'使用說明', path:'/help', Icon: IconHelpCircle },
+      ...(isAdmin ? [{ label:'系統管理', path:'/admin', Icon: IconShieldLock }] : []),
+    ],
   ]
+  const openSection = k => setParams({ s: k }, { state: { fromMain: true } })
+  const backToMain = () => { if (location.state && location.state.fromMain) navigate(-1); else setParams({}, { replace: true }) }
+
 
   return (
     <div style={{ background:'var(--page)',minHeight:'100vh',paddingBottom:80,overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
@@ -230,11 +268,25 @@ export default function Settings() {
 
       <div className="dash-container" style={{ padding:'16px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
+        {!section && (
+          <>
         {/* 我為什麼留在這裡：打開個人頁第一眼看到的東西，不是一般設定欄位。
             獨立欄位 why_here，跟目標聲明 goal_declaration 分開──目標聲明是要達成的成果，
             這裡是私密的、寫給自己看的一句話，不對外，也不追求量化。 */}
         <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.xl, padding:'18px 20px',
           borderLeft:`4px solid ${PRIMARY}` }}>
+          {/* 名字和 Email：點了到「帳號」 */}
+          <button onClick={() => openSection('account')} aria-label="帳號"
+            style={{ display:'flex',alignItems:'center',gap:12,background:'none',border:'none',padding:0,margin:'0 0 14px',cursor:'pointer',textAlign:'left',width:'100%' }}>
+            <span style={{ width:40,height:40,borderRadius:'50%',background:PRIMARY,flexShrink:0,
+              display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:600,fontSize:17 }}>
+              {name?name[0]:user?.email?.[0]?.toUpperCase()||'U'}
+            </span>
+            <span style={{ minWidth:0 }}>
+              <span style={{ display:'block',fontSize:16,fontWeight:600,color:TEXT_MAIN }}>{name||'未設定名稱'}</span>
+              <span style={{ display:'block',fontSize:12,color:TEXT_MUTED,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{user?.email}</span>
+            </span>
+          </button>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
             <p style={{ fontSize:12, fontWeight:600, color:PRIMARY, margin:0, letterSpacing:0.5 }}>我為什麼留在這裡</p>
             {!editingWhy && (
@@ -290,6 +342,230 @@ export default function Settings() {
           )}
         </div>
 
+            {GROUPS.map((group, gi) => (
+              <div key={gi} style={{ ...card, padding:'2px 16px' }}>
+                {group.map((it, i) => (
+                  <button key={it.key || it.path} onClick={() => it.key ? openSection(it.key) : navigate(it.path)}
+                    style={{ ...rowBtn, borderTop: i ? `1px solid ${BORDER}` : 'none' }}>
+                    <it.Icon size={18} stroke={1.9} color={PRIMARY} />
+                    <span style={{ fontSize:14,color:TEXT_MAIN,flex:1 }}>{it.key ? SECTIONS[it.key] : it.label}</span>
+                    {it.value && <span style={{ fontSize:13,color:TEXT_MUTED,whiteSpace:'nowrap' }}>{it.value}</span>}
+                    <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
+                  </button>
+                ))}
+              </div>
+            ))}
+
+            {/* 登出 */}
+            <button onClick={handleSignOut}
+              style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
+                background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:600,cursor:'pointer' }}>
+              登出
+            </button>
+          </>
+        )}
+
+        {section && SECTIONS[section] && (
+          <button onClick={backToMain} aria-label="回到設定"
+            style={{ display:'flex',alignItems:'center',gap:4,background:'none',border:'none',padding:'2px 0',cursor:'pointer',color:TEXT_MAIN,fontSize:16,fontWeight:600,alignSelf:'flex-start' }}>
+            <IconChevronLeft size={20} stroke={2} /> {SECTIONS[section]}
+          </button>
+        )}
+
+        {section === 'rhythm' && (
+          <>
+        {/* 每日節奏：起步 / 標準 / 加速，只改首頁的目標數字，已經記的紀錄不變 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 10px' }}>每日節奏</p>
+          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+            {DAILY_MODE_LIST.map(m => {
+              const on = modeKey === m.key
+              return (
+                <button key={m.key} onClick={() => chooseMode(m.key)}
+                  style={{ textAlign:'left',cursor:'pointer',padding:'12px 14px',borderRadius:RADIUS.lg,
+                    border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+                    background: on ? PRIMARY_SOFT : 'transparent' }}>
+                  <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center' }}>
+                    <span style={{ fontSize:15,fontWeight:600,color: on ? PRIMARY : TEXT_MAIN }}>{m.title}</span>
+                    {on && <IconCheck size={18} stroke={2} color={PRIMARY} />}
+                  </div>
+                  <div style={{ fontSize:13,color: on ? PRIMARY : TEXT_SECONDARY,marginTop:2,lineHeight:1.6 }}>{m.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>隨時可以換，已經記的紀錄不會變。</p>
+        </div>
+
+        {/* 約人的節奏：每週想定下幾場碰面，每個人的作息不同，自己調 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>約人的節奏</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
+            一週想定下幾場邀約？依你的作息自己決定，首頁「1 個邀約」那一列會顯示本週進度。
+          </p>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
+            {[3, 5, 7].map(n => {
+              const on = !customMeet && weeklyMeet === n
+              return (
+                <button key={n} onClick={() => { setCustomMeet(false); chooseWeeklyMeet(n) }}
+                  style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                    background: on ? PRIMARY : SUBCARD_BG, color: on ? '#fff' : TEXT_SECONDARY }}>
+                  {n} 位
+                </button>
+              )
+            })}
+            <button onClick={() => { setCustomMeet(true); if (weeklyMeet === 0) chooseWeeklyMeet(5) }}
+              style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                background: customMeet ? PRIMARY : SUBCARD_BG, color: customMeet ? '#fff' : TEXT_SECONDARY }}>
+              自己填
+            </button>
+            <button onClick={() => { setCustomMeet(false); chooseWeeklyMeet(0) }}
+              style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                background: weeklyMeet === 0 ? PRIMARY : SUBCARD_BG, color: weeklyMeet === 0 ? '#fff' : TEXT_SECONDARY }}>
+              不顯示
+            </button>
+          </div>
+          {customMeet && (
+            <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:10 }}>
+              <input type="number" inputMode="numeric" min="1" max="50" value={weeklyMeet || ''}
+                onChange={e => { const n = Math.max(1, Math.min(50, parseInt(e.target.value, 10) || 0)); setWeeklyMeet(n) }}
+                onBlur={() => weeklyMeet >= 1 && chooseWeeklyMeet(weeklyMeet)}
+                style={{ width:80,boxSizing:'border-box',padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:14,outline:'none',background:'transparent',color:TEXT_MAIN }} />
+              <span style={{ fontSize:14,color:TEXT_SECONDARY }}>位／週</span>
+            </div>
+          )}
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>一週從週六算到週五。選「不顯示」就不會出現本週進度，也不影響每日節奏。</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見到幾位（按了「見完了」才算見到）</p>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
+            {[2, 3, 5, 7, 10].map(n => (
+              <button key={n} onClick={() => chooseWeeklyMet(n)}
+                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                  background: weeklyMet === n ? PRIMARY : SUBCARD_BG, color: weeklyMet === n ? '#fff' : TEXT_SECONDARY }}>
+                {n} 位
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>首頁往後幾天提示我要見的人</p>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
+            {[1, 2, 3, 5, 7].map(n => (
+              <button key={n} onClick={() => choosePlanAhead(n)}
+                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                  background: planAhead === n ? PRIMARY : SUBCARD_BG, color: planAhead === n ? '#fff' : TEXT_SECONDARY }}>
+                {n} 天
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>活動前幾週開始提醒我邀人</p>
+          <div style={{ display:'flex',gap:8 }}>
+            {[2, 3, 4].map(n => (
+              <button key={n} onClick={() => chooseEventWeeks(n)}
+                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
+                  background: eventWeeks === n ? PRIMARY : SUBCARD_BG, color: eventWeeks === n ? '#fff' : TEXT_SECONDARY }}>
+                {n} 週
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'8px 0 0' }}>活動加在「我的活動」。進了提醒範圍，首頁「1 個邀約」會列出可以邀的人。</p>
+        </div>
+
+        {/* 每日打卡項目：跟每日行動頁「調整要顯示的項目」是同一個設定 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>每日打卡項目</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>用不到的可以藏起來，不會刪掉資料，隨時可以再打開。</p>
+          <button onClick={() => setShowTaskSheet(true)}
+            style={{ width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',
+              borderRadius:RADIUS.lg,border:`1px solid ${BORDER}`,background:'transparent',cursor:'pointer' }}>
+            <span style={{ fontSize:14,color:TEXT_MAIN }}>顯示 {visibleDailyTasks(tagSettings).length} 項，藏起 {DAILY_TASKS.length - visibleDailyTasks(tagSettings).length} 項</span>
+            <span style={{ fontSize:13,color:PRIMARY,fontWeight:600 }}>調整 ›</span>
+          </button>
+        </div>
+        {showTaskSheet && user && (
+          <TaskVisibilitySheet userId={user.id} tagSettings={tagSettings}
+            modeLabel={(DAILY_MODE_LIST.find(m => m.key === modeKey) || {}).label}
+            onChange={next => setTagSettings(t => ({ ...t, hidden_daily_tasks: next }))}
+            onClose={() => setShowTaskSheet(false)} />
+        )}
+          </>
+        )}
+
+        {section === 'push' && user && <PushSetting userId={user.id} />}
+
+        {section === 'tags' && (
+          <>
+            {user && <TagManager userId={user.id} cardStyle={card} foldable />}
+
+        {/* 我的首選產品：自己先用的 1–2 款，見面提示會帶出來 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>我的首選產品</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
+            填 1–2 款你自己在用、有感覺的產品。約見面時會提醒你分享自己的使用心得。
+          </p>
+          {favs.map((f, i) => (
+            <div key={i} style={{ padding:'12px',borderRadius:RADIUS.lg,border:`1px solid ${BORDER}`,marginBottom:8 }}>
+              <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                <input value={f.name} onChange={e => setFav(i, { name: e.target.value })} onBlur={() => saveFavs(favs)}
+                  placeholder="產品名稱，例如 愛尚它®綜合維生素粉末"
+                  style={{ flex:1,minWidth:0,boxSizing:'border-box',padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:14,outline:'none',background:'transparent',color:TEXT_MAIN }} />
+                <button onClick={() => removeFav(i)} aria-label="移除這一款"
+                  style={{ width:44,height:44,border:'none',background:'none',cursor:'pointer',color:TEXT_MUTED,fontSize:20 }}>×</button>
+              </div>
+              <input value={f.note || ''} onChange={e => setFav(i, { note: e.target.value })} onBlur={() => saveFavs(favs)}
+                placeholder="一句心得，例如 喝了兩週，下午比較不累"
+                style={{ width:'100%',boxSizing:'border-box',marginTop:8,padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:13,outline:'none',background:'transparent',color:TEXT_MAIN }} />
+            </div>
+          ))}
+          {favs.length < 2 && (
+            <button onClick={() => setFavs(list => [...list, { name: '', note: '' }])}
+              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.lg,border:`1px dashed ${BORDER}`,background:'none',color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>
+              ＋ {favs.length === 0 ? '加一款' : '再加一款（最多 2 款）'}
+            </button>
+          )}
+        </div>
+
+        {/* 居家購物清單：給過之後隔多久，顧客頁那一列改成「可以再給一次」 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>居家購物清單</p>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
+            給過之後，隔多久把顧客頁那一列改成「可以再給一次」。
+          </p>
+          {HOME_LIST_OPTIONS.map(o => {
+            const on = homeMonths === o.months
+            return (
+              <button key={o.months} onClick={() => chooseHomeMonths(o.months)}
+                style={{ width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',cursor:'pointer',
+                  padding:'12px 14px',borderRadius:RADIUS.lg,marginTop:8,fontSize:14,
+                  border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
+                  background: on ? PRIMARY_SOFT : 'transparent', color: on ? PRIMARY : TEXT_MAIN, fontWeight: on ? 600 : 400 }}>
+                <span>{o.label}</span>
+                {on && <IconCheck size={18} stroke={2} color={PRIMARY} />}
+              </button>
+            )
+          })}
+        </div>
+          </>
+        )}
+
+        {section === 'theme' && (<>
+        {/* 外觀：跟隨手機／永遠白天／永遠夜晚 */}
+        <div style={card}>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 10px' }}>外觀</p>
+          <div style={{ display:'flex',gap:4,padding:4,background:'var(--sub2)',borderRadius:RADIUS.md }}>
+            {[['system','跟隨手機'],['light','白天'],['dark','夜晚']].map(([k,label]) => (
+              <button key={k} onClick={() => { setThemeMode(k); setThemeModeState(k) }}
+                style={{ flex:1,padding:'8px 0',border:'none',borderRadius:RADIUS.sm,cursor:'pointer',
+                  fontSize:13,fontWeight:themeMode===k?600:500,
+                  background:themeMode===k?'var(--card)':'transparent',
+                  color:themeMode===k?TEXT_MAIN:TEXT_SECONDARY,
+                  boxShadow:themeMode===k?'0 1px 2px rgba(0,0,0,0.12)':'none' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        </>)}
+
+        {section === 'account' && (
+          <>
         {/* 帳號資訊 */}
         <div style={card}>
           <div style={{ display:'flex',alignItems:'center',gap:14,marginBottom:16 }}>
@@ -318,25 +594,6 @@ export default function Settings() {
             </button>
           </div>
         </div>
-
-        {/* 外觀：跟隨手機／永遠白天／永遠夜晚 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 10px' }}>外觀</p>
-          <div style={{ display:'flex',gap:4,padding:4,background:'var(--sub2)',borderRadius:RADIUS.md }}>
-            {[['system','跟隨手機'],['light','白天'],['dark','夜晚']].map(([k,label]) => (
-              <button key={k} onClick={() => { setThemeMode(k); setThemeModeState(k) }}
-                style={{ flex:1,padding:'8px 0',border:'none',borderRadius:RADIUS.sm,cursor:'pointer',
-                  fontSize:13,fontWeight:themeMode===k?600:500,
-                  background:themeMode===k?'var(--card)':'transparent',
-                  color:themeMode===k?TEXT_MAIN:TEXT_SECONDARY,
-                  boxShadow:themeMode===k?'0 1px 2px rgba(0,0,0,0.12)':'none' }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {user && <TagManager userId={user.id} cardStyle={card} />}
 
         {/* 密碼修改 */}
         <div style={card}>
@@ -416,191 +673,12 @@ export default function Settings() {
             </div>
           )}
         </div>
-
-        {/* 每日節奏：起步 / 標準 / 加速，只改首頁的目標數字，已經記的紀錄不變 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 10px' }}>每日節奏</p>
-          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-            {DAILY_MODE_LIST.map(m => {
-              const on = modeKey === m.key
-              return (
-                <button key={m.key} onClick={() => chooseMode(m.key)}
-                  style={{ textAlign:'left',cursor:'pointer',padding:'12px 14px',borderRadius:RADIUS.lg,
-                    border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                    background: on ? PRIMARY_SOFT : 'transparent' }}>
-                  <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center' }}>
-                    <span style={{ fontSize:15,fontWeight:600,color: on ? PRIMARY : TEXT_MAIN }}>{m.title}</span>
-                    {on && <IconCheck size={18} stroke={2} color={PRIMARY} />}
-                  </div>
-                  <div style={{ fontSize:13,color: on ? PRIMARY : TEXT_SECONDARY,marginTop:2,lineHeight:1.6 }}>{m.desc}</div>
-                </button>
-              )
-            })}
-          </div>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>隨時可以換，已經記的紀錄不會變。</p>
-        </div>
-
-        {/* 每日打卡項目：跟每日行動頁「調整要顯示的項目」是同一個設定 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>每日打卡項目</p>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>用不到的可以藏起來，不會刪掉資料，隨時可以再打開。</p>
-          <button onClick={() => setShowTaskSheet(true)}
-            style={{ width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',
-              borderRadius:RADIUS.lg,border:`1px solid ${BORDER}`,background:'transparent',cursor:'pointer' }}>
-            <span style={{ fontSize:14,color:TEXT_MAIN }}>顯示 {visibleDailyTasks(tagSettings).length} 項，藏起 {DAILY_TASKS.length - visibleDailyTasks(tagSettings).length} 項</span>
-            <span style={{ fontSize:13,color:PRIMARY,fontWeight:600 }}>調整 ›</span>
-          </button>
-        </div>
-        {showTaskSheet && user && (
-          <TaskVisibilitySheet userId={user.id} tagSettings={tagSettings}
-            modeLabel={(DAILY_MODE_LIST.find(m => m.key === modeKey) || {}).label}
-            onChange={next => setTagSettings(t => ({ ...t, hidden_daily_tasks: next }))}
-            onClose={() => setShowTaskSheet(false)} />
+          </>
         )}
 
-        {/* 約人的節奏：每週想定下幾場碰面，每個人的作息不同，自己調 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>約人的節奏</p>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
-            一週想定下幾場邀約？依你的作息自己決定，首頁「1 個邀約」那一列會顯示本週進度。
-          </p>
-          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
-            {[3, 5, 7].map(n => {
-              const on = !customMeet && weeklyMeet === n
-              return (
-                <button key={n} onClick={() => { setCustomMeet(false); chooseWeeklyMeet(n) }}
-                  style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
-                    background: on ? PRIMARY : SUBCARD_BG, color: on ? '#fff' : TEXT_SECONDARY }}>
-                  {n} 位
-                </button>
-              )
-            })}
-            <button onClick={() => { setCustomMeet(true); if (weeklyMeet === 0) chooseWeeklyMeet(5) }}
-              style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
-                background: customMeet ? PRIMARY : SUBCARD_BG, color: customMeet ? '#fff' : TEXT_SECONDARY }}>
-              自己填
-            </button>
-            <button onClick={() => { setCustomMeet(false); chooseWeeklyMeet(0) }}
-              style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
-                background: weeklyMeet === 0 ? PRIMARY : SUBCARD_BG, color: weeklyMeet === 0 ? '#fff' : TEXT_SECONDARY }}>
-              不顯示
-            </button>
-          </div>
-          {customMeet && (
-            <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:10 }}>
-              <input type="number" inputMode="numeric" min="1" max="50" value={weeklyMeet || ''}
-                onChange={e => { const n = Math.max(1, Math.min(50, parseInt(e.target.value, 10) || 0)); setWeeklyMeet(n) }}
-                onBlur={() => weeklyMeet >= 1 && chooseWeeklyMeet(weeklyMeet)}
-                style={{ width:80,boxSizing:'border-box',padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:14,outline:'none',background:'transparent',color:TEXT_MAIN }} />
-              <span style={{ fontSize:14,color:TEXT_SECONDARY }}>位／週</span>
-            </div>
-          )}
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>一週從週六算到週五。選「不顯示」就不會出現本週進度，也不影響每日節奏。</p>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見到幾位（按了「見完了」才算見到）</p>
-          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
-            {[2, 3, 5, 7, 10].map(n => (
-              <button key={n} onClick={() => chooseWeeklyMet(n)}
-                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
-                  background: weeklyMet === n ? PRIMARY : SUBCARD_BG, color: weeklyMet === n ? '#fff' : TEXT_SECONDARY }}>
-                {n} 位
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>首頁往後幾天提示我要見的人</p>
-          <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
-            {[1, 2, 3, 5, 7].map(n => (
-              <button key={n} onClick={() => choosePlanAhead(n)}
-                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
-                  background: planAhead === n ? PRIMARY : SUBCARD_BG, color: planAhead === n ? '#fff' : TEXT_SECONDARY }}>
-                {n} 天
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>活動前幾週開始提醒我邀人</p>
-          <div style={{ display:'flex',gap:8 }}>
-            {[2, 3, 4].map(n => (
-              <button key={n} onClick={() => chooseEventWeeks(n)}
-                style={{ padding:'8px 16px',borderRadius:RADIUS.pill,border:'none',cursor:'pointer',fontSize:14,fontWeight:600,
-                  background: eventWeeks === n ? PRIMARY : SUBCARD_BG, color: eventWeeks === n ? '#fff' : TEXT_SECONDARY }}>
-                {n} 週
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'8px 0 0' }}>活動加在「我的活動」。進了提醒範圍，首頁「1 個邀約」會列出可以邀的人。</p>
-        </div>
-
-        {/* 我的首選產品：自己先用的 1–2 款，見面提示會帶出來 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>我的首選產品</p>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
-            填 1–2 款你自己在用、有感覺的產品。約見面時會提醒你分享自己的使用心得。
-          </p>
-          {favs.map((f, i) => (
-            <div key={i} style={{ padding:'12px',borderRadius:RADIUS.lg,border:`1px solid ${BORDER}`,marginBottom:8 }}>
-              <div style={{ display:'flex',gap:8,alignItems:'center' }}>
-                <input value={f.name} onChange={e => setFav(i, { name: e.target.value })} onBlur={() => saveFavs(favs)}
-                  placeholder="產品名稱，例如 愛尚它®綜合維生素粉末"
-                  style={{ flex:1,minWidth:0,boxSizing:'border-box',padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:14,outline:'none',background:'transparent',color:TEXT_MAIN }} />
-                <button onClick={() => removeFav(i)} aria-label="移除這一款"
-                  style={{ width:44,height:44,border:'none',background:'none',cursor:'pointer',color:TEXT_MUTED,fontSize:20 }}>×</button>
-              </div>
-              <input value={f.note || ''} onChange={e => setFav(i, { note: e.target.value })} onBlur={() => saveFavs(favs)}
-                placeholder="一句心得，例如 喝了兩週，下午比較不累"
-                style={{ width:'100%',boxSizing:'border-box',marginTop:8,padding:'8px 10px',borderRadius:RADIUS.sm,border:`1px solid ${BORDER}`,fontSize:13,outline:'none',background:'transparent',color:TEXT_MAIN }} />
-            </div>
-          ))}
-          {favs.length < 2 && (
-            <button onClick={() => setFavs(list => [...list, { name: '', note: '' }])}
-              style={{ width:'100%',padding:'12px',borderRadius:RADIUS.lg,border:`1px dashed ${BORDER}`,background:'none',color:TEXT_SECONDARY,fontSize:14,cursor:'pointer' }}>
-              ＋ {favs.length === 0 ? '加一款' : '再加一款（最多 2 款）'}
-            </button>
-          )}
-        </div>
-
-        {/* 居家購物清單：給過之後隔多久，顧客頁那一列改成「可以再給一次」 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 4px' }}>居家購物清單</p>
-          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'0 0 10px',lineHeight:1.6 }}>
-            給過之後，隔多久把顧客頁那一列改成「可以再給一次」。
-          </p>
-          {HOME_LIST_OPTIONS.map(o => {
-            const on = homeMonths === o.months
-            return (
-              <button key={o.months} onClick={() => chooseHomeMonths(o.months)}
-                style={{ width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',cursor:'pointer',
-                  padding:'12px 14px',borderRadius:RADIUS.lg,marginTop:8,fontSize:14,
-                  border: on ? `2px solid ${PRIMARY}` : `1px solid ${BORDER}`,
-                  background: on ? PRIMARY_SOFT : 'transparent', color: on ? PRIMARY : TEXT_MAIN, fontWeight: on ? 600 : 400 }}>
-                <span>{o.label}</span>
-                {on && <IconCheck size={18} stroke={2} color={PRIMARY} />}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 其他功能入口 */}
-        <div style={card}>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'0 0 8px' }}>功能</p>
-          {FUNCTION_ITEMS.map(item => (
-            <button key={item.path} onClick={() => navigate(item.path)}
-              style={{ width:'100%',display:'flex',alignItems:'center',gap:10,
-                padding:'12px 0',background:'none',border:'none',
-                borderBottom:`1px solid ${BORDER}`,cursor:'pointer',textAlign:'left' }}>
-              <item.Icon size={17} stroke={1.9} color={PRIMARY} />
-              <span style={{ fontSize:14,color:TEXT_MAIN,flex:1 }}>{item.label}</span>
-              <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
-            </button>
-          ))}
-        </div>
-
-        {user && <PushSetting userId={user.id} />}
-
-        {/* 登出 */}
-        <button onClick={handleSignOut}
-          style={{ width:'100%',padding:'14px',borderRadius:RADIUS.lg,border:'none',
-            background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:600,cursor:'pointer' }}>
-          登出
-        </button>
+        {section && !SECTIONS[section] && (
+          <button onClick={() => setParams({}, { replace: true })} style={{ ...card, color:PRIMARY, fontSize:14, cursor:'pointer' }}>回到設定</button>
+        )}
 
       </div>
     </div>
@@ -614,3 +692,5 @@ const inputStyle = {
   border:`1px solid ${BORDER}`,fontSize:14,boxSizing:'border-box',
   outline:'none',color:TEXT_MAIN,
 }
+
+const rowBtn = { width:'100%',display:'flex',alignItems:'center',gap:10,padding:'13px 0',background:'none',border:'none',cursor:'pointer',textAlign:'left' }

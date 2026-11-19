@@ -1,0 +1,22 @@
+const { chromium } = require('playwright')
+const sheet = p => p.locator('div[style*="max-width: 520px"]').last()
+;(async()=>{
+  const b=await chromium.launch()
+  const p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2})
+  await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(300)
+  // 讓首頁沒有可推薦的人：把可推薦的都設成冷卻中
+  await p.evaluate(()=>{ const db=window.__db; ['w1','w2','c1','c2'].forEach((c,i)=>db.contact_logs.push({id:'cz'+i,user_id:'u',contact_id:c,date:window.__T,kind:'invite_no',note:'邀了沒約成：還沒興趣'})) })
+  await p.click('#goHome'); await p.waitForTimeout(1800)
+  const btn = p.getByRole('button',{name:'記一次邀約'}).first(); await btn.scrollIntoViewIfNeeded()
+  const bx = await btn.boundingBox()
+  await p.screenshot({path:'v1_home_noperson.png', clip:{x:0,y:Math.max(0,bx.y-140),width:390,height:330}})
+  await btn.click(); await p.waitForTimeout(500)
+  await p.screenshot({path:'v2_sheet_noperson.png'})
+  await sheet(p).getByRole('button',{name:'關閉'}).first().click()
+  // 他的頁面：舊的等回覆被新的邀約結束後
+  await p.evaluate(()=>{ const db=window.__db; db.contact_logs.push({id:'sp1',user_id:'u',contact_id:'w1',date:window.__add(-2),kind:'invite_no',note:'邀了沒約成　後來又邀了一次　（11/6 確認）'}) })
+  await p.evaluate(()=>window.__nav('/contacts/w1')); await p.waitForTimeout(1500)
+  const el = p.locator('text=後來又邀了一次').first(); await el.scrollIntoViewIfNeeded(); const eb = await el.boundingBox()
+  await p.screenshot({path:'v4_superseded.png', clip:{x:0,y:Math.max(0,eb.y-200),width:390,height:330}})
+  await b.close()
+})()

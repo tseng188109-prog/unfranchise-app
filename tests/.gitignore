@@ -1,0 +1,5 @@
+# 測試跑出來的東西，不用放進 GitHub
+ui/.build/
+ui/shots/
+ui/*.png
+node_modules/

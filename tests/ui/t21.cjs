@@ -1,0 +1,12 @@
+const { chromium } = require('playwright')
+;(async()=>{
+  const b=await chromium.launch(); const p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2})
+  await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(300)
+  await p.evaluate(()=>window.__nav('/contacts/w1')); await p.waitForTimeout(1500)
+  await p.getByRole('button',{name:'記一次邀約'}).first().click(); await p.waitForTimeout(500)
+  const s = p.locator('div[style*="max-width: 520px"]').last()
+  await s.getByRole('button',{name:'一對一會談'}).click(); await p.waitForTimeout(200)
+  const el = s.locator('text=邀了什麼'); const bx = await el.boundingBox()
+  await p.screenshot({path:'v3_chips.png', clip:{x:0,y:bx.y-30,width:390,height:230}})
+  await b.close()
+})()

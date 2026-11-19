@@ -435,9 +435,19 @@ function TagRows({ kind, items, tags }) {
   )
 }
 
-export function TagManager({ userId, cardStyle }) {
+export function TagManager({ userId, cardStyle, foldable = false }) {
   const tags = useTagLists(userId)
   const [more, setMore] = useState(getShowMore())
+  // foldable：設定頁裡先收成一行（幾個標籤），點了才展開改名、隱藏、新增
+  const [open, setOpen] = useState({ needs: !foldable, signals: !foldable })
+  const fold = (kind, label, items) => foldable ? (
+    <button onClick={() => setOpen(o => ({ ...o, [kind]: !o[kind] }))} aria-expanded={open[kind]}
+      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', borderTop: `1px solid ${BORDER}`, padding: '11px 0', cursor: 'pointer', textAlign: 'left' }}>
+      <span style={{ flex: 1, fontSize: 14, color: TEXT_MAIN }}>{label}</span>
+      <span style={{ fontSize: 12, color: TEXT_MUTED }}>{items.filter(t => !t.hidden).length} 個{items.some(t => t.hidden) ? `（藏起 ${items.filter(t => t.hidden).length}）` : ''}</span>
+      <span style={{ fontSize: 13, color: PRIMARY, fontWeight: 600, marginLeft: 6 }}>{open[kind] ? '收起' : '調整 ›'}</span>
+    </button>
+  ) : null
   const head = { fontSize: 13, fontWeight:600, color: TEXT_SECONDARY, margin: '0 0 6px' }
   return (
     <div style={cardStyle}>
@@ -447,14 +457,21 @@ export function TagManager({ userId, cardStyle }) {
         <input type="checkbox" checked={more} onChange={e => { setMore(e.target.checked); setShowMore(e.target.checked) }} style={{ width: 16, height: 16 }} />
         見完了時顯示「多記一點」
       </label>
-      {tags.ready && (
+      {tags.ready && (foldable ? (
+        <>
+          {fold('needs', '對方在意什麼', tags.needs)}
+          {open.needs && <div style={{ marginBottom: 8 }}><TagRows kind="needs" items={tags.needs} tags={tags} /></div>}
+          {fold('signals', '對方主動做了什麼', tags.signals)}
+          {open.signals && <TagRows kind="signals" items={tags.signals} tags={tags} />}
+        </>
+      ) : (
         <>
           <p style={head}>對方在意什麼</p>
           <TagRows kind="needs" items={tags.needs} tags={tags} />
           <p style={{ ...head, marginTop: 16 }}>對方主動做了什麼</p>
           <TagRows kind="signals" items={tags.signals} tags={tags} />
         </>
-      )}
+      ))}
     </div>
   )
 }

@@ -1,0 +1,6 @@
+const { chromium, devices } = require('playwright')
+;(async()=>{ const b=await chromium.launch(); const c=await b.newContext({...devices['iPhone 14']}); const p=await c.newPage()
+await p.goto('http://127.0.0.1:8765/#/crash'); await p.waitForTimeout(300); await p.evaluate(()=>{ window.__rpcCalls = [] }); await p.click('#go'); await p.waitForTimeout(800)
+const calls = await p.evaluate(() => window.__rpcCalls.filter(c => c[0] === 'report_app_error'))
+console.log((calls.length === 1 && /null/.test(calls[0][1].p_message) ? 'PASS' : 'FAIL') + ' 畫面壞掉（React 錯誤，正式版）也會記：' + JSON.stringify(calls))
+await b.close() })()

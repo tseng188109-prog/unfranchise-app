@@ -1,0 +1,17 @@
+const { chromium } = require('playwright')
+;(async()=>{
+  const b=await chromium.launch(); const errs=[]
+  const p=await b.newPage({viewport:{width:390,height:2600}}); p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error') errs.push(m.text()) })
+  await p.goto('http://127.0.0.1:8765/'); await p.waitForTimeout(300); await p.click('#goHome'); await p.waitForTimeout(2000)
+  const t = await p.textContent('#root')
+  console.log('reminder 林小美:', /邀了林小美約聚餐，回了嗎/.test(t), ' 只一條林小美:', (t.match(/邀了林小美/g)||[]).length)
+  console.log('張雅婷(1天前)不提醒:', !/邀了張雅婷/.test(t), ' 封存不提醒:', !/李封存/.test(t))
+  console.log('先暖身不見:', !/先暖身/.test(t), ' 邀了，沒約成不見:', !/邀了，沒約成/.test(t), ' 記一次邀約:', /記一次邀約/.test(t), ' 換一位:', /換一位/.test(t))
+  const inv = await p.evaluate(()=>{ const el=[...document.querySelectorAll('span')].find(s=>s.textContent.startsWith('個邀約')); return el && el.textContent })
+  console.log('卡片標題:', inv)
+  const card = await p.locator('text=記一次邀約').first().evaluate(el=>{ let c=el; for(let i=0;i<6;i++) c=c.parentElement; return null })
+  await p.locator('text=記一次邀約').first().scrollIntoViewIfNeeded()
+  const box = await p.locator('text=記一次邀約').first().boundingBox()
+  await p.screenshot({path:'s16a.png', clip:{x:0,y:Math.max(0,box.y-420),width:390,height:700}})
+  console.log('ERR', errs.slice(0,5)); await b.close()
+})()
