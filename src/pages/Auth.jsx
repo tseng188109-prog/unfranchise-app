@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { deviceOf } from '../lib/device.js'
 
 export default function Auth() {
   const [mode, setMode] = useState('login')
@@ -12,7 +13,11 @@ export default function Auth() {
 
   async function handleLogin() {
     setLoading(true); setMessage('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error && data && data.user) {
+      // 記一筆登入（給系統管理看：時間和裝置，不記位置）。失敗不影響登入
+      supabase.from('login_events').insert({ user_id: data.user.id, device: deviceOf(navigator.userAgent) }).then(() => {}, () => {})
+    }
     if (error) {
       // 被管理員停用的帳號：講清楚，不要讓他以為是密碼錯
       const banned = error.code === 'user_banned' || /banned/i.test(error.message || '')

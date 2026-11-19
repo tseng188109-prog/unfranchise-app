@@ -1,10 +1,11 @@
 // 系統管理：所有「管理員才能做」的事都經過這裡。
 // 先用對方登入的憑證確認他是誰，再查 admins 表確認他是管理員，才用後台權限執行。
 // 前端把按鈕藏起來擋不住人，所以真正的把關在這裡。
-// 這裡只碰帳號層級的資料（名字、Email、推薦人、最近哪天打開、回報），
-// 不讀任何人的名單、顧客、業績、互動內容。
+// 這裡只碰帳號層級的資料（名字、Email、推薦人、最近哪天打開、登入裝置、回報、App 出錯），
+// 不讀任何人的名單、顧客、業績、互動內容（起步進度只看「有沒有」，不看幾筆、不看是誰）。
 /* global process */
 import { createClient } from '@supabase/supabase-js'
+import { deviceOf, stuckOf } from '../src/lib/device.js'
 
 const DAY = 86400000
 export const DELETE_AFTER_DAYS = 30
@@ -63,13 +64,14 @@ async function log(db, actorId, action, target, detail) {
 }
 
 async function loadAccounts(db) {
-  const [{ data: users, error: e1 }, authUsers, { data: status }, { data: seen, error: e2 }, { data: subs }, { data: admins }] = await Promise.all([
+  const [{ data: users, error: e1 }, authUsers, { data: status }, { data: seen, error: e2 }, { data: subs }, { data: admins }, { data: onb }] = await Promise.all([
     db.from('users').select('id,name,referrer_id,referrer_email_pending,created_at'),
     allAuthUsers(db),
     db.from('account_status').select('user_id,deactivated_at,must_change_password'),
     db.rpc('admin_last_seen'),
     db.from('push_subscriptions').select('user_id'),
     db.from('admins').select('user_id'),
+    db.rpc('admin_onboarding'), // 還沒建好（SQL 沒跑）時是 null，畫面就不顯示卡在哪
   ])
   if (e1) throw e1
   if (e2) throw e2
@@ -78,6 +80,7 @@ async function loadAccounts(db) {
   const seenOf = {}; (seen || []).forEach(s => { seenOf[s.user_id] = s.last_day })
   const pushSet = new Set((subs || []).map(s => s.user_id))
   const adminSet = new Set((admins || []).map(a => a.user_id))
+  const onbOf = {}; (onb || []).forEach(o => { onbOf[o.user_id] = o })
   const today = taipeiToday()
   return (users || []).map(u => {
     const st = statusOf_[u.id] || {}
@@ -89,6 +92,9 @@ async function loadAccounts(db) {
       deactivated_at: st.deactivated_at || null,
       push: pushSet.has(u.id), is_admin: adminSet.has(u.id),
       status: statusOf({ lastDay, deactivatedAt: st.deactivated_at }, today),
+      // 起步進度：只有「有沒有」，沒有數量
+      steps: onbOf[u.id] ? { signed_in: !!onbOf[u.id].signed_in, has_contacts: !!onbOf[u.id].has_contacts, has_logs: !!onbOf[u.id].has_logs } : null,
+      stuck: st.deactivated_at ? null : stuckOf(onbOf[u.id]),
     }
   })
 }
@@ -113,6 +119,7 @@ export async function handle(db, actor, body) {
     const { data: runs } = await db.from('push_runs').select('slot_date,slot_hour,kind,users,sent,failed,note')
       .not('kind', 'in', '(idle,running)').order('id', { ascending: false }).limit(6)
     const { data: fb } = await db.from('feedback').select('id').is('handled_at', null)
+    const { data: errs } = await db.from('app_errors').select('id').is('handled_at', null)
     return {
       ok: true,
       total: accounts.filter(a => !a.deactivated_at).length,
@@ -122,6 +129,7 @@ export async function handle(db, actor, body) {
       pushUsers: accounts.filter(a => a.push && !a.deactivated_at).length,
       runs: runs || [],
       openFeedback: (fb || []).length,
+      openErrors: (errs || []).length,
       mismatched: accounts.filter(a => !a.referrer_id && a.referrer_email_pending && !a.deactivated_at).length,
       deletable: accounts.filter(a => a.deactivated_at && now - new Date(a.deactivated_at).getTime() >= DELETE_AFTER_DAYS * DAY).length,
     }
@@ -145,6 +153,32 @@ export async function handle(db, actor, body) {
     return { ok: true }
   }
 
+  // App 出錯紀錄：同一個錯誤一筆，附「幾個人遇到」（不列名字）
+  if (action === 'errors') {
+    const { data, error } = await db.from('app_errors').select('id,page,message,device,count,first_at,last_at,handled_at')
+      .order('handled_at', { ascending: false, nullsFirst: true }).order('last_at', { ascending: false }).limit(100)
+    if (error) throw error
+    const ids = (data || []).map(e => e.id)
+    const { data: hits } = ids.length ? await db.from('app_error_hits').select('error_id,user_id').in('error_id', ids) : { data: [] }
+    const people = {}; (hits || []).forEach(h => { (people[h.error_id] = people[h.error_id] || new Set()).add(h.user_id) })
+    return { ok: true, items: (data || []).map(e => ({ ...e, people: people[e.id] ? people[e.id].size : 0 })) }
+  }
+
+  if (action === 'error_handled') {
+    const handled = body.handled !== false
+    if (!handled) {
+      // 「還沒修好」：如果同一個錯誤已經又出現一筆新的，就不能再打開舊的
+      const { data: e0 } = await db.from('app_errors').select('page,message').eq('id', body.id).single()
+      const { data: again } = e0 ? await db.from('app_errors').select('id').eq('page', e0.page).eq('message', e0.message).is('handled_at', null) : { data: [] }
+      if (again && again.length) return { ok: false, status: 400, error: '這個錯誤後來又出現了，看最上面那一筆' }
+    }
+    const { error } = await db.from('app_errors')
+      .update({ handled_at: handled ? new Date().toISOString() : null, handled_by: handled ? actor.id : null })
+      .eq('id', body.id)
+    if (error) throw error
+    return { ok: true }
+  }
+
   if (action === 'logs') {
     const { data } = await db.from('admin_logs').select('id,actor_id,action,target_name,detail,created_at')
       .order('id', { ascending: false }).limit(50)
@@ -156,6 +190,37 @@ export async function handle(db, actor, body) {
   // 以下都是針對某一個帳號
   const target = body.id ? await find(body.id) : null
   if (!target) return { ok: false, status: 404, error: '找不到這個帳號' }
+
+  // 登入中的裝置＋最近 10 次登入（只有時間和裝置，不記位置）
+  if (action === 'devices') {
+    const [{ data: ses }, { data: logins }] = await Promise.all([
+      db.rpc('admin_sessions', { p_user_id: target.id }),
+      db.from('login_events').select('at,device').eq('user_id', target.id).order('at', { ascending: false }).limit(10),
+    ])
+    return {
+      ok: true,
+      sessions: (ses || []).map(x => ({ created_at: x.created_at, last_at: x.last_at, device: deviceOf(x.user_agent) })),
+      logins: logins || [],
+    }
+  }
+
+  if (action === 'signout_all') {
+    const { data: n, error } = await db.rpc('admin_signout_all', { p_user_id: target.id })
+    if (error) throw error
+    await log(db, actor.id, 'signout_all', target, `登出 ${n || 0} 台裝置`)
+    return { ok: true, count: n || 0 }
+  }
+
+  if (action === 'rename') {
+    const name = String(body.name || '').trim().slice(0, 30)
+    if (!name) return { ok: false, status: 400, error: '名字不能空白' }
+    const oldName = (target.name || '').trim()
+    if (name === oldName) return { ok: true, same: true }
+    const { error } = await db.from('users').update({ name }).eq('id', target.id)
+    if (error) throw error
+    await log(db, actor.id, 'rename', { id: target.id, name }, `${oldName || '（沒名字）'} → ${name}`)
+    return { ok: true }
+  }
 
   if (action === 'temp_password') {
     const password = makeTempPassword()

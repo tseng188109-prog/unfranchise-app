@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { IconArrowLeft, IconKey, IconUserEdit, IconUserOff, IconUserCheck, IconTrash, IconSearch, IconCopy } from '@tabler/icons-react'
+import { IconArrowLeft, IconKey, IconUserEdit, IconUserOff, IconUserCheck, IconTrash, IconSearch, IconCopy, IconPencil, IconLogout } from '@tabler/icons-react'
 import { askConfirm } from './confirmDialog'
 import { CloseBtn } from './ui'
 import { RADIUS } from './designTokens'
@@ -22,6 +22,17 @@ const STATUS = {
 const ACTION_TEXT = {
   temp_password: '給臨時密碼', deactivate: '停用', restore: '恢復', delete: '永久刪除',
   set_referrer: '改推薦人', add_admin: '加為管理員', remove_admin: '移除管理員',
+  rename: '改名字', signout_all: '登出所有裝置',
+}
+// 起步五步：註冊、登入過、加名單、記第一次互動、開手機提醒（只看有沒有，不看數量）
+function stepsOf(a) {
+  const st = a.steps
+  if (!st) return null
+  return [['註冊', true], ['登入過', st.signed_in], ['加名單', st.has_contacts], ['記第一次互動', st.has_logs], ['開手機提醒', !!a.push]]
+}
+function hm(d) {
+  const x = new Date(d)
+  return `${x.getMonth() + 1}/${x.getDate()} ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`
 }
 
 async function callAdmin(action, extra = {}) {
@@ -125,6 +136,11 @@ export default function Admin() {
   const [pickAdmin, setPickAdmin] = useState(false)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [devices, setDevices] = useState(null)    // 操作選單裡的登入中裝置、登入紀錄
+  const [renameFor, setRenameFor] = useState(null) // 改名字
+  const [newName, setNewName] = useState('')
+  const [fbView, setFbView] = useState('feedback') // 回報分頁：大家回報／App 出錯
+  const [errors, setErrors] = useState(null)
 
   const loadAccounts = useCallback(async () => {
     const out = await callAdmin('accounts')
@@ -149,7 +165,39 @@ export default function Admin() {
   useEffect(() => {
     if (tab === 'feedback' && !feedback) callAdmin('feedback').then(o => setFeedback(o.items)).catch(e => setErr(e.message))
     if (tab === 'admins' && !logs) callAdmin('logs').then(o => setLogs(o.items)).catch(e => setErr(e.message))
-  }, [tab, feedback, logs])
+    if (tab === 'feedback' && !errors) callAdmin('errors').then(o => setErrors(o.items)).catch(() => setErrors([]))
+  }, [tab, feedback, logs, errors])
+
+  // 打開某人的操作選單：順便讀他登入中的裝置、最近登入
+  useEffect(() => {
+    if (!actFor) return
+    let gone = false
+    const id = actFor.id
+    callAdmin('devices', { id }).then(o => { if (!gone) setDevices({ ...o, id }) }).catch(() => { if (!gone) setDevices({ id, sessions: [], logins: [], failed: true }) })
+    return () => { gone = true }
+  }, [actFor])
+
+  async function doSignoutAll(a) {
+    // 選單裡顯示的是這一位的裝置（切換到別人時，舊的不要先顯示）
+    if (!(await askConfirm({ title: `把${a.name || '他'}所有裝置登出？`, message: '他的手機、電腦都要重新登入（已經開著的畫面最多一小時內會被登出）。適合手機掉了、或懷疑別人在用他的帳號時。', okText: '全部登出', danger: true }))) return
+    const out = await act('signout_all', { id: a.id })
+    if (out) {
+      setDevices(d => d ? { ...d, sessions: [] } : d)
+      setErr('')
+    }
+  }
+  async function saveRename() {
+    const out = await act('rename', { id: renameFor.id, name: newName })
+    if (out) { setRenameFor(null); setActFor(null) }
+  }
+  async function toggleErrorHandled(e) {
+    setBusy(true); setErr('')
+    try {
+      await callAdmin('error_handled', { id: e.id, handled: !e.handled_at })
+      const o = await callAdmin('errors'); setErrors(o.items)
+      const ov = await callAdmin('overview'); setOverview(ov)
+    } catch (x) { setErr(x.message) } finally { setBusy(false) }
+  }
 
   async function act(action, extra, okMsg) {
     setBusy(true); setErr('')
@@ -308,10 +356,11 @@ export default function Admin() {
           </div>
           <div style={card}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>要處理的事</div>
-            {!overview.openFeedback && !overview.mismatched && !overview.deletable && (
+            {!overview.openFeedback && !overview.openErrors && !overview.mismatched && !overview.deletable && (
               <div style={{ ...row, fontSize: 13, color: 'var(--green-text)' }}>目前沒有要處理的事</div>
             )}
-            {[[overview.openFeedback, '則回報還沒處理', '看回報', () => goto('feedback')],
+            {[[overview.openFeedback, '則回報還沒處理', '看回報', () => { setFbView('feedback'); goto('feedback') }],
+              [overview.openErrors, '種 App 出錯還沒修好', '看出錯', () => { setFbView('errors'); goto('feedback') }],
               [overview.mismatched, '位推薦人 Email 對不上', '去處理', () => goto('accounts', 'mismatch')],
               [overview.deletable, '位停用滿 30 天，可以刪除', '看帳號', () => goto('accounts', 'deletable')]]
               .filter(x => x[0] > 0).map(([n, text, link, fn]) => (
@@ -345,7 +394,8 @@ export default function Admin() {
           <tbody>
             {shown.map(a => (
               <tr key={a.id} style={{ opacity: a.status === 'off' ? 0.6 : 1 }}>
-                <td style={{ fontWeight: 600 }}>{a.name || '（沒名字）'}{a.is_admin && <span style={{ fontSize: 11, color: 'var(--primary)', marginLeft: 6 }}>管理員</span>}</td>
+                <td style={{ fontWeight: 600 }}>{a.name || '（沒名字）'}{a.is_admin && <span style={{ fontSize: 11, color: 'var(--primary)', marginLeft: 6 }}>管理員</span>}
+                  {a.stuck && <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--yellow-text)' }}>卡在：{a.stuck}</div>}</td>
                 <td>{a.email}</td><td>{refCell(a)}</td><td>{ym(a.created_at)}</td><td>{lastOpenText(a, today)}</td>
                 <td>{statusPill(a)}</td><td>{a.push ? '開' : '—'}</td>
                 <td style={{ textAlign: 'right' }}><button style={btn} onClick={() => setActFor(a)}>操作 ▾</button></td>
@@ -365,6 +415,7 @@ export default function Admin() {
                 <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {a.email} · 推薦人 {a.referrer_id ? (nameOf[a.referrer_id] || '—') : mismatched(a) ? 'Email 對不上' : '—'} · {lastOpenText(a, today) === '—' ? '還沒打開過' : lastOpenText(a, today) + '打開'}
                 </span>
+                {a.stuck && <span style={{ display: 'block', fontSize: 12, color: 'var(--yellow-text)', marginTop: 2 }}>卡在：{a.stuck}</span>}
               </span>
               <span style={{ color: 'var(--muted)', fontSize: 13 }}>›</span>
             </button>
@@ -405,8 +456,44 @@ export default function Admin() {
   } else if (tab === 'feedback') {
     const items = (feedback || []).filter(f => showHandled ? !!f.handled_at : !f.handled_at)
     const handledCount = (feedback || []).filter(f => f.handled_at).length
-    body = !feedback ? <LoadingSpinner fullPage={false} /> : (
+    const openFb = (feedback || []).filter(f => !f.handled_at).length
+    const errItems = (errors || []).filter(e => showHandled ? !!e.handled_at : !e.handled_at)
+    const errHandled = (errors || []).filter(e => e.handled_at).length
+    const openErr = (errors || []).filter(e => !e.handled_at).length
+    const switcher = (
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['feedback', `大家回報 ${openFb}`], ['errors', `App 出錯 ${openErr}`]].map(([k, label]) => (
+          <button key={k} onClick={() => { setFbView(k); setShowHandled(false) }}
+            style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: `1px solid ${fbView === k ? 'var(--primary)' : 'var(--border2)'}`,
+              background: fbView === k ? 'var(--primary-soft)' : 'transparent', color: fbView === k ? 'var(--primary)' : 'var(--text2)', fontWeight: fbView === k ? 600 : 400 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+    )
+    body = fbView === 'errors' ? (!errors ? <LoadingSpinner fullPage={false} /> : (
       <>
+        {switcher}
+        {errItems.length === 0 && <div style={{ ...card, fontSize: 13, color: 'var(--muted)' }}>{showHandled ? '還沒有修好的紀錄' : '目前沒有出錯紀錄'}</div>}
+        {errItems.map(e => (
+          <div key={e.id} style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0 }}>{e.page}</span>
+              <Pill s="idle" text={`${e.count} 次`} />
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4, fontFamily: 'ui-monospace, Menlo, monospace', overflowWrap: 'anywhere' }}>{e.message}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>最近：{hm(e.last_at)} · {e.people} 個人遇到{e.device ? ` · ${e.device}` : ''}</div>
+            <div style={{ marginTop: 8 }}><button style={btn} disabled={busy} onClick={() => toggleErrorHandled(e)}>{e.handled_at ? '改回還沒修好' : '修好了'}</button></div>
+          </div>
+        ))}
+        <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>App 畫面出錯時自動記下：哪一頁、什麼錯誤、哪種裝置。只記錯誤，不記畫面上的名單或顧客。同一個錯誤只記一筆、加次數；網路不穩造成的不算。</div>
+        <button onClick={() => setShowHandled(!showHandled)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 13, cursor: 'pointer', textAlign: 'left', padding: '4px 2px' }}>
+          {showHandled ? '‹ 回到還沒修好的' : `修好了的 ${errHandled} 種 ›`}
+        </button>
+      </>
+    )) : !feedback ? <LoadingSpinner fullPage={false} /> : (
+      <>
+        {switcher}
         {items.length === 0 && <div style={{ ...card, fontSize: 13, color: 'var(--muted)' }}>{showHandled ? '還沒有處理過的回報' : '沒有還沒處理的回報'}</div>}
         {items.map(f => (
           <div key={f.id} style={card}>
@@ -474,6 +561,7 @@ export default function Admin() {
     return list.filter(a => !below.has(a.id) && !a.deactivated_at).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   })()
   const isMe = actFor && me && actFor.id === me.id
+  const dev = devices && actFor && devices.id === actFor.id ? devices : null
 
   return (
     <div style={{ background: 'var(--page)', minHeight: '100vh', paddingBottom: 80 }}>
@@ -494,8 +582,25 @@ export default function Admin() {
         <Sheet title={actFor.name || '（沒名字）'} onClose={() => setActFor(null)}>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{actFor.email} · 推薦人 {actFor.referrer_id ? (nameOf[actFor.referrer_id] || '—') : '—'} · 最近打開 {lastOpenText(actFor, today)}</div>
           {mismatched(actFor) && <div style={{ fontSize: 12, color: 'var(--yellow-text)', background: 'var(--yellow-soft)', borderRadius: 10, padding: '8px 10px', marginBottom: 6 }}>註冊時填的推薦人 Email 是 {actFor.referrer_email_pending}，對不上任何帳號</div>}
+          {stepsOf(actFor) && (
+            <div style={{ margin: '4px 0 10px' }}>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>起步進度</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(() => {
+                  const st = stepsOf(actFor); const firstMiss = st.findIndex(x => !x[1])
+                  return st.map(([label, done], k) => (
+                    <span key={label} style={{ fontSize: 12, padding: '2px 9px', borderRadius: 999, whiteSpace: 'nowrap',
+                      background: done ? 'var(--green-soft)' : k === firstMiss ? 'var(--yellow-soft)' : 'transparent',
+                      color: done ? 'var(--green-text)' : k === firstMiss ? 'var(--yellow-text)' : 'var(--muted)',
+                      border: done || k === firstMiss ? 'none' : '1px solid var(--border2)' }}>{done ? '✓ ' : ''}{label}</span>
+                  ))
+                })()}
+              </div>
+            </div>
+          )}
           {!actFor.deactivated_at && (
             <>
+              <button disabled={busy} onClick={() => { setNewName(actFor.name || ''); setRenameFor(actFor) }} style={{ ...row, width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}><IconPencil size={18} stroke={1.8} /> 改名字</button>
               <button disabled={busy} onClick={() => doTempPassword(actFor)} style={{ ...row, width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}><IconKey size={18} stroke={1.8} /> 給他一組臨時密碼</button>
               <button disabled={busy} onClick={() => { setRefPick(actFor.referrer_id || ''); setRefFor(actFor); setActFor(null) }} style={{ ...row, width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}><IconUserEdit size={18} stroke={1.8} /> 改推薦人</button>
               {!isMe && <button disabled={busy} onClick={() => doDeactivate(actFor)} style={{ ...row, width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 14, color: 'var(--danger-text)' }}><IconUserOff size={18} stroke={1.8} /> 停用這個帳號</button>}
@@ -510,6 +615,40 @@ export default function Admin() {
                 : <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>已停用 {offDays(actFor)} 天，滿 30 天後可以永久刪除。</div>}
             </>
           )}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 10 }}>
+            <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4 }}>登入中的裝置</div>
+            {!dev ? <div style={{ fontSize: 12, color: 'var(--muted)' }}>讀取中…</div>
+              : dev.failed ? <div style={{ fontSize: 12, color: 'var(--muted)' }}>讀不到，等一下再試</div>
+              : dev.sessions.length === 0 ? <div style={{ fontSize: 13, color: 'var(--muted)' }}>目前沒有登入中的裝置</div>
+              : dev.sessions.map((x, k) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: 'var(--text)', lineHeight: 1.9 }}>
+                  <span>{x.device}</span><span style={{ color: 'var(--muted)', fontSize: 12 }}>{hm(x.created_at)} 登入 · 最後 {hm(x.last_at)}</span>
+                </div>
+              ))}
+            {dev && !dev.failed && dev.sessions.length > 0 && (
+              <button disabled={busy} onClick={() => doSignoutAll(actFor)} style={{ ...row, width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 14, color: 'var(--danger-text)', marginTop: 4 }}><IconLogout size={18} stroke={1.8} /> 把他所有裝置登出</button>
+            )}
+            <div style={{ fontSize: 12, color: 'var(--text2)', margin: '10px 0 4px' }}>最近登入</div>
+            {dev && !dev.failed && dev.logins.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)' }}>還沒有紀錄（從這次更新後，每次登入才開始記）</div>}
+            {dev && dev.logins.map((x, k) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text)', lineHeight: 1.9 }}>
+                <span>{hm(x.at)}</span><span style={{ color: 'var(--muted)' }}>{x.device || '—'}</span>
+              </div>
+            ))}
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>最多列 10 次，只記時間和裝置，不記位置。手機登入一次會一直保持登入，要看最近有沒有在用，看「最近打開」。</div>
+          </div>
+        </Sheet>
+      )}
+
+      {renameFor && (
+        <Sheet title={`改${renameFor.name || '他'}的名字`} onClose={() => setRenameFor(null)}>
+          <input value={newName} onChange={e => setNewName(e.target.value)} maxLength={30} autoFocus
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: RADIUS.sm, border: '1px solid var(--border2)', fontSize: 15, background: 'var(--card)', color: 'var(--text)' }} />
+          <div style={{ fontSize: 12, color: 'var(--text2)', margin: '8px 0 12px', lineHeight: 1.6 }}>名字會出現在推薦人的夥伴頁和夥伴關係圖，全隊都看得到。這次修改會記在「管理員」分頁的紀錄裡。</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={{ ...btn, flex: 1 }} onClick={() => setRenameFor(null)}>取消</button>
+            <button style={{ ...btnPrimary, flex: 1 }} disabled={busy || !newName.trim()} onClick={saveRename}>儲存</button>
+          </div>
         </Sheet>
       )}
 
