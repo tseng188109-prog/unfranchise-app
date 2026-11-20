@@ -146,10 +146,10 @@ export default function Onboarding({ user, onComplete }) {
             {currentStep === 'welcome' && (
               <>
                 <p style={{ fontSize: 16, fontWeight:600, color: TEXT_MAIN, margin: '0 0 8px' }}>
-                  歡迎加入超連鎖行動計畫！
+                  歡迎加入 unfranchise！
                 </p>
                 <p style={{ fontSize: 13, color: TEXT_SECONDARY, margin: 0, lineHeight: 1.6 }}>
-                  我是你的小助手，花 2 分鐘完成設定，讓 App 陪你從第一天就走在正確的軌道上。
+                  這是你超連鎖的每日行動夥伴，我是裡面的小助手。花 2 分鐘完成設定，讓 App 陪你從第一天就走在正確的軌道上。
                 </p>
               </>
             )}

@@ -64,10 +64,14 @@ export default function Layout({ children }) {
         flexDirection: 'column', zIndex: 100,
       }}>
         <div style={{
-          padding: '20px 16px', fontSize: 16, fontWeight:600, color: TEXT_MAIN,
+          padding: '16px 16px', display: 'flex', alignItems: 'center', gap: 10,
           borderBottom: '1px solid var(--border)',
         }}>
-          超連鎖行動計畫
+          <img src="/pwa-192x192.png" alt="" width={34} height={34} style={{ borderRadius: 9, flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_MAIN, lineHeight: 1.2 }}>unfranchise</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>超連鎖的每日行動夥伴</div>
+          </div>
         </div>
 
         <div style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>

@@ -36,4 +36,6 @@ await build({
   ...(prod ? { minify: true, define: { 'process.env.NODE_ENV': '"production"' } } : {}),
 })
 fs.copyFileSync(path.join(here, 'index.html'), path.join(out, 'index.html'))
+// App 圖示（登入頁、QR Code 中間要用）
+for (const f of fs.readdirSync(path.join(root, 'public'))) if (f.endsWith('.png')) fs.copyFileSync(path.join(root, 'public', f), path.join(out, f))
 console.log('built', path.relative(root, out))

@@ -3,7 +3,7 @@ self.addEventListener('push', function (event) {
   var d
   try { d = event.data ? event.data.json() : {} } catch { d = {} }
   event.waitUntil(
-    self.registration.showNotification(d.title || '超連鎖', {
+    self.registration.showNotification(d.title || 'unfranchise', {
       body: d.body || '',
       icon: '/pwa-192x192.png',
       badge: '/pwa-192x192.png',

@@ -11,7 +11,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // 自己註冊（src/pages/appUpdate.js），才能在新版準備好時決定什麼時候重新整理
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
       workbox: {
         importScripts: ['push-sw.js'],
         // 新版一下載好就接手（跟以前一樣），App 那邊再決定什麼時候重新整理
@@ -19,9 +19,9 @@ export default defineConfig({
         clientsClaim: true,
       },
       manifest: {
-        name: '超連鎖行動計畫',
-        short_name: '超連鎖',
-        description: 'Market America 超連鎖店主團隊管理工具',
+        name: 'unfranchise',
+        short_name: 'unfranchise',
+        description: '超連鎖的每日行動夥伴：邀約、跟進、戰隊一起往夢想前進',
         theme_color: '#080d1a',
         background_color: '#080d1a',
         display: 'standalone',
@@ -40,10 +40,11 @@ export default defineConfig({
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            // Android 會把圖示裁成圓形或其他形狀：這張的圖案縮在中間 80%，裁了也不會切到箭頭
+            src: 'pwa-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable'
           }
         ]
       }

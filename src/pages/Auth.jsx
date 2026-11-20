@@ -1,15 +1,44 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { deviceOf } from '../lib/device.js'
 
+const REF_KEY = 'ufa_ref'
+// 邀請連結 ?r=代碼：記下來（就算對方先去收信、換頁再回來也還在）
+function readRefCode() {
+  let code = ''
+  try {
+    code = (new URLSearchParams(window.location.search).get('r') || '').trim().toUpperCase()
+    if (code) localStorage.setItem(REF_KEY, code)
+    else code = localStorage.getItem(REF_KEY) || ''
+  } catch { /* 無痕模式之類的讀不到就算了 */ }
+  return /^[A-Z0-9]{4,12}$/.test(code) ? code : ''
+}
+
 export default function Auth() {
-  const [mode, setMode] = useState('login')
+  const [refCode] = useState(readRefCode)
+  const [referrer, setReferrer] = useState(null)
+  const [mode, setMode] = useState(refCode ? 'register' : 'login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [referrerEmail, setReferrerEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (!refCode) return
+    let alive = true
+    supabase.rpc('ref_lookup', { p_code: refCode }).then(({ data }) => {
+      const r = Array.isArray(data) ? data[0] : data
+      if (alive && r && r.id) setReferrer({ id: r.id, name: r.name || '你的朋友' })
+    }, () => {})
+    return () => { alive = false }
+  }, [refCode])
+
+  function clearReferrer() {
+    setReferrer(null)
+    try { localStorage.removeItem(REF_KEY) } catch { /* */ }
+  }
 
   async function handleLogin() {
     setLoading(true); setMessage('')
@@ -30,15 +59,15 @@ export default function Auth() {
     setLoading(true); setMessage('')
     const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { name } }
+      options: { data: referrer ? { name, ref: refCode } : { name } }
     })
     if (error) { setMessage(error.message); setLoading(false); return }
 
     const uid = data?.user?.id
     if (uid) {
       // 查推薦人
-      let referrerId = null
-      if (referrerEmail) {
+      let referrerId = referrer ? referrer.id : null
+      if (!referrerId && referrerEmail) {
         // 用 auth email 查
         const { data: refProfile } = await supabase.rpc('get_user_id_by_email', { p_email: referrerEmail })
         if (refProfile) referrerId = refProfile
@@ -50,6 +79,7 @@ export default function Auth() {
         referrer_id: referrerId || null,
         referrer_email_pending: (!referrerId && referrerEmail) ? referrerEmail : null,
       }, { onConflict: 'id' })
+      try { localStorage.removeItem(REF_KEY) } catch { /* */ }
     }
 
     setMessage('註冊成功！請確認您的信箱後登入。')
@@ -83,10 +113,19 @@ export default function Auth() {
         background: '#232220', borderRadius: '16px', padding: '40px',
         width: '100%', maxWidth: '400px', boxShadow: '0 4px 24px rgba(0,0,0,0.3)'
       }}>
-        <h1 style={{ color: '#ffffff', fontSize: '24px', fontWeight: '700',
-          textAlign: 'center', marginBottom: '8px' }}>超連鎖行動計畫</h1>
+        <img src="/pwa-192x192.png" alt="" width={64} height={64}
+          style={{ display: 'block', margin: '0 auto 14px', borderRadius: 16 }} />
+        <h1 style={{ color: '#ffffff', fontSize: '26px', fontWeight: '700', letterSpacing: '0.2px',
+          textAlign: 'center', margin: '0 0 6px' }}>unfranchise</h1>
         <p style={{ color: '#A39E94', fontSize: '14px', textAlign: 'center',
-          marginBottom: '32px' }}>Unfranchise Daily Work App</p>
+          margin: '0 0 28px' }}>超連鎖的每日行動夥伴</p>
+
+        {referrer && mode === 'register' && (
+          <div style={{ background: '#1A1917', border: '1px solid #3A3731', borderRadius: 10,
+            padding: '10px 12px', marginBottom: 20, color: '#E8E4DC', fontSize: 14, lineHeight: 1.5 }}>
+            {referrer.name}邀請你一起用 unfranchise，註冊後你們就會自動串在一起。
+          </div>
+        )}
 
         {mode !== 'forgot' && (
           <div style={{ display:'flex', background:'#1A1917', borderRadius:'8px',
@@ -132,7 +171,20 @@ export default function Auth() {
           </div>
         )}
 
-        {mode === 'register' && (
+        {mode === 'register' && referrer && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>推薦人</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, ...inputStyle, padding: '8px 12px' }}>
+              <span style={{ flex: 1, fontWeight: 600 }}>{referrer.name}</span>
+              <button type="button" onClick={clearReferrer}
+                style={{ background: 'none', border: 'none', color: '#6C9BEF', fontSize: 13, cursor: 'pointer', padding: 0 }}>
+                不是這位
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === 'register' && !referrer && (
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>
               推薦人 Email <span style={{ color:'#64748b' }}>選填</span>
