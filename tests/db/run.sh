@@ -37,3 +37,8 @@ bash reset.sh >/dev/null 2>&1
 $P -c "alter table auth.users add column if not exists last_sign_in_at timestamptz; create table if not exists auth.sessions(id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete cascade, created_at timestamptz default now(), updated_at timestamptz, user_agent text); alter table contact_logs add column if not exists note text;" >/dev/null
 for f in migrations/*.sql; do $P -f "$f" >/dev/null 2>&1; done
 out=$(bash t77.sh 2>&1) && echo "✓ 邀請連結代碼（$(echo "$out" | tail -1)）" || { echo "✗ deliver-77 檢查沒過"; echo "$out" | grep '^FAIL' | head -10; exit 1; }
+# deliver-78：搭檔通知
+bash reset.sh >/dev/null 2>&1
+$P -c "alter table auth.users add column if not exists last_sign_in_at timestamptz; create table if not exists auth.sessions(id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete cascade, created_at timestamptz default now(), updated_at timestamptz, user_agent text); alter table contact_logs add column if not exists note text;" >/dev/null
+for f in migrations/*.sql; do $P -f "$f" >/dev/null 2>&1; done
+out=$(bash t78.sh 2>&1) && echo "✓ 搭檔通知（$(echo "$out" | tail -1)）" || { echo "✗ deliver-78 檢查沒過"; echo "$out" | grep '^FAIL' | head -10; exit 1; }

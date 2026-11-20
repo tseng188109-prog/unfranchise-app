@@ -41,6 +41,8 @@ const SELF = ['我真棒！！', '不愧是我！', '耶！我做到了']
   await p.screenshot({ path: __dirname + '/shots/t37_streak_buddy.png' })
   await p.locator('[role=dialog]').getByRole('button', { name: /于/ }).last().click(); await p.waitForTimeout(800)
   ok((await p.evaluate(() => window.__rpcCalls.filter(c => c[0] === 'buddy_invite' && c[1].p_to === 'm3').length)) === 1, '從連續天數畫面邀于')
+  await p.waitForTimeout(300)
+  ok(await p.evaluate(() => window.__fetches.some(f => f[0] === '/api/cheer' && f[1] === JSON.stringify({ buddy: 'invite', id: 50 }))), '邀請送出 → 叫後台通知于')
   t = await dialog(p)
   ok(t.includes('已經邀請于，等他回覆') && t.includes('收回'), '邀了之後顯示等回覆，可以收回')
   // 結束搭檔要先確認
@@ -89,6 +91,7 @@ const SELF = ['我真棒！！', '不愧是我！', '耶！我做到了']
   await p.screenshot({ path: __dirname + '/shots/t37_bell.png' })
   await p.getByRole('button', { name: '好啊' }).click(); await p.waitForTimeout(700)
   ok((await p.evaluate(() => window.__rpcCalls.filter(c => c[0] === 'buddy_accept').length)) === 1, '鈴鐺裡按好啊')
+  ok(await p.evaluate(() => window.__fetches.some(f => f[0] === '/api/cheer' && f[1] === JSON.stringify({ buddy: 'accept', id: 2 }))), '答應 → 叫後台通知邀請的沈')
   ok((await text(p)).includes('你和沈成為搭檔了，從今天開始算') && !(await text(p)).includes('沈想跟你當搭檔'), '接受後邀請消失')
   await p.context().close()
 

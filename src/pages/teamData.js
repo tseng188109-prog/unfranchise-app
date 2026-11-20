@@ -77,18 +77,23 @@ export async function cheerStatus() {
   return out
 }
 
-export async function sendCheer(toId, text) {
-  const { data: id, error } = await supabase.rpc('send_cheer', { p_to: toId, p_text: text })
-  if (error) return { ok: false, error: error.message || '送不出去，請稍後再試' }
-  // 手機通知交給後台送（晚上 10 點到早上 7 點、對方開安靜模式時不送）；送不出去也不影響
+// 叫後台送手機通知（打氣、搭檔邀請、答應搭檔）；失敗不影響 App
+async function askPush(body) {
   try {
     const { data: { session } } = await supabase.auth.getSession()
     fetch('/api/cheer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session?.access_token || '') },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify(body),
     }).catch(() => {})
   } catch { /* ignore */ }
+}
+
+export async function sendCheer(toId, text) {
+  const { data: id, error } = await supabase.rpc('send_cheer', { p_to: toId, p_text: text })
+  if (error) return { ok: false, error: error.message || '送不出去，請稍後再試' }
+  // 手機通知交給後台送（晚上 10 點到早上 7 點、對方開安靜模式時不送）；送不出去也不影響
+  askPush({ id })
   return { ok: true, id }
 }
 
@@ -208,7 +213,11 @@ export async function loadBuddies(userId, { extraMine = [] } = {}) {
 
 export async function buddyRpc(fn, args) {
   const { data, error } = await supabase.rpc(fn, args)
-  return error ? { ok: false, error: error.message } : { ok: true, data }
+  if (error) return { ok: false, error: error.message }
+  // 邀請送出：通知被邀的人；答應：通知邀請的人
+  if (fn === 'buddy_invite' && data) askPush({ buddy: 'invite', id: data })
+  if (fn === 'buddy_accept') askPush({ buddy: 'accept', id: args.p_id })
+  return { ok: true, data }
 }
 
 // 慶祝過了沒（同一次不重複跳）
