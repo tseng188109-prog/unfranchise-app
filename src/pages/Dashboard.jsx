@@ -12,7 +12,7 @@ import {
   IconSettings, IconRocket, IconUsers, IconChartBar, IconSearch,
   IconTarget, IconSpeakerphone, IconMessageCircle, IconBook,
   IconHeadphones, IconCamera, IconTrendingUp, IconChevronRight,
-  IconFlag, IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp, IconX, IconCheck,
+  IconUsersGroup, IconHeart, IconChevronDown, IconChevronUp, IconX, IconCheck,
 } from '@tabler/icons-react'
 
 const BV_GOAL = 1500
@@ -47,6 +47,7 @@ import { fetchUpcomingEvents, inviteToEvent, cancelInvite, restoreInvite, isInvi
 import { undoableDelete } from './undoDelete'
 import { syncPushSubscription, PushGuide } from './pushNotify'
 import { TodayRings } from './celebrate'
+import { TeamButton, BuddyNudge } from './homeTeam'
 import { loadStreak } from './streakData'
 import { askConfirm } from './confirmDialog'
 import { MeetingKeyNote } from './keyPoints'
@@ -212,10 +213,18 @@ export default function Dashboard() {
   useEffect(() => { if (user) syncPushSubscription(user.id) }, [user])
   // 連續天數：打開首頁讀一次；今天的數字一變（記了互動、邀約、新名單）就重算
   const [streakCount, setStreakCount] = useState(0)
+  const [streakToday, setStreakToday] = useState(true)
+  // 有沒有推薦過人：沒有的話首頁不放「我的夥伴」（設定 → 我的夥伴 還是點得到）
+  const [hasPartners, setHasPartners] = useState(false)
+  useEffect(() => {
+    if (!user) return
+    supabase.from('users').select('id', { count: 'exact', head: true }).eq('referrer_id', user.id)
+      .then(({ count }) => setHasPartners((count || 0) > 0))
+  }, [user])
   useEffect(() => {
     if (!user) return
     let alive = true
-    const refresh = () => loadStreak(user.id).then(d => { if (alive) setStreakCount(d.streak.count) })
+    const refresh = () => loadStreak(user.id).then(d => { if (alive) { setStreakCount(d.streak.count); setStreakToday(d.streak.todayActive) } })
     refresh()
     const on312 = () => setTimeout(refresh, 800) // 等「今天有行動」的記號寫好再算
     window.addEventListener('ufa:312', on312)
@@ -806,6 +815,7 @@ export default function Dashboard() {
             </p>
           </div>
           <div style={{ display:'flex',gap:8,flexShrink:0 }}>
+            <TeamButton userId={user?.id} onClick={() => navigate('/team')} />
             <NotificationBell userId={user?.id} />
             <button onClick={()=>navigate('/settings')}
               style={{ background:PRIMARY_SOFT,border:'none',borderRadius:RADIUS.circle,
@@ -909,7 +919,8 @@ export default function Dashboard() {
 
           <div style={{ ...cardStyle, overflow:'hidden' }}>
           <TodayRings talk={talkDone} plan={today312.planCount} fresh={today312.fresh} mode={mode}
-            streakCount={streakCount} showFlame={daysSinceJoin >= 2} />
+            streakCount={streakCount} showFlame={daysSinceJoin >= 2} todayActive={streakToday} />
+          {user && <BuddyNudge userId={user.id} />}
           {(() => {
             // 提醒合計最多 3 條：「見了嗎？」排前面，再來是「他回了嗎？」、試做；多的收成一行
             const reminders = [
@@ -1385,18 +1396,14 @@ export default function Dashboard() {
             </div>
           </div>
           )}
-          <div style={{ display:'flex',gap:8,marginTop:8 }}>
-            <button onClick={() => navigate('/team')}
-              style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:600,cursor:'pointer' }}>
-              <IconFlag size={16} stroke={1.9} color={PRIMARY} /> 戰隊
-            </button>
+          {/* 戰隊移到最上面鈴鐺旁邊；我的夥伴只給推薦過人的隊友看（沒推薦過人點進去是空的） */}
+          {hasPartners && (
             <button onClick={() => navigate('/partners')}
-              style={{ ...cardStyle, flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+              style={{ ...cardStyle, width:'100%',marginTop:8,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
                 padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:600,cursor:'pointer' }}>
               <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
             </button>
-          </div>
+          )}
         </section>
 
         )}

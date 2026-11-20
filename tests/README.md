@@ -20,7 +20,7 @@ bash tests/run-all.sh
 
 | 指令 | 測什麼 | 要多久 |
 |---|---|---|
-| `bash tests/unit/run.sh` | 純計算：每日節奏、連續天數、罐子和核桃、首頁推薦誰、系統管理後台、手機提醒要送什麼 | 幾秒 |
+| `bash tests/unit/run.sh` | 純計算：每日節奏、連續天數、罐子和核桃、首頁推薦誰、系統管理後台、手機提醒要送什麼、搭檔連勝、打氣通知 | 幾秒 |
 | `bash tests/ui/run.sh` | 畫面：用假的資料庫打開模擬手機，照真的操作一步一步點 | 十幾分鐘 |
 | `bash tests/db/run.sh` | 資料庫權限：誰看得到誰的資料、管理用的功能一般帳號叫不動 | 幾十秒 |
 
@@ -34,6 +34,8 @@ bash tests/run-all.sh
     `run.sh` 只檢查它們跑完、沒有頁面錯誤。要確認數值，看那個測試印出來的內容。
   - 其他的會印 `PASS …` / `FAIL …`，有一個 FAIL 就算沒過。
   - 截圖會存在 `ui/shots/`（不會放進 GitHub）。
+  - t36–t38：戰隊打氣、好消息、搭檔連勝、首頁旗子、設定（entry21）。
+  - t39：真的打包兩次（舊版、新版），確認手機打開舊版後會自己換到新版、正在打字時不換。
 - **db/**：在本機 PostgreSQL 16 上建一份跟 Supabase 一樣的表（`schema.sql`、`seed.sql`），
   套上 `migrations/` 裡每一包的 SQL，再用不同身分去讀寫。
   需要一個跑在 socket `/tmp/pg`、port `5544` 的 PostgreSQL，帳號 `postgres`；沒有的話 `run-all.sh` 會跳過這段。

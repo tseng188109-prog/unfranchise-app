@@ -12,6 +12,7 @@ import {
   modeOf, count312, computeStreak, activeDaysFrom, eveningMessage, notifyPrefs, isQuiet,
   addDays, weekStartOf, dowOf, isMilestone, weekStats, weeklyMessage, STREAK_KEYS,
 } from '../src/lib/rhythm.js'
+import { pairStreak } from '../src/lib/buddy.js'
 
 const TZ = 'Asia/Taipei'
 const MORNING_HOUR = 9
@@ -67,6 +68,43 @@ async function addedBetween(db, userIds, from, to) {
   return [...a, ...b]
 }
 
+// 晚上提醒加一句搭檔：搭檔今天已經行動了、我還沒 → 「致今天已經行動了，你也做一件事，連勝就到 13 天」
+//   buddies：[{ a, b, start_day }]（active）；active：{ userId: Set(有行動的日子) }；names：{ id: 名字 }
+export function buddyLineFor(userId, buddies, active, names, today) {
+  const mine = active[userId] || new Set()
+  if (mine.has(today)) return null
+  let best = null
+  buddies.forEach(b => {
+    if (b.a !== userId && b.b !== userId) return
+    const other = b.a === userId ? b.b : b.a
+    const theirs = active[other] || new Set()
+    if (!theirs.has(today)) return
+    const n = pairStreak(new Set([...mine, today]), theirs, b.start_day, today).count
+    if (!best || n > best.n) best = { n, name: names[other] || '你的搭檔' }
+  })
+  return best ? `${best.name}今天已經行動了，你也做一件事，連勝就到 ${best.n} 天` : null
+}
+
+async function buddyContext(db, ids, today) {
+  if (!ids.length) return null
+  const list = ids.join(',')
+  const rows = await all(() => db.from('buddies').select('from_id,to_id,start_day').eq('status', 'active')
+    .or(`from_id.in.(${list}),to_id.in.(${list})`))
+  if (!rows.length) return null
+  const buddies = rows.map(r => ({ a: r.from_id, b: r.to_id, start_day: r.start_day }))
+  const people = [...new Set(buddies.flatMap(b => [b.a, b.b]))]
+  const earliest = buddies.reduce((m, b) => (b.start_day && b.start_day < m ? b.start_day : m), today)
+  const checks = await all(() => db.from('daily_checkins').select('user_id,date,task_key,is_done')
+    .in('user_id', people).in('task_key', STREAK_KEYS).eq('is_done', true).gte('date', addDays(earliest, -7)))
+  const by = group(checks)
+  const active = {}
+  people.forEach(id => { active[id] = activeDaysFrom(by[id] || []) })
+  const us = await all(() => db.from('users').select('id,name').in('id', people))
+  const names = {}
+  us.forEach(u => { names[u.id] = u.name })
+  return { buddies, active, names }
+}
+
 async function streaksOf(db, userIds, today) {
   if (!userIds.length) return {}
   const rows = await all(() => db.from('daily_checkins').select('user_id,date,task_key,is_done')
@@ -106,10 +144,14 @@ export async function planMessages(db, { date, hour }) {
       streaksOf(db, ids, date),
     ])
     const L = group(logs), A = group(added), M = group(met)
+    let bc = null
+    try { bc = await buddyContext(db, ids, date) } catch { bc = null } // 搭檔的表還沒建好也照常送
     eveningUsers.forEach(u => {
       const counts = count312({ logs: L[u.id] || [], added: A[u.id] || [], met: M[u.id] || [] })
       const msg = eveningMessage(counts, modeOf(u.tag_settings, u.created_at), streaks[u.id])
-      if (msg) messages.push({ userId: u.id, ...msg, url: '/' })
+      if (!msg) return
+      const line = bc ? buddyLineFor(u.id, bc.buddies, bc.active, bc.names, date) : null
+      messages.push({ userId: u.id, ...msg, ...(line ? { body: line } : {}), url: '/' })
     })
   }
 

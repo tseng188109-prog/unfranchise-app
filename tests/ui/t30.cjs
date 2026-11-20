@@ -94,8 +94,9 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   await p.getByRole('button', { name: '存起來' }).click(); await p.waitForTimeout(1200)
   // 這一筆剛好做滿今天 → 先整頁完成、第 7 天連續，按掉之後核桃接著跳（排隊，一個一個來）
   ok((await p.textContent('body')).includes('今天的 3-1-2 完成了'), '見完記一下做滿：先跳完成')
-  await p.getByRole('button', { name: '明天繼續' }).click(); await p.waitForTimeout(400)
-  if (await p.getByRole('button', { name: '我堅持，不放棄' }).count()) { await p.getByRole('button', { name: '我堅持，不放棄' }).click(); await p.waitForTimeout(300) }
+  // deliver-76：完成、連續天數的按鈕改成隨機一句誇自己的話，用「畫面上最後一顆按鈕」來按
+  await p.locator('[role=dialog] button').last().click(); await p.waitForTimeout(400)
+  if ((await p.textContent('body')).includes('天連續行動')) { await p.locator('[role=dialog] button').last().click(); await p.waitForTimeout(300) }
   let up = false; for (let i = 0; i < 70 && !up; i++) { await p.waitForTimeout(100); up = (await p.textContent('body')).includes('核桃浮上來了') }
   t = await p.textContent('body')
   ok(up && t.includes('周小志'), '見完記很有興趣 → 核桃浮上來了')

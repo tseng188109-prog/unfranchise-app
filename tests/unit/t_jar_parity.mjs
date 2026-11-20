@@ -7,5 +7,8 @@ const s=summarizeJar(rows,lastBizPlans(d.logs),today)
 const anyPlan={}; d.logs.forEach(l=>{ if(!anyPlan[l.contact_id]||l.date>anyPlan[l.contact_id]) anyPlan[l.contact_id]=l.date })
 const old=summarizeJar(rows,anyPlan,today)
 const got = s.beans+'|'+s.walnuts.length+'|'+s.walnuts.filter(w=>w.cooling).length
-// 資料庫那邊（tests/db/run.sh）用同一份名單算出來也要是這個數字
-console.log((got === '272|56|55' ? 'PASS' : 'FAIL') + ' 400 筆模擬名單：豆子|核桃|熱度在退 = ' + got + '（舊規則核桃 ' + old.walnuts.length + '）')
+// 「熱度在退」跟今天日期有關（每天會變），所以只固定豆子和核桃；
+// 資料庫那邊（tests/db/run.sh）會用同一天跑這支，拿完整的三個數字去比對。
+if (process.argv.includes('--value')) { console.log(got); process.exit(0) }
+const fixed = s.beans === 272 && s.walnuts.length === 56
+console.log((fixed ? 'PASS' : 'FAIL') + ' 400 筆模擬名單：豆子|核桃|熱度在退 = ' + got + '（舊規則核桃 ' + old.walnuts.length + '）')

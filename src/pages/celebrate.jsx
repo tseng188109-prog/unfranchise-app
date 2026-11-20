@@ -4,11 +4,14 @@
 //   同一位今天又記一次 → 數字不變，但還是跳「罐子搖了一下」
 //   今天第一次做滿 → 整頁「今天完成了」（一天只跳一次）
 //   接著如果是里程碑（3、7、14、30… 天）或昨天用休息日守住 → 整頁連續天數
-// 首頁的小火焰按下去也會打開連續天數（ufa:show-streak）。
+//   今天第一件事做完 → 整頁連續天數：火焰燒起來、數字往上滾（一天一次）
+//   大日子（7、30、100、365 天）→ 大火焰＋彩帶，同時上戰隊「這週的好消息」
+// 首頁的小火焰按下去也會打開連續天數（ufa:show-streak），下面多一段「搭檔連勝」。
+// 另外：搭檔到重要天數、打開 App 時有沒看過的打氣，也排進同一個隊伍，一個一個跳。
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { Bean, Flame, BeanStyle } from './bean'
+import { Bean, Flame, BigFlame, BeanStyle } from './bean'
 import { loadStreak } from './streakData'
 import { loadJar, saveJarPrefs, seenWalnuts, markWalnutsSeen } from './jarData'
 import { syncDaily3 } from './followUp'
@@ -16,7 +19,11 @@ import { JarArt, WalnutIcon } from './jar'
 import { setTop10, fetchTop10, TOP10_MAX } from './top10'
 import { InviteSheet } from './invite'
 import { JAR_STAGES, walnutNext } from '../lib/jar'
-import { twToday, isMilestone, daysBetween, twDayOf, toastFor } from '../lib/rhythm'
+import { twToday, isMilestone, daysBetween, twDayOf, toastFor, addDays } from '../lib/rhythm'
+import { runStart, unlockedAt, BIG_DAYS } from '../lib/buddy'
+import { play } from '../lib/sfx'
+import { Confetti, RollNumber, SelfButton, BuddyMilestoneView, CheerView, BuddySection } from './celebrateParts'
+import { loadPhrases, unseenCheers, markCheersSeen, loadBuddies, marked, mark, addNews } from './teamData'
 
 const TILE = [
   { key: 'talk', label: '互動', unit: '位', color: '#2F7A52' },
@@ -56,10 +63,15 @@ function readSeen(date) {
 function writeSeen(date, v) { try { sessionStorage.setItem('ufa_312_seen_' + date, JSON.stringify(v)) } catch { /* ignore */ } }
 function celebratedToday(date) { try { return localStorage.getItem('ufa_celebrated') === date } catch { return false } }
 function markCelebrated(date) { try { localStorage.setItem('ufa_celebrated', date) } catch { /* ignore */ } }
+// 今天的火焰點過了沒（第一件事做完那一次）
+function litToday(date) { try { return localStorage.getItem('ufa_flame_lit') === date } catch { return false } }
+function markLit(date) { try { localStorage.setItem('ufa_flame_lit', date) } catch { /* ignore */ } }
 
-export function StreakView({ data, onClose, celebrate }) {
+
+export function StreakView({ data, onClose, celebrate, roll, userId, onGoTeam }) {
   const { streak, strip } = data
   const n = streak.count
+  const big = celebrate && BIG_DAYS.includes(n)
   let msg
   if (celebrate && streak.restUsedYesterday) msg = '昨天的休息日幫你守住了，今天又接上了！'
   else if (streak.todayActive) msg = n >= 2 ? `連續 ${n} 天，明天見。` : '第一天！明天再來，火就會燒起來。'
@@ -67,8 +79,13 @@ export function StreakView({ data, onClose, celebrate }) {
   else msg = '今天做一件事，就是第 1 天。'
   return (
     <div style={{ textAlign: 'center' }}>
-      <div className="bean-pop" style={{ display: 'flex', justifyContent: 'center' }}><Flame size={78} animate /></div>
-      <div style={{ fontSize: 56, fontWeight: 700, color: '#F08A3C', lineHeight: 1.05, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{n}</div>
+      {big && <Confetti />}
+      <div className={big ? undefined : 'bean-pop'} style={{ display: 'flex', justifyContent: 'center' }}>
+        {big ? <BigFlame size={140} /> : roll ? <div className="flame-ignite"><Flame size={78} animate /></div> : <Flame size={78} animate={streak.todayActive} dim={!streak.todayActive} />}
+      </div>
+      <div style={{ fontSize: 56, fontWeight: 700, color: streak.todayActive || !n ? '#F08A3C' : 'var(--muted)', lineHeight: 1.05, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+        <RollNumber from={roll && n > 0 ? n - 1 : null} to={n} />
+      </div>
       <div style={{ fontSize: 20, fontWeight: 700, color: '#F08A3C', marginBottom: 18 }}>天連續行動</div>
       <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
         {strip.map(d => <div key={d.date} style={{ flex: 1, fontSize: 12, color: d.state === 'today' ? '#F08A3C' : 'var(--muted)', fontWeight: d.state === 'today' ? 700 : 400 }}>{d.label}</div>)}
@@ -83,9 +100,10 @@ export function StreakView({ data, onClose, celebrate }) {
       </div>
       <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 6 }}>{msg}</div>
       <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 22 }}>互動、邀約、新名單，任一項都算。每週有一天休息日，沒做也不會斷。</div>
-      <button onClick={onClose} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 16, background: 'var(--primary)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #1A42A8' }}>
-        {celebrate ? '我堅持，不放棄' : '好'}
-      </button>
+      {!celebrate && userId && <BuddySection userId={userId} onGoTeam={onGoTeam} />}
+      {celebrate ? <SelfButton onClick={onClose} /> : (
+        <button onClick={onClose} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 16, background: 'var(--primary)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #1A42A8' }}>好</button>
+      )}
     </div>
   )
 }
@@ -104,7 +122,7 @@ function DoneView({ counts, onNext }) {
           </div>
         ))}
       </div>
-      <button onClick={onNext} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 16, background: 'var(--primary)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #1A42A8' }}>明天繼續</button>
+      <SelfButton onClick={onNext} />
     </div>
   )
 }
@@ -164,7 +182,9 @@ function WalnutUpView({ list, userId, onClose, onInvite }) {
 }
 
 export default function Celebrations() {
+  const navigate = useNavigate()
   const [userId, setUserId] = useState(null)
+  const [myName, setMyName] = useState('')
   const [joinedDays, setJoinedDays] = useState(999)
   const [toast, setToast] = useState(null)
   const [screen, setScreen] = useState(null) // { kind:'done', counts } | { kind:'streak', data, celebrate }
@@ -180,10 +200,42 @@ export default function Celebrations() {
     else { screenRef.current = sc; setScreen(sc) }
   }, [])
   const closeScreen = useCallback(() => {
+    const cur = screenRef.current
+    if (cur && cur.kind === 'cheer') markCheersSeen()
     const next = queue.current.shift() || null
     screenRef.current = next
     setScreen(next)
   }, [])
+  // 有聲音的畫面：出現的那一刻響
+  useEffect(() => {
+    if (!screen) return
+    if (screen.kind === 'done') play('done')
+    else if (screen.kind === 'streak' && screen.celebrate) play(BIG_DAYS.includes(screen.data.streak.count) ? 'big' : 'ignite')
+    else if (screen.kind === 'buddy') play(unlockedAt(screen.b.streak.count) ? 'big' : 'ignite')
+  }, [screen])
+
+  // 自己的大日子上戰隊好消息（同一段連勝只上一次）
+  const shareStreak = useCallback((d) => {
+    const n = d && d.streak && d.streak.count
+    if (!n || !BIG_DAYS.includes(n) || !d.streak.todayActive) return
+    addNews('streak', n, null, runStart(d.active, d.today, n))
+  }, [])
+
+  // 搭檔到重要天數：兩個人當天都行動了才算到，每個人各看一次
+  const checkBuddies = useCallback(async (uid, extraMine = []) => {
+    let d
+    try { d = await loadBuddies(uid, { extraMine }) } catch { return }
+    for (const b of d.active) {
+      const n = b.streak.count
+      // 剛到的那一天是今天或昨天（搭檔晚上才做、我隔天打開也看得到；更早的就不補跳了）
+      if (!n || !isMilestone(n) || !b.lastBoth || b.lastBoth < addDays(twToday(), -1)) continue
+      const key = `b:${b.id}:${n}:${b.since || ''}`
+      if (await marked(key)) continue
+      await mark(key, uid)
+      if (unlockedAt(n)) addNews('buddy', n, b.otherId, b.since)
+      show({ kind: 'buddy', b })
+    }
+  }, [show])
 
   // 罐子：有新核桃浮上來、或罐子該換大的了，就跳出來
   const jarRef = useRef(null) // 最近一次算好的罐子（小鼓勵要用：是不是豆子、還差幾位換罐子）
@@ -223,11 +275,21 @@ export default function Celebrations() {
       setUserId(user.id)
       requestJar(user.id, 1500)
       try {
-        const { data } = await supabase.from('users').select('created_at').eq('id', user.id).single()
+        const { data } = await supabase.from('users').select('created_at,name').eq('id', user.id).single()
         if (data && data.created_at) setJoinedDays(daysBetween(twDayOf(data.created_at), twToday()))
+        if (data) setMyName(data.name || '')
       } catch { /* ignore */ }
+      loadPhrases().catch(() => {})
+      // 打開 App 一會兒之後：有沒看過的打氣、搭檔到重要天數（排在其他慶祝後面）
+      setTimeout(async () => {
+        try {
+          const list = await unseenCheers(user.id)
+          if (list.length) show({ kind: 'cheer', list })
+        } catch { /* 表還沒建好就略過 */ }
+        checkBuddies(user.id)
+      }, 2500)
     })
-  }, [requestJar])
+  }, [requestJar, show, checkBuddies])
 
   useEffect(() => {
     if (!userId) return
@@ -237,13 +299,27 @@ export default function Celebrations() {
       writeSeen(cur.date, cur)
       // 記完一筆，等資料寫好，再看罐子有沒有新核桃
       requestJar(userId, 1500)
+      // 今天第一件事：從 0 變成有（打開 App 時已經記下今天的數字，才比得出來）
+      const sum = c => (c ? (c.talk || 0) + (c.plan || 0) + (c.fresh || 0) : 0)
+      const firstToday = !!prev && sum(prev) === 0 && sum(cur) > 0 && !litToday(cur.date)
+      if (firstToday) markLit(cur.date)
+      // 搭檔：我剛行動，說不定剛好湊滿今天、到重要天數
+      if (sum(cur) > 0) setTimeout(() => checkBuddies(userId, [cur.date]), 1200)
       if (cur.full && !celebratedToday(cur.date)) {
         markCelebrated(cur.date)
         setToast(null)
         show({ kind: 'done', counts: cur })
-        // 先在背景把連續天數算好，按「明天繼續」時決定要不要接著跳
+        // 先在背景把連續天數算好，按完成的按鈕時決定要不要接著跳
         streakAfter.current = null
-        loadStreak(userId, cur.date, [cur.date]).then(d => { streakAfter.current = d })
+        loadStreak(userId, cur.date, [cur.date]).then(d => { streakAfter.current = { ...d, lit: firstToday } })
+        return
+      }
+      if (firstToday && joinedDays >= 2) {
+        setToast(null)
+        loadStreak(userId, cur.date, [cur.date]).then(d => {
+          shareStreak(d)
+          show({ kind: 'streak', data: d, celebrate: true, roll: true })
+        })
         return
       }
       if (!prev) return
@@ -284,13 +360,17 @@ export default function Celebrations() {
     // 一打開 App 就先記下今天的數字，第一筆記錄才比得出「變多了」
     if (!readSeen(twToday())) syncDaily3(supabase, userId).catch(() => { /* 離線時略過 */ })
     return () => { window.removeEventListener('ufa:312', on312); window.removeEventListener('ufa:show-streak', onShow); window.removeEventListener('ufa:jar-shake', onShake) }
-  }, [userId, show, requestJar])
+  }, [userId, show, requestJar, joinedDays, checkBuddies, shareStreak])
 
   function afterDone() {
     const d = streakAfter.current
-    // 新人前兩天先不跳連續天數；其他人只在里程碑或休息日救回來那天跳
-    if (d && joinedDays >= 2 && (isMilestone(d.streak.count) || d.streak.restUsedYesterday)) {
-      const sc = { kind: 'streak', data: d, celebrate: true }
+    // 新人前兩天先不跳連續天數。
+    // 今天第一件事就做滿：接著跳連續天數（火焰燒起來）；
+    // 不是第一件事：今天早就看過連續天數了，只有里程碑或休息日救回來那天才再跳
+    const seenToday = d && !d.lit && litToday(d.today)
+    if (d && joinedDays >= 2 && (d.lit || (!seenToday && (isMilestone(d.streak.count) || d.streak.restUsedYesterday)))) {
+      shareStreak(d)
+      const sc = { kind: 'streak', data: d, celebrate: true, roll: !!d.lit }
       screenRef.current = sc
       setScreen(sc)
     } else closeScreen()
@@ -331,8 +411,11 @@ export default function Celebrations() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px calc(24px + env(safe-area-inset-bottom))' }}>
           <div style={{ width: '100%', maxWidth: 380 }}>
             {screen.kind === 'done' ? <DoneView counts={screen.counts} onNext={afterDone} />
-              : screen.kind === 'streak' ? <StreakView data={screen.data} celebrate={screen.celebrate} onClose={closeScreen} />
+              : screen.kind === 'streak' ? <StreakView data={screen.data} celebrate={screen.celebrate} roll={screen.roll} userId={userId}
+                  onClose={closeScreen} onGoTeam={() => { closeScreen(); navigate('/team') }} />
               : screen.kind === 'jar' ? <JarUpView idx={screen.idx} onClose={closeScreen} />
+              : screen.kind === 'buddy' ? <BuddyMilestoneView b={screen.b} myName={myName} onClose={closeScreen} />
+              : screen.kind === 'cheer' ? <CheerView list={screen.list} onClose={closeScreen} />
               : <WalnutUpView list={screen.list} userId={userId} onClose={closeScreen} onInvite={w => { closeScreen(); setInvite(w) }} />}
           </div>
         </div>
@@ -369,7 +452,8 @@ function Ring({ value, goal, color, soft, label }) {
   )
 }
 
-export function TodayRings({ talk, plan, fresh, mode, streakCount, showFlame }) {
+// todayActive：今天已經有行動。還沒有的話火焰是灰的，做了第一件事才亮
+export function TodayRings({ talk, plan, fresh, mode, streakCount, showFlame, todayActive = true }) {
   return (
     <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid var(--border)' }}>
       <BeanStyle />
@@ -381,8 +465,8 @@ export function TodayRings({ talk, plan, fresh, mode, streakCount, showFlame }) 
           <button onClick={() => window.dispatchEvent(new CustomEvent('ufa:show-streak'))} aria-label={`連續行動 ${streakCount} 天`}
             style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <span style={{ height: 56, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Flame size={26} animate={streakCount > 0} />
-              <span style={{ fontSize: 20, fontWeight: 700, color: streakCount > 0 ? '#F08A3C' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{streakCount}</span>
+              <Flame size={26} animate={streakCount > 0 && todayActive} dim={!todayActive} />
+              <span style={{ fontSize: 20, fontWeight: 700, color: streakCount > 0 && todayActive ? '#F08A3C' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{streakCount}</span>
             </span>
             <span style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>連續天數</span>
           </button>

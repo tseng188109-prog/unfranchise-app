@@ -106,6 +106,7 @@ export function notifyPrefs(tagSettings) {
     weekly: n.weekly !== false,
     partnerNews: n.partnerNews !== false,
     team: n.team === true,
+    cheer: n.cheer !== false, // 隊友給我打氣（關掉的話，隊友看不到「打氣」按鈕）
     quietUntil: n.quietUntil || null,
   }
 }

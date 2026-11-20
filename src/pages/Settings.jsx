@@ -3,7 +3,8 @@ import { supabase } from '../supabase'
 import { getThemeMode, setThemeMode } from './theme'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { TagManager } from './meetingFlow'
-import { PushSetting } from './pushNotify'
+import { PushSetting, CheerPref } from './pushNotify'
+import { sfxOn, setSfxOn, play } from '../lib/sfx'
 import { clearPasswordChangeFlag } from './passwordFlag'
 import { HOME_LIST_OPTIONS, resolveHomeListMonths } from './homeList'
 import { TaskVisibilitySheet, visibleDailyTasks } from './checkinStatus'
@@ -43,6 +44,7 @@ export default function Settings() {
   const [editingReferrer, setEditingReferrer] = useState(false)
   const [newReferrerEmail, setNewReferrerEmail] = useState('')
   const [themeMode, setThemeModeState] = useState(getThemeMode())
+  const [sound, setSound] = useState(sfxOn())
   const [referrerMsg, setReferrerMsg] = useState('')
 
   // 我為什麼留在這裡（獨立欄位 users.why_here，跟 Daily.jsx 的目標宣言 goal_declaration 分開）
@@ -362,6 +364,7 @@ export default function Settings() {
                 background:DANGER_SOFT,color:DANGER,fontSize:15,fontWeight:600,cursor:'pointer' }}>
               登出
             </button>
+            {BUILD_LABEL && <p style={{ textAlign:'center',fontSize:12,color:TEXT_MUTED,margin:'4px 0 0' }}>{BUILD_LABEL}</p>}
           </>
         )}
 
@@ -489,6 +492,7 @@ export default function Settings() {
         )}
 
         {section === 'push' && user && <PushSetting userId={user.id} />}
+        {section === 'push' && user && <CheerPref userId={user.id} />}
 
         {section === 'tags' && (
           <>
@@ -561,6 +565,20 @@ export default function Settings() {
               </button>
             ))}
           </div>
+        </div>
+        {/* 音效和震動：存在這支手機上 */}
+        <div style={card}>
+          <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+            <span style={{ fontSize:14,color:TEXT_MAIN,flex:1 }}>音效和震動</span>
+            <button role="switch" aria-checked={sound} aria-label="音效和震動"
+              onClick={() => { const v = !sound; setSfxOn(v); setSound(v); if (v) play('pop') }}
+              style={{ width:44,height:26,borderRadius:999,border:'none',cursor:'pointer',position:'relative',flexShrink:0,background: sound ? PRIMARY : 'var(--border2)' }}>
+              <span style={{ position:'absolute',top:3,left: sound ? 21 : 3,width:20,height:20,borderRadius:'50%',background:'#fff',transition:'left .15s' }} />
+            </button>
+          </div>
+          <p style={{ fontSize:12,color:TEXT_MUTED,margin:'8px 0 0',lineHeight:1.6 }}>
+            完成今天、火焰亮起來、鼓掌、送出打氣時會有聲音。手機切成靜音時不會響；震動只有 Android 手機有。
+          </p>
         </div>
         </>)}
 
@@ -686,6 +704,17 @@ export default function Settings() {
 }
 
 const card = { background:'var(--card)',borderRadius:RADIUS.xl,padding:16,border:`1px solid ${BORDER}` }
+// 版本：打包的時間（台北），一看就知道手機上是不是最新版
+/* global __BUILD_TIME__ */
+const BUILD_LABEL = (() => {
+  try {
+    if (typeof __BUILD_TIME__ === 'undefined') return ''
+    const d = new Date(__BUILD_TIME__)
+    const p = n => String(n).padStart(2, '0')
+    const t = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+    return `版本 ${t.getMonth() + 1}/${t.getDate()} ${p(t.getHours())}:${p(t.getMinutes())}`
+  } catch { return '' }
+})()
 const lb = { fontSize:13,fontWeight:600,color:TEXT_MAIN,display:'block',marginBottom:6 }
 const inputStyle = {
   width:'100%',padding:'10px 12px',borderRadius:RADIUS.md,

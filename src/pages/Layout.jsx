@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { trackUsage } from './usage'
 import Celebrations from './celebrate'
+import UpdateBar from './updateBar'
 import {
   IconHome2, IconUsers, IconChartBar, IconMail, IconCheck,
   IconFlag, IconSettings,
@@ -124,6 +125,8 @@ export default function Layout({ children }) {
 
       {/* 小鼓勵、做滿今天的慶祝、連續天數 */}
       <Celebrations />
+      {/* 「已更新到最新版」、「有新版本，點一下更新」 */}
+      <UpdateBar />
 
       {/* 手機版底部選單 */}
       <div className="rwd-bottomnav" style={{

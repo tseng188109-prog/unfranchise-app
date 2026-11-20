@@ -14,7 +14,13 @@ const STYLE = `
 .bean-flicker { animation: bean-flicker 1.2s ease-in-out infinite; transform-origin: 50% 100%; transform-box: fill-box }
 .bean-pop { animation: bean-pop .45s ease-out both }
 .bean-twinkle { animation: bean-twinkle 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center }
-@media (prefers-reduced-motion: reduce) { .bean-hop,.bean-sway,.bean-flicker,.bean-pop,.bean-twinkle { animation: none } }
+@keyframes flame-ignite { 0% { transform: scale(.2); opacity: 0 } 55% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
+.flame-ignite { animation: flame-ignite .7s cubic-bezier(.2,.9,.3,1.2) both; transform-origin: 0px 40px }
+@keyframes num-roll { 0%,35% { transform: translateY(0) } 100% { transform: translateY(-50%) } }
+.num-roll { animation: num-roll .9s cubic-bezier(.3,.8,.3,1) both }
+@keyframes confetti-fall { 0% { transform: translate(0,-20px) rotate(0); opacity: 0 } 10% { opacity: 1 } 100% { transform: translate(var(--dx), 110vh) rotate(var(--rot)); opacity: .9 } }
+.confetti-piece { position: absolute; top: 0; width: 8px; height: 12px; border-radius: 2px; animation: confetti-fall var(--dur) ease-in var(--delay) both }
+@media (prefers-reduced-motion: reduce) { .bean-hop,.bean-sway,.bean-flicker,.bean-pop,.bean-twinkle,.flame-ignite,.num-roll,.confetti-piece { animation: none } .confetti-piece { display: none } .num-roll { transform: translateY(-50%) } }
 `
 
 export function BeanStyle() { return <style>{STYLE}</style> }
@@ -33,13 +39,32 @@ function Body() {
   )
 }
 
-export function Flame({ size = 22, animate = false }) {
+// dim：今天還沒行動，火焰是灰的（做了第一件事才亮）
+export function Flame({ size = 22, animate = false, dim = false }) {
   return (
     <svg width={size} height={size * 1.15} viewBox="-20 -28 40 46" aria-hidden="true" style={{ display: 'block' }}>
-      <g className={animate ? 'bean-flicker' : undefined}>
-        <path d="M0,-26 C8,-14 18,-8 18,6 a18,18 0 0 1 -36,0 c0,-8 5,-12 9,-15 0,5 3,8 5,8 C-6,-10 -3,-18 0,-26z" fill="#F08A3C" />
-        <path d="M0,-2 c4,4 8,7 8,12 a8,8 0 0 1 -16,0 c0,-5 4,-8 8,-12z" fill="#FCE3B0" />
+      <g className={animate && !dim ? 'bean-flicker' : undefined}>
+        <path d="M0,-26 C8,-14 18,-8 18,6 a18,18 0 0 1 -36,0 c0,-8 5,-12 9,-15 0,5 3,8 5,8 C-6,-10 -3,-18 0,-26z" fill={dim ? 'var(--border2)' : '#F08A3C'} />
+        <path d="M0,-2 c4,4 8,7 8,12 a8,8 0 0 1 -16,0 c0,-5 4,-8 8,-12z" fill={dim ? 'var(--sub2)' : '#FCE3B0'} />
       </g>
+    </svg>
+  )
+}
+
+// 大日子用的大火焰：三層，從小燒到大
+export function BigFlame({ size = 150 }) {
+  return (
+    <svg width={size} height={size} viewBox="-60 -66 120 120" aria-hidden="true" style={{ display: 'block', overflow: 'visible' }}>
+      <ellipse cx="0" cy="46" rx="30" ry="6" fill="#F08A3C" opacity="0.15" />
+      <g className="flame-ignite">
+        <g className="bean-flicker">
+          <path d="M0,-58 C14,-38 34,-26 34,2 a34,34 0 0 1 -68,0 c0,-16 9,-24 17,-30 0,10 6,16 10,16 C-10,-26 -5,-42 0,-58z" fill="#F08A3C" />
+          <path d="M0,-30 C9,-18 20,-10 20,6 a20,20 0 0 1 -40,0 c0,-10 6,-16 11,-20 0,6 3,10 6,10 C-5,-12 -2,-22 0,-30z" fill="#F5B841" />
+          <path d="M0,-4 c6,6 11,10 11,17 a11,11 0 0 1 -22,0 c0,-7 5,-11 11,-17z" fill="#FCE3B0" />
+        </g>
+      </g>
+      <path className="bean-twinkle" d="M-44,-46 l3,7 7,3 -7,3 -3,7 -3,-7 -7,-3 7,-3z" fill="#F5B841" />
+      <path className="bean-twinkle" style={{ animationDelay: '.6s' }} d="M46,-30 l2,5 5,2 -5,2 -2,5 -2,-5 -5,-2 5,-2z" fill="#F5B841" />
     </svg>
   )
 }

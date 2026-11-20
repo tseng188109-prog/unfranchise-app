@@ -12,8 +12,10 @@ import {
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, PRIMARY_SOFT, PRIMARY, ORANGE_SOFT, ORANGE_TEXT,
   DANGER_SOFT,
 } from './designTokens'
+import { Avatar } from './avatar'
+import { myCheers, loadBuddyRows, namesOf, buddyRpc } from './teamData'
 
-// 鈴鐺只放「首頁沒有處理」的事：生日、約好的見面、試用品跟進、新夥伴、業績進度。
+// 鈴鐺只放「首頁沒有處理」的事：隊友給你的打氣、搭檔邀請、生日、約好的見面、試用品跟進、新夥伴、業績進度。
 // 久未互動 → 首頁「今天的 3-1-2」；回購、久沒消費 → 首頁「老顧客，問問用得好不好」。
 const BV_GOAL = 1500
 const IBV_GOAL = 300
@@ -45,6 +47,7 @@ function birthdayDays(mmdd) {
   const b = daysUntil(`${y + 1}-${md}`)
   return b !== null && !Number.isNaN(b) ? b : null
 }
+function daysAgoStr(n) { return toDateStr(new Date(Date.now() - n * 86400000)) }
 function whenText(n) { return n === 0 ? '今天' : n === 1 ? '明天' : `${n} 天後` }
 
 const TONES = {
@@ -62,16 +65,36 @@ export default function NotificationBell({ userId }) {
   const [loading, setLoading] = useState(false)
   const [soon, setSoon] = useState([])
   const [follow, setFollow] = useState([])
+  const [mates, setMates] = useState({ cheers: [], invites: [] }) // 隊友：最近 3 天的打氣、等我回覆的搭檔邀請
+  const [inviteMsg, setInviteMsg] = useState('')
 
   useEffect(() => { if (userId) fetchAll(false) }, [userId])
   useEffect(() => { if (open && userId) fetchAll(true) }, [open])
 
   async function fetchAll(showLoading) {
     if (showLoading) setLoading(true)
-    const [a, b] = await Promise.all([fetchSoon(), fetchFollow()])
+    const [a, b, c] = await Promise.all([fetchSoon(), fetchFollow(), fetchMates()])
     setSoon(a)
     setFollow(b)
+    setMates(c)
     if (showLoading) setLoading(false)
+  }
+
+  // 隊友：打氣（最近 3 天）、搭檔邀請。新功能的表還沒建好時就略過
+  async function fetchMates() {
+    try {
+      const [cheers, rows] = await Promise.all([myCheers(userId, 3), loadBuddyRows(userId)])
+      const inv = rows.filter(r => r.status === 'pending' && r.incoming)
+      const names = await namesOf(inv.map(r => r.otherId))
+      return { cheers, invites: inv.map(r => ({ ...r, name: names[r.otherId] || '隊友' })) }
+    } catch { return { cheers: [], invites: [] } }
+  }
+  async function answerInvite(inv, accept) {
+    setInviteMsg('')
+    const r = await buddyRpc(accept ? 'buddy_accept' : 'buddy_decline', { p_id: inv.id })
+    if (!r.ok) setInviteMsg(r.error)
+    else if (accept) setInviteMsg(`你和${inv.name}成為搭檔了，從今天開始算`)
+    setMates(await fetchMates())
   }
 
   // 這幾天：生日、約好的碰面
@@ -120,7 +143,7 @@ export default function NotificationBell({ userId }) {
       }
     })
 
-    const sevenDaysAgo = toDateStr(new Date(Date.now() - 7 * 86400000))
+    const sevenDaysAgo = daysAgoStr(7)
     const { data: tree } = await supabase.rpc('get_partner_tree')
     const partners = (tree || []).filter(p => p.depth === 1 && p.created_at >= sevenDaysAgo)
     partners.forEach(p => {
@@ -156,7 +179,11 @@ export default function NotificationBell({ userId }) {
     return items.sort((a, b) => a.order - b.order)
   }
 
-  const total = soon.length + follow.length
+  // 紅點只算還沒看過的打氣和等回覆的邀請；看過的打氣還是留在清單裡 3 天
+  const mateCount = mates.cheers.filter(c => !c.seen_at).length + mates.invites.length
+  const mateRows = mates.cheers.length + mates.invites.length
+  const total = soon.length + follow.length + mateCount
+  const listed = soon.length + follow.length + mateRows
 
   function go(path) { setOpen(false); navigate(path) }
 
@@ -194,15 +221,46 @@ export default function NotificationBell({ userId }) {
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 24px' }}>
-              {loading && total === 0 ? (
+              {loading && listed === 0 ? (
                 <div style={{ textAlign: 'center', padding: 36, color: TEXT_MUTED, fontSize: 13 }}>載入中…</div>
-              ) : total === 0 ? (
+              ) : listed === 0 ? (
                 <div style={{ textAlign: 'center', padding: '36px 0' }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>目前沒有要處理的事</div>
                   <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>有生日、見面或試用品要跟進時，會出現在這裡。</div>
                 </div>
               ) : (
                 <>
+                  {mateRows > 0 && (
+                    <div>
+                      <div style={{ fontSize: 12, color: TEXT_SECONDARY, margin: '14px 4px 6px' }}>隊友</div>
+                      <div style={{ background: 'var(--card)', border: `1px solid ${BORDER}`, borderRadius: RADIUS.card, overflow: 'hidden' }}>
+                        {mates.invites.map((inv, i) => (
+                          <div key={'i' + inv.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderTop: i === 0 ? 'none' : `1px solid ${BORDER}` }}>
+                            <Avatar name={inv.name} size={34} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 500, color: TEXT_MAIN }}>{inv.name}想跟你當搭檔</div>
+                              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 1 }}>兩個人每天都行動，就能一起累積連勝</div>
+                            </div>
+                            <button onClick={() => answerInvite(inv, false)} style={{ background: 'none', border: 'none', color: TEXT_SECONDARY, fontSize: 13, cursor: 'pointer', padding: 4 }}>不用了</button>
+                            <button onClick={() => answerInvite(inv, true)}
+                              style={{ border: 'none', background: PRIMARY, color: '#fff', fontSize: 13, fontWeight: 600, borderRadius: RADIUS.pill, padding: '6px 14px', cursor: 'pointer' }}>好啊</button>
+                          </div>
+                        ))}
+                        {mates.cheers.map((c, i) => (
+                          <div key={'c' + c.id} onClick={() => go('/team')}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', cursor: 'pointer', borderTop: i === 0 && !mates.invites.length ? 'none' : `1px solid ${BORDER}` }}>
+                            <Avatar name={c.name} size={34} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 500, color: TEXT_MAIN }}>{c.name}給你打氣</div>
+                              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 1, overflowWrap: 'anywhere' }}>{c.text}</div>
+                            </div>
+                            <IconChevronRight size={16} stroke={1.9} color={TEXT_MUTED} />
+                          </div>
+                        ))}
+                      </div>
+                      {inviteMsg && <div style={{ fontSize: 13, color: TEXT_SECONDARY, margin: '8px 4px 0' }}>{inviteMsg}</div>}
+                    </div>
+                  )}
                   <Group title="這幾天" items={soon} go={go} />
                   <Group title="要跟進" items={follow} go={go} />
                 </>

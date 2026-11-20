@@ -7,6 +7,9 @@ import {
   IconFlag2, IconUsersGroup, IconMountain, IconSparkles,
 } from '@tabler/icons-react'
 import LoadingSpinner from './LoadingSpinner'
+import { GoodNewsCard, MyCheersCard, CheerSheet } from './teamCheer'
+import { loadPhrases, quoteOfDay, cheerStatus, loadBuddies, buddyRpc, markNewsSeen } from './teamData'
+import { titleOf, BUDDY_MAX } from '../lib/buddy'
 import { DAILY_TASKS, WEEKLY_COUNTERS } from './taskDefinitions'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -66,12 +69,22 @@ export default function Team() {
   const [kickTarget, setKickTarget] = useState(null)
   const [copied, setCopied] = useState(false)
 
+  // 打氣、搭檔、今天的一句話
+  const [quote, setQuote] = useState('')
+  const [cheerMap, setCheerMap] = useState({})   // { user_id: { can_cheer, cheered_today, has_push } }
+  const [fullToday, setFullToday] = useState(new Set()) // 今天做滿的隊友（打氣面板先停在「幫你鼓掌」）
+  const [buddy, setBuddy] = useState(null)       // loadBuddies 的結果
+  const [sheetMate, setSheetMate] = useState(null)
+  const [teamMsg, setTeamMsg] = useState('')     // 搭檔邀請的結果（顯示在展開的那張卡裡）
+  const [toast, setToast] = useState('')         // 打氣送出了
+
   const weekDays = getWeekDays()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
   useEffect(() => { if (user) fetchTeam() }, [user])
+  useEffect(() => { markNewsSeen() }, [])
 
   async function fetchTeam() {
     setLoading(true)
@@ -80,6 +93,7 @@ export default function Team() {
     setTeam(teamData)
     setIsCreator(teamData.creator_id === user.id)
     await fetchMembers(teamData.id)
+    loadSocial()
     // 我這週用了哪些工具（只算自己的互動紀錄，只看次數）
     const { data: tl } = await supabase.from('contact_logs').select('tool')
       .eq('user_id', user.id).in('date', weekDays).not('tool', 'is', null)
@@ -112,6 +126,23 @@ export default function Team() {
     setMembers(result)
   }
 
+  async function loadSocial() {
+    try {
+      const [byGrp, st, bd] = await Promise.all([loadPhrases(), cheerStatus(), loadBuddies(user.id)])
+      setQuote(quoteOfDay(byGrp)); setCheerMap(st); setBuddy(bd)
+      const { data: full } = await supabase.from('daily_checkins').select('user_id')
+        .eq('date', today()).eq('task_key', 'daily_3_contacts').eq('is_done', true)
+      setFullToday(new Set((full || []).map(f => f.user_id)))
+    } catch { /* 新功能的表還沒建好時，戰隊頁照常顯示 */ }
+  }
+
+  async function buddyAct(fn, args, okMsg) {
+    setTeamMsg('')
+    const r = await buddyRpc(fn, args)
+    setTeamMsg(r.ok ? okMsg : r.error)
+    setBuddy(await loadBuddies(user.id))
+  }
+
   async function fetchDayDetail(memberId, date) {
     setDayDetailLoading(true)
     setExpandedDay({ memberId, date })
@@ -139,6 +170,7 @@ export default function Team() {
   }
 
   function toggleExpand(memberId) {
+    setTeamMsg('')
     if (expandedId === memberId) {
       setExpandedId(null)
       setExpandedDay(null)
@@ -428,7 +460,17 @@ export default function Team() {
                 })}
               </div>
               <p style={{ textAlign:'center', fontSize:11, color:TEXT_MUTED, margin:'8px 0 0' }}>頭像亮起來的人這週已經動了</p>
+              {quote && (
+                <div style={{ marginTop:14, padding:'12px 14px', borderRadius:RADIUS.md, background:'var(--card)', textAlign:'center' }}>
+                  <div style={{ fontSize:11, color:TEXT_MUTED }}>今天的一句話</div>
+                  <div style={{ fontSize:15, color:TEXT_MAIN, marginTop:4, lineHeight:1.6, fontFamily:'var(--font-voice, inherit)' }}>{quote}</div>
+                </div>
+              )}
             </div>
+
+            {/* 這週的好消息（可以鼓掌）、我收到的打氣（只有自己看得到） */}
+            <GoodNewsCard userId={user.id} />
+            <MyCheersCard userId={user.id} onEnablePush={() => navigate('/settings?s=push')} />
 
           <div className="team-grid">
             <div className="team-sidebar" style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:10 }}>
@@ -484,7 +526,7 @@ export default function Team() {
                                 background:PRIMARY,borderRadius:5,padding:'1px 6px' }}>我</span>
                             )}
                           </div>
-                          <div style={{ fontSize:11,color:TEXT_SECONDARY,marginTop:1,display:'flex',alignItems:'center',gap:4 }}>
+                          <div style={{ fontSize:11,color:TEXT_SECONDARY,marginTop:1,display:'flex',alignItems:'center',gap:4,flexWrap:'wrap' }}>
                             本週 {m.weekCheckinDays}/7 天
                             {m.streak >= 2 && (
                               <span style={{ color:'#fff',background:STREAK_COLOR,fontWeight:600,
@@ -493,13 +535,35 @@ export default function Team() {
                               </span>
                             )}
                           </div>
+                          {(() => {
+                            const b = !isSelf && buddy && buddy.active.find(x => x.otherId === m.user_id)
+                            if (!b) return null
+                            const t = titleOf(b.streak.count)
+                            return (
+                              <div style={{ fontSize:11,color:'#F08A3C',fontWeight:600,marginTop:3,display:'flex',alignItems:'center',gap:4,whiteSpace:'nowrap' }}>
+                                <IconFlame size={11} stroke={2} /> 跟你連勝 {b.streak.count} 天
+                                {t && <span style={{ color:ACCENT_YELLOW_TEXT, background:ACCENT_YELLOW_SOFT, borderRadius:RADIUS.pill, padding:'1px 7px' }}>{t}</span>}
+                              </div>
+                            )
+                          })()}
                         </div>
-                        <div style={{ display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0 }}>
-                          <span style={{ fontSize:11,padding:'3px 8px',borderRadius:RADIUS.xs,fontWeight:600,
-                            background: m.todayChecked ? ACCENT_GREEN_SOFT : SUBCARD_BG,
-                            color: m.todayChecked ? ACCENT_GREEN_TEXT : TEXT_MUTED }}>
-                            {m.todayChecked ? '今天打了' : '今天未打'}
-                          </span>
+                        <div style={{ display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4,flexShrink:0 }}>
+                          <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+                            <span style={{ fontSize:11,padding:'3px 8px',borderRadius:RADIUS.xs,fontWeight:600,
+                              background: m.todayChecked ? ACCENT_GREEN_SOFT : SUBCARD_BG,
+                              color: m.todayChecked ? ACCENT_GREEN_TEXT : TEXT_MUTED }}>
+                              {m.todayChecked ? '今天打了' : '今天未打'}
+                            </span>
+                            {!isSelf && cheerMap[m.user_id] && cheerMap[m.user_id].can_cheer && (
+                              cheerMap[m.user_id].cheered_today ? (
+                                <span onClick={e => e.stopPropagation()}
+                                  style={{ fontSize:12,padding:'4px 10px',borderRadius:RADIUS.pill,background:'var(--sub2)',color:TEXT_MUTED,whiteSpace:'nowrap' }}>已打氣</span>
+                              ) : (
+                                <button onClick={e => { e.stopPropagation(); setSheetMate(m) }}
+                                  style={{ fontSize:12,padding:'4px 12px',borderRadius:RADIUS.pill,border:'none',background:PRIMARY_SOFT,color:PRIMARY,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap' }}>打氣</button>
+                              )
+                            )}
+                          </div>
                           {isCreator && m.user_id !== user.id && (
                             <button onClick={e => { e.stopPropagation(); setKickTarget(m) }}
                               style={{ fontSize:11,color:DANGER,background:'none',
@@ -560,6 +624,30 @@ export default function Team() {
                         <p style={{ fontSize:11,color:TEXT_MUTED,margin:'0 0 10px' }}>
                           點任一天的點點看當天詳情
                         </p>
+                        {!isSelf && buddy && (() => {
+                          const act = buddy.active.find(x => x.otherId === m.user_id)
+                          const pend = buddy.pending.find(x => x.otherId === m.user_id)
+                          const used = buddy.active.length + buddy.pending.filter(x => !x.incoming).length
+                          const box = { marginBottom:10, padding:'9px 12px', borderRadius:RADIUS.md, fontSize:13, textAlign:'center' }
+                          if (act) return <div style={{ ...box, background:'var(--card)', color:TEXT_SECONDARY }}>你們是搭檔，首頁的火焰點開就能看你們的連勝</div>
+                          if (pend && pend.incoming) return (
+                            <div style={{ ...box, background:'var(--card)', color:TEXT_MAIN, display:'flex', alignItems:'center', gap:8, textAlign:'left' }}>
+                              <span style={{ flex:1 }}>{m.name}想跟你當搭檔</span>
+                              <button onClick={() => buddyAct('buddy_decline', { p_id: pend.id }, '')} style={{ background:'none',border:'none',color:TEXT_SECONDARY,fontSize:13,cursor:'pointer' }}>不用了</button>
+                              <button onClick={() => buddyAct('buddy_accept', { p_id: pend.id }, `你和${m.name}成為搭檔了，從今天開始算`)}
+                                style={{ border:'none',background:PRIMARY,color:'#fff',fontSize:13,fontWeight:600,borderRadius:RADIUS.pill,padding:'6px 14px',cursor:'pointer' }}>好啊</button>
+                            </div>
+                          )
+                          if (pend) return <div style={{ ...box, background:'var(--card)', color:TEXT_SECONDARY }}>已經邀請{m.name}當搭檔，等他回覆</div>
+                          if (used >= BUDDY_MAX) return <div style={{ ...box, background:'var(--card)', color:TEXT_MUTED }}>你已經有 {BUDDY_MAX} 位搭檔（或邀請還在等回覆）</div>
+                          return (
+                            <button onClick={() => buddyAct('buddy_invite', { p_to: m.user_id }, `邀請送出了，等${m.name}回覆`)}
+                              style={{ ...box, width:'100%', border:`1px solid ${PRIMARY}`, background:'var(--card)', color:PRIMARY, fontWeight:600, cursor:'pointer' }}>
+                              邀{m.name}當搭檔
+                            </button>
+                          )
+                        })()}
+                        {!isSelf && teamMsg && expandedId === m.user_id && <p style={{ fontSize:12,color:TEXT_SECONDARY,margin:'-4px 0 10px',textAlign:'center' }}>{teamMsg}</p>}
 
                         {expandedDay?.memberId === m.user_id && expandedDay?.date && (
                           <div style={{ background:'var(--card)',border:`1px solid ${BORDER}`,borderRadius:RADIUS.sm,padding:'10px 12px' }}>
@@ -641,6 +729,23 @@ export default function Team() {
           </>
         )}
       </div>
+
+      {sheetMate && (
+        <CheerSheet mate={sheetMate} hasPush={!!(cheerMap[sheetMate.user_id] && cheerMap[sheetMate.user_id].has_push)}
+          defaultGroup={fullToday.has(sheetMate.user_id) ? 'clap' : 'start'}
+          onClose={() => setSheetMate(null)}
+          onSent={mt => {
+            setSheetMate(null)
+            setCheerMap(c => ({ ...c, [mt.user_id]: { ...(c[mt.user_id] || {}), cheered_today: true } }))
+            setToast(`打氣送出了，${mt.name}會看到`)
+            setTimeout(() => setToast(''), 3000)
+          }} />
+      )}
+      {toast && (
+        <div role="status" style={{ position:'fixed', left:16, right:16, bottom:'calc(84px + env(safe-area-inset-bottom))', zIndex:900, display:'flex', justifyContent:'center', pointerEvents:'none' }}>
+          <div style={{ background:'#1E2A44', color:'#fff', borderRadius:16, padding:'12px 16px', fontSize:14, maxWidth:400 }}>{toast}</div>
+        </div>
+      )}
 
       {/* 退出確認 */}
       {showLeaveConfirm && (

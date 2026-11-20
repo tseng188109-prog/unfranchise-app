@@ -228,6 +228,34 @@ export function PushSetting({ userId }) {
   )
 }
 
+// 隊友給我打氣：關掉的話，隊友看不到「打氣」按鈕（沒開手機通知也能設定，所以獨立一張）
+export function CheerPref({ userId }) {
+  const [on, setOn] = useState(null)
+  useEffect(() => {
+    supabase.from('users').select('tag_settings').eq('id', userId).single()
+      .then(({ data }) => setOn(notifyPrefs((data && data.tag_settings) || {}).cheer))
+  }, [userId])
+  if (on === null) return null
+  async function toggle() {
+    const next = !on
+    setOn(next)
+    const { data } = await supabase.from('users').select('tag_settings').eq('id', userId).single()
+    const cur = (data && data.tag_settings) || {}
+    await supabase.from('users').update({ tag_settings: { ...cur, notify: { ...(cur.notify || {}), cheer: next } } }).eq('id', userId)
+  }
+  return (
+    <div style={{ background: 'var(--card)', borderRadius: RADIUS.xl, padding: 16, border: `1px solid ${BORDER}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: TEXT_MAIN }}>
+        <span style={{ flex: 1 }}>隊友給我打氣</span>
+        <Switch on={on} onClick={toggle} label="隊友給我打氣" />
+      </div>
+      <p style={{ fontSize: 12, color: TEXT_MUTED, margin: '8px 0 0', lineHeight: 1.6 }}>
+        {on ? '同一個戰隊的隊友可以給你打氣，只有你看得到。晚上 10 點到早上 7 點不會跳通知。' : '已關掉：隊友看不到給你打氣的按鈕。'}
+      </p>
+    </div>
+  )
+}
+
 // 要收哪些提醒（存在 users.tag_settings.notify，後台排程照這個送）
 function Switch({ on, onClick, label }) {
   return (
@@ -256,11 +284,10 @@ export function NotifyPrefs({ userId }) {
   const p = notifyPrefs(tags)
 
   async function save(patch) {
-    const next = { ...p, ...patch }
-    // 存之前再讀一次，不要蓋掉別的設定
+    // 存之前再讀一次，不要蓋掉別的設定（例如上面「隊友給我打氣」剛改過）
     const { data } = await supabase.from('users').select('tag_settings').eq('id', userId).single()
     const cur = (data && data.tag_settings) || {}
-    const merged = { ...cur, notify: next }
+    const merged = { ...cur, notify: { ...p, ...(cur.notify || {}), ...patch } }
     setTags(merged)
     await supabase.from('users').update({ tag_settings: merged }).eq('id', userId)
   }

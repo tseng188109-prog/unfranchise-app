@@ -7,6 +7,10 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
     await p.goto('http://127.0.0.1:8765/' + q); await p.waitForTimeout(300); await p.evaluate(x => window.__nav(x), path); await p.waitForTimeout(1200); return p
   }
   const body = p => p.textContent('body')
+  // deliver-76：完成後的按鈕改成隨機一句誇自己的話（句子包 self 那組）
+  const SELF = ['我真棒！！', '我好棒喔！', '耶！我做到了', '今天也很棒！', '給自己拍拍手', '我真的可以耶', '嘿嘿，完成了', '不愧是我！', '我也太讚了吧', '今天表現不錯', '好耶！完成啦', '我有進步耶！', '值得鼓勵一下', '越來越上手了', '今天也有做到']
+  const dlgBtn = p => p.locator('[role=dialog] button').last()
+  const hasDialog = p => p.evaluate(() => !!document.querySelector('[role=dialog]'))
   // ── 首頁：三個圈＋小火焰
   let p = await open('/lhome')
   let t = await body(p)
@@ -25,15 +29,15 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
     ;['w2','c1','c2'].forEach((c, i) => d.contact_logs.push({ id:'zz'+i, user_id:'u', contact_id:c, date:T, kind: i===0 ? 'meet_plan' : null }))
     d.contacts.push({ id:'nn1', user_id:'u', name:'新1', is_archived:false, source:null, added_date:T, created_at:T+'T03:00:00Z' }, { id:'nn2', user_id:'u', name:'新2', is_archived:false, source:null, added_date:T, created_at:T+'T03:00:00Z' }) })
   await p.evaluate(() => window.__sync()); await p.waitForTimeout(800)
-  t = await body(p); ok(t.includes('今天的 3-1-2 完成了') && t.includes('明天繼續'), '做滿：整頁慶祝')
+  t = await body(p); ok(t.includes('今天的 3-1-2 完成了') && SELF.includes((await dlgBtn(p).innerText()).trim()), '做滿：整頁慶祝（按鈕是誇自己的話）')
   await p.screenshot({ path: __dirname + '/shots/b3_done.png' })
-  await p.getByRole('button', { name: '明天繼續' }).click(); await p.waitForTimeout(500)
-  t = await body(p); ok(t.includes('天連續行動') && t.includes('我堅持，不放棄'), '第 7 天里程碑：連續天數整頁')
+  await dlgBtn(p).click(); await p.waitForTimeout(500)
+  t = await body(p); ok(t.includes('天連續行動') && SELF.includes((await dlgBtn(p).innerText()).trim()), '第 7 天里程碑：連續天數整頁')
   ok(/7\s*天連續行動/.test(t.replace(/\n/g,' ')) || (await p.locator('text=7').count()) > 0, '顯示 7')
   await p.screenshot({ path: __dirname + '/shots/b4_streak.png' })
-  await p.getByRole('button', { name: '我堅持，不放棄' }).click(); await p.waitForTimeout(300)
+  await dlgBtn(p).click(); await p.waitForTimeout(300)
   await p.evaluate(() => window.__sync()); await p.waitForTimeout(500)
-  t = await body(p); ok(!t.includes('明天繼續'), '同一天不會再跳一次')
+  ok(!(await hasDialog(p)), '同一天不會再跳一次')
   await p.waitForTimeout(800)
   ok(await p.locator('button[aria-label="連續行動 7 天"]').count() === 1, '首頁火焰變 7')
   await p.locator('button[aria-label="連續行動 7 天"]').click(); await p.waitForTimeout(500)
@@ -46,7 +50,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
     ;['w1','w2','c1'].forEach((c, i) => d.contact_logs.push({ id:'q'+i, user_id:'u', contact_id:c, date:T, kind: i===0 ? 'meet_plan' : null }))
     d.contacts.push({ id:'m1', user_id:'u', is_archived:false, source:null, added_date:T, created_at:T+'T03:00:00Z' }, { id:'m2', user_id:'u', is_archived:false, source:null, added_date:T, created_at:T+'T03:00:00Z' }) })
   await p.evaluate(() => window.__sync()); await p.waitForTimeout(800)
-  await p.getByRole('button', { name: '明天繼續' }).click(); await p.waitForTimeout(500)
+  await dlgBtn(p).click(); await p.waitForTimeout(500)
   t = await body(p); ok(!t.includes('天連續行動'), '第 4 天不是里程碑，不跳連續天數')
   await p.context().close()
   // ── 休息日：前天以前都有做、昨天沒做 → 今天做滿要跳「休息日守住」
@@ -57,7 +61,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
     ;['w1','w2','c1'].forEach((c, i) => d.contact_logs.push({ id:'r'+i, user_id:'u', contact_id:c, date:T, kind: i===0 ? 'meet_plan' : null }))
     d.contacts.push({ id:'k1', user_id:'u', is_archived:false, source:null, added_date:T, created_at:T+'T03:00:00Z' }, { id:'k2', user_id:'u', is_archived:false, source:null, added_date:T, created_at:T+'T03:00:00Z' }) })
   await p.evaluate(() => window.__sync()); await p.waitForTimeout(800)
-  await p.getByRole('button', { name: '明天繼續' }).click(); await p.waitForTimeout(500)
+  await dlgBtn(p).click(); await p.waitForTimeout(500)
   t = await body(p)
   const sameWeek = await p.evaluate(() => { const a = window.__add(-1), b = window.__add(-2); const ws = d => { const x = new Date(d+'T00:00:00Z'); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay()+1)%7)); return x.toISOString().slice(0,10) }; return ws(a) })
   ok(t.includes('休息日幫你守住了') && t.includes('休'), '休息日守住 ' + sameWeek)
