@@ -1,7 +1,7 @@
 import SocialModal from './socialModal'
 import GoalModal from './goalModal'
 import WeeklyReviewCard from './weeklyReview'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
@@ -143,7 +143,32 @@ function QuickBtn({ Icon, label, onClick, color, bg }) {
   )
 }
 
+// 電腦版（寬度 1024 以上）右欄要把「今日打卡」和「共學主題」排在一起；手機照原本的順序
+function isWide() {
+  try { return window.matchMedia('(min-width: 1024px)').matches } catch { return false }
+}
+
 export default function Dashboard() {
+  const [wide, setWide] = useState(isWide)
+  // 老顧客卡片：電腦版超過 2 位時左右換頁（滑鼠不能滑，給 ‹ › 按鈕）
+  const careRef = useRef(null)
+  const [careEnds, setCareEnds] = useState({ start: true, end: false })
+  function careEdges() {
+    const el = careRef.current; if (!el) return
+    setCareEnds({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 })
+  }
+  function careStep(dir) {
+    const el = careRef.current; if (!el) return
+    const card = el.querySelector('.care-card')
+    el.scrollBy({ left: dir * ((card ? card.offsetWidth : el.clientWidth / 2) + 10), behavior: 'smooth' })
+  }
+  useEffect(() => {
+    let mq
+    try { mq = window.matchMedia('(min-width: 1024px)') } catch { return }
+    const on = () => setWide(mq.matches)
+    mq.addEventListener ? mq.addEventListener('change', on) : mq.addListener(on)
+    return () => { mq.removeEventListener ? mq.removeEventListener('change', on) : mq.removeListener(on) }
+  }, [])
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -770,39 +795,122 @@ export default function Dashboard() {
 
   if(loading) return <LoadingSpinner />
 
+  // 共學主題：手機放在最下面；電腦版放在右欄、今日打卡下面（卡片本身一樣）
+  const themeSection = (user && onboardingDone && !isNewbie) ? (
+    <section className="area-theme" style={{ marginTop:16 }}>
+      <StudyThemeCard user={user} />
+    </section>
+  ) : null
+  // 本季進度：看結果的區塊，放在要做的事後面（電腦版在右欄、今日打卡下面）
+  const statsSection = (<>
+        {isNewbie && (
+          <section className="area-stats" style={{ marginTop:16,textAlign:'center' }}>
+            <div style={{ fontSize:12,color:TEXT_MUTED,lineHeight:1.6 }}>本季進度、戰隊、共學主題會在第 15 天出現</div>
+            <button onClick={() => toggleFullHome(true)}
+              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 12px',fontWeight:600 }}>現在就看全部</button>
+          </section>
+        )}
+        {!isNewbie && (
+        <section className="area-stats">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, margin:'16px 4px 8px' }}>
+            <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
+              進度{progTab === 'season' && <span onClick={()=>navigate('/transactions')} style={{ fontSize:12, fontWeight:400, color:PRIMARY, marginLeft:10, cursor:'pointer' }}>查看詳情 ›</span>}
+            </span>
+            <div style={{ display:'flex', gap:4 }}>
+              {[['season','本季'],['month','本月顧客']].map(([k,label]) => (
+                <button key={k} onClick={()=>setProgTab(k)}
+                  style={{ border:'none', cursor:'pointer', padding:'4px 12px', borderRadius:RADIUS.pill, fontSize:12,
+                    fontWeight: progTab===k ? 600 : 400,
+                    background: progTab===k ? PRIMARY_SOFT : 'transparent', color: progTab===k ? PRIMARY : TEXT_SECONDARY }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {progTab === 'month' && user && (
+            <MonthBvCard userId={user.id} target={resolveBvTarget(profile?.tag_settings)} onEditTarget={()=>setShowBvTarget(true)} />
+          )}
+          {progTab !== 'month' && (
+          <div style={{ ...cardStyle,padding:'18px 18px 16px',color:TEXT_MAIN }}>
+            <div style={{ display:'flex',gap:16 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                  <span style={{ fontSize:12,fontWeight:600,color:ORANGE_TEXT }}>BV</span>
+                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{bvTotal.toFixed(0)} <span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
+                </div>
+                <ProgressBar value={bvTotal} max={BV_GOAL} color={ORANGE} trackColor="var(--sub2)" />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
+                  <span style={{ fontSize:12,fontWeight:600,color:PRIMARY }}>IBV</span>
+                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{ibvTotal.toFixed(0)} <span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
+                </div>
+                <ProgressBar value={ibvTotal} max={IBV_GOAL} color={PRIMARY} trackColor="var(--sub2)" />
+              </div>
+            </div>
+            <div style={{ display:'flex',marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)' }}>
+              <div style={{ flex:1.2 }}>
+                <div style={{ fontSize:11,color:'var(--text2)' }}>本月獲利</div>
+                <div style={{ fontSize:15,fontWeight:600 }}>NT${profit.toLocaleString()}</div>
+              </div>
+              {teamCard && (
+                <div style={{ flex:1,borderLeft:'1px solid var(--border)',paddingLeft:12 }}>
+                  <div style={{ fontSize:11,color:'var(--text2)' }}>戰隊打卡率</div>
+                  <div style={{ fontSize:15,fontWeight:600 }}>{teamCard.teamAvgRate}%</div>
+                </div>
+              )}
+            </div>
+          </div>
+          )}
+          {/* 戰隊移到最上面鈴鐺旁邊；我的夥伴只給推薦過人的隊友看（沒推薦過人點進去是空的） */}
+          {hasPartners && (
+            <button onClick={() => navigate('/partners')}
+              style={{ ...cardStyle, width:'100%',marginTop:8,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:600,cursor:'pointer' }}>
+              <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
+            </button>
+          )}
+        </section>
+
+        )}
+  </>)
+  const Side = wide ? 'div' : Fragment
+
   return (
     <div style={{ background:PAGE_BG,minHeight:'100vh',overflowX:'hidden',maxWidth:'100vw',boxSizing:'border-box' }}>
       <style>{`
         .dashboard-wrap { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
-          .dashboard-wrap { max-width: 1600px; margin: 0; }
+          .dashboard-wrap { max-width: 1280px; margin: 0 auto; }
         }
         .dash-grid { display: block; }
         .care-scroll { display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px; padding:0 16px 4px; -webkit-overflow-scrolling:touch; }
         .care-scroll::-webkit-scrollbar { display:none; }
         .care-card { flex:0 0 82%; scroll-snap-align:start; }
         @media (min-width: 1024px) {
+          /* 電腦版只改排法：左欄是今天要做的事（3-1-2、老顧客），右欄是今日打卡、進度、共學主題，不跟左欄對齊，不會空一大塊 */
           .dash-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
             grid-template-areas:
               "quick quick"
               "starter starter"
-              "todo checkin"
-              "care checkin"
-              "stats theme";
-            gap: 0 18px;
+              "review side"
+              "todo side"
+              "care side";
+            gap: 0 20px;
             align-items: start;
           }
           .area-quick { grid-area: quick; }
           .area-starter { grid-area: starter; }
+          .area-review { grid-area: review; }
           .area-todo { grid-area: todo; }
           .area-care { grid-area: care; }
-          .area-checkin { grid-area: checkin; }
-          .area-stats { grid-area: stats; }
-          .area-theme { grid-area: theme; }
-          .care-scroll { flex-wrap:wrap; overflow:visible; margin:0; padding:0; }
-          .care-card { flex:1 1 280px; }
+          .area-side { grid-area: side; min-width: 0; }
+          .dash-grid > .area-review { margin-top: 12px !important; margin-bottom: 12px; }
+          .care-scroll { gap:10px; margin:0; padding:0 0 4px; }
+          .care-card { flex:0 0 calc((100% - 10px) / 2); min-width:0; }
+          .care-scroll.many .care-card { flex:0 0 calc((100% - 20px) / 2.2); }
         }
       `}</style>
 
@@ -1194,7 +1302,17 @@ export default function Dashboard() {
         {careList.length > 0 && (
           <section className="area-care">
             <SectionHeader title="老顧客，問問用得好不好" hint="先關心，買不買是之後的事" hintColor={ACCENT_PINK_TEXT} />
-            <div className="care-scroll">
+            {wide && careList.length > 2 && (
+              <div style={{ display:'flex',justifyContent:'flex-end',alignItems:'center',gap:4,margin:'-2px 0 6px' }}>
+                <button aria-label="上一位" onClick={() => careStep(-1)} disabled={careEnds.start}
+                  style={{ background:'none',border:'none',color: careEnds.start?'var(--border2)':TEXT_SECONDARY,
+                    fontSize:18,cursor: careEnds.start?'default':'pointer',padding:'0 6px',lineHeight:1 }}>‹</button>
+                <button aria-label="下一位" onClick={() => careStep(1)} disabled={careEnds.end}
+                  style={{ background:'none',border:'none',color: careEnds.end?'var(--border2)':TEXT_SECONDARY,
+                    fontSize:18,cursor: careEnds.end?'default':'pointer',padding:'0 6px',lineHeight:1 }}>›</button>
+              </div>
+            )}
+            <div className={careList.length > 2 ? 'care-scroll many' : 'care-scroll'} ref={careRef} onScroll={careEdges}>
               {careList.map(c => (
                 <div key={c.id} className="care-card"
                   style={{ background:'var(--card)',border:`1px solid var(--pink-border)`,borderRadius:RADIUS.card,padding:12 }}>
@@ -1221,7 +1339,8 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* 今日打卡：維持原樣 */}
+        {/* 今日打卡：維持原樣（電腦版和共學主題一起放右欄） */}
+        <Side {...(wide ? { className: 'area-side' } : {})}>
         <section className="area-checkin">
           <SectionHeader title={isToday ? '今日打卡' : '打卡紀錄'} hint={`${shownDone}/${shownTasks.length}`} />
           <div style={{ ...cardStyle, padding:'12px 14px 12px' }}>
@@ -1335,78 +1454,12 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+        {wide && statsSection}
+        {wide && themeSection}
+        </Side>
 
-        {/* 本季進度：看結果的區塊，放在要做的事後面 */}
-        {isNewbie && (
-          <section className="area-stats" style={{ marginTop:16,textAlign:'center' }}>
-            <div style={{ fontSize:12,color:TEXT_MUTED,lineHeight:1.6 }}>本季進度、戰隊、共學主題會在第 15 天出現</div>
-            <button onClick={() => toggleFullHome(true)}
-              style={{ fontSize:13,color:PRIMARY,background:'none',border:'none',cursor:'pointer',padding:'8px 12px',fontWeight:600 }}>現在就看全部</button>
-          </section>
-        )}
-        {!isNewbie && (
-        <section className="area-stats">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, margin:'16px 4px 8px' }}>
-            <span style={{ fontSize:15, fontWeight:600, color:TEXT_MAIN }}>
-              進度{progTab === 'season' && <span onClick={()=>navigate('/transactions')} style={{ fontSize:12, fontWeight:400, color:PRIMARY, marginLeft:10, cursor:'pointer' }}>查看詳情 ›</span>}
-            </span>
-            <div style={{ display:'flex', gap:4 }}>
-              {[['season','本季'],['month','本月顧客']].map(([k,label]) => (
-                <button key={k} onClick={()=>setProgTab(k)}
-                  style={{ border:'none', cursor:'pointer', padding:'4px 12px', borderRadius:RADIUS.pill, fontSize:12,
-                    fontWeight: progTab===k ? 600 : 400,
-                    background: progTab===k ? PRIMARY_SOFT : 'transparent', color: progTab===k ? PRIMARY : TEXT_SECONDARY }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {progTab === 'month' && user && (
-            <MonthBvCard userId={user.id} target={resolveBvTarget(profile?.tag_settings)} onEditTarget={()=>setShowBvTarget(true)} />
-          )}
-          {progTab !== 'month' && (
-          <div style={{ ...cardStyle,padding:'18px 18px 16px',color:TEXT_MAIN }}>
-            <div style={{ display:'flex',gap:16 }}>
-              <div style={{ flex:1 }}>
-                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:12,fontWeight:600,color:ORANGE_TEXT }}>BV</span>
-                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{bvTotal.toFixed(0)} <span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/ {BV_GOAL}</span></span>
-                </div>
-                <ProgressBar value={bvTotal} max={BV_GOAL} color={ORANGE} trackColor="var(--sub2)" />
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:'flex',justifyContent:'space-between',marginBottom:6 }}>
-                  <span style={{ fontSize:12,fontWeight:600,color:PRIMARY }}>IBV</span>
-                  <span style={{ fontSize:22,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:-0.5 }}>{ibvTotal.toFixed(0)} <span style={{ color:'var(--muted)',fontSize:12,fontWeight:400 }}>/ {IBV_GOAL}</span></span>
-                </div>
-                <ProgressBar value={ibvTotal} max={IBV_GOAL} color={PRIMARY} trackColor="var(--sub2)" />
-              </div>
-            </div>
-            <div style={{ display:'flex',marginTop:12,paddingTop:10,borderTop:'1px solid var(--border)' }}>
-              <div style={{ flex:1.2 }}>
-                <div style={{ fontSize:11,color:'var(--text2)' }}>本月獲利</div>
-                <div style={{ fontSize:15,fontWeight:600 }}>NT${profit.toLocaleString()}</div>
-              </div>
-              {teamCard && (
-                <div style={{ flex:1,borderLeft:'1px solid var(--border)',paddingLeft:12 }}>
-                  <div style={{ fontSize:11,color:'var(--text2)' }}>戰隊打卡率</div>
-                  <div style={{ fontSize:15,fontWeight:600 }}>{teamCard.teamAvgRate}%</div>
-                </div>
-              )}
-            </div>
-          </div>
-          )}
-          {/* 戰隊移到最上面鈴鐺旁邊；我的夥伴只給推薦過人的隊友看（沒推薦過人點進去是空的） */}
-          {hasPartners && (
-            <button onClick={() => navigate('/partners')}
-              style={{ ...cardStyle, width:'100%',marginTop:8,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                padding:'10px 0',color:TEXT_MAIN,fontSize:13,fontWeight:600,cursor:'pointer' }}>
-              <IconUsersGroup size={16} stroke={1.9} color={PRIMARY} /> 我的夥伴
-            </button>
-          )}
-        </section>
-
-        )}
+        {/* 本季進度：手機放在今日打卡後面；電腦版放在右欄 */}
+        {!wide && statsSection}
         {sched && user && (
           <ScheduleSheet userId={user.id} contact={sched.contact} log={sched.log || null} onClose={() => setSched(null)}
             onSaved={() => { fetchFollowUps(); fetchMeetupCard() }} />
@@ -1437,11 +1490,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {user && onboardingDone && !isNewbie && (
-          <section className="area-theme" style={{ marginTop:16 }}>
-            <StudyThemeCard user={user} />
-          </section>
-        )}
+        {!wide && themeSection}
 
         </div>
         <div style={{ height:80 }} />

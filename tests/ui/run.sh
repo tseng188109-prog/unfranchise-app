@@ -27,8 +27,9 @@ group 16 8765 --prod -- t34b
 group 18 8765 -- t28
 group 19 8765 -- t29
 group 20 8766 -- t30 t31 t32
-group 21 8767 -- t36 t37 t38
+group 21 8767 -- t36 t37 t38 t41
 group 22 8769 -- t40
+group 23 8770 -- t42
 # t39 自己打包兩次（舊版、新版）、自己開伺服器，測「更新後自動換到新版」
 out=$(timeout 600 node t39.cjs 2>&1); code=$?; p=$(echo "$out" | grep -c '^PASS'); f=$(echo "$out" | grep -c '^FAIL')
 if [ $code -ne 0 ] || [ $f -gt 0 ]; then echo "✗ t39（通過 $p、失敗 $f）"; echo "$out" | grep -E '^FAIL|Error' | head -5; fail=1; else echo "✓ t39（通過 $p）"; fi

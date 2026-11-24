@@ -8,6 +8,8 @@ import { askConfirm } from './confirmDialog'
 import { IconArrowLeft, IconArchive } from '@tabler/icons-react'
 import { archiveContactOfCustomer } from './customerLink'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import { ContactLinkField, SameNameHint, DraftNotice } from './customerFormParts'
+import { useMyCustomers } from './myCustomers'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
@@ -30,6 +32,8 @@ export default function CustomerEdit() {
   const [contactSearch, setContactSearch] = useState('')
   const [linkedContactId, setLinkedContactId] = useState(null)
   const [linkedContactName, setLinkedContactName] = useState('')
+  const [restored, setRestored] = useState(false)
+  const customers = useMyCustomers()
 
   useEffect(() => { fetchCustomer() }, [id])
 
@@ -43,7 +47,7 @@ export default function CustomerEdit() {
     fetchContacts()
   }, [])
 
-  async function fetchCustomer() {
+  async function fetchCustomer(ignoreDraft = false) {
     const { data } = await supabase.from('customers').select('*').eq('id', id).single()
     if (data) {
       const base = {
@@ -56,13 +60,21 @@ export default function CustomerEdit() {
         email: data.email || '',
       }
       // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
-      const draft = loadDraft(`customerEdit:${id}`)
+      const draft = ignoreDraft ? null : loadDraft(`customerEdit:${id}`)
       setForm(draft?.form || base)
+      // 補回的內容跟資料庫裡的不一樣，才提醒「這是上次改到一半的」
+      const changed = !!draft && (JSON.stringify(draft.form || {}) !== JSON.stringify(base) || (draft.linkedContactId || null) !== (data.contact_id || null))
+      setRestored(changed)
       if (draft) {
         setContactSearch(draft.contactSearch || '')
         setLinkedContactId(draft.linkedContactId || null)
         setLinkedContactName(draft.linkedContactName || '')
-      } else if (data.contact_id) {
+      } else {
+        setContactSearch('')
+        setLinkedContactId(null)
+        setLinkedContactName('')
+      }
+      if (!draft && data.contact_id) {
         setLinkedContactId(data.contact_id)
         const { data: linkedContact } = await supabase.from('contacts')
           .select('name').eq('id', data.contact_id).single()
@@ -85,6 +97,13 @@ export default function CustomerEdit() {
     setLinkedContactId(null)
     setLinkedContactName('')
     setContactSearch('')
+  }
+
+  // 放棄改到一半的內容，回到資料庫裡存的樣子
+  async function discardDraft() {
+    clearDraft(`customerEdit:${id}`)
+    setErrors({})
+    await fetchCustomer(true)
   }
 
   function set(key, val) {
@@ -160,6 +179,10 @@ export default function CustomerEdit() {
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
+        {restored && (
+          <DraftNotice text="這是你上次改到一半還沒存的內容，已經幫你補回來了。" actionText="放棄修改" onAction={discardDraft} />
+        )}
+
         {/* 參照提示 */}
         <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px',
           marginBottom:16 }}>
@@ -169,42 +192,10 @@ export default function CustomerEdit() {
         </div>
 
         {/* 連結互動名單（選填） */}
-        <div style={{ marginBottom:16, position:'relative' }}>
-          <label style={lb}>
-            連結互動名單 <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:400 }}>選填</span>
-          </label>
-          {linkedContactId ? (
-            <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
-              borderRadius:RADIUS.md, padding:'10px 12px' }}>
-              <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1, minWidth:0, wordBreak:'break-word', overflowWrap:'anywhere' }}>
-                ✓ 已連結：{linkedContactName}
-              </span>
-              <button onClick={clearLinkedContact}
-                style={{ fontSize:12, color:TEXT_SECONDARY, background:'none', border:'none', cursor:'pointer' }}>
-                取消連結
-              </button>
-            </div>
-          ) : (
-            <input value={contactSearch}
-              onChange={e => setContactSearch(e.target.value)}
-              placeholder="搜尋互動名單裡的姓名..." style={inp} />
-          )}
-          {contactSearch && !linkedContactId && (
-            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--card)',
-              border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, zIndex:50, maxHeight:160, overflowY:'auto',
-              boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
-              {contacts.filter(c => c.name.includes(contactSearch)).map(c => (
-                <button key={c.id} onClick={() => selectContact(c)}
-                  style={{ display:'flex', justifyContent:'space-between', width:'100%', padding:'10px 12px',
-                    background:'none', border:'none', borderBottom:`1px solid ${BORDER}`,
-                    textAlign:'left', cursor:'pointer', fontSize:14, color:TEXT_MAIN }}>
-                  <span>{c.name}</span>
-                  {c.occupation && <span style={{ fontSize:12, color:TEXT_MUTED }}>{c.occupation}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ContactLinkField mode="edit" contacts={contacts} customers={customers} selfId={id}
+          linkedId={linkedContactId} linkedName={linkedContactName}
+          search={contactSearch} setSearch={setContactSearch}
+          onSelect={selectContact} onClear={clearLinkedContact} />
 
         {/* 姓名 */}
         <div style={fw}>
@@ -213,6 +204,8 @@ export default function CustomerEdit() {
             placeholder="輸入姓名..."
             style={{ ...inp, borderColor: errors.name ? DANGER : BORDER }} />
           {errors.name && <p style={err}>{errors.name}</p>}
+          <SameNameHint name={form.name} customers={customers} selfId={id}
+            skipId={(customers.find(k => linkedContactId && k.contact_id === linkedContactId && k.id !== id) || {}).id} />
         </div>
 
         {/* 手機 */}

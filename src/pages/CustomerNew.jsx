@@ -1,22 +1,29 @@
 import { useState, useEffect } from 'react'
+import { BirthdayPicker } from './pickers'
 import { supabase } from '../supabase'
 import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
+import { ContactLinkField, SameNameHint, DraftNotice } from './customerFormParts'
+import { useMyCustomers } from './myCustomers'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
-  DANGER, DANGER_SOFT, BORDER, SUBCARD_BG, RADIUS } from './designTokens'
+  DANGER, DANGER_SOFT, BORDER, RADIUS } from './designTokens'
 
 export default function CustomerNew() {
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState('')
-  const [form, setForm] = useState(() => loadDraft('customerNew')?.form || {
-    name: '', phone: '', occupation: '',
-    birthday: '', carrier: '', address: '', email: '',
+  const EMPTY = { name: '', phone: '', occupation: '', birthday: '', carrier: '', address: '', email: '' }
+  const [form, setForm] = useState(() => loadDraft('customerNew')?.form || EMPTY)
+  // 打開時是不是補回了上次沒存的內容（有填任何東西才算）
+  const [restored, setRestored] = useState(() => {
+    const d = loadDraft('customerNew')
+    return !!(d && ((d.form && Object.values(d.form).some(v => String(v || '').trim())) || d.linkedContactId || (d.contactSearch || '').trim()))
   })
+  const customers = useMyCustomers()
   const [errors, setErrors] = useState({})
 
   // 連結互動名單（選填）
@@ -59,6 +66,14 @@ export default function CustomerNew() {
     setContactSearch('')
   }
 
+  function resetAll() {
+    clearDraft('customerNew')
+    setForm(EMPTY)
+    setErrors({})
+    clearLinkedContact()
+    setRestored(false)
+  }
+
   async function handleSave() {
     const errs = {}
     if (!form.name.trim()) errs.name = '姓名為必填'
@@ -91,7 +106,7 @@ export default function CustomerNew() {
   const fields = [
     { key:'name',       label:'姓名',         req: true,  placeholder:'輸入姓名...' },
     { key:'phone',      label:'手機',         ref: true,  placeholder:'輸入手機...' },
-    { key:'birthday',   label:'生日',         ref: true,  type:'text', placeholder:'MM-DD，例如 03-15' },
+    { key:'birthday',   label:'生日',         ref: true,  picker: 'birthday' },
     { key:'occupation', label:'職業',         ref: true,  placeholder:'輸入職業...' },
     { key:'carrier',    label:'電子發票載具',              placeholder:'輸入載具...' },
     { key:'address',    label:'地址',                      placeholder:'輸入地址...' },
@@ -100,9 +115,6 @@ export default function CustomerNew() {
 
   const hasRef = form.phone.trim() || form.birthday.trim() || form.occupation.trim()
 
-  const filteredContacts = contacts.filter(c =>
-    contactSearch && !linkedContactId && c.name.includes(contactSearch)
-  )
 
   return (
     <div style={{ background:'var(--page)',minHeight:'100vh', overflowX:'hidden', maxWidth:'100vw', boxSizing:'border-box' }}>
@@ -124,46 +136,15 @@ export default function CustomerNew() {
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
+        {restored && (
+          <DraftNotice text="這是你上次還沒存的內容，已經幫你補回來了。" actionText="清空重填" onAction={resetAll} />
+        )}
+
         {/* 連結互動名單（選填） */}
-        <div style={{ marginBottom:16, position:'relative' }}>
-          <label style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN,
-            display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
-            連結互動名單 <span style={{ fontSize:11, color:TEXT_MUTED, fontWeight:400 }}>選填，這位顧客本來就在互動名單裡的話可以連起來</span>
-          </label>
-          {linkedContactId ? (
-            <div style={{ display:'flex', alignItems:'center', gap:8, background:ACCENT_GREEN_SOFT,
-              borderRadius:RADIUS.md, padding:'10px 12px' }}>
-              <span style={{ fontSize:14, color:ACCENT_GREEN_TEXT, fontWeight:600, flex:1, minWidth:0, wordBreak:'break-word', overflowWrap:'anywhere' }}>
-                ✓ 已連結：{linkedContactName}
-              </span>
-              <button onClick={clearLinkedContact}
-                style={{ fontSize:12, color:TEXT_SECONDARY, background:'none', border:'none', cursor:'pointer' }}>
-                取消連結
-              </button>
-            </div>
-          ) : (
-            <input value={contactSearch}
-              onChange={e => setContactSearch(e.target.value)}
-              placeholder="搜尋互動名單裡的姓名..."
-              style={{ width:'100%', padding:'11px 12px', borderRadius:RADIUS.md, border:`1px solid ${BORDER}`,
-                fontSize:14, background:'var(--card)', boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
-          )}
-          {filteredContacts.length > 0 && (
-            <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--card)',
-              border:`1px solid ${BORDER}`, borderRadius:RADIUS.md, zIndex:50, maxHeight:160, overflowY:'auto',
-              boxShadow:'0 4px 12px rgba(19,42,77,0.1)' }}>
-              {filteredContacts.map(c => (
-                <button key={c.id} onClick={() => selectContact(c)}
-                  style={{ display:'flex', justifyContent:'space-between', width:'100%', padding:'10px 12px',
-                    background:'none', border:'none', borderBottom:`1px solid ${BORDER}`,
-                    textAlign:'left', cursor:'pointer', fontSize:14, color:TEXT_MAIN }}>
-                  <span>{c.name}</span>
-                  {c.occupation && <span style={{ fontSize:12, color:TEXT_MUTED }}>{c.occupation}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ContactLinkField mode="new" contacts={contacts} customers={customers}
+          linkedId={linkedContactId} linkedName={linkedContactName}
+          search={contactSearch} setSearch={setContactSearch}
+          onSelect={selectContact} onClear={clearLinkedContact} />
 
         {/* 參照欄位提示 */}
         <div style={{ background:PRIMARY_SOFT, borderRadius:RADIUS.md, padding:'10px 14px',
@@ -196,6 +177,12 @@ export default function CustomerNew() {
                 }}>識別用</span>
               )}
             </label>
+            {f.picker === 'birthday' ? (
+              <>
+                <BirthdayPicker value={form.birthday} onChange={v => set('birthday', v)} />
+                <p style={{ fontSize:11, color:TEXT_MUTED, margin:'4px 0 0' }}>只記月份和日期，每年都能提醒</p>
+              </>
+            ) : (
             <input
               type={f.type || 'text'}
               value={form[f.key]}
@@ -206,8 +193,13 @@ export default function CustomerNew() {
                 fontSize:14, background:'var(--card)', boxSizing:'border-box',
                 outline:'none', color:TEXT_MAIN }}
             />
+            )}
             {errors[f.key] && (
               <p style={{ fontSize:12, color:DANGER, margin:'4px 0 0' }}>{errors[f.key]}</p>
+            )}
+            {f.key === 'name' && (
+              <SameNameHint name={form.name} customers={customers}
+                skipId={(customers.find(k => linkedContactId && k.contact_id === linkedContactId) || {}).id} />
             )}
           </div>
         ))}

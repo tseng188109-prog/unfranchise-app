@@ -44,6 +44,13 @@ db.cheers = [
   { id: 12, from_id: 'm1', to_id: 'u', text: '312完成了喔，讚啦', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), seen_at: new Date().toISOString(), day: add(-1) },
 ]
 if (Q.includes('nocheer=1')) db.cheers = []
+// 老顧客多幾位（電腦版左右換頁）
+if (Q.includes('care3=1')) {
+  [['k3', '邱小姐', add(-10)], ['k4', '毛小姐', add(-20)], ['k5', '田先生', add(-30)]].forEach(([id, name, d]) => {
+    db.customers.push({ id, user_id: 'u', name, contact_id: null, is_archived: false, last_cared_at: null, created_at: '2025-01-01T00:00:00Z' })
+    db.transactions.push({ user_id: 'u', customer_id: id, date: d, type: 'BV', points: 10, amount: 500, cost: 300, is_gift: false, product_name: 'OPC-3' })
+  })
+}
 db.team_news = [
   { id: 21, team_id: 't1', user_id: 'm1', other_id: null, kind: 'retail', n: null, label: null, day: T, created_at: new Date(Date.now() - 600000).toISOString() },
   { id: 22, team_id: 't1', user_id: 'u', other_id: null, kind: 'meet', n: null, label: null, day: add(-1), created_at: new Date(Date.now() - 25 * 3600000).toISOString() },

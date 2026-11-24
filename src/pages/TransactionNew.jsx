@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BirthdayPicker } from './pickers'
 import { supabase } from '../supabase'
 import { goBackOr } from './navBack'
 import { useNavigate } from 'react-router-dom'
@@ -175,9 +176,9 @@ export default function TransactionNew() {
             <input value={quickPhone} onChange={e => setQuickPhone(e.target.value)}
               placeholder="手機（選填）"
               style={{ ...inp, marginBottom:8 }} />
-            <input value={quickBirthday} onChange={e => setQuickBirthday(e.target.value)}
-              placeholder="生日 MM-DD（選填）"
-              style={{ ...inp, marginBottom:8 }} />
+            <div style={{ marginBottom:8 }}>
+              <BirthdayPicker value={quickBirthday} onChange={setQuickBirthday} />
+            </div>
             <input value={quickOccupation} onChange={e => setQuickOccupation(e.target.value)}
               placeholder="職業（選填）"
               style={{ ...inp, marginBottom:8 }} />
