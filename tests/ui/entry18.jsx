@@ -37,6 +37,11 @@ if (location.search.includes('y312=1')) {
   db.contacts.push({ id:'n1', user_id:'u', name:'新甲', is_archived:false, source:null, added_date:Y, created_at:Y+'T03:00:00Z' })
   db.contacts.push({ id:'n2', user_id:'u', name:'新乙', is_archived:false, source:null, added_date:Y, created_at:Y+'T03:00:00Z' })
 }
+// 這個月已經見完好幾位（看「這個月的安排」收起來的樣子）
+if (location.search.includes('manymeets=1')) {
+  [[-21, 'c1', '新店址看現場'], [-18, 'w1', '約聚餐'], [-11, 'w2', '約聚餐'], [-11, 'c1', '見面聊聊'], [-8, 'w1', '約聚餐 吃拉麵'], [-5, 'w2', '一起看店面']].forEach(([d, c, n], i) =>
+    db.counter_logs.push({ id: 'mm' + i, user_id: 'u', counter_key: 'meetup', date: add(d), planned_date: add(d), is_done: true, note: '19:30 ' + n, contact_id: c }))
+}
 if (location.search.includes('evwait=1')) db.contact_logs.push({ id:'ew1', user_id:'u', contact_id:'c1', date:add(-3), kind:'invite_wait', note:'邀了，等回覆：邀請參加 家庭事業說明會' })
 // 連續天數：前 6 天都有做 → 今天做滿就是第 7 天（里程碑）
 const SK = location.search.match(/streak=(\d+)/); const sk = SK ? Number(SK[1]) : 6

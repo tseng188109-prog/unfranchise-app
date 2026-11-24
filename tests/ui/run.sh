@@ -24,10 +24,10 @@ group() { # group <入口編號> <port> [--prod] -- 測試...
 group 15 8765 -- t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
 group 16 8765 -- t27 t33 t34 t35
 group 16 8765 --prod -- t34b
-group 18 8765 -- t28
+group 18 8765 -- t28 t43
 group 19 8765 -- t29
 group 20 8766 -- t30 t31 t32
-group 21 8767 -- t36 t37 t38 t41
+group 21 8767 -- t36 t37 t38 t41 t44
 group 22 8769 -- t40
 group 23 8770 -- t42
 # t39 自己打包兩次（舊版、新版）、自己開伺服器，測「更新後自動換到新版」

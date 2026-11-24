@@ -287,12 +287,27 @@ export default function Team() {
           }
           .team-main { grid-area: main; }
           .team-sidebar { grid-area: sidebar; }
+          /* 電腦版只改排法：左欄是成員（最常看的），右欄是旅程、好消息、打氣、工具、邀請碼；整頁最寬 1280 置中，跟首頁一樣 */
+          .team-head { max-width: 1280px; padding-left: 16px !important; padding-right: 16px !important; }
+          .team-body-container.team-has {
+            display: grid !important; max-width: 1280px; margin: 0 auto;
+            grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+            grid-template-areas: "main journey" "main news" "main cheers" "main tools" "main sidebar";
+            grid-template-rows: auto auto auto auto 1fr;
+            column-gap: 20px !important; align-items: start;
+          }
+          .team-has .team-grid { display: contents; }
+          .team-has .team-journey { grid-area: journey; }
+          .team-has .team-news { grid-area: news; }
+          .team-has .team-cheers { grid-area: cheers; }
+          .team-has .team-tools { grid-area: tools; }
         }
+        .team-news:empty, .team-cheers:empty { display: none; }
       `}</style>
 
       {/* Header：跟 Partners 同一套漸層語言，但用不同色相做出「這是戰隊」的區隔 */}
       <div style={{ background:TEAM_GRADIENT, padding:'52px 0 20px' }}>
-        <div className="dash-container" style={{ padding:'0 20px' }}>
+        <div className="dash-container team-head" style={{ padding:'0 20px' }}>
           <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:4 }}>
             <button onClick={() => navigate('/settings')}
               style={{ background:'rgba(255,255,255,0.2)',border:'none',color:'#fff',cursor:'pointer',
@@ -307,7 +322,7 @@ export default function Team() {
         </div>
       </div>
 
-      <div className="team-body-container" style={{ padding:'16px',display:'flex',flexDirection:'column',gap:10 }}>
+      <div className={team ? 'team-body-container team-has' : 'team-body-container'} style={{ padding:'16px',display:'flex',flexDirection:'column',gap:10 }}>
 
         {!team ? (
           <>
@@ -383,7 +398,7 @@ export default function Team() {
         ) : (
           <>
             {toolStats.length > 0 && (
-              <div style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.xl, padding:'16px 20px', marginBottom:12 }}>
+              <div className="team-tools" style={{ background:'var(--card)', border:`1px solid ${BORDER}`, borderRadius:RADIUS.xl, padding:'16px 20px', marginBottom:12 }}>
                 <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 8px' }}>我這週用的工具</p>
                 {toolStats.map(([t, n]) => (
                   <div key={t} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:`1px solid ${BORDER}`, fontSize:13, color:TEXT_MAIN }}>
@@ -393,7 +408,7 @@ export default function Team() {
               </div>
             )}
             {/* 戰隊旅程：集體進度視覺化，取代原本的排行榜。不顯示任何個人名次或排序。 */}
-            <div style={{ background:SUBCARD_BG, borderRadius:RADIUS.xl, padding:'20px', marginBottom:4 }}>
+            <div className="team-journey" style={{ background:SUBCARD_BG, borderRadius:RADIUS.xl, padding:'20px', marginBottom:4 }}>
               <p style={{ fontSize:13, fontWeight:600, color:TEXT_MAIN, margin:'0 0 4px' }}>戰隊本週旅程</p>
               <p style={{ fontSize:12, color:TEXT_SECONDARY, margin:'0 0 14px' }}>全隊一起邁向夢想的頂點</p>
 
@@ -469,8 +484,8 @@ export default function Team() {
             </div>
 
             {/* 這週的好消息（可以鼓掌）、我收到的打氣（只有自己看得到） */}
-            <GoodNewsCard userId={user.id} />
-            <MyCheersCard userId={user.id} onEnablePush={() => navigate('/settings?s=push')} />
+            <div className="team-news"><GoodNewsCard userId={user.id} /></div>
+            <div className="team-cheers"><MyCheersCard userId={user.id} onEnablePush={() => navigate('/settings?s=push')} /></div>
 
           <div className="team-grid">
             <div className="team-sidebar" style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:10 }}>

@@ -94,6 +94,8 @@ export default function Daily() {
   const [profile, setProfile] = useState(null)
   const [weekMeets, setWeekMeets] = useState([])
   const [monthMeets, setMonthMeets] = useState([])
+  // 這個月的安排：已經過去、也做完的先收起來，打開就看到接下來要做的
+  const [showDoneMonth, setShowDoneMonth] = useState(false)
   const [todayMeets, setTodayMeets] = useState([])
   const [weekPlanned, setWeekPlanned] = useState(0)
   const [allContacts, setAllContacts] = useState([])
@@ -503,12 +505,27 @@ export default function Daily() {
         .dash-container { max-width: 430px; margin: 0 auto; }
         @media (min-width: 1024px) {
           .dash-container { max-width: 720px; }
+          /* 電腦版只改排法：左欄是每天和每週要做的事，右欄是每月目標（月曆和這個月的安排），卡片本身不變 */
+          .daily-head, .daily-grid { max-width: 1280px; }
+          .daily-datebar { width: calc(50% - 10px); box-sizing: border-box; }
+          .daily-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-areas: "meets month" "today month" "week month";
+            grid-template-rows: auto auto 1fr;
+            column-gap: 20px !important;
+            align-items: start;
+          }
+          .daily-meets { grid-area: meets; }
+          .daily-today { grid-area: today; }
+          .daily-week { grid-area: week; }
+          .daily-month { grid-area: month; }
         }
       `}</style>
 
-      <div className="dash-container" style={{ padding:'20px 16px 0' }}>
+      <div className="dash-container daily-head" style={{ padding:'20px 16px 0' }}>
         <h1 style={{ fontSize:19,fontWeight:600,color:TEXT_MAIN,margin:0 }}>每日行動</h1>
-        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:12,
+        <div className="daily-datebar" style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:12,
           background:SUBCARD_BG,borderRadius:12,padding:'6px 10px' }}>
           <button onClick={() => changeDate(-1)}
             style={{ background:'none',border:'none',color:TEXT_SECONDARY,
@@ -536,10 +553,10 @@ export default function Daily() {
         )}
       </div>
 
-      <div className="dash-container" style={{ padding:'14px 16px',display:'flex',flexDirection:'column',gap:12 }}>
+      <div className="dash-container daily-grid" style={{ padding:'14px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
         {isToday && todayMeets.length > 0 && (
-          <div style={{ background:PRIMARY_SOFT,borderRadius:18,padding:'14px 16px',border:`1px solid ${BORDER}` }}>
+          <div className="daily-meets" style={{ background:PRIMARY_SOFT,borderRadius:18,padding:'14px 16px',border:`1px solid ${BORDER}` }}>
             <div style={{ fontSize:13,fontWeight:700,color:PRIMARY,marginBottom:8 }}>今天的約會</div>
             {todayMeets.map(m => {
               const { time, label } = splitTime(m.note)
@@ -569,7 +586,7 @@ export default function Daily() {
           </div>
         )}
 
-        <div style={card}>
+        <div className="daily-today" style={card}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每日行動</span>
             <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{doneCount}/{visibleTasks.length}</span>
@@ -640,7 +657,7 @@ export default function Daily() {
           </button>
         </div>
 
-        <div style={card}>
+        <div className="daily-week" style={card}>
           <div style={{ marginBottom:12 }}>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
               <span style={sectionTitle}>每週行動</span>
@@ -817,7 +834,7 @@ export default function Daily() {
           </div>
         </div>
 
-        <div style={card}>
+        <div className="daily-month" style={card}>
           <div style={{ marginBottom:12 }}>
             <span style={sectionTitle}>每月目標</span>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:12,marginTop:8 }}>
@@ -926,7 +943,20 @@ export default function Daily() {
                 ...meetsShown.map(m => ({ kind: 'meet', date: m.eff, m })),
                 ...logsShown.map(l => ({ kind: 'log', date: dayOf(l), l })),
               ].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
-              return items.map(it => {
+              // 已經過去、也做完的（見完打勾、學習打勾）先收起來；過了還沒記的照樣放著，提醒你記
+              const t0 = today()
+              const isDone = it => it.date < t0 && (it.kind === 'meet' ? isMet(it.m) : !!it.l.is_done)
+              const doneItems = items.filter(isDone)
+              const fold = !selectedMonthDay && doneItems.length > 0 && doneItems.length < items.length
+              const shown = fold && !showDoneMonth ? items.filter(it => !isDone(it)) : items
+              const toggle = fold ? (
+                <button key="fold" onClick={() => setShowDoneMonth(v => !v)}
+                  style={{ display:'block',width:'100%',textAlign:'left',background:SUBCARD_BG,border:'none',borderRadius:10,
+                    padding:'9px 12px',marginBottom:6,fontSize:12,color:TEXT_SECONDARY,cursor:'pointer' }}>
+                  {showDoneMonth ? `收起已經完成的 ${doneItems.length} 筆 ▴` : `已經完成的 ${doneItems.length} 筆（${formatShortDate(doneItems[0].date)} 到 ${formatShortDate(doneItems[doneItems.length - 1].date)}）▸`}
+                </button>
+              ) : null
+              return [toggle, ...shown.map(it => {
                 if (it.kind === 'meet') return <MeetRow key={it.m.id} m={it.m} />
                 const log = it.l
                 const item = MONTH_ITEMS.find(x => x.key === log.counter_key)
@@ -962,7 +992,7 @@ export default function Daily() {
                     </div>
                   </div>
                 )
-              })
+              })]
             })()}
           </div>
         </div>
