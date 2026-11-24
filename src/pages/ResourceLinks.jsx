@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import LoadingSpinner from './LoadingSpinner'
 import { CloseBtn } from './ui'
 import { supabase } from '../supabase'
@@ -63,6 +63,9 @@ export default function ResourceLinks({ type, title, icon }) {
   const [publicLinks, setPublicLinks] = useState([])
   const [personalLinks, setPersonalLinks] = useState([])
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
 
   // 新增/編輯 Modal
   const [modal, setModal] = useState(null) // null | { scope, editId }
@@ -84,7 +87,11 @@ export default function ResourceLinks({ type, title, icon }) {
   useEffect(() => { if (user) fetchLinks() }, [user])
 
   async function fetchLinks() {
-    setLoading(true)
+    // 第一次打開（或換成另一個頁）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = 'all'
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     const { data } = await supabase.from('resource_links')
       .select('*').eq('type', type)
       .order('sort_order', { ascending: true })
@@ -93,7 +100,7 @@ export default function ResourceLinks({ type, title, icon }) {
       setPublicLinks(data.filter(l => l.scope === 'public'))
       setPersonalLinks(data.filter(l => l.scope === 'personal' && l.user_id === user.id))
     }
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   function openAdd(scope) {

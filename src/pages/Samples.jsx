@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
 import { askConfirm } from './confirmDialog'
@@ -28,6 +28,9 @@ export default function Samples() {
   const [samples, setSamples] = useState([])
   const [filter, setFilter] = useState('全部')
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [showNew, setShowNew] = useState(false)
 
   // 新增表單
@@ -62,14 +65,18 @@ export default function Samples() {
   useEffect(() => { if (user) { fetchSamples(); fetchContacts(); fetchCustomers() } }, [user])
 
   async function fetchSamples() {
-    setLoading(true)
+    // 第一次打開（或換成另一個頁）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = 'all'
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     const { data } = await supabase
       .from('sample_tracking')
       .select('*,contacts(name),customers(name)')
       .eq('user_id', user.id)
       .order('share_date', { ascending: false })
     if (data) setSamples(data)
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   async function fetchContacts() {

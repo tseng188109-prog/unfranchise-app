@@ -1,7 +1,7 @@
 import { Top10Star } from './top10'
 import { undoableDelete } from './undoDelete'
 import { actionLabel } from './contactQuick'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
@@ -59,6 +59,9 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [orders, setOrders] = useState([])
   const [showOrder, setShowOrder] = useState(false) // false | { orderId: null | 訂單 id }
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [tab, setTab] = useState('talk') // talk | info | tx | sample — 先看「互動」，也就是跟這個人最近聊了什麼、下一步是什麼
 
   const [editReminder, setEditReminder] = useState(false)
@@ -87,7 +90,11 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   }
 
   async function fetchData() {
-    setLoading(true)
+    // 第一次打開（或換成另一個人）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = id
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     setShowForm(false)
     setLinkedContact(null)
     setSameNameContact(null)
@@ -113,7 +120,7 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     if (tx) setTransactions(tx)
     const { data: ord } = await supabase.from('orders').select('*').eq('customer_id', id)
     setOrders(ord || [])
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   async function saveReminder() {

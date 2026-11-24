@@ -81,6 +81,9 @@ export default function Contacts() {
   const [showArchived, setShowArchived] = useState(false)
   const [showMuted, setShowMuted] = useState(false) // 時機未到：預設隱藏，不佔主列表版面
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [menuTarget, setMenuTarget] = useState(null)
 
   // 桌面版右側面板：選中的聯絡人 id（手機版不使用，點擊會直接跳轉整頁）
@@ -116,7 +119,11 @@ export default function Contacts() {
   useEffect(() => { try { sessionStorage.setItem('contacts_eggFilter', eggFilter) } catch {} }, [eggFilter])
 
   async function fetchContacts() {
-    setLoading(true)
+    // 第一次打開（或換成另一個清單）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = String(showArchived)
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     let query = supabase
       .from('contacts')
       .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,next_contact_date,last_contact_date,last_interacted_at,is_pinned,created_at')
@@ -136,7 +143,7 @@ export default function Contacts() {
     const { data: custRows } = await supabase.from('customers')
       .select('contact_id').eq('user_id', user.id).eq('is_archived', false).not('contact_id', 'is', null)
     setCustomerContactIds(new Set((custRows || []).map(r => r.contact_id)))
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   // 哪些聯絡人有「進行中」的試用品（result 是 null 或「考慮中」），列表小圖示用

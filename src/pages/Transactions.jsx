@@ -48,6 +48,9 @@ export default function Transactions() {
   const [giftCost, setGiftCost] = useState(0)
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [refreshing, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [menuId, setMenuId] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -83,13 +86,17 @@ export default function Transactions() {
   }, [searchMode])
 
   async function fetchData() {
-    setLoading(true)
+    // 第一次打開才轉圈；之後換月份、改資料都不整頁轉圈：換月份時內容先變淡，讀好再換，頁面停在原本的位置
+    const loadKey = 'all'
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     const start = `${year}-${String(month).padStart(2,'0')}-01`
     const end = new Date(year, month, 0).toISOString().split('T')[0]
     const { data } = await supabase.from('transactions')
       .select('*,customers(name)').eq('user_id', user.id)
       .gte('date', start).lte('date', end).order('date', { ascending: false })
-    if (!data) { setLoading(false); return }
+    if (!data) { finishLoad(loadKey); return }
     setTransactions(data)
     let bv=0, ibv=0, p=0, gc=0
     data.forEach(t => {
@@ -100,7 +107,7 @@ export default function Transactions() {
     })
     setBvTotal(bv); setIbvTotal(ibv); setProfit(p); setGiftCost(gc)
     buildChartData(data, year, month)
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   function buildChartData(data, y, m) {
@@ -616,7 +623,7 @@ export default function Transactions() {
       {user && !searchMode && !isSearching && <GiftFollowCard userId={user.id} year={year} month={month} />}
 
       {/* ── 手機版清單（維持原邏輯不變，桌面版隱藏） ── */}
-      <div className="dash-container tx-mobile-list">
+      <div className="dash-container tx-mobile-list" style={{ opacity: refreshing ? 0.55 : 1, transition:'opacity .15s' }}>
       {!searchMode && loading ? (
         <LoadingSpinner fullPage={false} />
       ) : !searchMode && transactions.length === 0 ? (
@@ -643,7 +650,7 @@ export default function Transactions() {
       </div>
 
       {/* ── 桌面版表格 ── */}
-      <div className="tx-desktop-table-wrap">
+      <div className="tx-desktop-table-wrap" style={{ opacity: refreshing ? 0.55 : 1, transition:'opacity .15s' }}>
         {loading && !isSearching ? (
           <LoadingSpinner fullPage={false} />
         ) : desktopList.length === 0 ? (

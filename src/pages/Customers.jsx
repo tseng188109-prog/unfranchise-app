@@ -42,6 +42,9 @@ export default function Customers() {
   const [customers, setCustomers] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [menuTarget, setMenuTarget] = useState(null)
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [restoreTarget, setRestoreTarget] = useState(null)
@@ -69,7 +72,11 @@ export default function Customers() {
   useEffect(() => { if (user) fetchCustomers() }, [user, showArchived])
 
   async function fetchCustomers() {
-    setLoading(true)
+    // 第一次打開（或換成另一個清單）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = String(showArchived)
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     const { data } = await supabase
       .from('customers')
       .select('id,name,phone,occupation,repurchase_reminder,is_pinned')
@@ -92,7 +99,7 @@ export default function Customers() {
       })
       setCustomers(enriched)
     }
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   async function handlePin(c) {

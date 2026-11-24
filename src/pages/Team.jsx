@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { fetchAddedContacts } from './addedDate'
 import { useNavigate } from 'react-router-dom'
@@ -49,6 +49,9 @@ export default function Team() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [team, setTeam] = useState(null)
   const [members, setMembers] = useState([])
   const [isCreator, setIsCreator] = useState(false)
@@ -87,9 +90,13 @@ export default function Team() {
   useEffect(() => { markNewsSeen() }, [])
 
   async function fetchTeam() {
-    setLoading(true)
+    // 第一次打開（或換成另一個頁）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = 'all'
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
     const teamData = await fetchMyTeam(user.id)
-    if (!teamData) { setTeam(null); setMembers([]); setLoading(false); return }
+    if (!teamData) { setTeam(null); setMembers([]); finishLoad(loadKey); return }
     setTeam(teamData)
     setIsCreator(teamData.creator_id === user.id)
     await fetchMembers(teamData.id)
@@ -100,7 +107,7 @@ export default function Team() {
     const cnt = {}
     ;(tl || []).forEach(r => { if (r.tool) cnt[r.tool] = (cnt[r.tool] || 0) + 1 })
     setToolStats(Object.entries(cnt).sort((a, b) => b[1] - a[1]))
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   async function fetchMembers(teamId) {

@@ -53,6 +53,24 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   t = await monthText(p)
   ok(!/已經完成的 \d+ 筆/.test(t), '看上個月：不收')
   await p.context().close()
+  // 點每日行動上面的星期幾：只換上面那一塊，整頁不轉圈、不跳回最上面
+  for (const ctx of [{ viewport: { width: 1440, height: 700 } }, { ...devices['iPhone 14'] }]) {
+    const p2 = await open(ctx)
+    await p2.evaluate(() => window.scrollTo(0, 300)); await p2.waitForTimeout(300)
+    const y0 = await p2.evaluate(() => document.querySelector('.daily-today').getBoundingClientRect().top)
+    const label0 = await p2.evaluate(() => document.querySelector('.daily-datebar').innerText)
+    const cells = p2.locator('.daily-today').getByText('一', { exact: true })
+    await cells.first().click()
+    let gone = false
+    for (let i = 0; i < 15; i++) { await p2.waitForTimeout(60); if (!(await p2.evaluate(() => !!document.querySelector('.daily-month')))) gone = true }
+    const y1 = await p2.evaluate(() => document.querySelector('.daily-today').getBoundingClientRect().top)
+    const label1 = await p2.evaluate(() => document.querySelector('.daily-datebar').innerText)
+    const tag = ctx.isMobile ? '手機' : '電腦'
+    ok(!gone, tag + '：點星期幾，整頁沒有消失重來')
+    ok(Math.abs(y1 - y0) < 5, tag + '：每日行動那一塊停在畫面上同一個位置，沒有跳（' + Math.round(y0) + ' → ' + Math.round(y1) + '）')
+    ok(label1 !== label0 && label1.includes('補打模式'), tag + '：日期換成那一天（' + label1.replace(/\n/g, ' ') + '）')
+    await p2.context().close()
+  }
   // 手機：一欄，順序照舊，一樣收起來
   p = await open({ ...devices['iPhone 14'] })
   const ys = await p.evaluate(() => ['.daily-meets', '.daily-today', '.daily-week', '.daily-month'].map(s => document.querySelector(s).getBoundingClientRect().y))

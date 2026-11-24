@@ -107,6 +107,9 @@ export default function Daily() {
   const [editMeet, setEditMeet] = useState(null) // 編輯一次已經見完的見面
   const [monthLogs, setMonthLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  // 第一次打開才整頁轉圈；之後切換日期只更新上面的每日行動，頁面不跳回最上面
+  const loadedOnce = useRef(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const [selectedWeekDay, setSelectedWeekDay] = useState(null)
   const [selectedMonthDay, setSelectedMonthDay] = useState(null)
@@ -151,12 +154,20 @@ export default function Daily() {
   }, [goalModal])
 
   async function fetchAll() {
-    setLoading(true)
-    await Promise.all([
-      fetchCheckins(), fetchWeekStatus(), fetch312(),
-      fetchGoalText(), fetchWeekLogs(), fetchMonthLogs()
-    ])
-    setLoading(false)
+    if (!loadedOnce.current) {
+      setLoading(true)
+      await Promise.all([
+        fetchCheckins(), fetchWeekStatus(), fetch312(),
+        fetchGoalText(), fetchWeekLogs(), fetchMonthLogs()
+      ])
+      loadedOnce.current = true
+      setLoading(false)
+      return
+    }
+    // 換日期：只重抓跟那一天有關的，每週、每月照舊
+    setRefreshing(true)
+    await Promise.all([fetchCheckins(), fetchWeekStatus(), fetch312()])
+    setRefreshing(false)
   }
 
   async function fetchCheckins() {
@@ -555,7 +566,7 @@ export default function Daily() {
 
       <div className="dash-container daily-grid" style={{ padding:'14px 16px',display:'flex',flexDirection:'column',gap:12 }}>
 
-        {isToday && todayMeets.length > 0 && (
+        {todayMeets.length > 0 && (
           <div className="daily-meets" style={{ background:PRIMARY_SOFT,borderRadius:18,padding:'14px 16px',border:`1px solid ${BORDER}` }}>
             <div style={{ fontSize:13,fontWeight:700,color:PRIMARY,marginBottom:8 }}>今天的約會</div>
             {todayMeets.map(m => {
@@ -586,7 +597,7 @@ export default function Daily() {
           </div>
         )}
 
-        <div className="daily-today" style={card}>
+        <div className="daily-today" style={{ ...card, opacity: refreshing ? 0.55 : 1, transition: 'opacity .15s' }}>
           <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
             <span style={sectionTitle}>每日行動</span>
             <span style={{ fontSize:13,color:TEXT_SECONDARY,fontWeight:600 }}>{doneCount}/{visibleTasks.length}</span>

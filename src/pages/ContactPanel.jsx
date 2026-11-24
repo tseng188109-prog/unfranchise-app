@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
@@ -103,6 +103,9 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   const [contact, setContact] = useState(null)
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const loadedKey = useRef(null)
+  const [, setRefreshing] = useState(false)
+  function finishLoad(k) { loadedKey.current = k; setLoading(false); setRefreshing(false) }
   const [tab, setTab] = useState('logs') // logs | info
   const [showReferralOptions, setShowReferralOptions] = useState(false) // 合作意願調整清單是否展開
 
@@ -137,9 +140,13 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
   useEffect(() => { if (id) fetchContact() }, [id])
 
   async function fetchContact() {
-    setLoading(true)
-    setTab('logs')
-    setLinkedCustomer(null)
+    // 第一次打開（或換成另一個人）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
+    const loadKey = id
+    const firstLoad = loadedKey.current !== loadKey
+    if (firstLoad) setLoading(true)
+    else setRefreshing(true)
+    // 換成另一個人才回到第一個分頁；同一個人存完資料就停在原本的分頁
+    if (firstLoad) { setTab('logs'); setLinkedCustomer(null) }
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single()
     if (data) setContact(data)
     const { data: logData } = await supabase.from('contact_logs')
@@ -178,7 +185,7 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
       setLinkedCustomer({ id: custData.id, totalBV, totalProfit })
     }
 
-    setLoading(false)
+    finishLoad(loadKey)
   }
 
   // 快速新增：日期留今天＝原本的「今天互動了」，改日期＝原本的「新增互動紀錄」，行為統一。
