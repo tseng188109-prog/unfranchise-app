@@ -42,6 +42,11 @@ if (location.search.includes('manymeets=1')) {
   [[-21, 'c1', '新店址看現場'], [-18, 'w1', '約聚餐'], [-11, 'w2', '約聚餐'], [-11, 'c1', '見面聊聊'], [-8, 'w1', '約聚餐 吃拉麵'], [-5, 'w2', '一起看店面']].forEach(([d, c, n], i) =>
     db.counter_logs.push({ id: 'mm' + i, user_id: 'u', counter_key: 'meetup', date: add(d), planned_date: add(d), is_done: true, note: '19:30 ' + n, contact_id: c }))
 }
+// 這個月的見面全部都見完了（接下來沒有約）
+if (location.search.includes('alldone=1')) {
+  db.counter_logs = db.counter_logs.filter(l => !(l.counter_key === 'meetup' && !l.is_done))
+  db.contact_logs = db.contact_logs.filter(l => l.kind !== 'meet_plan')
+}
 if (location.search.includes('evwait=1')) db.contact_logs.push({ id:'ew1', user_id:'u', contact_id:'c1', date:add(-3), kind:'invite_wait', note:'邀了，等回覆：邀請參加 家庭事業說明會' })
 // 連續天數：前 6 天都有做 → 今天做滿就是第 7 天（里程碑）
 const SK = location.search.match(/streak=(\d+)/); const sk = SK ? Number(SK[1]) : 6

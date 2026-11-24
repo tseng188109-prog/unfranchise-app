@@ -947,7 +947,9 @@ export default function Daily() {
               const t0 = today()
               const isDone = it => it.date < t0 && (it.kind === 'meet' ? isMet(it.m) : !!it.l.is_done)
               const doneItems = items.filter(isDone)
-              const fold = !selectedMonthDay && doneItems.length > 0 && doneItems.length < items.length
+              // 看這個月：一律先收起來（就算全部都做完了）；看以前的月份：還有沒記的才收，全部做完就照常全部顯示
+              const thisMonth = String(monthViewDate).slice(0, 7) === t0.slice(0, 7)
+              const fold = !selectedMonthDay && doneItems.length > 0 && (thisMonth || doneItems.length < items.length)
               const shown = fold && !showDoneMonth ? items.filter(it => !isDone(it)) : items
               const toggle = fold ? (
                 <button key="fold" onClick={() => setShowDoneMonth(v => !v)}
@@ -956,7 +958,10 @@ export default function Daily() {
                   {showDoneMonth ? `收起已經完成的 ${doneItems.length} 筆 ▴` : `已經完成的 ${doneItems.length} 筆（${formatShortDate(doneItems[0].date)} 到 ${formatShortDate(doneItems[doneItems.length - 1].date)}）▸`}
                 </button>
               ) : null
-              return [toggle, ...shown.map(it => {
+              const nothingNext = fold && !showDoneMonth && shown.length === 0 ? (
+                <p key="none" style={{ fontSize:12,color:TEXT_MUTED,textAlign:'center',padding:'8px 0',margin:0 }}>這個月接下來還沒有安排。</p>
+              ) : null
+              return [toggle, nothingNext, ...shown.map(it => {
                 if (it.kind === 'meet') return <MeetRow key={it.m.id} m={it.m} />
                 const log = it.l
                 const item = MONTH_ITEMS.find(x => x.key === log.counter_key)

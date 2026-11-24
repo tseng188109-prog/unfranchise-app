@@ -41,6 +41,18 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   p = await open({ viewport: { width: 1440, height: 1000 } }, '?x=1')
   ok(!(await monthText(p)).includes('已經完成的 7 筆'), '測試資料少的時候照樣顯示')
   await p.context().close()
+  // 這個月全部都見完了：一樣收起來，說接下來還沒有安排
+  p = await open({ viewport: { width: 1440, height: 1000 } }, '?manymeets=1&alldone=1')
+  t = await monthText(p)
+  ok(/已經完成的 \d+ 筆/.test(t) && t.includes('這個月接下來還沒有安排。') && !t.includes('新店址看現場'), '這個月全部做完：一樣收起來，說接下來還沒有安排')
+  await p.getByRole('button', { name: /已經完成的/ }).click(); await p.waitForTimeout(400)
+  t = await monthText(p)
+  ok(t.includes('新店址看現場') && !t.includes('這個月接下來還沒有安排'), '點開看得到全部')
+  // 看上個月：全部做完就照常全部顯示
+  await p.locator('.daily-month').getByRole('button', { name: '‹' }).first().click(); await p.waitForTimeout(1200)
+  t = await monthText(p)
+  ok(!/已經完成的 \d+ 筆/.test(t), '看上個月：不收')
+  await p.context().close()
   // 手機：一欄，順序照舊，一樣收起來
   p = await open({ ...devices['iPhone 14'] })
   const ys = await p.evaluate(() => ['.daily-meets', '.daily-today', '.daily-week', '.daily-month'].map(s => document.querySelector(s).getBoundingClientRect().y))
