@@ -39,7 +39,7 @@ ok(!r.messages.some(m=>m.userId==='Z'),'Z news off')
 r=await planMessages(setup(FRI),{date:FRI,hour:20})
 const wk=r.messages.filter(m=>m.url==='/week')
 ok(r.parts.includes('weekly') && wk.length===2,'weekly '+wk.map(m=>m.userId+':'+m.body).join('|'))
-ok(wk.find(m=>m.userId==='Y').body.includes('見到 1 位、開口邀約 1 次、新名單 2 位'),'weekly numbers')
+ok(wk.find(m=>m.userId==='Y').body.includes('已見面 1 位、開口邀約 1 次、新名單 2 位'),'weekly numbers')
 ok(wk.find(m=>m.userId==='M').title==='這週先休息了也沒關係','weekly empty')
 // 週三 20：戰隊（Z 開了）
 r=await planMessages(setup(WED),{date:WED,hour:20})

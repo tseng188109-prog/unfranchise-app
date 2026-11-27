@@ -80,7 +80,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   await p.context().close()
   // ── 一週總結
   p = await open('/week', '?y312=1')
-  t = await body(p); ok(t.includes('見到') && t.includes('開口邀約') && t.includes('每週目標') && t.includes('分享給推薦人'), '一週總結頁')
+  t = await body(p); ok(t.includes('已見面') && t.includes('開口邀約') && t.includes('每週目標') && t.includes('分享成圖片，貼到群組'), '一週總結頁')
   await p.screenshot({ path: __dirname + '/shots/b7_week.png', fullPage: true })
   await p.context().close()
   // ── 我的夥伴 → 小美（這週數字）

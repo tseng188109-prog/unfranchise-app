@@ -5,14 +5,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { Bean } from './bean'
+import ShareSheet from './shareSheet'
 import { fetchAddedContacts } from './addedDate'
 import { resolveMode, resolveWeeklyMet } from './dailyMode'
 import { loadStreak } from './streakData'
-import { twToday, dowOf, md, weekStats, weekSummaryText, summaryRange } from '../lib/rhythm'
+import { twToday, dowOf, md, weekStats, summaryRange } from '../lib/rhythm'
 
 const DOW = ['日', '一', '二', '三', '四', '五', '六']
 const TILES = [
-  { key: 'met', label: '見到', unit: '位', color: '#2F7A52' },
+  { key: 'met', label: '已見面', unit: '位', color: '#2F7A52' },
   { key: 'invites', label: '開口邀約', unit: '次', color: '#2457D6' },
   { key: 'fresh', label: '新名單', unit: '位', color: '#C9822B' },
   { key: 'streak', label: '連續行動', unit: '天', color: '#F08A3C' },
@@ -21,12 +22,14 @@ const TILES = [
 export default function WeekSummary() {
   const navigate = useNavigate()
   const [w, setW] = useState(null)
-  const [copied, setCopied] = useState('')
+  const [uid, setUid] = useState(null)
+  const [share, setShare] = useState(false)
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      setUid(user.id)
       const { start, end } = summaryRange(twToday())
       const [{ data: prof }, { data: meets }, { data: logs }, added, { data: checkins }, st] = await Promise.all([
         supabase.from('users').select('tag_settings,created_at').eq('id', user.id).single(),
@@ -44,13 +47,7 @@ export default function WeekSummary() {
     })()
   }, [])
 
-  async function share() {
-    const text = weekSummaryText(w)
-    try {
-      if (navigator.share) { await navigator.share({ text }); return }
-    } catch { return /* 使用者按了取消 */ }
-    try { await navigator.clipboard.writeText(text); setCopied('已複製，可以貼到 LINE 給推薦人') } catch { setCopied(text) }
-  }
+
 
   const btn = { width: '100%', padding: 14, borderRadius: 16, fontSize: 16, fontWeight: 700, cursor: 'pointer' }
   return (
@@ -74,13 +71,13 @@ export default function WeekSummary() {
           </div>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', fontSize: 14, color: 'var(--text)', lineHeight: 1.8, marginBottom: 20 }}>
             每天 {w.modeLabel} 做滿 <b>{w.fullDays} 天</b><br />
-            每週目標：見到 {w.met}/{w.goal} 位{' '}
+            每週目標：已見面 {w.met}/{w.goal} 位{' '}
             <span style={{ color: w.met >= w.goal ? 'var(--green-text)' : 'var(--text2)', fontWeight: 600 }}>{w.met >= w.goal ? '達成' : `差 ${w.goal - w.met} 位`}</span>
             {w.most && <><br />這週最常做的是「{w.most}」</>}
           </div>
           <button onClick={() => navigate('/')} style={{ ...btn, border: 'none', background: 'var(--primary)', color: '#fff', boxShadow: '0 3px 0 #1A42A8' }}>下週繼續</button>
-          <button onClick={share} style={{ ...btn, marginTop: 10, border: '1px solid var(--border2)', background: 'var(--card)', color: 'var(--primary)' }}>分享給推薦人</button>
-          {copied && <div style={{ fontSize: 13, color: 'var(--text2)', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>{copied}</div>}
+          <button onClick={() => setShare(true)} style={{ ...btn, marginTop: 10, border: '1px solid var(--border2)', background: 'var(--card)', color: 'var(--primary)' }}>分享成圖片，貼到群組</button>
+          {share && uid && <ShareSheet userId={uid} initial={{ from: w.start, to: w.end }} onClose={() => setShare(false)} />}
         </>}
       </div>
     </div>

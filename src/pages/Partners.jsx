@@ -80,7 +80,7 @@ function WeekStatsCard({ s, weekStart, jar }) {
         </div>
       )}
       {group('名單', [[s.contacts_total, '總共'], [s.contacts_new, '這週新增'], [`${s.top10_filled}/10`, '首選 10 填了']])}
-      {group('這週行動', [[s.talk, '互動人次'], [s.invites, '開口邀約'], [s.met, '見到']])}
+      {group('這週行動', [[s.talk, '互動人次'], [s.invites, '開口邀約'], [s.met, '已見面']])}
       <div style={{ fontSize:12, color:TEXT_SECONDARY, marginTop:8, lineHeight:1.6 }}>
         {`邀約：約成 ${s.invite_yes}、沒約成 ${s.invite_no}、等回覆 ${s.invite_wait}${SEP}首選 10 這週聯絡了 ${s.top10_touched} 位${SEP}接下來 7 天有 ${s.upcoming} 個約會`}
       </div>

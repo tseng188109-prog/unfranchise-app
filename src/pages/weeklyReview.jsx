@@ -1,9 +1,11 @@
 // weeklyReview.jsx — 本週回顧：首頁一張卡，點開看目前累計（週六到週五算一週）
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import ShareSheet from './shareSheet'
 import { supabase } from '../supabase'
 import { fetchAddedContacts } from './addedDate'
 import { fetchUnplannedMeets } from './meetings'
-import { IconChartBar, IconChevronRight, IconCopy, IconCheck } from '@tabler/icons-react'
+import { IconChartBar, IconChevronRight, IconPhoto } from '@tabler/icons-react'
 import { CloseBtn } from './ui'
 import { fmtPlanDate } from './meetingFlow'
 import { loadDailyMode, loadWeeklyMeet } from './dailyMode'
@@ -102,12 +104,12 @@ export default function WeeklyReviewCard({ userId }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_MAIN }}>本週回顧</div>
           <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-            {data ? (n === 0 ? '這週還沒記錄見面，見完人記一下' : `目前見了 ${n} 位，已約好下一次 ${data.planned} 位`) : '讀取中…'}
+            {data ? (n === 0 ? '這週還沒記錄見面，見完人記一下' : `目前已見面 ${n} 位，已約好下一次 ${data.planned} 位`) : '讀取中…'}
           </div>
         </div>
         <IconChevronRight size={18} stroke={1.9} color={TEXT_MUTED} />
       </button>
-      {open && data && <WeeklyReviewSheet data={data} onClose={() => setOpen(false)} />}
+      {open && data && <WeeklyReviewSheet data={data} userId={userId} onClose={() => setOpen(false)} />}
     </>
   )
 }
@@ -123,25 +125,12 @@ function Stat({ label, value, unit }) {
   )
 }
 
-function WeeklyReviewSheet({ data, onClose }) {
+function WeeklyReviewSheet({ data, userId, onClose }) {
+  const navigate = useNavigate()
   const [showAll, setShowAll] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [share, setShare] = useState(false)
   const { ws, we, met, planned, fresh, days312, unplanned, mode, talkedWeek, invitedWeek, weeklyMeet } = data
   const shown = showAll ? met : met.slice(0, 5)
-
-  async function copyText() {
-    const txt = `本週（${md(ws)}–${md(we)}）\n見面 ${met.length} 位\n已約好下一次 ${planned} 位\n新名單 ${fresh} 位\n${mode.label} 做滿 ${days312} 天`
-    try {
-      await navigator.clipboard.writeText(txt)
-    } catch {
-      const ta = document.createElement('textarea')
-      ta.value = txt; document.body.appendChild(ta); ta.select()
-      try { document.execCommand('copy') } catch { /* ignore */ }
-      document.body.removeChild(ta)
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000 }}
@@ -154,7 +143,7 @@ function WeeklyReviewSheet({ data, onClose }) {
         <p style={{ fontSize: 12, color: TEXT_MUTED, margin: '0 0 14px' }}>{md(ws)} 週六 – {md(we)} 週五　目前累計</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-          <Stat label="見面" value={met.length} unit="位" />
+          <Stat label="已見面" value={met.length} unit="位" />
           <Stat label="已約好下一次" value={planned} unit="位" />
           <Stat label="新名單" value={fresh} unit="位" />
           <Stat label={`${mode.label} 做滿`} value={days312} unit="天" />
@@ -164,9 +153,9 @@ function WeeklyReviewSheet({ data, onClose }) {
         <div style={{ background: SUBCARD_BG, borderRadius: RADIUS.md, padding: '4px 12px' }}>
           {[
             ['互動', talkedWeek, (mode.talk * 7) + ' 人次'],
-            ['邀約', invitedWeek, weeklyMeet + ' 人'],
+            ['定下邀約', invitedWeek, weeklyMeet + ' 人'],
             ['新名單', fresh, (mode.fresh * 7) + ' 人'],
-          ].filter(r => r[0] !== '邀約' || weeklyMeet > 0).map(([k, v, g]) => (
+          ].filter(r => r[0] !== '定下邀約' || weeklyMeet > 0).map(([k, v, g]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 14 }}>
               <span style={{ color: TEXT_SECONDARY }}>{k}</span>
               <span style={{ color: TEXT_MAIN }}>{v} <span style={{ color: TEXT_MUTED, fontSize: 12 }}>/ {g}</span></span>
@@ -207,13 +196,19 @@ function WeeklyReviewSheet({ data, onClose }) {
           </div>
         )}
 
-        <button onClick={copyText}
-          style={{ width: '100%', marginTop: 16, padding: 15, borderRadius: 16, border: 'none', background: copied ? 'var(--green-text)' : PRIMARY,
+        <button onClick={() => setShare(true)}
+          style={{ width: '100%', marginTop: 16, padding: 15, borderRadius: 16, border: 'none', background: PRIMARY,
             color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          {copied ? <IconCheck size={18} stroke={2} color="#fff" /> : <IconCopy size={18} stroke={1.9} color="#fff" />}
-          {copied ? '已複製，可以貼給夥伴了' : '複製成文字，傳給夥伴看'}
+          <IconPhoto size={18} stroke={1.9} color="#fff" />
+          分享成圖片，貼到群組
         </button>
-        <p style={{ fontSize: 12, color: TEXT_MUTED, textAlign: 'center', margin: '8px 0 0' }}>只有數字，不會帶出任何人的名字。</p>
+        <p style={{ fontSize: 12, color: TEXT_MUTED, textAlign: 'center', margin: '8px 0 0' }}>圖片只有數字和你寫的話，不會帶出任何人的名字。</p>
+        <button onClick={() => navigate('/report')}
+          style={{ display: 'block', width: '100%', marginTop: 12, background: 'none', border: 'none', padding: '6px 0', cursor: 'pointer', textAlign: 'center' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: PRIMARY }}>給帶領者的報告 ›</span>
+          <span style={{ display: 'block', fontSize: 11.5, color: TEXT_MUTED, marginTop: 2 }}>一對一用，會列出名字和互動內容</span>
+        </button>
+        {share && <ShareSheet userId={userId} onClose={() => setShare(false)} />}
       </div>
     </div>
   )

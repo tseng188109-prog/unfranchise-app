@@ -147,7 +147,7 @@ export function partnerAdvice(s, jar) {
 
 // ── 一週總結 ──
 export function weekSummaryText(w) {
-  return `這週（${md(w.start)}–${md(w.end)}）我見到 ${w.met} 位、開口邀約 ${w.invites} 次、新增名單 ${w.fresh} 位，` +
+  return `這週（${md(w.start)}–${md(w.end)}）我已見面 ${w.met} 位、開口邀約 ${w.invites} 次、新增名單 ${w.fresh} 位，` +
     `每天 ${w.modeLabel} 做滿 ${w.fullDays} 天` + (w.streak > 1 ? `，連續行動 ${w.streak} 天` : '') + '。'
 }
 
@@ -177,7 +177,7 @@ export function weekStats({ meets = [], logs = [], added = [], checkins = [] }) 
 }
 export function weeklyMessage(w) {
   if (!w.met && !w.invites && !w.fresh) return { title: '這週先休息了也沒關係', body: '下週從一位朋友開始就好' }
-  return { title: '這一週，你做到了這些', body: `見到 ${w.met} 位、開口邀約 ${w.invites} 次、新名單 ${w.fresh} 位，來看看你的一週` }
+  return { title: '這一週，你做到了這些', body: `已見面 ${w.met} 位、開口邀約 ${w.invites} 次、新名單 ${w.fresh} 位，來看看你的一週` }
 }
 
 // 一週總結看哪一週：週五看這一週（到今天），其他天看上一週

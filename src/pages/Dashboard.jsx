@@ -1199,7 +1199,7 @@ export default function Dashboard() {
                       </div>}
                   <span style={{ fontSize:11, color:TEXT_MUTED }}>
                     {today312.planCount >= 1 ? '今天邀約了' : '今天還沒邀約'}
-                    {meetupCard && `　見到 ${meetupCard.count}/${meetupCard.target}${meetupCard.streak >= 2 ? `・連續 ${meetupCard.streak} 週` : ''}`}
+                    {meetupCard && `　已見面 ${meetupCard.count}/${meetupCard.target}${meetupCard.streak >= 2 ? `・連續 ${meetupCard.streak} 週` : ''}`}
                   </span>
                 </div>
               )}

@@ -739,7 +739,7 @@ export default function Daily() {
               ))}
             </div>
             <div style={{ fontSize:12,color:TEXT_SECONDARY }}>
-              定下 {weekPlanned}/{planTarget}　見到 {weekMet}/{metTarget}
+              定下 {weekPlanned}/{planTarget}　已見面 {weekMet}/{metTarget}
               <span style={{ color:TEXT_MUTED }}>（目標可在設定調整）</span>
             </div>
           </div>

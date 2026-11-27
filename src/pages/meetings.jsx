@@ -435,7 +435,7 @@ export function ScheduleSheet({ userId, contact, contacts, log, initialDate, onC
         )}
         {!editing && (
           <div style={{ fontSize: 11, color: TEXT_MUTED, textAlign: 'center', marginTop: 8 }}>
-            存起來後會出現在每日行動。見完面記得按「見完了」，才會算見到。
+            存起來後會出現在每日行動。見完面記得按「見完了」，才會算已見面。
           </div>
         )}
       </div>

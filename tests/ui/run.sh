@@ -31,6 +31,7 @@ group 21 8767 -- t36 t37 t38 t41 t44 t49
 group 22 8769 -- t40
 group 23 8770 -- t42
 group 24 8771 -- t45 t46 t47
+group 25 8772 -- t50
 # t39 自己打包兩次（舊版、新版）、自己開伺服器，測「更新後自動換到新版」
 out=$(timeout 600 node t39.cjs 2>&1); code=$?; p=$(echo "$out" | grep -c '^PASS'); f=$(echo "$out" | grep -c '^FAIL')
 if [ $code -ne 0 ] || [ $f -gt 0 ]; then echo "✗ t39（通過 $p、失敗 $f）"; echo "$out" | grep -E '^FAIL|Error' | head -5; fail=1; else echo "✓ t39（通過 $p）"; fi

@@ -9,7 +9,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   await p.goto('http://127.0.0.1:8767/?nocheer=1&whatsnew=1'); await p.waitForTimeout(300)
   await p.evaluate(() => window.__nav('/lhome')); await p.waitForTimeout(4200)
   let t = await text()
-  ok(t.includes('這次更新了什麼') && t.includes('點一下就能釘選或封存') && t.includes('回到電腦畫面就會自動更新'), '更新後第一次打開首頁：跳出「這次更新了什麼」')
+  ok(t.includes('這次更新了什麼') && t.includes('分享成圖片，貼到群組') && t.includes('你的細節'), '更新後第一次打開首頁：跳出「這次更新了什麼」')
   await p.screenshot({ path: __dirname + '/shots/t49_whatsnew.png' })
   await p.getByRole('dialog', { name: '這次更新了什麼' }).getByRole('button', { name: '知道了' }).click(); await p.waitForTimeout(300)
   ok(!(await text()).includes('這次更新了什麼'), '按知道了就關掉')

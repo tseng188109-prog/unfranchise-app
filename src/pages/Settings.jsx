@@ -442,7 +442,7 @@ export default function Settings() {
             </div>
           )}
           <p style={{ fontSize:12,color:TEXT_MUTED,margin:'10px 0 0' }}>一週從週六算到週五。選「不顯示」就不會出現本週進度，也不影響每日節奏。</p>
-          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見到幾位（按了「見完了」才算見到）</p>
+          <p style={{ fontSize:13,fontWeight:600,color:TEXT_SECONDARY,margin:'16px 0 8px' }}>一週想見幾位（按了「見完了」才算已見面）</p>
           <div style={{ display:'flex',flexWrap:'wrap',gap:8 }}>
             {[2, 3, 5, 7, 10].map(n => (
               <button key={n} onClick={() => chooseWeeklyMet(n)}

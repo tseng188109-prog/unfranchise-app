@@ -22,7 +22,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   const back = async () => { await p.getByRole('button', { name: '回到設定' }).click(); await p.waitForTimeout(400) }
   // 我的節奏
   t = await open('我的節奏')
-  ok(t.includes('每日節奏') && t.includes('1-1-2') && t.includes('10-3-2') && t.includes('約人的節奏') && t.includes('一週想見到幾位') && t.includes('活動前幾週') && t.includes('每日打卡項目'), '我的節奏：每日節奏、約人節奏、打卡項目都在')
+  ok(t.includes('每日節奏') && t.includes('1-1-2') && t.includes('10-3-2') && t.includes('約人的節奏') && t.includes('一週想見幾位') && t.includes('活動前幾週') && t.includes('每日打卡項目'), '我的節奏：每日節奏、約人節奏、打卡項目都在')
   ok(!t.includes('我為什麼留在這裡'), '子頁不顯示第一頁的東西')
   await p.getByRole('button', { name: /10-3-2/ }).click(); await p.waitForTimeout(400)
   ok(await p.evaluate(() => window.__db.users[0].tag_settings.daily_mode === 'fast'), '在子頁改節奏照常存')
