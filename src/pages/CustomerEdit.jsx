@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BirthdayPicker } from './pickers'
 import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
+import { planSave } from '../lib/editMerge'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { goBackOr, SaveError, SAVE_FAIL } from './navBack'
 import { askConfirm } from './confirmDialog'
@@ -14,6 +15,20 @@ import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
   ACCENT_GREEN_SOFT, ACCENT_GREEN_TEXT, ACCENT_YELLOW_SOFT, ACCENT_YELLOW_TEXT,
   DANGER, DANGER_SOFT, BORDER, RADIUS } from './designTokens'
+
+const FIELD_NAMES = { name: '姓名', phone: '手機', occupation: '職業', birthday: '生日', carrier: '載具', address: '地址', email: 'Email', contact_id: '連結互動名單' }
+
+function toBase(data) {
+  return {
+    name: data.name || '',
+    phone: data.phone || '',
+    occupation: data.occupation || '',
+    birthday: data.birthday || '',
+    carrier: data.carrier || '',
+    address: data.address || '',
+    email: data.email || '',
+  }
+}
 
 export default function CustomerEdit() {
   const { id } = useParams()
@@ -47,19 +62,16 @@ export default function CustomerEdit() {
     fetchContacts()
   }, [])
 
+  // 打開時資料庫的樣子：存檔時拿來比對，只寫這次真的改了的欄位
+  const baseRef = useRef(null)
+  const [conflictNote, setConflictNote] = useState('')
+
   async function fetchCustomer(ignoreDraft = false) {
     const { data } = await supabase.from('customers').select('*').eq('id', id).single()
     if (data) {
-      const base = {
-        name: data.name || '',
-        phone: data.phone || '',
-        occupation: data.occupation || '',
-        birthday: data.birthday || '',
-        carrier: data.carrier || '',
-        address: data.address || '',
-        email: data.email || '',
-      }
-      // 填到一半 App 關掉重開，草稿自動補回來（單人 App，不用比對資料有沒被別人改過）
+      const base = toBase(data)
+      baseRef.current = { ...base, contact_id: data.contact_id || '' }
+      // 填到一半 App 關掉重開，草稿自動補回來（存檔時會再跟資料庫比一次，另一台改的不會被蓋掉）
       const draft = ignoreDraft ? null : loadDraft(`customerEdit:${id}`)
       setForm(draft?.form || base)
       // 補回的內容跟資料庫裡的不一樣，才提醒「這是上次改到一半的」
@@ -121,16 +133,26 @@ export default function CustomerEdit() {
 
     setSaving(true)
     setSaveErr('')
-    const { error } = await supabase.from('customers').update({
-      name: form.name.trim(),
-      phone: form.phone.trim() || null,
-      occupation: form.occupation.trim() || null,
-      birthday: form.birthday || null,
-      carrier: form.carrier.trim() || null,
-      address: form.address.trim() || null,
-      email: form.email.trim() || null,
-      contact_id: linkedContactId || null,
-    }).eq('id', id)
+    // 存檔前再讀一次：另一台裝置剛改過的欄位不蓋掉；兩邊改到同一個欄位才問
+    const { data: latestRow } = await supabase.from('customers').select('*').eq('id', id).single()
+    const mineNow = { ...form, contact_id: linkedContactId || '' }
+    const plan = planSave(baseRef.current || {}, mineNow, latestRow ? { ...toBase(latestRow), contact_id: latestRow.contact_id || '' } : null)
+    if (plan.conflicts.length) {
+      const names = plan.conflicts.map(k => FIELD_NAMES[k] || k).join('、')
+      const useMine = await askConfirm({ title: '這位顧客剛剛在另一台裝置更新過',
+        message: `另一台裝置也改了「${names}」。要用你這次改的內容，還是先看最新的？`,
+        okText: '用我這次改的', cancelText: '先看最新的' })
+      if (!useMine) {
+        clearDraft(`customerEdit:${id}`)
+        setSaving(false)
+        await fetchCustomer(true)
+        setConflictNote('已經換成最新的內容，你可以再改一次。')
+        return
+      }
+    }
+    const update = {}
+    for (const k of plan.mine) update[k] = k === 'name' ? form.name.trim() : (String(mineNow[k] || '').trim() || null)
+    const { error } = Object.keys(update).length ? await supabase.from('customers').update(update).eq('id', id) : { error: null }
     setSaving(false)
     if (!error) { clearDraft(`customerEdit:${id}`); goBackOr(navigate, `/customers/${id}`) }
     else { console.error('儲存失敗', error); setSaveErr(SAVE_FAIL) }
@@ -179,6 +201,9 @@ export default function CustomerEdit() {
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
+        {conflictNote && (
+          <p style={{ fontSize:13, color:TEXT_SECONDARY, background:'var(--sub)', borderRadius:RADIUS.md, padding:'10px 12px', margin:'0 0 12px' }}>{conflictNote}</p>
+        )}
         {restored && (
           <DraftNotice text="這是你上次改到一半還沒存的內容，已經幫你補回來了。" actionText="放棄修改" onAction={discardDraft} />
         )}

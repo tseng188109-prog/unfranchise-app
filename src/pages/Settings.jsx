@@ -13,8 +13,9 @@ import { DAILY_MODE_LIST, resolveMode, saveDailyMode, resolveFavProducts, saveTa
 import {
   IconFlask, IconUsersGroup,
   IconFlag, IconChevronRight, IconCheck, IconHelpCircle, IconCalendarEvent, IconShieldLock, IconChevronLeft,
-  IconAdjustments, IconBell, IconTags, IconPalette, IconUserCircle, IconQrcode,
+  IconAdjustments, IconBell, IconTags, IconPalette, IconUserCircle, IconQrcode, IconMapPin,
 } from '@tabler/icons-react'
+import { RegionCleanupPanel } from './regionCleanup'
 import { InvitePanel } from './shareApp'
 import {
   PRIMARY, PRIMARY_SOFT, TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY,
@@ -225,7 +226,7 @@ export default function Settings() {
   // 設定第一頁：只放分類清單，右邊顯示目前的設定，點進去才看細節（網址 ?s=… 讓手機返回手勢回到第一頁）
   // 互動名單、業績紀錄、顧客檔案在下面的選單列已經有了，這裡不重複放
   const SECTIONS = {
-    rhythm: '我的節奏', push: '手機提醒', tags: '記錄用的標籤和產品', theme: '外觀', account: '帳號', invite: '邀請朋友一起用',
+    rhythm: '我的節奏', push: '手機提醒', tags: '記錄用的標籤和產品', theme: '外觀', account: '帳號', invite: '邀請朋友一起用', regions: '整理居住地區的寫法',
   }
   const THEME_LABEL = { system: '跟隨手機', light: '白天', dark: '夜晚' }
   const modeLabel = (DAILY_MODE_LIST.find(m => m.key === modeKey) || {}).label || ''
@@ -243,6 +244,7 @@ export default function Settings() {
       { label:'戰隊', path:'/team', Icon: IconFlag },
       { label:'我的活動', path:'/activities', Icon: IconCalendarEvent },
       { label:'試用品追蹤', path:'/samples', Icon: IconFlask },
+      { key:'regions', Icon: IconMapPin, value: '' },
     ],
     [
       { key:'account', Icon: IconUserCircle, value: '名字、密碼、推薦人' },
@@ -585,6 +587,7 @@ export default function Settings() {
         </>)}
 
         {section === 'invite' && <InvitePanel name={name} />}
+        {section === 'regions' && user && <RegionCleanupPanel userId={user.id} />}
 
         {section === 'account' && (
           <>

@@ -38,12 +38,12 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   ok(await p.evaluate(() => window.__db.users[0].tag_settings.jar.monthGoal === 70), '每月目標改 70')
   await p.screenshot({ path: __dirname + '/shots/j5_sheet_big.png', fullPage: true })
   // 先沉下去
-  await p.getByRole('button', { name: /林小美/ }).click(); await p.waitForTimeout(200)
+  await p.getByRole('button', { name: /^林小美(?! 的更多選項)/ }).click(); await p.waitForTimeout(200)
   await p.getByRole('button', { name: '先沉下去' }).click(); await p.waitForTimeout(600)
   ok(await p.evaluate(() => !!window.__db.contacts.find(c => c.id === 'c2').walnut_sunk_at), '先沉下去存好')
   t = await body(p); ok(t.includes('核桃 3 / 8'), '沉下去後剩 3 顆')
   // 放進首選 10
-  await p.getByRole('button', { name: /王怡茜/ }).click(); await p.waitForTimeout(200)
+  await p.getByRole('button', { name: /^王怡茜(?! 的更多選項)/ }).click(); await p.waitForTimeout(200)
   await p.getByRole('button', { name: '放進首選 10' }).click(); await p.waitForTimeout(500)
   ok(await p.evaluate(() => window.__db.contacts.find(c => c.id === 'c1').is_top10 === true), '放進首選 10')
   await p.context().close()

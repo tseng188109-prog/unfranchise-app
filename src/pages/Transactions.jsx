@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { DateField } from './pickers'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
 import { useNavigate } from 'react-router-dom'
@@ -81,16 +82,18 @@ export default function Transactions() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
   useEffect(() => { if (user) fetchData() }, [user, year, month])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (user) fetchData({ auto: true }) }, !!user)
   useEffect(() => {
     if (searchMode && searchInputRef.current) searchInputRef.current.focus()
   }, [searchMode])
 
-  async function fetchData() {
+  async function fetchData(opts) {
     // 第一次打開才轉圈；之後換月份、改資料都不整頁轉圈：換月份時內容先變淡，讀好再換，頁面停在原本的位置
     const loadKey = 'all'
     const firstLoad = loadedKey.current !== loadKey
     if (firstLoad) setLoading(true)
-    else setRefreshing(true)
+    else if (!opts?.auto) setRefreshing(true)
     const start = `${year}-${String(month).padStart(2,'0')}-01`
     const end = new Date(year, month, 0).toISOString().split('T')[0]
     const { data } = await supabase.from('transactions')

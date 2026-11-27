@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPencil, IconX, IconGift, IconPhone, IconMail,
@@ -79,6 +80,8 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
   const [creatingTalk, setCreatingTalk] = useState(false)
 
   useEffect(() => { if (id) { setTab('talk'); fetchData() } }, [id])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (id) fetchData({ auto: true }) }, !!id)
 
   function suggestionDismissKey() { return `linkSuggestDismissed:${id}` }
   function isSuggestionDismissed() {
@@ -89,16 +92,19 @@ export default function CustomerPanel({ id, embedded=false, onBack, onChanged, o
     setSameNameContact(null)
   }
 
-  async function fetchData() {
+  async function fetchData(opts) {
     // 第一次打開（或換成另一個人）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
     const loadKey = id
     const firstLoad = loadedKey.current !== loadKey
     if (firstLoad) setLoading(true)
-    else setRefreshing(true)
-    setShowForm(false)
-    setLinkedContact(null)
-    setSameNameContact(null)
-    setShowOrder(false)
+    else if (!opts?.auto) setRefreshing(true)
+    // 自動更新時不要把你正在開的表單、訂單關掉
+    if (!opts?.auto) {
+      setShowForm(false)
+      setLinkedContact(null)
+      setSameNameContact(null)
+      setShowOrder(false)
+    }
     const { data: c }= await supabase.from('customers').select('*').eq('id', id).single()
     if (c) {
       setCustomer(c)

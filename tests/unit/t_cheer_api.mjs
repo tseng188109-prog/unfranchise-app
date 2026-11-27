@@ -37,7 +37,7 @@ if (night) {
 }
 const t2 = base(); t2.users[1].tag_settings = { notify: { cheer: false } }
 globalThis.__db = db(t2)
-ok((await call('tok-yu', { id: 5 }))[1].reason === (night ? 'night' : 'off'), '對方關掉隊友打氣 → 不送')
+ok((await call('tok-yu', { id: 5 }))[1].reason === 'off', '對方關掉隊友打氣 → 不送')
 const t3 = base(); t3.users[1].tag_settings = { notify: { quietUntil: '2999-01-01' } }
 globalThis.__db = db(t3)
 ok((await call('tok-yu', { id: 5 }))[1].reason === 'quiet', '對方開安靜模式 → 不送')

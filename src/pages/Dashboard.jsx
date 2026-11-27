@@ -3,6 +3,8 @@ import GoalModal from './goalModal'
 import WeeklyReviewCard from './weeklyReview'
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
+import { WhatsNewCard } from './whatsNew'
 import { useNavigate } from 'react-router-dom'
 import NotificationBell from './NotificationBell'
 import LoadingSpinner from './LoadingSpinner'
@@ -233,7 +235,10 @@ export default function Dashboard() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
 
+  const dashLoaded = useRef(false)
   useEffect(() => { if (user) fetchAll() }, [user])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (user) { fetchAll(); loadFutureMeets() } }, !!user)
   // 手機允許了通知、資料庫卻沒有：自動補登記（一天開幾次都沒關係，重複寫同一筆）
   useEffect(() => { if (user) syncPushSubscription(user.id) }, [user])
   // 連續天數：打開首頁讀一次；今天的數字一變（記了互動、邀約、新名單）就重算
@@ -273,13 +278,16 @@ export default function Dashboard() {
   }, [goalModal])
 
   async function fetchAll() {
-    setLoading(true)
+    // 第一次打開才整頁轉圈；之後（自動更新）安靜換資料，頁面停在原本的位置
+    const first = !dashLoaded.current
+    if (first) setLoading(true)
     await Promise.all([
       fetchProfile(), fetchMonthlyStats(), fetchFollowUps(),
       fetchCheckin(), fetchWeekStatus(), fetchViewContacted(),
       fetchGoalText(), fetchStarterTasks(), fetchTeamCard(), fetchMeetupCard(), fetchCareCard()
     ])
-    setLoading(false)
+    dashLoaded.current = true
+    if (first) setLoading(false)
   }
 
   // 老顧客關心卡（先關心、不催單）。最多 3 位，最久沒關心的排前面。
@@ -1495,6 +1503,9 @@ export default function Dashboard() {
         </div>
         <div style={{ height:80 }} />
       </div>
+
+      {/* 更新後第一次打開：這次新增了什麼（每台裝置一次） */}
+      <WhatsNewCard ready={!loading && !!user} isNewUser={!onboardingDone} />
 
       {goalModal && (
         <GoalModal text={goalText} setText={setGoalText} saving={goalSaving} saved={goalSaved}

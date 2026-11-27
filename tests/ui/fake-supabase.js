@@ -1,3 +1,5 @@
+// 測試時不跳「這次更新了什麼」（要測它的測試自己打開）
+if (!location.search.includes('whatsnew=1')) window.__noWhatsNew = true
 let seq = 100
 const T = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 const add = (n) => { const d = new Date(T + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE') }
@@ -39,14 +41,17 @@ function q(name) {
     if (head) return { data: null, count: r.length, error: null }
     return { data: single ? (r[0] || null) : r, error: null }
   }
+  // 有時區的時間（…T…Z、…+08:00）要換成同一個時間比，不能直接比字串（台灣清晨 UTC 還是前一天）
+  const isTs = x => typeof x === 'string' && /^\d{4}-\d\d-\d\dT/.test(x)
+  const cmp = (a, b) => { if (isTs(a) && isTs(b)) { const d = Date.parse(a) - Date.parse(b); return d < 0 ? -1 : d > 0 ? 1 : 0 } const x = String(a); return x < b ? -1 : x > b ? 1 : 0 }
   const o = {
     select(s, opt) { selStr = s || ''; if (opt && opt.head) head = true; return o },
     eq(k, v) { f.push(r => r[k] === v); return o }, neq(k, v) { f.push(r => r[k] !== v); return o },
     in(k, v) { f.push(r => v.includes(r[k])); return o },
-    gte(k, v) { f.push(r => r[k] != null && String(r[k]) >= v); return o },
-    lte(k, v) { f.push(r => r[k] != null && String(r[k]) <= v); return o },
-    lt(k, v) { f.push(r => r[k] != null && String(r[k]) < v); return o },
-    gt(k, v) { f.push(r => r[k] != null && String(r[k]) > v); return o },
+    gte(k, v) { f.push(r => r[k] != null && cmp(r[k], v) >= 0); return o },
+    lte(k, v) { f.push(r => r[k] != null && cmp(r[k], v) <= 0); return o },
+    lt(k, v) { f.push(r => r[k] != null && cmp(r[k], v) < 0); return o },
+    gt(k, v) { f.push(r => r[k] != null && cmp(r[k], v) > 0); return o },
     not(k, op, v) { if (op === 'in') { const set = v.replace(/[()"]/g, '').split(','); f.push(r => !set.includes(r[k])) } else if (op === 'is') f.push(r => r[k] != null); return o },
     is(k, v) { f.push(r => (r[k] ?? null) === v); return o },
     limit() { return o }, range(a, b) { rng = [a, b]; return o }, or() { return o }, order(k) { ord = k; return o },

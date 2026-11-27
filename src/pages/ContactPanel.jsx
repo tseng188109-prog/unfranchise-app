@@ -3,6 +3,7 @@ import { DateField } from './pickers'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
 import { useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPencil, IconArchive, IconCheck, IconX, IconTrash,
@@ -138,13 +139,15 @@ export default function ContactPanel({ id, embedded=false, bare=false, onBack, o
 
 
   useEffect(() => { if (id) fetchContact() }, [id])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (id) fetchContact({ auto: true }) }, !!id)
 
-  async function fetchContact() {
+  async function fetchContact(opts) {
     // 第一次打開（或換成另一個人）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
     const loadKey = id
     const firstLoad = loadedKey.current !== loadKey
     if (firstLoad) setLoading(true)
-    else setRefreshing(true)
+    else if (!opts?.auto) setRefreshing(true)
     // 換成另一個人才回到第一個分頁；同一個人存完資料就停在原本的分頁
     if (firstLoad) { setTab('logs'); setLinkedCustomer(null) }
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single()

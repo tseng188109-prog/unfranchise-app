@@ -1,6 +1,9 @@
 import { actionLabel } from './contactQuick'
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../supabase'
+import RegionInput from './regionInput'
+import { ContactDupHint } from './contactDupHint'
+import { useMyContacts } from './myCustomers'
 import { useNavigate } from 'react-router-dom'
 import { IconArrowLeft, IconCheck } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -51,6 +54,8 @@ export default function ContactNew() {
 
   const [form, setForm] = useState(() => loadDraft('contactNew') || EMPTY_FORM)
   const [errors, setErrors] = useState({})
+  // 已經在名單裡的人（含封存）：同名、同社群帳號時提醒
+  const myContacts = useMyContacts()
 
   // 填到一半 App 關掉重開，草稿自動補回來；存成功或按取消才清掉
   useEffect(() => { saveDraft('contactNew', form) }, [form])
@@ -169,6 +174,7 @@ export default function ContactNew() {
               placeholder="輸入姓名..."
               style={{ ...styles.input, borderColor: errors.name ? DANGER : BORDER }} />
             {errors.name && <p style={styles.errorMsg}>{errors.name}</p>}
+            <ContactDupHint kind="name" value={form.name} contacts={myContacts} />
           </div>
 
           {/* 哪天加進名單的 */}
@@ -194,6 +200,7 @@ export default function ContactNew() {
                 autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} name="social-handle" data-1p-ignore data-lpignore="true"
                 style={{ ...styles.input, marginTop:8 }} />
             )}
+            {form.platform && <ContactDupHint kind="account" value={form.platform_account} contacts={myContacts} />}
           </div>
 
           {/* 蛋型 */}
@@ -248,8 +255,7 @@ export default function ContactNew() {
               </div>
               <div style={styles.fieldWrap}>
                 <label style={styles.label}>居住地區</label>
-                <input value={form.region} onChange={e=>set('region',e.target.value)}
-                  placeholder="例：台北市大安區" style={styles.input} />
+                <RegionInput value={form.region} onChange={v=>set('region',v)} inputStyle={styles.input} />
               </div>
               <div className="cn-full" style={styles.fieldWrap}>
                 <label style={styles.label}>認識管道／備註</label>

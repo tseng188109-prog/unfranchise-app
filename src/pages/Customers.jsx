@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
+import { matchRecord, snippet, CUSTOMER_FIELDS } from '../lib/searchText'
+import { ArchivedHint } from './archivedHint'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
-  IconPin, IconTrash, IconX, IconMail, IconBell, IconArchive, IconRefresh,
-} from '@tabler/icons-react'
+  IconPin, IconTrash, IconX, IconMail, IconBell, IconArchive, IconRefresh, IconDotsVertical } from '@tabler/icons-react'
 import CustomerPanel from './CustomerPanel'
 import { archiveContactOfCustomer, restoreContactOfCustomer } from './customerLink'
 import LoadingSpinner from './LoadingSpinner'
@@ -70,16 +72,18 @@ export default function Customers() {
   }, [])
 
   useEffect(() => { if (user) fetchCustomers() }, [user, showArchived])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (user) fetchCustomers({ auto: true }) }, !!user)
 
-  async function fetchCustomers() {
+  async function fetchCustomers(opts) {
     // 第一次打開（或換成另一個清單）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
     const loadKey = String(showArchived)
     const firstLoad = loadedKey.current !== loadKey
     if (firstLoad) setLoading(true)
-    else setRefreshing(true)
+    else if (!opts?.auto) setRefreshing(true)
     const { data } = await supabase
       .from('customers')
-      .select('id,name,phone,occupation,repurchase_reminder,is_pinned')
+      .select('id,name,phone,occupation,address,repurchase_reminder,is_pinned')
       .eq('user_id', user.id)
       .eq('is_archived', showArchived)
       .order('is_pinned', { ascending: false })
@@ -236,9 +240,13 @@ export default function Customers() {
   }
   // ─────────────────────────────────────────────────
 
-  const filtered = customers.filter(c =>
-    !search || c.name.includes(search) || (c.phone||'').includes(search)
-  )
+  // 搜尋：姓名、電話、職業、地址；寫法差異（大小寫、全形半形、臺／台、電話的 -）都當成一樣
+  const searchHits = new Map()
+  const filtered = customers.filter(c => {
+    const hit = matchRecord(c, search, CUSTOMER_FIELDS)
+    if (hit && hit.label) searchHits.set(c.id, hit)
+    return !!hit
+  })
   const today = new Date().toISOString().split('T')[0]
 
   function CustomerCard({ c }) {
@@ -272,6 +280,11 @@ export default function Customers() {
             {c.occupation||''}
             {c.occupation && c.phone ? ' · ' : ''}{c.phone||''}
           </p>
+          {searchHits.has(c.id) && (
+            <p style={{ fontSize:12, color:TEXT_MUTED, margin:'3px 0 0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {searchHits.get(c.id).label}：{snippet(searchHits.get(c.id).value, search)}
+            </p>
+          )}
         </div>
         {showArchived ? (
           <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>封存中</span>
@@ -287,6 +300,13 @@ export default function Customers() {
             )}
           </div>
         )}
+        <button aria-label={`${c.name} 的更多選項`} title="更多選項（釘選、封存⋯）"
+          onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); setMenuTarget(c) }}
+          style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,
+            padding:'4px 6px',marginRight:-6,flexShrink:0,display:'flex',alignItems:'center' }}>
+          <IconDotsVertical size={17} stroke={1.9} />
+        </button>
       </div>
     )
   }
@@ -355,7 +375,7 @@ export default function Customers() {
           <IconSearch size={16} stroke={1.9} color={TEXT_MUTED}
             style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="搜尋姓名、電話..."
+            placeholder="搜尋姓名、電話、職業、地址..."
             style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:RADIUS.md,
               border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG,
               boxSizing:'border-box', outline:'none', color:TEXT_MAIN }} />
@@ -389,7 +409,7 @@ export default function Customers() {
                 {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconMail size={36} stroke={1.5} />}
               </div>
               <p style={{ fontSize:15 }}>
-                {showArchived ? '沒有封存的顧客' : '還沒有顧客，從業績新增或點 + 建立顧客檔案'}
+                {search.trim() ? `沒有符合「${search.trim()}」的顧客。` : showArchived ? '沒有封存的顧客' : '還沒有顧客，從業績新增或點 + 建立顧客檔案'}
               </p>
             </div>
           ) : (
@@ -397,6 +417,10 @@ export default function Customers() {
               {filtered.map(c => <CustomerCard key={c.id} c={c} />)}
             </div>
           )}
+          <div style={{ padding:'0 16px' }}>
+            <ArchivedHint table="customers" fields={CUSTOMER_FIELDS} select="id,name,phone,occupation,address" search={search} active={!showArchived}
+              onOpen={() => { setShowArchived(true); setSelectedId(null) }} />
+          </div>
         </div>
 
         {/* 桌面版右側面板（CSS 控制只在 ≥1024px 顯示） */}

@@ -4,6 +4,7 @@ import { CloseBtn } from './ui'
 import GoalModal from './goalModal'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
 import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
 import { dayDotStatus, DotLegend, TaskVisibilitySheet } from './checkinStatus'
@@ -136,6 +137,11 @@ export default function Daily() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
   useEffect(() => { if (user) fetchAll() }, [user, viewDate])
+  // 手機記完，切回電腦畫面就安靜更新（每日、每週、每月都更新）
+  useAutoRefresh(() => {
+    if (!user || !loadedOnce.current) return
+    Promise.all([fetchCheckins(), fetchWeekStatus(), fetch312(), fetchGoalText(), fetchWeekLogs(), fetchMonthLogs()])
+  }, !!user)
   useEffect(() => { if (user) fetchWeekLogs() }, [user, weekViewDate])
   useEffect(() => { if (user) fetchMonthLogs() }, [user, monthViewDate])
   useEffect(() => {

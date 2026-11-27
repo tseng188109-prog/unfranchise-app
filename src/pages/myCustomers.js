@@ -18,3 +18,21 @@ export function useMyCustomers() {
   return list
 }
 
+
+// 新增互動名單用：我的互動名單（含封存），比對同名、同社群帳號
+export function useMyContacts() {
+  const [list, setList] = useState([])
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('contacts')
+        .select('id,name,occupation,platform,platform_account,is_archived').eq('user_id', user.id).limit(3000)
+      if (alive) setList(data || [])
+    })()
+    return () => { alive = false }
+  }, [])
+  return list
+}
+

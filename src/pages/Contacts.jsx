@@ -4,11 +4,13 @@ import { askConfirm } from './confirmDialog'
 import { undoableDelete } from './undoDelete'
 import { mergeAddedDates, addedDay } from './addedDate'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
+import { matchRecord, snippet, CONTACT_FIELDS } from '../lib/searchText'
+import { ArchivedHint } from './archivedHint'
 import { useNavigate } from 'react-router-dom'
 import {
   IconSearch, IconPlus, IconDownload, IconFileTypeCsv, IconFolder,
-  IconPin, IconArchive, IconRefresh, IconUsers, IconX, IconTrash, IconFlask,
-} from '@tabler/icons-react'
+  IconPin, IconArchive, IconRefresh, IconUsers, IconX, IconTrash, IconFlask, IconDotsVertical } from '@tabler/icons-react'
 import ContactPanel from './ContactPanel'
 import { Top10Strip } from './top10'
 import { JarCard } from './jar'
@@ -110,6 +112,8 @@ export default function Contacts() {
   }, [])
 
   useEffect(() => { if (user) fetchContacts() }, [user, showArchived])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (user) fetchContacts({ auto: true }) }, !!user)
   useEffect(() => { if (user && sortBy === 'last_contact') fetchRealLastContact() }, [user, sortBy])
   useEffect(() => { if (user) fetchActiveSamples() }, [user])
 
@@ -118,15 +122,15 @@ export default function Contacts() {
   useEffect(() => { try { sessionStorage.setItem('contacts_sortDir', sortDir) } catch {} }, [sortDir])
   useEffect(() => { try { sessionStorage.setItem('contacts_eggFilter', eggFilter) } catch {} }, [eggFilter])
 
-  async function fetchContacts() {
+  async function fetchContacts(opts) {
     // 第一次打開（或換成另一個清單）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
     const loadKey = String(showArchived)
     const firstLoad = loadedKey.current !== loadKey
     if (firstLoad) setLoading(true)
-    else setRefreshing(true)
+    else if (!opts?.auto) setRefreshing(true)
     let query = supabase
       .from('contacts')
-      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,next_contact_date,last_contact_date,last_interacted_at,is_pinned,created_at')
+      .select('id,name,occupation,egg_type,need_level,action_type,relationship_stage,referral_stage,is_muted,next_contact_date,last_contact_date,last_interacted_at,is_pinned,created_at,platform,platform_account,region,note,pain_point,asked_products')
       .eq('user_id', user.id)
       .eq('is_archived', showArchived)
 
@@ -327,14 +331,15 @@ async function handleImport() {
   }
   // ─────────────────────────────────────────────────
 
-  // 搜尋不分大小寫：兩邊都轉小寫再比對
-  const searchLower = search.trim().toLowerCase()
+  // 搜尋：姓名、職業、社群帳號、地區、備註、痛點、詢問過的產品；大小寫、全形半形、臺／台、@ 都當成一樣
+  // 不是靠名字找到的，名字下面多一行小字說明是哪裡符合
+  const searchHits = new Map()
   const filtered = contacts.filter(c => {
     const matchEgg = eggFilter === '全部' || (eggFilter === '顧客' ? customerContactIds.has(c.id) : c.egg_type === eggFilter)
-    const matchSearch = !searchLower
-      || (c.name || '').toLowerCase().includes(searchLower)
-      || (c.occupation || '').toLowerCase().includes(searchLower)
-    return matchEgg && matchSearch
+    if (!matchEgg) return false
+    const hit = matchRecord(c, search, CONTACT_FIELDS)
+    if (hit && hit.label) searchHits.set(c.id, hit)
+    return !!hit
   })
 
   // 排序函數（依目前選擇 + 方向套用到任一分組陣列）
@@ -458,6 +463,11 @@ async function handleImport() {
               </>
             })()}
           </div>
+          {searchHits.has(c.id) && (
+            <div style={{ fontSize:12, color:TEXT_MUTED, marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {searchHits.get(c.id).label}：{snippet(searchHits.get(c.id).value, search)}
+            </div>
+          )}
         </div>
         {!showArchived && c.is_muted && (
           <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>時機未到</span>
@@ -475,6 +485,13 @@ async function handleImport() {
         {showArchived && (
           <span style={{ fontSize:12, color:TEXT_MUTED, whiteSpace:'nowrap' }}>封存中</span>
         )}
+        <button aria-label={`${c.name} 的更多選項`} title="更多選項（釘選、封存⋯）"
+          onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); setMenuTarget(c) }}
+          style={{ background:'none',border:'none',cursor:'pointer',color:TEXT_MUTED,
+            padding:'4px 6px',marginRight:-6,flexShrink:0,display:'flex',alignItems:'center' }}>
+          <IconDotsVertical size={17} stroke={1.9} />
+        </button>
       </div>
     )
   }
@@ -559,7 +576,7 @@ async function handleImport() {
           <IconSearch size={16} stroke={1.9} color={TEXT_MUTED}
             style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="搜尋姓名、職業..."
+            placeholder="搜尋姓名、職業、IG、地區、備註..."
             style={{ width:'100%', padding:'10px 12px 10px 36px', borderRadius:RADIUS.md,
               border:`1px solid ${BORDER}`, fontSize:14, background:SUBCARD_BG, color:TEXT_MAIN,
               boxSizing:'border-box', outline:'none' }} />
@@ -653,7 +670,7 @@ async function handleImport() {
                 {showArchived ? <IconArchive size={36} stroke={1.5} /> : <IconUsers size={36} stroke={1.5} />}
               </div>
               <p style={{ fontSize:15 }}>
-                {showArchived ? '沒有封存的名單' : '名單上還沒有人，點 + 新增第一位吧！'}
+                {search.trim() ? `沒有符合「${search.trim()}」的人。` : showArchived ? '沒有封存的名單' : '名單上還沒有人，點 + 新增第一位吧！'}
               </p>
             </div>
           ) : showArchived ? (
@@ -681,6 +698,10 @@ async function handleImport() {
               ))}
             </div>
           )}
+          <div style={{ padding:'0 16px' }}>
+            <ArchivedHint table="contacts" fields={CONTACT_FIELDS} select="id,name,occupation,platform,platform_account,region,note,pain_point,asked_products" search={search} active={!showArchived}
+              onOpen={() => { setShowArchived(true); setEggFilter('全部'); setSelectedId(null) }} />
+          </div>
         </div>
 
         {/* 桌面版右側面板（CSS 控制只在 ≥1024px 顯示） */}

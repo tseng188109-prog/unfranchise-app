@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BirthdayPicker } from './pickers'
 import LoadingSpinner from './LoadingSpinner'
 import { supabase } from '../supabase'
+import { planSave } from '../lib/editMerge'
+import { askConfirm } from './confirmDialog'
+import RegionInput from './regionInput'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { saveDraft, loadDraft, clearDraft } from './formDraft'
@@ -24,6 +27,28 @@ const ACTION_MAP = {
 }
 const DAYS_MAP = {'輕鬆互動':30,'軟性活動':14,'商機講座':5,'直接法':5}
 
+const FIELD_NAMES = { name: '姓名', platform: '社群平台', platform_account: '社群帳號', egg_type: '蛋的種類', need_level: '需求度',
+  action_type: '行動類型', occupation: '職業', region: '居住地區', note: '認識管道／備註', pain_point: '痛點／現況',
+  asked_products: '詢問過的產品', birthday: '生日', added_date: '加進名單的日期' }
+
+function toBase(data) {
+  return {
+    name: data.name || '',
+    platform: data.platform || '',
+    platform_account: data.platform_account || '',
+    egg_type: data.egg_type || '',
+    need_level: data.need_level || '',
+    action_type: data.action_type || '',
+    occupation: data.occupation || '',
+    region: data.region || '',
+    note: data.note || '',
+    pain_point: data.pain_point || '',
+    asked_products: data.asked_products || '',
+    birthday: data.birthday || '',
+    added_date: addedDay(data),
+  }
+}
+
 export default function ContactEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -38,26 +63,16 @@ export default function ContactEdit() {
   const [isOwnName, setIsOwnName] = useState(true) // 顧客自動建立／匯入的檔案不算新名單，不顯示這個欄位
 
   useEffect(() => { fetchContact() }, [id])
+  // 打開時資料庫的樣子：存檔時拿來比對，只寫這次真的改了的欄位
+  const baseRef = useRef(null)
+  const [conflictNote, setConflictNote] = useState('')
 
   async function fetchContact() {
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single()
     if (data) {
-      const base = {
-        name: data.name || '',
-        platform: data.platform || '',
-        platform_account: data.platform_account || '',
-        egg_type: data.egg_type || '',
-        need_level: data.need_level || '',
-        action_type: data.action_type || '',
-        occupation: data.occupation || '',
-        region: data.region || '',
-        note: data.note || '',
-        pain_point: data.pain_point || '',
-        asked_products: data.asked_products || '',
-        birthday: data.birthday || '',
-        added_date: addedDay(data),
-      }
-      // 填到一半 App 關掉重開，草稿自動補回來（這是單人 App，不用比對資料有沒被別人改過）
+      const base = toBase(data)
+      baseRef.current = base
+      // 填到一半 App 關掉重開，草稿自動補回來（存檔時會再跟資料庫比一次，另一台改的不會被蓋掉）
       const draft = loadDraft(`contactEdit:${id}`)
       const initial = draft || base
       setForm(initial)
@@ -98,24 +113,32 @@ export default function ContactEdit() {
       next_contact_date = d.toISOString().split('T')[0]
     }
 
-    const update = {
-      name: form.name.trim(),
-      platform: form.platform || null,
-      platform_account: form.platform_account || null,
-      egg_type: form.egg_type || null,
-      need_level: form.need_level || null,
-      action_type: form.action_type || null,
-      occupation: form.occupation || null,
-      region: form.region || null,
-      note: form.note || null,
-      pain_point: form.pain_point || null,
-      asked_products: form.asked_products || null,
-      birthday: form.birthday || null,
+    // 存檔前再讀一次：另一台裝置剛改過的欄位不蓋掉；兩邊改到同一個欄位才問
+    const { data: latestRow } = await supabase.from('contacts').select('*').eq('id', id).single()
+    const plan = planSave(baseRef.current || {}, form, latestRow ? toBase(latestRow) : null)
+    if (plan.conflicts.length) {
+      const names = plan.conflicts.map(k => FIELD_NAMES[k] || k).join('、')
+      const useMine = await askConfirm({ title: '這個人剛剛在另一台裝置更新過',
+        message: `另一台裝置也改了「${names}」。要用你這次改的內容，還是先看最新的？`,
+        okText: '用我這次改的', cancelText: '先看最新的' })
+      if (!useMine) {
+        clearDraft(`contactEdit:${id}`)
+        setSaving(false)
+        await fetchContact()
+        setConflictNote('已經換成最新的內容，你可以再改一次。')
+        return
+      }
+    }
+    const update = {}
+    for (const k of plan.mine) {
+      if (k === 'added_date') continue // 下面另外處理
+      update[k] = k === 'name' ? form.name.trim() : (form[k] || null)
     }
     if (next_contact_date) update.next_contact_date = next_contact_date
 
     // 只有真的改了日期才寫，不然舊資料單純改職業也會被寫上日期
     if (isOwnName && form.added_date && form.added_date !== origAdded) update.added_date = form.added_date
+    if (!Object.keys(update).length) { setSaving(false); clearDraft(`contactEdit:${id}`); goBackOr(navigate, `/contacts/${id}`); return }
     const { error } = await writeWithAddedDate(payload => supabase.from('contacts').update(payload).eq('id', id), update)
     setSaving(false)
     if (error) { setSaveErr(SAVE_FAIL); return }
@@ -146,6 +169,9 @@ export default function ContactEdit() {
 
       <div className="dash-container" style={{ padding:'16px 16px 100px' }}>
 
+        {conflictNote && (
+          <p style={{ fontSize:13, color:TEXT_SECONDARY, background:'var(--sub)', borderRadius:RADIUS.md, padding:'10px 12px', margin:'0 0 12px' }}>{conflictNote}</p>
+        )}
         <div style={fw}>
           <label style={lb}>姓名 <span style={{ color:DANGER }}>*</span></label>
           <input value={form.name} onChange={e=>set('name',e.target.value)} style={inp} />
@@ -227,8 +253,10 @@ export default function ContactEdit() {
             ].map(f => (
               <div key={f.key} style={fw}>
                 <label style={lb}>{f.label}</label>
-                <input value={form[f.key]} onChange={e=>set(f.key,e.target.value)}
-                  placeholder={f.placeholder} style={inp} />
+                {f.key === 'region'
+                  ? <RegionInput value={form.region} onChange={v=>set('region',v)} inputStyle={inp} />
+                  : <input value={form[f.key]} onChange={e=>set(f.key,e.target.value)}
+                      placeholder={f.placeholder} style={inp} />}
               </div>
             ))}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import { useAutoRefresh } from '../lib/autoRefresh'
 import { fetchAddedContacts } from './addedDate'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -87,14 +88,16 @@ export default function Team() {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
   }, [])
   useEffect(() => { if (user) fetchTeam() }, [user])
+  // 手機記完，切回電腦畫面就安靜更新
+  useAutoRefresh(() => { if (user) fetchTeam({ auto: true }) }, !!user)
   useEffect(() => { markNewsSeen() }, [])
 
-  async function fetchTeam() {
+  async function fetchTeam(opts) {
     // 第一次打開（或換成另一個頁）才轉圈；之後重新整理資料就安靜更新，頁面停在原本的位置
     const loadKey = 'all'
     const firstLoad = loadedKey.current !== loadKey
     if (firstLoad) setLoading(true)
-    else setRefreshing(true)
+    else if (!opts?.auto) setRefreshing(true)
     const teamData = await fetchMyTeam(user.id)
     if (!teamData) { setTeam(null); setMembers([]); finishLoad(loadKey); return }
     setTeam(teamData)

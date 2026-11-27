@@ -89,6 +89,22 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   await search.fill('李'); await p.waitForTimeout(200)
   ok((await text()).includes('互動名單裡沒有叫「李」的人，不用連結也可以直接儲存。'), '編輯：搜不到說「直接儲存」')
   await p.screenshot({ path: __dirname + '/shots/t42_edit.png' })
+  // ── 編輯顧客：兩台裝置同時改 ──
+  await go('/customers/k2/edit')
+  await p.evaluate(() => { window.__db.customers.find(c => c.id === 'k2').address = '台南市東區' })
+  await p.getByPlaceholder('輸入職業（選填）...').fill('老師')
+  let n0 = await p.evaluate(() => window.__ops.length)
+  await p.getByRole('button', { name: '儲存' }).last().click(); await p.waitForTimeout(800)
+  let ups = await p.evaluate(n => window.__ops.slice(n).filter(o => o[0] === 'update' && o[1] === 'customers').map(o => o[2]), n0)
+  ok(ups.length === 1 && ups[0].occupation === '老師' && !('address' in ups[0]), '顧客：我改職業、另一台改地址：只寫職業')
+  await go('/customers/k2/edit')
+  await p.evaluate(() => { window.__db.customers.find(c => c.id === 'k2').phone = '0900111222' })
+  await p.getByPlaceholder('輸入手機（選填）...').fill('0933444555')
+  await p.getByRole('button', { name: '儲存' }).last().click(); await p.waitForTimeout(700)
+  ok((await text()).includes('這位顧客剛剛在另一台裝置更新過') && (await text()).includes('另一台裝置也改了「手機」'), '顧客：兩邊都改手機，問要用哪一份')
+  await p.getByRole('button', { name: '先看最新的' }).click(); await p.waitForTimeout(800)
+  ok((await p.getByPlaceholder('輸入手機（選填）...').inputValue()) === '0900111222', '先看最新的：換成另一台的手機')
+
   // ── 記業績 → 快速建檔：生日也用選的 ──
   await go('/transactions/new')
   await p.getByPlaceholder('搜尋顧客姓名、手機或職業...').fill('阿德'); await p.waitForTimeout(300)

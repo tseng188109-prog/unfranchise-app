@@ -33,9 +33,13 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
   await p.getByRole('button', { name: /收起已經完成的/ }).click(); await p.waitForTimeout(300)
   ok(!(await monthText(p)).includes('新店址看現場'), '再點一下收起來')
   // 點月曆上的某一天：只看那天，不收
-  await p.locator('.daily-month').getByText('3', { exact: true }).first().click(); await p.waitForTimeout(400)
-  t = await monthText(p)
-  ok(t.includes('新店址看現場') && !t.includes('已經完成的'), '點月曆某一天：只看那天，不收起來')
+  // 點「新店址看現場」那一天（21 天前；跨月的話這項跳過，因為那天不在這個月的月曆上）
+  const d21 = await p.evaluate(() => window.__add(-21))
+  if (d21.slice(0, 7) === (await p.evaluate(() => window.__T)).slice(0, 7)) {
+    await p.locator('.daily-month').getByText(String(Number(d21.slice(8))), { exact: true }).first().click(); await p.waitForTimeout(400)
+    t = await monthText(p)
+    ok(t.includes('新店址看現場') && !t.includes('已經完成的'), '點月曆某一天：只看那天，不收起來')
+  } else console.log('（21 天前在上個月，「點月曆某一天」這項今天跳過）')
   await p.context().close()
   // 沒有已經完成的：沒有那一行
   p = await open({ viewport: { width: 1440, height: 1000 } }, '?x=1')

@@ -10,5 +10,7 @@ const got = s.beans+'|'+s.walnuts.length+'|'+s.walnuts.filter(w=>w.cooling).leng
 // 「熱度在退」跟今天日期有關（每天會變），所以只固定豆子和核桃；
 // 資料庫那邊（tests/db/run.sh）會用同一天跑這支，拿完整的三個數字去比對。
 if (process.argv.includes('--value')) { console.log(got); process.exit(0) }
-const fixed = s.beans === 272 && s.walnuts.length === 56
-console.log((fixed ? 'PASS' : 'FAIL') + ' 400 筆模擬名單：豆子|核桃|熱度在退 = ' + got + '（舊規則核桃 ' + old.walnuts.length + '）')
+// 固定的那組數字用固定的日期算（核桃也跟日期有關，用今天算每過幾天就會變，測試會自己壞掉）
+const s0 = summarizeJar(rows, lastBizPlans(d.logs), '2026-11-20')
+const fixed = s0.beans === 272 && s0.walnuts.length === 56
+console.log((fixed ? 'PASS' : 'FAIL') + ' 400 筆模擬名單（以 2026-11-20 來算）：豆子|核桃 = ' + s0.beans + '|' + s0.walnuts.length + '；今天：' + got + '（舊規則核桃 ' + old.walnuts.length + '）')
